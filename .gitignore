@@ -1,0 +1,22 @@
+﻿# Dependencies & Build Outputs
+node_modules/
+dist/
+dist-ssr/
+build/
+
+# Security: Environment Variables (CRITICAL)
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# Logs & Diagnostics
+*.log
+npm-debug.log*
+pnpm-debug.log*
+
+# OS & Editor Junk
+.DS_Store
+Thumbs.db
+.idea/
