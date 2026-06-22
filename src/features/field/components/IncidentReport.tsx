@@ -1,15 +1,13 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router";
 import { 
-  AlertTriangle, 
   Camera, 
-  UploadCloud, 
-  MapPin, 
   ChevronDown, 
   CheckCircle2, 
   X, 
   AlertOctagon, 
-  Image as ImageIcon 
+  Image as ImageIcon,
+  ArrowLeft
 } from "lucide-react";
 
 export function IncidentReport() {
@@ -94,6 +92,18 @@ export function IncidentReport() {
 
   return (
     <div className="max-w-md mx-auto space-y-6">
+      {/* Back to Dashboard Link */}
+      <div className="px-1">
+        <button
+          type="button"
+          onClick={() => navigate("/tech")}
+          className="inline-flex items-center gap-1 text-xs font-bold text-gray-400 hover:text-red-500 transition-colors"
+        >
+          <ArrowLeft size={14} />
+          <span>Back to Dashboard</span>
+        </button>
+      </div>
+
       {/* Header */}
       <div className="px-1">
         <h1 className="text-xl font-black text-gray-900 tracking-tight">Report Incident</h1>

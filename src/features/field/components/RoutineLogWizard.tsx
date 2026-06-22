@@ -1,15 +1,23 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router";
-import {
-  CheckCircle,
-  XCircle,
+import { 
+  ClipboardList, 
+  Activity, 
+  ArrowLeft, 
   ArrowRight,
-  ArrowLeft,
-  Save,
-  CheckCircle2,
+  CheckCircle, 
+  XCircle, 
+  Save, 
+  CheckCircle2, 
   AlertTriangle,
-  Database
+  Database,
+  ChevronRight
 } from "lucide-react";
+import { HOURLY_TELEMETRY_SCHEMA } from "../constants/telemetrySchema";
+
+// ==========================================
+// 1. DATA STRUCTURES FOR DAILY PHYSICAL FORM
+// ==========================================
 
 interface Checkpoint {
   id: string;
@@ -28,7 +36,7 @@ interface Step {
   categories: Category[];
 }
 
-const steps: Step[] = [
+const dailySteps: Step[] = [
   {
     id: 1,
     name: "Power Entry & Distribution",
@@ -140,29 +148,29 @@ const steps: Step[] = [
 ];
 
 interface CheckpointResponse {
-  status: boolean | null; // true = OK, false = FAULT, null = unanswered
+  status: boolean | null; // true = OK, false = FAULT
   comment: string;
 }
 
-interface InspectionsState {
+interface DailyInspectionsState {
   [categoryId: string]: {
     [checkpointId: string]: CheckpointResponse;
   };
 }
 
-interface FormDataState {
+interface DailyFormData {
   metadata: {
     siteName: string;
     date: string;
     shift: string;
     technicianId: string;
   };
-  inspections: InspectionsState;
+  inspections: DailyInspectionsState;
 }
 
-const initialFormData = (): FormDataState => {
-  const inspections: InspectionsState = {};
-  steps.forEach((step) => {
+const initialDailyFormData = (): DailyFormData => {
+  const inspections: DailyInspectionsState = {};
+  dailySteps.forEach((step) => {
     step.categories.forEach((cat) => {
       inspections[cat.id] = {};
       cat.checkpoints.forEach((cp) => {
@@ -182,31 +190,73 @@ const initialFormData = (): FormDataState => {
   };
 };
 
+// ==========================================
+// 2. DATA STRUCTURES FOR HOURLY TELEMETRY FORM
+// ==========================================
+
+interface HourlyMetadata {
+  siteName: string;
+  date: string;
+  shift: string;
+  technicianId: string;
+}
+
+const initialHourlyMetadata = (): HourlyMetadata => ({
+  siteName: "LUSAKA-HQ-DC1",
+  date: new Date().toISOString(),
+  shift: "Day",
+  technicianId: "NTC-ZM-0874"
+});
+
+// ==========================================
+// 3. CORE COMPONENT
+// ==========================================
+
 export function RoutineLogWizard() {
   const navigate = useNavigate();
-  const [currentStep, setCurrentStep] = useState(1);
-  const [formData, setFormData] = useState<FormDataState>(initialFormData());
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [isSuccess, setIsSuccess] = useState(false);
-  const [validationError, setValidationError] = useState<string | null>(null);
-  const [showPayload, setShowPayload] = useState(false);
+  const [currentView, setCurrentView] = useState<"menu" | "daily" | "hourly">("menu");
 
-  // Update date to current ISO timestamp on load
+  // Daily Form State
+  const [currentDailyStep, setCurrentDailyStep] = useState(1);
+  const [dailyFormData, setDailyFormData] = useState<DailyFormData>(initialDailyFormData());
+  const [isDailySubmitting, setIsDailySubmitting] = useState(false);
+  const [isDailySuccess, setIsDailySuccess] = useState(false);
+  const [dailyValidationError, setDailyValidationError] = useState<string | null>(null);
+  const [showDailyPayload, setShowDailyPayload] = useState(false);
+
+  // Hourly Form State (Dynamic Category Steps & Data Points)
+  const hourlyCategories = Array.from(
+    new Set(HOURLY_TELEMETRY_SCHEMA.map((field) => field.category))
+  );
+  const [currentHourlyStep, setCurrentHourlyStep] = useState(0); // 0 to N-1
+  const [hourlyMetadata, setHourlyMetadata] = useState<HourlyMetadata>(initialHourlyMetadata());
+  const [hourlyData, setHourlyData] = useState<Record<string, any>>({});
+  const [isHourlySubmitting, setIsHourlySubmitting] = useState(false);
+  const [isHourlySuccess, setIsHourlySuccess] = useState(false);
+  const [hourlyValidationError, setHourlyValidationError] = useState<string | null>(null);
+  const [showHourlyPayload, setShowHourlyPayload] = useState(false);
+
+  // Refresh timestamps on mount or view changes
   useEffect(() => {
-    setFormData((prev) => ({
+    const now = new Date().toISOString();
+    setDailyFormData((prev) => ({
       ...prev,
-      metadata: {
-        ...prev.metadata,
-        date: new Date().toISOString()
-      }
+      metadata: { ...prev.metadata, date: now }
     }));
-  }, []);
+    setHourlyMetadata((prev) => ({
+      ...prev,
+      date: now
+    }));
+  }, [currentView]);
 
-  const currentStepData = steps.find((s) => s.id === currentStep)!;
+  // ------------------------------------------
+  // DAILY FORM HANDLERS
+  // ------------------------------------------
+  const currentDailyStepData = dailySteps.find((s) => s.id === currentDailyStep)!;
 
-  const handleStatusChange = (categoryId: string, checkpointId: string, status: boolean) => {
-    setValidationError(null);
-    setFormData((prev) => ({
+  const handleDailyStatusChange = (categoryId: string, checkpointId: string, status: boolean) => {
+    setDailyValidationError(null);
+    setDailyFormData((prev) => ({
       ...prev,
       inspections: {
         ...prev.inspections,
@@ -215,7 +265,6 @@ export function RoutineLogWizard() {
           [checkpointId]: {
             ...prev.inspections[categoryId][checkpointId],
             status,
-            // Clear comment if changing back to OK
             comment: status ? "" : prev.inspections[categoryId][checkpointId].comment
           }
         }
@@ -223,9 +272,9 @@ export function RoutineLogWizard() {
     }));
   };
 
-  const handleCommentChange = (categoryId: string, checkpointId: string, comment: string) => {
-    setValidationError(null);
-    setFormData((prev) => ({
+  const handleDailyCommentChange = (categoryId: string, checkpointId: string, comment: string) => {
+    setDailyValidationError(null);
+    setDailyFormData((prev) => ({
       ...prev,
       inspections: {
         ...prev.inspections,
@@ -240,16 +289,16 @@ export function RoutineLogWizard() {
     }));
   };
 
-  const validateStep = (): boolean => {
-    for (const cat of currentStepData.categories) {
+  const validateDailyStep = (): boolean => {
+    for (const cat of currentDailyStepData.categories) {
       for (const cp of cat.checkpoints) {
-        const response = formData.inspections[cat.id][cp.id];
+        const response = dailyFormData.inspections[cat.id][cp.id];
         if (response.status === null) {
-          setValidationError(`Please complete all checkpoints under ${cat.name}.`);
+          setDailyValidationError(`Please complete all checkpoints under ${cat.name}.`);
           return false;
         }
         if (response.status === false && !response.comment.trim()) {
-          setValidationError(`A comment is required to describe the fault in "${cp.question}".`);
+          setDailyValidationError(`A comment is required to describe the fault in "${cp.question}".`);
           return false;
         }
       }
@@ -257,35 +306,35 @@ export function RoutineLogWizard() {
     return true;
   };
 
-  const handleNext = () => {
-    if (!validateStep()) return;
-    setValidationError(null);
-    if (currentStep < 4) {
-      setCurrentStep((prev) => prev + 1);
+  const handleDailyNext = () => {
+    if (!validateDailyStep()) return;
+    setDailyValidationError(null);
+    if (currentDailyStep < 4) {
+      setCurrentDailyStep((prev) => prev + 1);
     }
   };
 
-  const handleBack = () => {
-    setValidationError(null);
-    if (currentStep > 1) {
-      setCurrentStep((prev) => prev - 1);
+  const handleDailyBack = () => {
+    setDailyValidationError(null);
+    if (currentDailyStep > 1) {
+      setCurrentDailyStep((prev) => prev - 1);
     }
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleDailySubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!validateStep()) return;
+    if (!validateDailyStep()) return;
 
-    setIsSubmitting(true);
+    setIsDailySubmitting(true);
     setTimeout(() => {
-      setIsSubmitting(false);
-      setIsSuccess(true);
+      setIsDailySubmitting(false);
+      setIsDailySuccess(true);
     }, 1500);
   };
 
-  const getFaultCount = (): number => {
+  const getDailyFaultCount = (): number => {
     let faultCount = 0;
-    Object.values(formData.inspections).forEach((category) => {
+    Object.values(dailyFormData.inspections).forEach((category) => {
       Object.values(category).forEach((checkpoint) => {
         if (checkpoint.status === false) {
           faultCount++;
@@ -295,237 +344,569 @@ export function RoutineLogWizard() {
     return faultCount;
   };
 
-  if (isSuccess) {
-    const totalFaults = getFaultCount();
+  // ------------------------------------------
+  // HOURLY FORM HANDLERS
+  // ------------------------------------------
+  const handleHourlyFieldChange = (fieldId: string, value: string) => {
+    setHourlyValidationError(null);
+    setHourlyData((prev) => ({
+      ...prev,
+      [fieldId]: value
+    }));
+  };
+
+  const validateHourlyStep = (): boolean => {
+    const currentCategory = hourlyCategories[currentHourlyStep];
+    const categoryFields = HOURLY_TELEMETRY_SCHEMA.filter(
+      (field) => field.category === currentCategory
+    );
+    for (const field of categoryFields) {
+      const val = hourlyData[field.id];
+      if (val === undefined || val === null || String(val).trim() === "") {
+        setHourlyValidationError(`Please enter a value for all fields in ${currentCategory}.`);
+        return false;
+      }
+    }
+    return true;
+  };
+
+  const handleHourlyNext = () => {
+    if (!validateHourlyStep()) return;
+    setHourlyValidationError(null);
+    if (currentHourlyStep < hourlyCategories.length - 1) {
+      setCurrentHourlyStep((prev) => prev + 1);
+    }
+  };
+
+  const handleHourlyBack = () => {
+    setHourlyValidationError(null);
+    if (currentHourlyStep > 0) {
+      setCurrentHourlyStep((prev) => prev - 1);
+    }
+  };
+
+  const handleHourlySubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!validateHourlyStep()) return;
+
+    setIsHourlySubmitting(true);
+    setTimeout(() => {
+      setIsHourlySubmitting(false);
+      setIsHourlySuccess(true);
+    }, 1500);
+  };
+
+  const resetAllForms = () => {
+    setCurrentView("menu");
+    // Reset daily
+    setCurrentDailyStep(1);
+    setDailyFormData(initialDailyFormData());
+    setIsDailySuccess(false);
+    setDailyValidationError(null);
+    
+    // Reset hourly
+    setCurrentHourlyStep(0);
+    setHourlyData({});
+    setIsHourlySuccess(false);
+    setHourlyValidationError(null);
+  };
+
+  // ==========================================
+  // VIEW RENDERING
+  // ==========================================
+
+  // A. MENU VIEW
+  if (currentView === "menu") {
     return (
-      <div className="max-w-md mx-auto bg-white rounded-3xl border border-gray-100 shadow-sm p-6 text-center space-y-6 animate-fade-in pb-12">
-        <div className={`w-20 h-20 rounded-full flex items-center justify-center mx-auto border ${totalFaults > 0 ? "bg-amber-50 text-amber-500 border-amber-100" : "bg-green-50 text-green-500 border-green-100"
-          }`}>
-          {totalFaults > 0 ? (
-            <AlertTriangle size={40} className="animate-pulse" />
-          ) : (
-            <CheckCircle2 size={40} className="animate-bounce" />
-          )}
-        </div>
-
-        <div className="space-y-2">
-          <h1 className="text-xl font-black text-gray-900">Inspection Completed</h1>
-          <p className="text-sm text-gray-500 px-4">
-            Audit trail logged successfully. Data points structured for Excel ingestion.
-          </p>
-        </div>
-
-        {/* Audit Details */}
-        <div className="bg-gray-50 rounded-2xl p-4 text-left border border-gray-100 space-y-3">
-          <div className="flex justify-between items-center">
-            <h3 className="text-xs font-black text-gray-400 uppercase tracking-widest">
-              Inspection Receipt
-            </h3>
-            <span className="text-[10px] font-mono text-gray-400">Shift Day</span>
-          </div>
-
-          <div className="space-y-2 text-xs font-semibold">
-            <div className="flex justify-between">
-              <span className="text-gray-500">Site ID:</span>
-              <span className="text-gray-800">{formData.metadata.siteName}</span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-gray-500">Technician ID:</span>
-              <span className="text-gray-800">{formData.metadata.technicianId}</span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-gray-500">Audited Result:</span>
-              <span className={totalFaults > 0 ? "text-amber-600 font-bold" : "text-green-600 font-bold"}>
-                {totalFaults > 0 ? `${totalFaults} Faults Registered` : "Zero Faults detected"}
-              </span>
-            </div>
-          </div>
-        </div>
-
-        {/* View Compiled JSON Toggle */}
-        <div className="space-y-2 text-left">
+      <div className="max-w-md mx-auto space-y-6 pb-24">
+        {/* Back to Dashboard Link */}
+        <div className="px-1">
           <button
-            type="button"
-            onClick={() => setShowPayload(!showPayload)}
-            className="w-full py-2.5 px-4 rounded-xl border border-gray-200 text-xs font-bold text-gray-600 hover:text-gray-800 active:scale-[0.98] transition-all flex items-center justify-center gap-2"
+            onClick={() => navigate("/tech")}
+            className="inline-flex items-center gap-1 text-xs font-bold text-gray-400 hover:text-red-500 transition-colors"
           >
-            <Database size={14} />
-            <span>{showPayload ? "Hide System JSON Payload" : "View System JSON Payload"}</span>
+            <ArrowLeft size={14} />
+            <span>Back to Dashboard</span>
+          </button>
+        </div>
+
+        <div className="px-1 text-center py-4">
+          <h1 className="text-2xl font-black text-gray-900 tracking-tight">Select Task</h1>
+          <p className="text-xs text-gray-500 mt-1">Select the operational log form to proceed.</p>
+        </div>
+
+        <div className="space-y-4">
+          {/* Card 1: Daily Physical Checklist */}
+          <button
+            onClick={() => setCurrentView("daily")}
+            className="w-full text-left bg-white p-5 rounded-3xl border border-gray-100 shadow-sm hover:border-red-200 active:scale-[0.98] transition-all flex gap-4 group"
+          >
+            <div className="w-14 h-14 rounded-2xl bg-red-50 text-red-500 border border-red-100 flex items-center justify-center shrink-0">
+              <ClipboardList size={26} />
+            </div>
+            <div className="flex-1 min-w-0 flex flex-col justify-center">
+              <div className="flex items-center justify-between">
+                <span className="font-bold text-gray-900 text-base">Daily Physical Checklist</span>
+                <ChevronRight size={16} className="text-gray-400 group-hover:translate-x-0.5 transition-transform" />
+              </div>
+              <p className="text-xs text-gray-500 mt-1 leading-normal">
+                End-of-shift physical status checks and visual site inspections.
+              </p>
+            </div>
           </button>
 
-          {showPayload && (
-            <pre className="p-4 rounded-2xl bg-gray-900 text-green-400 font-mono text-[10px] overflow-auto max-h-64 border border-gray-850 animate-slide-down">
-              {JSON.stringify(formData, null, 2)}
-            </pre>
-          )}
+          {/* Card 2: Hourly Telemetry Log */}
+          <button
+            onClick={() => setCurrentView("hourly")}
+            className="w-full text-left bg-white p-5 rounded-3xl border border-gray-100 shadow-sm hover:border-red-200 active:scale-[0.98] transition-all flex gap-4 group"
+          >
+            <div className="w-14 h-14 rounded-2xl bg-red-50 text-red-500 border border-red-100 flex items-center justify-center shrink-0">
+              <Activity size={26} />
+            </div>
+            <div className="flex-1 min-w-0 flex flex-col justify-center">
+              <div className="flex items-center justify-between">
+                <span className="font-bold text-gray-900 text-base">Hourly Telemetry Log</span>
+                <ChevronRight size={16} className="text-gray-400 group-hover:translate-x-0.5 transition-transform" />
+              </div>
+              <p className="text-xs text-gray-500 mt-1 leading-normal">
+                Quantitative panel readings, load metrics, and temperatures.
+              </p>
+            </div>
+          </button>
         </div>
-
-        <button
-          onClick={() => navigate("/tech")}
-          className="w-full py-4 bg-red-600 text-white font-bold rounded-2xl text-sm uppercase tracking-wide active:scale-[0.98] transition-all shadow-md shadow-red-600/10"
-        >
-          Return to Dashboard
-        </button>
       </div>
     );
   }
 
-  return (
-    <div className="max-w-md mx-auto space-y-6 pb-28">
-      {/* Header & Overall Step Progress */}
-      <div className="px-1 space-y-2">
-        <div className="flex items-center justify-between">
-          <h1 className="text-xl font-black text-gray-900 tracking-tight">Daily Shift Inspection</h1>
-          <span className="text-[10px] font-mono font-bold bg-gray-200 text-gray-600 px-2.5 py-1 rounded-full">
-            Step {currentStep} of 4
-          </span>
+  // B. DAILY PHYSICAL INSPECTION VIEW
+  if (currentView === "daily") {
+    if (isDailySuccess) {
+      const totalFaults = getDailyFaultCount();
+      return (
+        <div className="max-w-md mx-auto bg-white rounded-3xl border border-gray-100 shadow-sm p-6 text-center space-y-6 animate-fade-in pb-24">
+          <div className={`w-20 h-20 rounded-full flex items-center justify-center mx-auto border ${
+            totalFaults > 0 ? "bg-amber-50 text-amber-500 border-amber-100" : "bg-green-50 text-green-500 border-green-100"
+          }`}>
+            {totalFaults > 0 ? (
+              <AlertTriangle size={40} className="animate-pulse" />
+            ) : (
+              <CheckCircle2 size={40} className="animate-bounce" />
+            )}
+          </div>
+          
+          <div className="space-y-2">
+            <h1 className="text-xl font-black text-gray-900">Checklist Submitted</h1>
+            <p className="text-sm text-gray-500 px-4">
+              Daily Physical Checklist records have been archived successfully.
+            </p>
+          </div>
+
+          <div className="bg-gray-50 rounded-2xl p-4 text-left border border-gray-100 space-y-2.5">
+            <div className="flex justify-between text-xs font-semibold">
+              <span className="text-gray-500">Site ID:</span>
+              <span className="text-gray-800">{dailyFormData.metadata.siteName}</span>
+            </div>
+            <div className="flex justify-between text-xs font-semibold">
+              <span className="text-gray-500">Audited Result:</span>
+              <span className={totalFaults > 0 ? "text-amber-600 font-bold" : "text-green-600 font-bold"}>
+                {totalFaults > 0 ? `${totalFaults} Faults Logged` : "Zero Faults Detected"}
+              </span>
+            </div>
+          </div>
+
+          <div className="space-y-2 text-left">
+            <button
+              type="button"
+              onClick={() => setShowDailyPayload(!showDailyPayload)}
+              className="w-full py-2.5 px-4 rounded-xl border border-gray-200 text-xs font-bold text-gray-600 hover:text-gray-800 active:scale-[0.98] transition-all flex items-center justify-center gap-2"
+            >
+              <Database size={14} />
+              <span>{showDailyPayload ? "Hide System Payload" : "View System Payload"}</span>
+            </button>
+            
+            {showDailyPayload && (
+              <pre className="p-4 rounded-2xl bg-gray-900 text-green-400 font-mono text-[9px] overflow-auto max-h-60 border border-gray-800">
+                {JSON.stringify(dailyFormData, null, 2)}
+              </pre>
+            )}
+          </div>
+
+          <button
+            onClick={resetAllForms}
+            className="w-full py-4 bg-gray-900 text-white font-bold rounded-2xl text-sm uppercase tracking-wide active:scale-[0.98] transition-all"
+          >
+            Back to Log Hub Menu
+          </button>
+        </div>
+      );
+    }
+
+    return (
+      <div className="max-w-md mx-auto space-y-6 pb-28">
+        {/* Header & Back to Menu Link */}
+        <div className="px-1 space-y-2.5">
+          <button
+            onClick={resetAllForms}
+            className="inline-flex items-center gap-1 text-xs font-bold text-gray-400 hover:text-red-500 transition-colors"
+          >
+            <ArrowLeft size={14} />
+            <span>Back to Menu</span>
+          </button>
+
+          <div className="flex items-center justify-between">
+            <h1 className="text-xl font-black text-gray-900 tracking-tight">Daily Shift Inspection</h1>
+            <span className="text-[10px] font-mono font-bold bg-gray-200 text-gray-600 px-2 py-0.5 rounded-full">
+              {currentDailyStep}/4 Steps
+            </span>
+          </div>
+
+          {/* Progress Bar */}
+          <div className="w-full bg-gray-200 h-1.5 rounded-full overflow-hidden">
+            <div 
+              className="bg-red-500 h-full transition-all duration-300 ease-out" 
+              style={{ width: `${(currentDailyStep / 4) * 100}%` }}
+            />
+          </div>
+
+          <p className="text-xs text-gray-500 font-bold uppercase tracking-wider">
+            Stage: <span className="text-red-500">{currentDailyStepData.name}</span>
+          </p>
         </div>
 
-        {/* Progress Bar */}
-        <div className="w-full bg-gray-200 h-2 rounded-full overflow-hidden">
-          <div
-            className="bg-red-500 h-full transition-all duration-300 ease-out"
-            style={{ width: `${(currentStep / 4) * 100}%` }}
-          />
-        </div>
+        {/* Validation Message */}
+        {dailyValidationError && (
+          <div className="bg-red-50 border border-red-100 p-3.5 rounded-2xl text-xs text-red-600 font-bold flex items-center gap-2 animate-pulse">
+            <XCircle size={14} className="shrink-0" />
+            <span>{dailyValidationError}</span>
+          </div>
+        )}
 
-        <p className="text-xs text-gray-500 font-bold uppercase tracking-wider">
-          Inspection Stage: <span className="text-red-500">{currentStepData.name}</span>
-        </p>
-      </div>
-
-      {/* Validation Message */}
-      {validationError && (
-        <div className="bg-red-50 border border-red-100 p-3.5 rounded-2xl text-xs text-red-600 font-bold flex items-center gap-2 animate-pulse">
-          <XCircle size={15} className="shrink-0" />
-          <span>{validationError}</span>
-        </div>
-      )}
-
-      {/* Checkpoints Categories Container */}
-      <div className="space-y-6">
-        {currentStepData.categories.map((category) => (
-          <div key={category.id} className="space-y-3">
-            {/* Category Title Subheader */}
-            <div className="px-1">
-              <h2 className="text-xs font-black text-gray-400 uppercase tracking-widest">
+        {/* Checkpoint Cards */}
+        <div className="space-y-6">
+          {currentDailyStepData.categories.map((category) => (
+            <div key={category.id} className="space-y-3">
+              <h2 className="text-xs font-black text-gray-400 uppercase tracking-widest px-1">
                 {category.name}
               </h2>
-            </div>
 
-            {/* Category Checkpoint Cards */}
-            <div className="space-y-4">
-              {category.checkpoints.map((cp) => {
-                const response = formData.inspections[category.id][cp.id];
-                const isFault = response.status === false;
-                const isOk = response.status === true;
+              <div className="space-y-4">
+                {category.checkpoints.map((cp) => {
+                  const response = dailyFormData.inspections[category.id][cp.id];
+                  const isFault = response.status === false;
+                  const isOk = response.status === true;
 
-                return (
-                  <div
-                    key={cp.id}
-                    className={`bg-white p-5 rounded-3xl border transition-all shadow-sm ${isFault
-                        ? "border-red-200 ring-1 ring-red-100"
-                        : isOk
-                          ? "border-green-200 ring-1 ring-green-100"
+                  return (
+                    <div 
+                      key={cp.id}
+                      className={`bg-white p-5 rounded-3xl border transition-all shadow-sm ${
+                        isFault 
+                          ? "border-red-200 ring-1 ring-red-100" 
+                          : isOk 
+                          ? "border-green-200 ring-1 ring-green-100" 
                           : "border-gray-100"
                       }`}
-                  >
-                    <p className="font-bold text-gray-900 text-sm mb-4 leading-snug">
-                      {cp.question}
-                    </p>
+                    >
+                      <p className="font-bold text-gray-900 text-sm mb-4 leading-snug">
+                        {cp.question}
+                      </p>
 
-                    {/* Toggle Buttons */}
-                    <div className="grid grid-cols-2 gap-3">
-                      {/* OK Button */}
-                      <button
-                        type="button"
-                        onClick={() => handleStatusChange(category.id, cp.id, true)}
-                        className={`py-3.5 px-4 rounded-2xl border text-center font-bold text-xs uppercase tracking-widest flex items-center justify-center gap-2 transition-all ${isOk
-                            ? "bg-green-100 border-green-500 text-green-700 shadow-sm"
-                            : "bg-white border-gray-200 text-gray-400 hover:text-gray-600 hover:bg-gray-50"
+                      <div className="grid grid-cols-2 gap-3">
+                        {/* OK Button */}
+                        <button
+                          type="button"
+                          onClick={() => handleDailyStatusChange(category.id, cp.id, true)}
+                          className={`py-3.5 px-4 rounded-2xl border text-center font-bold text-xs uppercase tracking-widest flex items-center justify-center gap-2 transition-all ${
+                            isOk
+                              ? "bg-green-100 border-green-500 text-green-700 shadow-sm"
+                              : "bg-white border-gray-200 text-gray-400 hover:bg-gray-50"
                           }`}
-                      >
-                        <CheckCircle size={16} />
-                        <span>OK</span>
-                      </button>
+                        >
+                          <CheckCircle size={16} />
+                          <span>OK</span>
+                        </button>
 
-                      {/* FAULT Button */}
-                      <button
-                        type="button"
-                        onClick={() => handleStatusChange(category.id, cp.id, false)}
-                        className={`py-3.5 px-4 rounded-2xl border text-center font-bold text-xs uppercase tracking-widest flex items-center justify-center gap-2 transition-all ${isFault
-                            ? "bg-red-100 border-red-500 text-red-700 shadow-sm"
-                            : "bg-white border-gray-200 text-gray-400 hover:text-gray-600 hover:bg-gray-50"
+                        {/* FAULT Button */}
+                        <button
+                          type="button"
+                          onClick={() => handleDailyStatusChange(category.id, cp.id, false)}
+                          className={`py-3.5 px-4 rounded-2xl border text-center font-bold text-xs uppercase tracking-widest flex items-center justify-center gap-2 transition-all ${
+                            isFault
+                              ? "bg-red-100 border-red-500 text-red-700 shadow-sm"
+                              : "bg-white border-gray-200 text-gray-400 hover:bg-gray-50"
                           }`}
-                      >
-                        <XCircle size={16} />
-                        <span>Fault</span>
-                      </button>
-                    </div>
-
-                    {/* Conditional Comment Field */}
-                    {isFault && (
-                      <div className="mt-4 space-y-1.5 animate-slide-down">
-                        <label className="text-[10px] font-black text-red-500 uppercase tracking-wider block">
-                          Fault Details *
-                        </label>
-                        <textarea
-                          rows={3}
-                          value={response.comment}
-                          onChange={(e) => handleCommentChange(category.id, cp.id, e.target.value)}
-                          placeholder="Required: Describe the fault or threshold breach..."
-                          className="w-full p-3 rounded-xl bg-red-50/20 border border-red-300 text-xs font-semibold text-gray-800 placeholder-red-400 focus:outline-none focus:border-red-500 focus:ring-1 focus:ring-red-500 resize-none transition-colors"
-                        />
+                        >
+                          <XCircle size={16} />
+                          <span>Fault</span>
+                        </button>
                       </div>
-                    )}
-                  </div>
-                );
+
+                      {/* Comment Area */}
+                      {isFault && (
+                        <div className="mt-4 space-y-1.5 animate-slide-down">
+                          <label className="text-[10px] font-black text-red-500 uppercase tracking-wider block">
+                            Fault Details *
+                          </label>
+                          <textarea
+                            rows={3}
+                            value={response.comment}
+                            onChange={(e) => handleDailyCommentChange(category.id, cp.id, e.target.value)}
+                            placeholder="Required: Describe the fault or threshold breach..."
+                            className="w-full p-3 rounded-xl bg-red-50/20 border border-red-300 text-xs font-semibold text-gray-800 placeholder-red-400 focus:outline-none focus:border-red-500 focus:ring-1 focus:ring-red-500 resize-none transition-colors"
+                          />
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {/* Footer Navigation */}
+        <div className="fixed bottom-16 left-0 right-0 bg-white border-t border-gray-200 h-16 flex items-center justify-between px-4 z-40 max-w-md mx-auto shadow-lg">
+          <button
+            type="button"
+            onClick={handleDailyBack}
+            disabled={currentDailyStep === 1}
+            className={`flex items-center gap-1.5 text-xs font-black uppercase tracking-wider py-2.5 px-4 rounded-xl transition-all ${
+              currentDailyStep === 1 ? "text-gray-300 cursor-not-allowed" : "text-gray-600 hover:text-gray-900"
+            }`}
+          >
+            <ArrowLeft size={16} />
+            <span>Back</span>
+          </button>
+
+          {currentDailyStep === 4 ? (
+            <button
+              type="button"
+              onClick={handleDailySubmit}
+              disabled={isDailySubmitting}
+              className="flex items-center gap-1.5 bg-red-600 text-white font-black text-xs uppercase tracking-widest py-3 px-5 rounded-xl shadow-md shadow-red-600/10 active:scale-95 transition-all"
+            >
+              <span>{isDailySubmitting ? "Submitting..." : "Submit Inspection"}</span>
+              <Save size={14} />
+            </button>
+          ) : (
+            <button
+              type="button"
+              onClick={handleDailyNext}
+              className="flex items-center gap-1.5 bg-gray-900 text-white font-black text-xs uppercase tracking-widest py-3 px-5 rounded-xl active:scale-95 transition-all"
+            >
+              <span>Next Step</span>
+              <ArrowRight size={14} />
+            </button>
+          )}
+        </div>
+      </div>
+    );
+  }
+  // C. HOURLY TELEMETRY LOG VIEW
+  if (currentView === "hourly") {
+    if (isHourlySuccess) {
+      return (
+        <div className="max-w-md mx-auto bg-white rounded-3xl border border-gray-100 shadow-sm p-6 text-center space-y-6 animate-fade-in pb-24">
+          <div className="w-20 h-20 bg-green-50 rounded-full flex items-center justify-center mx-auto text-green-500 border border-green-100">
+            <CheckCircle2 size={40} className="animate-bounce" />
+          </div>
+
+          <div className="space-y-2">
+            <h1 className="text-xl font-black text-gray-900">Telemetry Logged</h1>
+            <p className="text-sm text-gray-500 px-4">
+              Hourly numerical logs compiled and verified successfully.
+            </p>
+          </div>
+
+          {/* Log Details */}
+          <div className="bg-gray-50 rounded-2xl p-4 text-left border border-gray-100 space-y-2.5">
+            <h3 className="text-xs font-black text-gray-400 uppercase tracking-widest border-b border-gray-200 pb-1.5 flex justify-between">
+              <span>Metrics Summary</span>
+              <span>{Object.keys(hourlyData).length} Points</span>
+            </h3>
+            <div className="max-h-60 overflow-y-auto pr-1 space-y-2 font-mono text-[10px] text-gray-700">
+              {HOURLY_TELEMETRY_SCHEMA.map((field) => {
+                const val = hourlyData[field.id];
+                if (val !== undefined && val !== "") {
+                  return (
+                    <div key={field.id} className="flex justify-between border-b border-gray-100 pb-1">
+                      <span className="text-gray-400 truncate max-w-[200px]">{field.label}:</span>
+                      <span className="font-bold text-gray-900">{val} {field.unit || ""}</span>
+                    </div>
+                  );
+                }
+                return null;
               })}
             </div>
           </div>
-        ))}
-      </div>
 
-      {/* Navigation Footer */}
-      <div className="fixed bottom-16 left-0 right-0 bg-white border-t border-gray-200 h-16 flex items-center justify-between px-4 z-40 max-w-md mx-auto shadow-lg">
-        {/* Back Button */}
-        <button
-          type="button"
-          onClick={handleBack}
-          disabled={currentStep === 1}
-          className={`flex items-center gap-1.5 text-xs font-black uppercase tracking-wider py-2.5 px-4 rounded-xl transition-all ${currentStep === 1
-              ? "text-gray-300 cursor-not-allowed"
-              : "text-gray-600 hover:text-gray-900 active:scale-95"
-            }`}
-        >
-          <ArrowLeft size={16} />
-          <span>Back</span>
-        </button>
+          {/* View Compiled JSON Toggle */}
+          <div className="space-y-2 text-left">
+            <button
+              type="button"
+              onClick={() => setShowHourlyPayload(!showHourlyPayload)}
+              className="w-full py-2.5 px-4 rounded-xl border border-gray-200 text-xs font-bold text-gray-600 hover:text-gray-800 active:scale-[0.98] transition-all flex items-center justify-center gap-2"
+            >
+              <Database size={14} />
+              <span>{showHourlyPayload ? "Hide System Payload" : "View System Payload"}</span>
+            </button>
+            
+            {showHourlyPayload && (
+              <pre className="p-4 rounded-2xl bg-gray-900 text-green-400 font-mono text-[9px] overflow-auto max-h-60 border border-gray-800">
+                {JSON.stringify({
+                  metadata: hourlyMetadata,
+                  readings: hourlyData
+                }, null, 2)}
+              </pre>
+            )}
+          </div>
 
-        {/* Next / Submit Button */}
-        {currentStep === 4 ? (
           <button
-            type="button"
-            onClick={handleSubmit}
-            disabled={isSubmitting}
-            className="flex items-center gap-1.5 bg-red-600 text-white font-black text-xs uppercase tracking-widest py-3 px-5 rounded-xl shadow-md shadow-red-600/10 active:scale-95 transition-all"
+            onClick={resetAllForms}
+            className="w-full py-4 bg-gray-900 text-white font-bold rounded-2xl text-sm uppercase tracking-wide active:scale-[0.98] transition-all"
           >
-            <span>{isSubmitting ? "Submitting..." : "Submit Inspection"}</span>
-            <Save size={14} />
+            Back to Log Hub Menu
           </button>
-        ) : (
+        </div>
+      );
+    }
+
+    const currentCategory = hourlyCategories[currentHourlyStep];
+    const categoryFields = HOURLY_TELEMETRY_SCHEMA.filter(
+      (field) => field.category === currentCategory
+    );
+
+    // Group the filtered fields by subgroup
+    const groupedFields: Record<string, typeof categoryFields> = {};
+    categoryFields.forEach((field) => {
+      const sub = field.subgroup || "General";
+      if (!groupedFields[sub]) {
+        groupedFields[sub] = [];
+      }
+      groupedFields[sub].push(field);
+    });
+
+    return (
+      <div className="max-w-md mx-auto space-y-6 pb-28">
+        {/* Header & Back to Menu Link */}
+        <div className="px-1 space-y-2.5">
           <button
-            type="button"
-            onClick={handleNext}
-            className="flex items-center gap-1.5 bg-gray-900 text-white font-black text-xs uppercase tracking-widest py-3 px-5 rounded-xl active:scale-95 transition-all"
+            onClick={resetAllForms}
+            className="inline-flex items-center gap-1 text-xs font-bold text-gray-400 hover:text-red-500 transition-colors"
           >
-            <span>Next Step</span>
-            <ArrowRight size={14} />
+            <ArrowLeft size={14} />
+            <span>Back to Menu</span>
           </button>
+
+          <div className="flex items-center justify-between">
+            <div>
+              <h1 className="text-xl font-black text-gray-900 tracking-tight">Hourly Telemetry Log</h1>
+              <p className="text-xs text-gray-500 mt-0.5">Enter current panel readings.</p>
+            </div>
+            <span className="text-[10px] font-mono font-bold bg-gray-200 text-gray-600 px-2.5 py-1 rounded-full shrink-0">
+              Step {currentHourlyStep + 1} of {hourlyCategories.length}
+            </span>
+          </div>
+
+          {/* Progress Bar */}
+          <div className="w-full bg-gray-200 h-2 rounded-full overflow-hidden">
+            <div 
+              className="bg-red-500 h-full transition-all duration-300 ease-out" 
+              style={{ width: `${((currentHourlyStep + 1) / hourlyCategories.length) * 100}%` }}
+            />
+          </div>
+
+          <p className="text-xs text-gray-500 font-bold uppercase tracking-wider">
+            Category: <span className="text-red-500">{currentCategory}</span>
+          </p>
+        </div>
+
+        {/* Validation Errors */}
+        {hourlyValidationError && (
+          <div className="bg-red-50 border border-red-100 p-3.5 rounded-2xl text-xs text-red-600 font-bold flex items-center gap-2 animate-pulse">
+            <AlertTriangle size={15} className="shrink-0" />
+            <span>{hourlyValidationError}</span>
+          </div>
         )}
+
+        {/* Dynamic Subgroup Cards */}
+        <div className="space-y-4">
+          {Object.entries(groupedFields).map(([subgroupName, fields]) => (
+            <div 
+              key={subgroupName} 
+              className="bg-white p-4 rounded-3xl border border-gray-100 shadow-sm space-y-3"
+            >
+              <h3 className="text-xs font-black text-gray-400 uppercase tracking-widest">
+                {subgroupName}
+              </h3>
+              
+              <div 
+                className={`grid gap-3 ${
+                  fields.length === 3 
+                    ? "grid-cols-3" 
+                    : "grid-cols-2 md:grid-cols-3"
+                }`}
+              >
+                {fields.map((field) => (
+                  <div key={field.id} className="space-y-1">
+                    <label className="text-[9px] font-black text-gray-400 uppercase tracking-wider text-center block truncate">
+                      {field.label} {field.unit ? `(${field.unit})` : ""}
+                    </label>
+                    <input
+                      type={field.type}
+                      step="any"
+                      inputMode={field.type === "number" ? "decimal" : undefined}
+                      value={hourlyData[field.id] || ""}
+                      onChange={(e) => handleHourlyFieldChange(field.id, e.target.value)}
+                      placeholder="e.g. 0"
+                      className="w-full text-base font-bold text-center py-2 px-1 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:border-red-500 focus:bg-white transition-all font-mono"
+                    />
+                  </div>
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {/* Footer Navigation */}
+        <div className="fixed bottom-16 left-0 right-0 bg-white border-t border-gray-200 h-16 flex items-center justify-between px-4 z-40 max-w-md mx-auto shadow-lg">
+          <button
+            type="button"
+            onClick={handleHourlyBack}
+            disabled={currentHourlyStep === 0}
+            className={`flex items-center gap-1.5 text-xs font-black uppercase tracking-wider py-2.5 px-4 rounded-xl transition-all ${
+              currentHourlyStep === 0 ? "text-gray-300 cursor-not-allowed" : "text-gray-600 hover:text-gray-900 active:scale-95"
+            }`}
+          >
+            <ArrowLeft size={16} />
+            <span>Previous</span>
+          </button>
+
+          {currentHourlyStep === hourlyCategories.length - 1 ? (
+            <button
+              type="button"
+              onClick={handleHourlySubmit}
+              disabled={isHourlySubmitting}
+              className="flex items-center gap-1.5 bg-red-600 text-white font-black text-xs uppercase tracking-widest py-3 px-5 rounded-xl shadow-md shadow-red-600/10 active:scale-95 transition-all"
+            >
+              <span>{isHourlySubmitting ? "Submitting..." : `Submit ${HOURLY_TELEMETRY_SCHEMA.length}-Point Log`}</span>
+              <Save size={14} />
+            </button>
+          ) : (
+            <button
+              type="button"
+              onClick={handleHourlyNext}
+              className="flex items-center gap-1.5 bg-gray-900 text-white font-black text-xs uppercase tracking-widest py-3 px-5 rounded-xl active:scale-95 transition-all"
+            >
+              <span>Next Category</span>
+              <ArrowRight size={14} />
+            </button>
+          )}
+        </div>
       </div>
-    </div>
-  );
+    );
+  }
+
+  return null;
 }
 
 export default RoutineLogWizard;
