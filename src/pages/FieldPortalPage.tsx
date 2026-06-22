@@ -1,11 +1,13 @@
 import React from "react";
+import { useNavigate } from "react-router";
 import { FieldPortal } from "@/features/telemetry/components/FieldPortal";
 
-export interface FieldPortalPageProps {
-  onBack: () => void;
-  onForm: () => void;
-}
-
-export default function FieldPortalPage({ onBack, onForm }: FieldPortalPageProps) {
-  return <FieldPortal onBack={onBack} onForm={onForm} />;
+export default function FieldPortalPage() {
+  const navigate = useNavigate();
+  return (
+    <FieldPortal
+      onBack={() => navigate("/")}
+      onForm={() => navigate("/tech/report")}
+    />
+  );
 }

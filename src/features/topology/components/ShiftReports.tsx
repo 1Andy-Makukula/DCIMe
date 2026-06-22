@@ -1,0 +1,698 @@
+import React, { useState } from "react";
+import {
+  FileText,
+  Download,
+  Calendar,
+  CheckCircle2,
+  AlertTriangle,
+  User,
+  Clock,
+  MapPin,
+  Zap,
+  Thermometer,
+  Droplets,
+  Activity,
+  ChevronDown,
+  Shield,
+  Hash,
+  X,
+} from "lucide-react";
+
+// ── Types ─────────────────────────────────────────────────────────────────────
+type VerificationStatus = "verified" | "discrepancy";
+type DateRange = "7d" | "14d" | "30d" | "custom";
+
+interface TelemetryReading {
+  label: string;
+  value: string;
+  icon:  React.ReactNode;
+  flag?: boolean; // true if reading is out of nominal range
+}
+
+interface ShiftLog {
+  id:                 string;
+  logNumber:          string;
+  author:             string;
+  authorInitials:     string;
+  avatarColor:        string;
+  badgeId:            string;
+  role:               string;
+  time:               string;        // "06:00 AM CAT"
+  date:               string;        // "2026-06-22"
+  shiftLabel:         string;        // "Day Shift"
+  site:               string;
+  zone:               string;
+  verificationStatus: VerificationStatus;
+  telemetry:          TelemetryReading[];
+  notes:              string;
+  alertsAcked:        number;
+  signedOff:          boolean;
+}
+
+// ── Date range options ────────────────────────────────────────────────────────
+const DATE_RANGES: { id: DateRange; label: string }[] = [
+  { id: "7d",     label: "Last 7 Days"  },
+  { id: "14d",    label: "Last 14 Days" },
+  { id: "30d",    label: "Last 30 Days" },
+  { id: "custom", label: "Custom Range" },
+];
+
+// ── Mock shift log dataset ────────────────────────────────────────────────────
+const SHIFT_LOGS: ShiftLog[] = [
+  {
+    id:                 "SL-12347",
+    logNumber:          "#12347",
+    author:             "Ndabane Anderson M.",
+    authorInitials:     "AM",
+    avatarColor:        "bg-red-500",
+    badgeId:            "ZM-4891",
+    role:               "NOC Admin",
+    time:               "06:00 AM CAT",
+    date:               "2026-06-22",
+    shiftLabel:         "Day Shift",
+    site:               "NTC ZM-0874",
+    zone:               "Power Room 1 & Main Room",
+    verificationStatus: "verified",
+    telemetry: [
+      { label: "Power Source",  value: "Mains Active",  icon: <Zap        size={11} />, flag: false },
+      { label: "Facility Load", value: "476 kW",        icon: <Activity   size={11} />, flag: false },
+      { label: "UPS Charge",    value: "100%",          icon: <Zap        size={11} />, flag: false },
+      { label: "DC Bus",        value: "48.1 V",        icon: <Zap        size={11} />, flag: false },
+      { label: "Inlet Temp",    value: "20.7 °C",       icon: <Thermometer size={11} />, flag: false },
+      { label: "Humidity",      value: "63 % RH",       icon: <Droplets   size={11} />, flag: false },
+    ],
+    notes:        "Routine start-of-shift inspection complete. All UPS units online and at float. ZESCO mains stable — 230V AC, PF 0.98. No anomalies in Main Room. Phase readings logged to SCADA.",
+    alertsAcked:  0,
+    signedOff:    true,
+  },
+  {
+    id:                 "SL-12346",
+    logNumber:          "#12346",
+    author:             "Chileshe Kapumpe K.",
+    authorInitials:     "CK",
+    avatarColor:        "bg-blue-500",
+    badgeId:            "ZM-5204",
+    role:               "L2 Engineer",
+    time:               "02:00 PM CAT",
+    date:               "2026-06-22",
+    shiftLabel:         "Afternoon Shift",
+    site:               "NTC ZM-0874",
+    zone:               "Power Room 1",
+    verificationStatus: "discrepancy",
+    telemetry: [
+      { label: "Power Source",   value: "Mains Active",   icon: <Zap         size={11} />, flag: false },
+      { label: "Facility Load",  value: "483 kW",         icon: <Activity    size={11} />, flag: false },
+      { label: "UPS 1 L3",       value: "112 A (↑ HIGH)", icon: <Zap         size={11} />, flag: true  },
+      { label: "Rectifier Out",  value: "47.8 V (↓ LOW)", icon: <Zap         size={11} />, flag: true  },
+      { label: "Inlet Temp",     value: "22.4 °C",        icon: <Thermometer size={11} />, flag: true  },
+      { label: "Humidity",       value: "63 % RH",        icon: <Droplets    size={11} />, flag: false },
+    ],
+    notes:        "Phase imbalance detected on UPS 1 — L3 drawing 112A vs L2 at 83A. Alert acknowledged and escalated to NOC Admin (Anderson M.). Rectifier 2 Rm 2 voltage drop noted at 47.8V; maintenance ticket raised. CRAC-003 inlet temp elevated to 22.4°C, monitoring.",
+    alertsAcked:  2,
+    signedOff:    true,
+  },
+  {
+    id:                 "SL-12345",
+    logNumber:          "#12345",
+    author:             "Ndabane Anderson M.",
+    authorInitials:     "AM",
+    avatarColor:        "bg-red-500",
+    badgeId:            "ZM-4891",
+    role:               "NOC Admin",
+    time:               "10:00 PM CAT",
+    date:               "2026-06-21",
+    shiftLabel:         "Night Shift",
+    site:               "NTC ZM-0874",
+    zone:               "Global (All Rooms)",
+    verificationStatus: "verified",
+    telemetry: [
+      { label: "Power Source",  value: "Mains Active",  icon: <Zap         size={11} />, flag: false },
+      { label: "Facility Load", value: "451 kW",        icon: <Activity    size={11} />, flag: false },
+      { label: "UPS Charge",    value: "100%",          icon: <Zap         size={11} />, flag: false },
+      { label: "Generator A",   value: "Standby-Ready", icon: <Zap         size={11} />, flag: false },
+      { label: "Inlet Temp",    value: "20.1 °C",       icon: <Thermometer size={11} />, flag: false },
+      { label: "Humidity",      value: "61 % RH",       icon: <Droplets    size={11} />, flag: false },
+    ],
+    notes:        "End-of-day audit complete. Full facility walkthrough — all rooms inspected. Generator A test run deferred to scheduled maintenance window (18 Jun). SCADA telemetry synchronised with field readings. No active alarms at handover.",
+    alertsAcked:  0,
+    signedOff:    true,
+  },
+  {
+    id:                 "SL-12344",
+    logNumber:          "#12344",
+    author:             "Mwansa Bwalya B.",
+    authorInitials:     "MB",
+    avatarColor:        "bg-emerald-500",
+    badgeId:            "ZM-5491",
+    role:               "L2 Engineer",
+    time:               "06:00 AM CAT",
+    date:               "2026-06-21",
+    shiftLabel:         "Day Shift",
+    site:               "NTC ZM-0874",
+    zone:               "Power Room 2",
+    verificationStatus: "discrepancy",
+    telemetry: [
+      { label: "Power Source",   value: "Mains Active",   icon: <Zap         size={11} />, flag: false },
+      { label: "Facility Load",  value: "458 kW",         icon: <Activity    size={11} />, flag: false },
+      { label: "UPS Charge",     value: "98%",            icon: <Zap         size={11} />, flag: false },
+      { label: "Humidity",       value: "64 % RH (↑)",    icon: <Droplets    size={11} />, flag: true  },
+      { label: "Inlet Temp",     value: "21.3 °C",        icon: <Thermometer size={11} />, flag: false },
+      { label: "Phase Balance",  value: "Monitoring",     icon: <Activity    size={11} />, flag: true  },
+    ],
+    notes:        "Humidity in Main Room trending upward — 64% RH, threshold is 65%. Dehumidifier inspection scheduled. CRAC-004 fan noise noted during walkthrough; vibration within tolerance but logged for maintenance review. UPS charge at 98% — battery cells under watch.",
+    alertsAcked:  1,
+    signedOff:    true,
+  },
+  {
+    id:                 "SL-12343",
+    logNumber:          "#12343",
+    author:             "Tembo Sikazwe R.",
+    authorInitials:     "TR",
+    avatarColor:        "bg-violet-500",
+    badgeId:            "ZM-3874",
+    role:               "NOC Admin",
+    time:               "02:00 PM CAT",
+    date:               "2026-06-20",
+    shiftLabel:         "Afternoon Shift",
+    site:               "NTC ZM-0874",
+    zone:               "Global (All Rooms)",
+    verificationStatus: "verified",
+    telemetry: [
+      { label: "Power Source",  value: "Mains Active",  icon: <Zap         size={11} />, flag: false },
+      { label: "Facility Load", value: "468 kW",        icon: <Activity    size={11} />, flag: false },
+      { label: "UPS Charge",    value: "100%",          icon: <Zap         size={11} />, flag: false },
+      { label: "Generator A",   value: "Test-Passed",   icon: <Zap         size={11} />, flag: false },
+      { label: "Inlet Temp",    value: "19.8 °C",       icon: <Thermometer size={11} />, flag: false },
+      { label: "Site Uptime",   value: "99.97%",        icon: <Activity    size={11} />, flag: false },
+    ],
+    notes:        "Generator A 30-minute test run completed successfully at 14:00 CAT. Auto-start within 42 seconds. All cooling units nominal. Full SCADA snapshot exported to ops archive. No outstanding alarms at end of shift.",
+    alertsAcked:  0,
+    signedOff:    true,
+  },
+  {
+    id:                 "SL-12342",
+    logNumber:          "#12342",
+    author:             "Sakala Josephine M.",
+    authorInitials:     "SM",
+    avatarColor:        "bg-pink-500",
+    badgeId:            "ZM-5714",
+    role:               "L2 Engineer",
+    time:               "06:00 AM CAT",
+    date:               "2026-06-20",
+    shiftLabel:         "Day Shift",
+    site:               "NTC ZM-0874",
+    zone:               "Main Room",
+    verificationStatus: "verified",
+    telemetry: [
+      { label: "Power Source",  value: "Mains Active",  icon: <Zap         size={11} />, flag: false },
+      { label: "Facility Load", value: "462 kW",        icon: <Activity    size={11} />, flag: false },
+      { label: "UPS 1 Status",  value: "Online",        icon: <Shield      size={11} />, flag: false },
+      { label: "UPS 2 Status",  value: "Online",        icon: <Shield      size={11} />, flag: false },
+      { label: "Inlet Temp",    value: "20.4 °C",       icon: <Thermometer size={11} />, flag: false },
+      { label: "Humidity",      value: "59 % RH",       icon: <Droplets    size={11} />, flag: false },
+    ],
+    notes:        "Start-of-shift walkthrough complete. Both UPS units fully charged and operational. Mains supply stable throughout the night per overnight telemetry. All cooling units active. No faults or flags carried over from night shift.",
+    alertsAcked:  0,
+    signedOff:    true,
+  },
+];
+
+// ── Verification badge ────────────────────────────────────────────────────────
+function VerificationBadge({ status }: { status: VerificationStatus }) {
+  if (status === "verified") {
+    return (
+      <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-green-50 border border-green-200 text-green-700 text-[10px] font-black uppercase tracking-wider">
+        <CheckCircle2 size={11} />
+        System Verified
+      </div>
+    );
+  }
+  return (
+    <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-red-50 border border-red-200 text-red-600 text-[10px] font-black uppercase tracking-wider">
+      <AlertTriangle size={11} />
+      Sensor Discrepancy
+    </div>
+  );
+}
+
+// ── Full-report modal ─────────────────────────────────────────────────────────
+function ReportModal({
+  log,
+  onClose,
+}: {
+  log:     ShiftLog;
+  onClose: () => void;
+}) {
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 overflow-y-auto"
+      style={{ backgroundColor: "rgba(0,0,0,0.5)", backdropFilter: "blur(4px)" }}
+      onClick={onClose}
+    >
+      <div
+        className="bg-white rounded-3xl shadow-2xl w-full max-w-2xl overflow-hidden my-4"
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* Modal header */}
+        <div className="flex items-center justify-between px-6 py-5 border-b border-gray-100 bg-gray-50/60">
+          <div>
+            <div className="flex items-center gap-2 mb-1">
+              <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">
+                Shift Report
+              </span>
+              <span className="text-[10px] font-mono font-black text-gray-500 bg-gray-100 px-2 py-0.5 rounded-lg">
+                {log.logNumber}
+              </span>
+              <VerificationBadge status={log.verificationStatus} />
+            </div>
+            <h2 className="text-[16px] font-black text-gray-900 leading-none">
+              {log.author}
+            </h2>
+            <p className="text-[11px] font-semibold text-gray-400 mt-0.5">
+              {log.shiftLabel} · {log.date} · {log.time}
+            </p>
+          </div>
+          <button
+            onClick={onClose}
+            className="p-2 rounded-xl text-gray-400 hover:text-gray-700 hover:bg-gray-100 transition-all"
+          >
+            <X size={16} />
+          </button>
+        </div>
+
+        {/* Modal body */}
+        <div className="px-6 py-5 space-y-5 max-h-[70vh] overflow-y-auto">
+          {/* Meta grid */}
+          <div className="grid grid-cols-2 gap-3">
+            {[
+              { label: "Badge ID",      value: log.badgeId,    icon: Hash    },
+              { label: "Role",          value: log.role,       icon: Shield  },
+              { label: "Site",          value: log.site,       icon: MapPin  },
+              { label: "Zone",          value: log.zone,       icon: MapPin  },
+              { label: "Shift",         value: log.shiftLabel, icon: Clock   },
+              { label: "Alerts Acked",  value: `${log.alertsAcked} alert${log.alertsAcked !== 1 ? "s" : ""}`, icon: AlertTriangle },
+            ].map(({ label, value, icon: Icon }) => (
+              <div key={label} className="bg-gray-50 border border-gray-100 rounded-xl px-3 py-2.5">
+                <div className="flex items-center gap-1.5 mb-1">
+                  <Icon size={10} className="text-gray-400" />
+                  <span className="text-[9px] font-black text-gray-400 uppercase tracking-widest">
+                    {label}
+                  </span>
+                </div>
+                <div className="text-[11px] font-bold text-gray-700">{value}</div>
+              </div>
+            ))}
+          </div>
+
+          {/* Telemetry */}
+          <div>
+            <div className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">
+              Telemetry Snapshot
+            </div>
+            <div className="bg-gray-900 rounded-xl px-4 py-3 grid grid-cols-2 gap-x-6 gap-y-2">
+              {log.telemetry.map((t, i) => (
+                <div key={i} className="flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-1.5 text-gray-500 text-[10px] font-semibold">
+                    <span className={t.flag ? "text-red-400" : "text-gray-500"}>
+                      {t.icon}
+                    </span>
+                    {t.label}
+                  </div>
+                  <span className={`font-mono text-[11px] font-bold ${t.flag ? "text-red-400" : "text-green-400"}`}>
+                    {t.value}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Notes */}
+          <div>
+            <div className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">
+              Technician Notes
+            </div>
+            <div className="border-l-4 border-gray-200 pl-4 py-1">
+              <p className="text-[12px] font-semibold text-gray-600 leading-relaxed italic">
+                {log.notes}
+              </p>
+            </div>
+          </div>
+
+          {/* Verification footer */}
+          <div className={`flex items-center gap-3 px-4 py-3 rounded-xl border ${
+            log.verificationStatus === "verified"
+              ? "bg-green-50 border-green-200"
+              : "bg-red-50 border-red-200"
+          }`}>
+            {log.verificationStatus === "verified"
+              ? <CheckCircle2 size={16} className="text-green-600 flex-shrink-0" />
+              : <AlertTriangle size={16} className="text-red-500 flex-shrink-0" />
+            }
+            <div>
+              <div className={`text-[11px] font-black ${log.verificationStatus === "verified" ? "text-green-700" : "text-red-700"}`}>
+                {log.verificationStatus === "verified"
+                  ? "Log verified against SCADA telemetry. No discrepancies detected."
+                  : "One or more field readings deviate from SCADA telemetry. Review flagged entries."}
+              </div>
+              <div className="text-[9px] font-semibold text-gray-400 mt-0.5">
+                Immutable record · {log.id} · NTC ZM-0874 Audit System
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── Shift log card ────────────────────────────────────────────────────────────
+function ShiftCard({
+  log,
+  onViewReport,
+}: {
+  log:          ShiftLog;
+  onViewReport: (log: ShiftLog) => void;
+}) {
+  const isDiscrepancy = log.verificationStatus === "discrepancy";
+
+  return (
+    <div className="bg-white border border-gray-100 rounded-2xl shadow-sm overflow-hidden flex flex-col hover:shadow-md transition-shadow duration-200">
+      {/* ── Card header ─────────────────────────────────────────────────── */}
+      <div className="px-5 pt-5 pb-4">
+        {/* Top row: Avatar + timestamp */}
+        <div className="flex items-start justify-between mb-3">
+          {/* Avatar */}
+          <div className={`w-10 h-10 rounded-xl flex items-center justify-center text-white text-[13px] font-black flex-shrink-0 ${log.avatarColor}`}>
+            {log.authorInitials}
+          </div>
+
+          {/* Timestamp */}
+          <div className="text-right flex-shrink-0">
+            <div className="flex items-center gap-1 justify-end text-[10px] font-bold text-gray-400">
+              <Clock size={10} />
+              {log.time}
+            </div>
+            <div className="text-[9px] font-semibold text-gray-300 mt-0.5 font-mono">
+              {log.date}
+            </div>
+          </div>
+        </div>
+
+        {/* Author + zone */}
+        <div className="mb-2">
+          <div className="flex items-center gap-2 flex-wrap">
+            <span className="text-[14px] font-black text-gray-900 leading-tight">
+              {log.author}
+            </span>
+            <span className="text-[9px] font-mono font-black text-gray-400 bg-gray-100 px-1.5 py-0.5 rounded-md">
+              {log.logNumber}
+            </span>
+          </div>
+          <div className="flex items-center gap-1 mt-0.5">
+            <MapPin size={10} className="text-gray-400 flex-shrink-0" />
+            <span className="text-[11px] font-semibold text-gray-400">
+              {log.zone} · {log.shiftLabel}
+            </span>
+          </div>
+        </div>
+
+        {/* Verification badge */}
+        <VerificationBadge status={log.verificationStatus} />
+      </div>
+
+      {/* ── Subtle divider ───────────────────────────────────────────────── */}
+      <div className="mx-5 border-t border-gray-100" />
+
+      {/* ── Telemetry grid ───────────────────────────────────────────────── */}
+      <div className="px-5 py-4 grid grid-cols-2 gap-x-4 gap-y-2.5 flex-1">
+        {log.telemetry.map((t, i) => (
+          <div key={i} className="flex items-center justify-between min-w-0">
+            <div className="flex items-center gap-1 text-[10px] font-semibold text-gray-400 min-w-0">
+              <span className={`flex-shrink-0 ${t.flag ? "text-red-400" : "text-gray-400"}`}>
+                {t.icon}
+              </span>
+              <span className="truncate">{t.label}</span>
+            </div>
+            <span
+              className={`text-[11px] font-black ml-1 flex-shrink-0 ${
+                t.flag ? "text-red-500" : "text-gray-800"
+              }`}
+            >
+              {t.value}
+            </span>
+          </div>
+        ))}
+      </div>
+
+      {/* ── Notes section ────────────────────────────────────────────────── */}
+      <div className="px-5 pb-4">
+        <div className="border-l-[3px] border-gray-200 pl-3">
+          <p className="text-[11px] font-semibold text-gray-500 italic leading-relaxed line-clamp-3">
+            {log.notes}
+          </p>
+        </div>
+      </div>
+
+      {/* ── Alerts acked strip ───────────────────────────────────────────── */}
+      {log.alertsAcked > 0 && (
+        <div className="mx-5 mb-4">
+          <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-yellow-50 border border-yellow-100">
+            <AlertTriangle size={11} className="text-yellow-500 flex-shrink-0" />
+            <span className="text-[10px] font-black text-yellow-700">
+              {log.alertsAcked} alert{log.alertsAcked !== 1 ? "s" : ""} acknowledged this shift
+            </span>
+          </div>
+        </div>
+      )}
+
+      {/* ── Footer CTA ───────────────────────────────────────────────────── */}
+      <div className="mt-auto border-t border-gray-100">
+        <button
+          onClick={() => onViewReport(log)}
+          className={`w-full px-5 py-3.5 flex items-center justify-between text-[11px] font-black uppercase tracking-wider transition-colors ${
+            isDiscrepancy
+              ? "bg-red-50/60 hover:bg-red-50 text-red-600"
+              : "bg-gray-50 hover:bg-gray-100 text-gray-600"
+          }`}
+        >
+          <span className="flex items-center gap-1.5">
+            <FileText size={12} />
+            View Full Report
+          </span>
+          <ChevronDown size={12} className="-rotate-90" />
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// ── Main Component ────────────────────────────────────────────────────────────
+export function ShiftReports() {
+  const [dateRange,    setDateRange]    = useState<DateRange>("7d");
+  const [showPicker,   setShowPicker]   = useState(false);
+  const [activeReport, setActiveReport] = useState<ShiftLog | null>(null);
+
+  // Derived counts
+  const verifiedCount     = SHIFT_LOGS.filter((l) => l.verificationStatus === "verified").length;
+  const discrepancyCount  = SHIFT_LOGS.filter((l) => l.verificationStatus === "discrepancy").length;
+  const totalAlertsAcked  = SHIFT_LOGS.reduce((sum, l) => sum + l.alertsAcked, 0);
+
+  const activeDateLabel = DATE_RANGES.find((r) => r.id === dateRange)?.label ?? "Last 7 Days";
+
+  // Export handler (mock)
+  function handleExport(format: "csv" | "pdf") {
+    const rows = SHIFT_LOGS.map((l) =>
+      [l.id, l.author, l.badgeId, l.date, l.time, l.shiftLabel, l.zone, l.verificationStatus, l.alertsAcked].join(",")
+    );
+    const headers = "Log ID,Author,Badge ID,Date,Time,Shift,Zone,Verification,Alerts Acked";
+    const blob = new Blob([[headers, ...rows].join("\n")], { type: "text/csv" });
+    const url  = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href     = url;
+    link.download = `shift-audit-${new Date().toISOString().slice(0, 10)}.${format}`;
+    link.click();
+    URL.revokeObjectURL(url);
+  }
+
+  return (
+    <>
+      {/* ── Report modal ─────────────────────────────────────────────────── */}
+      {activeReport && (
+        <ReportModal
+          log={activeReport}
+          onClose={() => setActiveReport(null)}
+        />
+      )}
+
+      <div className="min-h-full flex flex-col gap-6">
+
+        {/* ── Page header ──────────────────────────────────────────────────── */}
+        <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4">
+          <div>
+            <div className="text-[10px] font-black text-gray-400 uppercase tracking-[0.14em] mb-0.5">
+              Audit System
+            </div>
+            <h1 className="text-[20px] font-black text-gray-900 tracking-tight leading-none">
+              Shift Logs &amp; Audit Trail
+            </h1>
+            <p className="text-[12px] font-semibold text-gray-400 mt-1">
+              Immutable field technician reports · Site NTC ZM-0874
+            </p>
+          </div>
+
+          {/* Action bar */}
+          <div className="flex items-center gap-2 flex-shrink-0 flex-wrap">
+            {/* Date range picker */}
+            <div className="relative">
+              <button
+                onClick={() => setShowPicker((p) => !p)}
+                className="flex items-center gap-2 h-9 px-3.5 rounded-xl border border-gray-200 bg-white text-[11px] font-black text-gray-700 uppercase tracking-wider hover:border-gray-300 transition-all"
+              >
+                <Calendar size={13} className="text-gray-500" />
+                {activeDateLabel}
+                <ChevronDown size={12} className={`text-gray-400 transition-transform ${showPicker ? "rotate-180" : ""}`} />
+              </button>
+
+              {showPicker && (
+                <div className="absolute right-0 top-full mt-1.5 z-20 bg-white border border-gray-200 rounded-xl shadow-xl overflow-hidden w-44">
+                  {DATE_RANGES.map((range) => (
+                    <button
+                      key={range.id}
+                      onClick={() => { setDateRange(range.id); setShowPicker(false); }}
+                      className={`w-full text-left px-4 py-2.5 text-[11px] font-black uppercase tracking-wider transition-colors ${
+                        dateRange === range.id
+                          ? "bg-gray-900 text-white"
+                          : "text-gray-600 hover:bg-gray-50"
+                      }`}
+                    >
+                      {range.label}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Export */}
+            <div className="flex items-center gap-1.5">
+              <button
+                onClick={() => handleExport("csv")}
+                className="flex items-center gap-1.5 h-9 px-3.5 rounded-xl bg-gray-900 text-white text-[11px] font-black uppercase tracking-wider hover:bg-gray-700 active:scale-[0.98] transition-all"
+              >
+                <Download size={13} />
+                Export CSV
+              </button>
+              <button
+                onClick={() => handleExport("pdf")}
+                className="flex items-center gap-1.5 h-9 px-3.5 rounded-xl border border-gray-200 bg-white text-[11px] font-black text-gray-700 uppercase tracking-wider hover:border-gray-300 hover:bg-gray-50 active:scale-[0.98] transition-all"
+              >
+                <FileText size={13} />
+                PDF
+              </button>
+            </div>
+          </div>
+        </div>
+
+        {/* ── Summary bar ──────────────────────────────────────────────────── */}
+        <div className="bg-white border border-gray-100 rounded-2xl shadow-sm px-5 py-4 flex flex-wrap items-center gap-6">
+          {/* Log count */}
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-gray-100 flex items-center justify-center flex-shrink-0">
+              <FileText size={18} className="text-gray-500" />
+            </div>
+            <div>
+              <div className="text-[22px] font-black text-gray-900 leading-none">
+                {SHIFT_LOGS.length}
+              </div>
+              <div className="text-[9px] font-black text-gray-400 uppercase tracking-widest mt-0.5">
+                Total Reports
+              </div>
+            </div>
+          </div>
+
+          <div className="w-px h-10 bg-gray-100 hidden sm:block" />
+
+          {/* Verified */}
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-green-50 flex items-center justify-center flex-shrink-0">
+              <CheckCircle2 size={18} className="text-green-500" />
+            </div>
+            <div>
+              <div className="text-[22px] font-black text-green-600 leading-none">
+                {verifiedCount}
+              </div>
+              <div className="text-[9px] font-black text-gray-400 uppercase tracking-widest mt-0.5">
+                Verified
+              </div>
+            </div>
+          </div>
+
+          <div className="w-px h-10 bg-gray-100 hidden sm:block" />
+
+          {/* Discrepancies */}
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-red-50 flex items-center justify-center flex-shrink-0">
+              <AlertTriangle size={18} className="text-red-500" />
+            </div>
+            <div>
+              <div className="text-[22px] font-black text-red-600 leading-none">
+                {discrepancyCount}
+              </div>
+              <div className="text-[9px] font-black text-gray-400 uppercase tracking-widest mt-0.5">
+                Discrepancies
+              </div>
+            </div>
+          </div>
+
+          <div className="w-px h-10 bg-gray-100 hidden sm:block" />
+
+          {/* Alerts acked */}
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-yellow-50 flex items-center justify-center flex-shrink-0">
+              <Activity size={18} className="text-yellow-500" />
+            </div>
+            <div>
+              <div className="text-[22px] font-black text-yellow-600 leading-none">
+                {totalAlertsAcked}
+              </div>
+              <div className="text-[9px] font-black text-gray-400 uppercase tracking-widest mt-0.5">
+                Alerts Acked
+              </div>
+            </div>
+          </div>
+
+          {/* Right: range label */}
+          <div className="ml-auto hidden lg:flex items-center gap-1.5 text-[10px] font-black text-gray-400 uppercase tracking-widest">
+            <Calendar size={11} />
+            {activeDateLabel}
+          </div>
+        </div>
+
+        {/* ── Timeline grid ─────────────────────────────────────────────────── */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {SHIFT_LOGS.map((log) => (
+            <ShiftCard
+              key={log.id}
+              log={log}
+              onViewReport={setActiveReport}
+            />
+          ))}
+        </div>
+
+        {/* ── Immutability footer ───────────────────────────────────────────── */}
+        <div className="flex items-center justify-between text-[10px] font-semibold text-gray-400 pt-1">
+          <div className="flex items-center gap-1.5">
+            <Shield size={11} className="text-gray-300" />
+            <span>
+              All logs are immutable cryptographic records · NTC ZM-0874 Audit System
+            </span>
+          </div>
+          <span className="font-mono">
+            {SHIFT_LOGS.length} records · {activeDateLabel}
+          </span>
+        </div>
+      </div>
+    </>
+  );
+}
+
+export default ShiftReports;
