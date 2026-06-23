@@ -251,7 +251,7 @@ function AddPersonnelModal({ onClose }: { onClose: () => void }) {
         </div>
 
         {/* Modal body */}
-        <div className="px-6 py-5 space-y-4">
+        <div className="px-6 py-5 space-y-4 max-h-[75vh] overflow-y-auto">
           {[
             { label: "Full Name",        icon: Users,       placeholder: "e.g. Mwila Joseph K.",    type: "text"  },
             { label: "Employee Email",   icon: Mail,        placeholder: "e.g. mwila.j@airtel.zm",  type: "email" },

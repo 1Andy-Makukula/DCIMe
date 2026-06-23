@@ -9,6 +9,7 @@ import {
   Cpu,
   ChevronDown,
   ArrowUpDown,
+  X,
 } from "lucide-react";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -319,24 +320,63 @@ function FilterDropdown({
   options: string[];
   onChange: (v: string) => void;
 }) {
+  const [isOpen, setIsOpen] = useState(false);
+
+  React.useEffect(() => {
+    if (!isOpen) return;
+    const handleClose = () => setIsOpen(false);
+    window.addEventListener("click", handleClose);
+    return () => window.removeEventListener("click", handleClose);
+  }, [isOpen]);
+
+  const activeLabel = value || label;
+
   return (
-    <div className="relative">
-      <select
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        className="appearance-none h-9 pl-3 pr-8 rounded-xl bg-white border border-gray-200 text-[11px] font-black text-gray-700 uppercase tracking-wider cursor-pointer hover:border-gray-300 focus:outline-none focus:border-gray-400 transition-all"
+    <div className="relative" onClick={(e) => e.stopPropagation()}>
+      <button
+        type="button"
+        onClick={() => setIsOpen((prev) => !prev)}
+        className="flex items-center gap-2 h-9 px-3.5 rounded-xl border border-gray-200 bg-white text-[11px] font-black text-gray-700 uppercase tracking-wider cursor-pointer hover:border-gray-300 focus:outline-none transition-all"
       >
-        <option value="">{label}</option>
-        {options.map((o) => (
-          <option key={o} value={o}>
-            {o}
-          </option>
-        ))}
-      </select>
-      <ChevronDown
-        size={12}
-        className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none"
-      />
+        <span>{activeLabel}</span>
+        <ChevronDown
+          size={12}
+          className={`text-gray-400 transition-transform duration-200 ${isOpen ? "rotate-180" : ""}`}
+        />
+      </button>
+
+      {isOpen && (
+        <div className="absolute right-0 top-full mt-1.5 z-20 bg-white border border-gray-200 rounded-xl shadow-xl overflow-hidden min-w-[120px] w-max max-w-[200px]">
+          {/* Reset option */}
+          <button
+            type="button"
+            onClick={() => {
+              onChange("");
+              setIsOpen(false);
+            }}
+            className={`w-full text-left px-4 py-2.5 text-[11px] font-black uppercase tracking-wider transition-colors ${
+              value === "" ? "bg-gray-900 text-white" : "text-gray-600 hover:bg-gray-50"
+            }`}
+          >
+            All {label}s
+          </button>
+          {options.map((o) => (
+            <button
+              type="button"
+              key={o}
+              onClick={() => {
+                onChange(o);
+                setIsOpen(false);
+              }}
+              className={`w-full text-left px-4 py-2.5 text-[11px] font-black uppercase tracking-wider transition-colors ${
+                value === o ? "bg-gray-900 text-white" : "text-gray-600 hover:bg-gray-50"
+              }`}
+            >
+              {o}
+            </button>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
@@ -352,11 +392,163 @@ function Th({ children, className = "" }: { children: React.ReactNode; className
   );
 }
 
+interface AddAssetModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+}
+
+function AddAssetModal({ isOpen, onClose }: AddAssetModalProps) {
+  const [name, setName] = useState("");
+  const [category, setCategory] = useState("UPS");
+  const [assetId, setAssetId] = useState("");
+  const [ipAddress, setIpAddress] = useState("");
+  const [location, setLocation] = useState("Main Room");
+
+  if (!isOpen) return null;
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    console.log("Mock save equipment:", { name, category, assetId, ipAddress, location });
+    onClose();
+  };
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center p-4"
+      style={{ backgroundColor: "rgba(0,0,0,0.45)", backdropFilter: "blur(4px)" }}
+    >
+      <div className="bg-white rounded-3xl shadow-2xl w-full max-w-md overflow-hidden">
+        {/* Header */}
+        <div className="flex items-center justify-between px-6 py-5 border-b border-gray-100">
+          <div>
+            <div className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-0.5">
+              Ledger · Provisioning
+            </div>
+            <h2 className="text-[16px] font-black text-gray-900 leading-none">
+              Add New Equipment
+            </h2>
+          </div>
+          <button
+            onClick={onClose}
+            className="p-2 rounded-xl text-gray-400 hover:text-gray-700 hover:bg-gray-100 transition-all cursor-pointer"
+          >
+            <X size={16} />
+          </button>
+        </div>
+
+        {/* Form Body */}
+        <form onSubmit={handleSubmit}>
+          <div className="px-6 py-5 space-y-4 max-h-[70vh] overflow-y-auto">
+            {/* Equipment Name */}
+            <div>
+              <label className="block text-[10px] font-black text-gray-400 uppercase tracking-[0.12em] mb-1.5">
+                Equipment Name
+              </label>
+              <input
+                type="text"
+                required
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                placeholder="e.g. UPS System 3"
+                className="w-full px-4 py-3 rounded-xl bg-gray-50 border border-gray-200 text-[12px] font-semibold text-gray-900 placeholder-gray-400 focus:outline-none focus:border-gray-400 transition-all"
+              />
+            </div>
+
+            {/* Category */}
+            <div>
+              <label className="block text-[10px] font-black text-gray-400 uppercase tracking-[0.12em] mb-1.5">
+                Category
+              </label>
+              <select
+                value={category}
+                onChange={(e) => setCategory(e.target.value)}
+                className="w-full px-4 py-3 rounded-xl bg-gray-50 border border-gray-200 text-[12px] font-semibold text-gray-900 focus:outline-none focus:border-gray-400 transition-all"
+              >
+                <option value="UPS">UPS</option>
+                <option value="Generator">Generator</option>
+                <option value="CRAC">CRAC</option>
+                <option value="Network">Network</option>
+                <option value="Other">Other</option>
+              </select>
+            </div>
+
+            {/* Asset ID */}
+            <div>
+              <label className="block text-[10px] font-black text-gray-400 uppercase tracking-[0.12em] mb-1.5">
+                Asset ID
+              </label>
+              <input
+                type="text"
+                required
+                value={assetId}
+                onChange={(e) => setAssetId(e.target.value)}
+                placeholder="e.g. PWR-UPS-003"
+                className="w-full px-4 py-3 rounded-xl bg-gray-50 border border-gray-200 text-[12px] font-semibold text-gray-900 placeholder-gray-400 focus:outline-none focus:border-gray-400 transition-all"
+              />
+            </div>
+
+            {/* IP Address */}
+            <div>
+              <label className="block text-[10px] font-black text-gray-400 uppercase tracking-[0.12em] mb-1.5">
+                IP Address
+              </label>
+              <input
+                type="text"
+                required
+                value={ipAddress}
+                onChange={(e) => setIpAddress(e.target.value)}
+                placeholder="e.g. 10.0.4.13"
+                className="w-full px-4 py-3 rounded-xl bg-gray-50 border border-gray-200 text-[12px] font-semibold text-gray-900 placeholder-gray-400 focus:outline-none focus:border-gray-400 transition-all"
+              />
+            </div>
+
+            {/* Location */}
+            <div>
+              <label className="block text-[10px] font-black text-gray-400 uppercase tracking-[0.12em] mb-1.5">
+                Location
+              </label>
+              <select
+                value={location}
+                onChange={(e) => setLocation(e.target.value)}
+                className="w-full px-4 py-3 rounded-xl bg-gray-50 border border-gray-200 text-[12px] font-semibold text-gray-900 focus:outline-none focus:border-gray-400 transition-all"
+              >
+                <option value="Main Room">Main Room</option>
+                <option value="Power Room 1">Power Room 1</option>
+                <option value="Power Room 2">Power Room 2</option>
+                <option value="Generator Room">Generator Room</option>
+                <option value="Server Room 1">Server Room 1</option>
+              </select>
+            </div>
+          </div>
+
+          {/* Footer */}
+          <div className="flex items-center justify-end gap-2 px-6 py-4 border-t border-gray-100 bg-gray-50/50">
+            <button
+              type="button"
+              onClick={onClose}
+              className="px-4 py-2.5 rounded-xl text-[11px] font-black text-gray-500 hover:bg-gray-100 transition-all uppercase tracking-wider cursor-pointer"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-gray-900 text-white text-[11px] font-black uppercase tracking-wider hover:bg-gray-700 active:scale-[0.98] transition-all cursor-pointer"
+            >
+              Save Equipment
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
 // ── Main Component ────────────────────────────────────────────────────────────
 export function AssetInventory() {
   const [query,          setQuery]          = useState("");
   const [filterCategory, setFilterCategory] = useState("");
   const [filterStatus,   setFilterStatus]   = useState("");
+  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
 
   // ── Filtered dataset ──────────────────────────────────────────────────────
   const filtered = useMemo(() => {
@@ -404,7 +596,9 @@ export function AssetInventory() {
   }
 
   return (
-    <div className="min-h-full flex flex-col gap-5">
+    <>
+      <AddAssetModal isOpen={isAddModalOpen} onClose={() => setIsAddModalOpen(false)} />
+      <div className="min-h-full flex flex-col gap-5">
 
       {/* ── Page header ─────────────────────────────────────────────────── */}
       <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-3">
@@ -496,6 +690,14 @@ export function AssetInventory() {
         >
           <Download size={13} />
           Export CSV
+        </button>
+
+        {/* Add Equipment */}
+        <button
+          onClick={() => setIsAddModalOpen(true)}
+          className="flex items-center gap-2 h-9 px-4 rounded-xl bg-red-600 hover:bg-red-700 text-white text-[11px] font-black uppercase tracking-wider active:scale-[0.98] transition-all flex-shrink-0 cursor-pointer"
+        >
+          Add Equipment
         </button>
       </div>
 
@@ -628,6 +830,7 @@ export function AssetInventory() {
         </div>
       </div>
     </div>
+    </>
   );
 }
 

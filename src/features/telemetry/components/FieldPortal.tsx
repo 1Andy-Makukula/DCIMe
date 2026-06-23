@@ -18,10 +18,11 @@ export function FieldPortal({ onBack, onForm }: FieldPortalProps) {
         {/* Header */}
         <div className="px-5 pt-6 pb-4 flex-shrink-0">
           <div className="flex items-center justify-between mb-3">
-            <div className="flex items-center gap-2">
-              <AirtelMark size={26} />
-              <span className="font-black text-sm tracking-tight" style={{ color: "#FF0000" }}>airtel</span>
-              <span className="font-bold text-sm text-gray-300">· DCIMe</span>
+            <div className="flex items-center gap-2.5">
+              <AirtelMark size={28} />
+              <span className="font-black text-[14px] text-gray-900 tracking-tight leading-none">
+                DCIMe<span className="text-red-500">_Engine</span>
+              </span>
             </div>
             <div className="flex items-center gap-2">
               <div className="text-right">

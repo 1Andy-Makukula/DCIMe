@@ -1,5 +1,21 @@
 import ExcelJS from "exceljs";
 import { saveAs } from "file-saver";
+import { HOURLY_TELEMETRY_SCHEMA } from "../../features/field/constants/telemetrySchema";
+
+/**
+ * Mathematically translates a 0-based index to an Excel column letter.
+ * E.g., 0 -> A, 1 -> B, 25 -> Z, 26 -> AA, 27 -> AB
+ */
+const getExcelColumn = (index: number): string => {
+  let colName = "";
+  let dividend = index + 1;
+  while (dividend > 0) {
+    let modulo = (dividend - 1) % 26;
+    colName = String.fromCharCode(65 + modulo) + colName;
+    dividend = Math.floor((dividend - modulo) / 26);
+  }
+  return colName;
+};
 
 /**
  * Generates the legacy monthly report by taking flat chronological telemetry data
@@ -43,24 +59,23 @@ export const generateLegacyMonthlyReport = async (
       continue;
     }
 
-    // Calculate the exact Excel row. (Assuming 00:00 starts on Row 6)
-    const targetRow = hour + 6;
-
-    // Helper for Null-to-NA Pipeline: If a value is null, undefined, or "", explicitly inject "NA"
-    const getSafeValue = (val: any) => {
-      if (val === null || val === undefined || val === "") {
-        return "NA";
-      }
-      return val;
-    };
+    // Calculate the exact Excel row. (Assuming 00:00 starts on Row 5)
+    const targetRow = hour + 5;
 
     // Add Traceability
     console.log(`Injecting Data -> Sheet: ${sheet.name}, Hour: ${hour}:00, Row: ${targetRow}`);
 
-    // Data Mapping & Null-to-NA Pipeline
-    sheet.getCell("B" + targetRow).value = getSafeValue(rowData.grid_amps_R);
-    sheet.getCell("E" + targetRow).value = getSafeValue(rowData.grid_volts_R);
-    sheet.getCell("AD" + targetRow).value = getSafeValue(rowData.ups1_load_kw);
+    // Dynamic Schema Loop
+    HOURLY_TELEMETRY_SCHEMA.forEach((field) => {
+      if (field.excelColumnIndex !== undefined && field.excelColumnIndex >= 0) {
+        const colLetter = getExcelColumn(field.excelColumnIndex);
+        const cellValue = rowData[field.id];
+        
+        // The Null-to-NA Pipeline
+        sheet.getCell(colLetter + targetRow).value = 
+          (cellValue === null || cellValue === undefined || cellValue === "") ? "NA" : cellValue;
+      }
+    });
   }
 
   // Save and trigger download

@@ -7,7 +7,7 @@ import LoginPage from "@/pages/LoginPage";
 // Tech shell + views
 import { TechLayout } from "@/features/field/components/TechLayout";
 import { TechDashboard } from "@/features/field/components/TechDashboard";
-import { RoutineLogWizard } from "@/features/field/components/RoutineLogWizard";
+import { RoutineTasksDashboard } from "@/features/field/components/RoutineTasksDashboard";
 import { IncidentReport } from "@/features/field/components/IncidentReport";
 import { ShiftHandover } from "@/features/field/components/ShiftHandover";
 
@@ -29,7 +29,7 @@ export default function App() {
         {/* Tech shell — nested routing */}
         <Route path="/tech" element={<TechLayout />}>
           <Route index element={<TechDashboard />} />
-          <Route path="log" element={<RoutineLogWizard />} />
+          <Route path="log" element={<RoutineTasksDashboard />} />
           <Route path="incident" element={<IncidentReport />} />
           <Route path="handover" element={<ShiftHandover />} />
         </Route>

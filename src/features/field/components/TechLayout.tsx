@@ -1,6 +1,7 @@
 import React from "react";
 import { NavLink, Outlet, useNavigate } from "react-router";
 import { Home, ClipboardEdit, AlertOctagon, UserCheck, LogOut } from "lucide-react";
+import { AirtelMark } from "@/shared/ui";
 
 export function TechLayout() {
   const navigate = useNavigate();
@@ -9,13 +10,16 @@ export function TechLayout() {
     <div className="h-screen w-full flex flex-col bg-gray-50 overflow-hidden relative">
       {/* Top Header */}
       <header className="h-14 bg-white border-b border-gray-100 px-4 flex items-center justify-between shrink-0 z-10">
-        <div className="flex items-center gap-2">
-          <span className="text-lg font-black tracking-tight text-red-500">
-            DCIMe<span className="text-gray-900">.</span>
-          </span>
-          <span className="text-[10px] font-bold bg-gray-100 text-gray-500 px-2 py-0.5 rounded-full uppercase tracking-wider">
-            Field Portal
-          </span>
+        <div className="flex items-center gap-2.5">
+          <AirtelMark size={28} />
+          <div className="flex flex-col">
+            <span className="text-[13px] font-black tracking-tight text-gray-900 leading-none">
+              DCIMe<span className="text-red-500">_Engine</span>
+            </span>
+            <span className="text-[9px] font-black text-gray-400 uppercase tracking-widest leading-none mt-1">
+              Field Portal
+            </span>
+          </div>
         </div>
         
         <div className="flex items-center gap-3">

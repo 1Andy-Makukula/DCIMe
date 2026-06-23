@@ -32,18 +32,14 @@ export function AdminLayout() {
 
           {/* Left: Logo */}
           <div className="flex items-center gap-2.5">
-            <AirtelMark size={30} />
-            <div>
-              <div
-                className="font-black text-[13px] leading-none tracking-tight"
-                style={{ color: "#FF0000" }}
-              >
-                airtel
-              </div>
-              <div className="font-bold text-[10px] text-gray-400 leading-none mt-0.5 tracking-[0.15em] uppercase">
-                DCIM
-                <span className="text-red-500">e</span>
-              </div>
+            <AirtelMark size={32} />
+            <div className="flex flex-col">
+              <span className="font-black text-[14px] leading-none text-gray-900 tracking-tight">
+                DCIMe<span className="text-red-500">_Engine</span>
+              </span>
+              <span className="text-[9px] font-black text-gray-400 uppercase tracking-widest leading-none mt-1">
+                Admin Portal
+              </span>
             </div>
           </div>
 

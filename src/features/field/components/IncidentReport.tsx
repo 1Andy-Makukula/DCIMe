@@ -97,10 +97,10 @@ export function IncidentReport() {
         <button
           type="button"
           onClick={() => navigate("/tech")}
-          className="inline-flex items-center gap-1 text-xs font-bold text-gray-400 hover:text-red-500 transition-colors"
+          className="inline-flex items-center gap-2 py-3 px-4 rounded-xl bg-gray-50 border border-gray-200 text-xs font-bold text-gray-600 hover:text-red-600 active:scale-[0.98] transition-all cursor-pointer"
         >
           <ArrowLeft size={14} />
-          <span>Back to Dashboard</span>
+          <span>← Back</span>
         </button>
       </div>
 

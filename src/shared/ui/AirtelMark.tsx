@@ -1,11 +1,20 @@
 import React from "react";
 
-export function AirtelMark({ size = 28 }: { size?: number }) {
+export interface AirtelMarkProps {
+  className?: string;
+  size?: number;
+}
+
+export function AirtelMark({ className = "", size }: AirtelMarkProps) {
+  // Code Miracle: multiply incoming size by 1.4 to compensate for transparent padding in Logo.png
+  const adjustedSize = size ? size * 1.4 : undefined;
+  const style = adjustedSize ? { width: adjustedSize, height: adjustedSize } : undefined;
   return (
-    <svg width={size} height={size} viewBox="0 0 28 28" fill="none">
-      <rect width="28" height="28" rx="7" fill="#FF0000" />
-      <polygon points="14,6 20.5,21 7.5,21" fill="white" />
-      <line x1="10" y1="17.5" x2="18" y2="17.5" stroke="white" strokeWidth="2" strokeLinecap="round" />
-    </svg>
+    <img 
+      src="/Logo.png" 
+      alt="Airtel DCIMe Logo" 
+      style={style}
+      className={`${className} ${!size && !className ? "h-11" : ""} object-contain transform hover:scale-105 active:scale-95 transition-all duration-200`} 
+    />
   );
 }

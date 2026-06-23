@@ -498,22 +498,43 @@ export function ShiftReports() {
       // Generate exactly 3 chronological records for testing the NA pipeline
       const mockData = [
         {
-          created_at: "2026-06-01T08:00:00Z",
+          created_at: "2026-06-01T08:00:00",
           grid_amps_R: 125,
           grid_volts_R: 405,
-          ups1_load_kw: 55.4
+          grid_i_r: 125,
+          grid_v_rn: 405,
+          dg1_run_hrs: 12.5,
+          dg1_run_hours: 12.5,
+          ups1_load_kw: 55.4,
+          room1_temp: 21.2,
+          pwr1_temp: 21.2,
+          dg1_fuel_level: 85
         },
         {
-          created_at: "2026-06-01T09:00:00Z",
+          created_at: "2026-06-01T09:00:00",
           grid_amps_R: null, // to test the NA pipeline
           grid_volts_R: 408,
-          ups1_load_kw: 56.1
+          grid_i_r: null,
+          grid_v_rn: 408,
+          dg1_run_hrs: null,
+          dg1_run_hours: null,
+          ups1_load_kw: 56.1,
+          room1_temp: 21.5,
+          pwr1_temp: 21.5,
+          dg1_fuel_level: null
         },
         {
-          created_at: "2026-06-02T14:00:00Z",
+          created_at: "2026-06-02T14:00:00",
           grid_amps_R: 130,
           grid_volts_R: 412,
-          ups1_load_kw: null // to test the NA pipeline
+          grid_i_r: 130,
+          grid_v_rn: 412,
+          dg1_run_hrs: 13.0,
+          dg1_run_hours: 13.0,
+          ups1_load_kw: null,
+          room1_temp: null,
+          pwr1_temp: null,
+          dg1_fuel_level: 84
         }
       ];
 

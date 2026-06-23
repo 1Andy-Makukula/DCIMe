@@ -10,22 +10,71 @@ import {
   ShieldCheck,
   ChevronRight
 } from "lucide-react";
+import { ShiftTimeline } from "./ShiftTimeline";
+import { RoutineTasksDashboard } from "./RoutineTasksDashboard";
+import { supabase } from "@/shared/api/supabaseClient";
 
 export function TechDashboard() {
-  const [timeLeft, setTimeLeft] = useState(900); // 15:00 mins in seconds
+  const [selectedTargetHour, setSelectedTargetHour] = useState<number | null>(null);
+  const [completedHours, setCompletedHours] = useState<number[]>([]);
+  const [currentTime, setCurrentTime] = useState(new Date());
 
   useEffect(() => {
     const timer = setInterval(() => {
-      setTimeLeft((prev) => (prev > 0 ? prev - 1 : 900));
-    }, 1000);
+      setCurrentTime(new Date());
+    }, 60000); // update every minute to keep active slot accurate
     return () => clearInterval(timer);
   }, []);
 
-  const formatTime = (seconds: number) => {
-    const mins = Math.floor(seconds / 60);
-    const secs = seconds % 60;
-    return `${mins.toString().padStart(2, "0")}:${secs.toString().padStart(2, "0")} MINS`;
-  };
+  // Fetch completed slots for today on mount and slot return to keep UI synced with database
+  useEffect(() => {
+    const fetchCompletedHours = async () => {
+      try {
+        const startOfDay = new Date();
+        startOfDay.setHours(0, 0, 0, 0);
+        const endOfDay = new Date();
+        endOfDay.setHours(23, 59, 59, 999);
+
+        const { data, error } = await supabase
+          .from("telemetry_logs")
+          .select("target_hour")
+          .gte("target_hour", startOfDay.toISOString())
+          .lte("target_hour", endOfDay.toISOString());
+
+        if (error) throw error;
+
+        if (data) {
+          const hours = data.map((row: any) => {
+            return new Date(row.target_hour).getHours();
+          });
+          const uniqueHours = Array.from(new Set(hours));
+          setCompletedHours(uniqueHours);
+        }
+      } catch (err) {
+        console.error("Error fetching completed hours from Supabase:", err);
+      }
+    };
+
+    fetchCompletedHours();
+  }, [selectedTargetHour]);
+
+  if (selectedTargetHour !== null) {
+    return (
+      <RoutineTasksDashboard 
+        targetHour={selectedTargetHour} 
+        onBack={() => setSelectedTargetHour(null)} 
+        onSubmitSuccess={(hour) => {
+          setCompletedHours((prev) => {
+            if (!prev.includes(hour)) {
+              return [...prev, hour];
+            }
+            return prev;
+          });
+          setSelectedTargetHour(null);
+        }} 
+      />
+    );
+  }
 
   return (
     <div className="space-y-6 max-w-md mx-auto">
@@ -70,28 +119,13 @@ export function TechDashboard() {
         </div>
       </div>
 
-      {/* Task Queue Section */}
-      <div className="bg-white rounded-3xl p-5 border border-gray-100 shadow-sm space-y-4">
-        <div className="flex items-center justify-between">
-          <h2 className="text-xs font-black text-gray-400 uppercase tracking-widest">
-            Next Task Queue
-          </h2>
-          <span className="text-[10px] font-bold text-red-600 bg-red-50 px-2 py-0.5 rounded-full">
-            Required
-          </span>
-        </div>
-
-        <div className="bg-red-50/30 rounded-2xl p-4 border border-red-50/60 text-center space-y-1.5">
-          <p className="text-[10px] text-gray-400 font-bold uppercase tracking-wider">Next Reading Due In</p>
-          <p className="text-3xl font-black text-red-600 font-mono tracking-tight animate-pulse">
-            {formatTime(timeLeft)}
-          </p>
-        </div>
-
-        <button className="w-full py-4 px-6 rounded-2xl bg-red-600 text-white font-bold text-sm tracking-wide uppercase shadow-md shadow-red-600/10 active:scale-[0.98] transition-all flex items-center justify-center gap-2 group">
-          <Play size={16} fill="currentColor" className="group-hover:translate-x-0.5 transition-transform" />
-          Start Routine Log
-        </button>
+      {/* Shift Timeline Section */}
+      <div className="bg-white rounded-3xl p-5 border border-gray-100 shadow-sm">
+        <ShiftTimeline 
+          currentTime={currentTime} 
+          completedHours={completedHours} 
+          onSelectSlot={(hour) => setSelectedTargetHour(hour)} 
+        />
       </div>
 
       {/* Facility Status Section */}
