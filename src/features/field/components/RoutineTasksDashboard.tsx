@@ -1,138 +1,155 @@
-import React, { useState, useEffect } from "react";
-import { useNavigate } from "react-router";
-import { 
-  ArrowLeft,
-  Save, 
-  CheckCircle2, 
-  AlertTriangle,
-  Database,
-  Lock,
-  Zap,
-  Thermometer,
-  Activity,
-  MapPin,
-  Loader2,
-  AlertCircle
-} from "lucide-react";
-import { MASTER_ASSET_DICTIONARY, AssetMetric } from "../constants/telemetrySchema";
-import { supabase } from "@/shared/api/supabaseClient";
+import { useState, useEffect, useCallback } from 'react';
+import { Lock, Save, CheckCircle2, Loader2, Zap, AlertTriangle, ChevronUp, ChevronDown, ArrowLeft } from 'lucide-react';
+import { MASTER_ASSET_DICTIONARY, AssetMetric } from '../constants/telemetrySchema';
+import { supabase } from '@/shared/api/supabaseClient';
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Types
+// ─────────────────────────────────────────────────────────────────────────────
 
 interface RoutineTasksDashboardProps {
-  targetHour?: number;
-  onBack?: () => void;
-  onSubmitSuccess?: (hour: number) => void;
+  targetHour: number;
+  onBack: () => void;
+  onSubmitSuccess: (hour: number) => void;
 }
 
-export function RoutineTasksDashboard({
-  targetHour = new Date().getHours(),
-  onBack,
-  onSubmitSuccess
-}: RoutineTasksDashboardProps) {
-  const navigate = useNavigate();
+// ─────────────────────────────────────────────────────────────────────────────
+// Helpers
+// ─────────────────────────────────────────────────────────────────────────────
+
+/** Builds a UTC ISO timestamp anchored to a specific hour today */
+function buildHourTimestamp(hour: number): string {
+  const d = new Date();
+  d.setHours(hour, 0, 0, 0);
+  return d.toISOString();
+}
+
+/** Returns the category icon character for a category name */
+function categoryEmoji(name: string): string {
+  if (name.includes('Server')) return '🖥️';
+  if (name.includes('Power Room 1')) return '⚡';
+  if (name.includes('Power Room 2')) return '🔋';
+  if (name.includes('Grid') || name.includes('Outside')) return '🏗️';
+  if (name.includes('HQ')) return '🏢';
+  if (name.includes('IT Room')) return '📡';
+  return '📋';
+}
+
+/** Derives a human-readable frequency label for the active checks */
+function activeChecksLabel(isTwoHour: boolean, isFourHour: boolean, isDaily: boolean): string {
+  const parts = ['Hourly'];
+  if (isTwoHour) parts.push('2-Hour');
+  if (isFourHour) parts.push('4-Hour');
+  if (isDaily) parts.push('Daily');
+  return parts.join(' + ') + ' Checks';
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Component
+// ─────────────────────────────────────────────────────────────────────────────
+
+export const RoutineTasksDashboard = ({ targetHour, onBack, onSubmitSuccess }: RoutineTasksDashboardProps) => {
+  // ── State ──────────────────────────────────────────────────────────────────
   const [formData, setFormData] = useState<Record<string, any>>({});
-  const [isEditMode, setIsEditMode] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  const [isEditMode, setIsEditMode] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
-  const [validationError, setValidationError] = useState<string | null>(null);
-  const [showPayload, setShowPayload] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
+  const [fetchError, setFetchError] = useState<string | null>(null);
+  const [openCategories, setOpenCategories] = useState<Record<string, boolean>>({});
 
-  // The Accordion Math
-  const isTwoHour = targetHour % 2 === 0;
+  // ── Frequency accordion math ───────────────────────────────────────────────
+  const isTwoHour  = targetHour % 2 === 0;
   const isFourHour = targetHour % 4 === 0;
-  const isDaily = targetHour === 9; // Trigger daily tasks at 09:00
+  const isDaily    = targetHour === 9;
 
-  // Filter the dictionary based on the current accordion state
-  const getVisibleMetrics = (metrics: AssetMetric[]) => {
-    return metrics.filter(metric => {
-      if (metric.frequency === 'hourly') return true;
-      if (metric.frequency === '2-hour' && isTwoHour) return true;
-      if (metric.frequency === '4-hour' && isFourHour) return true;
-      if (metric.frequency === 'daily' && isDaily) return true;
-      return false;
-    });
-  };
+  // ── Outage override ────────────────────────────────────────────────────────
+  // When the technician flips ZESCO status to OFF, all generator metrics
+  // become immediately visible regardless of the hour.
+  const isGridOff = formData['grid_status'] === 'OFF';
 
-  // Helper to resolve Category Icons
-  const getCategoryIcon = (categoryName: string) => {
-    switch (categoryName) {
-      case "Power Infrastructure":
-        return <Zap className="text-yellow-500 w-5 h-5 animate-pulse" />;
-      case "Thermal Management":
-        return <Thermometer className="text-cyan-500 w-5 h-5 animate-pulse" />;
-      case "Fuel System":
-        return <Database className="text-amber-500 w-5 h-5" />;
-      case "Environment":
-        return <MapPin className="text-emerald-500 w-5 h-5" />;
-      default:
-        return <Activity className="text-red-500 w-5 h-5" />;
-    }
-  };
+  // ── Metric visibility filter ───────────────────────────────────────────────
+  const getVisibleMetrics = useCallback(
+    (assetId: string, metrics: AssetMetric[]): AssetMetric[] => {
+      return metrics.filter((metric) => {
+        // Outage override: generators always show when grid is off
+        if (assetId.includes('dg_') && isGridOff) return true;
 
-  // Fetch slot data and handle carry-forward / edit mode
+        switch (metric.frequency) {
+          case 'hourly':  return true;
+          case '2-hour':  return isTwoHour;
+          case '4-hour':  return isFourHour;
+          case 'daily':   return isDaily;
+          default:        return false;
+        }
+      });
+    },
+    [isTwoHour, isFourHour, isDaily, isGridOff]
+  );
+
+  // ── Supabase: fetch existing log or carry-forward from previous hour ────────
   useEffect(() => {
     const fetchSlotData = async () => {
       setIsLoading(true);
-      setValidationError(null);
-      try {
-        const today = new Date();
-        today.setHours(targetHour, 0, 0, 0);
-        const targetIso = today.toISOString();
+      setIsEditMode(false);
+      setFetchError(null);
 
-        // Query 1: Check for Edit Mode
-        const { data: currentData, error: currentError } = await supabase
-          .from("telemetry_logs")
-          .select("metrics")
-          .eq("target_hour", targetIso)
-          .eq("frequency", "hourly")
+      try {
+        const currentTimestamp = buildHourTimestamp(targetHour);
+        const prevTimestamp    = buildHourTimestamp(targetHour - 1);
+
+        // ── Query 1: check whether this slot already has a submission ──────────
+        const { data: existing, error: existingErr } = await supabase
+          .from('telemetry_logs')
+          .select('metrics')
+          .eq('target_hour', currentTimestamp)
           .maybeSingle();
 
-        if (currentError) {
-          console.error("Error checking edit mode:", currentError);
+        if (existingErr) {
+          throw new Error(`[Current Hour Query] ${existingErr.message}`);
         }
 
-        if (currentData && currentData.metrics) {
-          setFormData(currentData.metrics);
+        if (existing?.metrics) {
+          // Edit mode — populate form with saved data
+          setFormData(existing.metrics as Record<string, any>);
           setIsEditMode(true);
-        } else {
-          // Query 2: Carry-Forward/Defaults (Only if not in Edit Mode)
-          setIsEditMode(false);
-          const prevHourDate = new Date();
-          prevHourDate.setHours(targetHour - 1, 0, 0, 0);
-          const prevIso = prevHourDate.toISOString();
+          return;
+        }
 
-          const { data: prevData, error: prevError } = await supabase
-            .from("telemetry_logs")
-            .select("metrics")
-            .eq("target_hour", prevIso)
-            .eq("frequency", "hourly")
-            .maybeSingle();
+        // ── Query 2: no current-hour data — fetch previous hour for carry-forward
+        const { data: previous, error: prevErr } = await supabase
+          .from('telemetry_logs')
+          .select('metrics')
+          .eq('target_hour', prevTimestamp)
+          .maybeSingle();
 
-          if (prevError) {
-            console.error("Error carrying forward previous logs:", prevError);
-          }
+        if (prevErr) {
+          throw new Error(`[Previous Hour Query] ${prevErr.message}`);
+        }
 
-          const initialData: Record<string, any> = {};
+        const prevMetrics: Record<string, any> = (previous?.metrics as Record<string, any>) ?? {};
 
-          MASTER_ASSET_DICTIONARY.forEach((category) => {
-            category.assets.forEach((asset) => {
-              getVisibleMetrics(asset.metrics).forEach((metric) => {
-                const prevVal = prevData?.metrics?.[metric.id];
-                if ((metric.carryForward || metric.isConstant) && prevVal !== undefined && prevVal !== null && prevVal !== "") {
-                  initialData[metric.id] = prevVal;
-                } else if (metric.defaultValue !== undefined) {
-                  initialData[metric.id] = metric.defaultValue;
-                } else {
-                  initialData[metric.id] = "";
-                }
-              });
+        // ── Build initial formData from dictionary defaults & carry-forwards ───
+        const seed: Record<string, any> = {};
+
+        MASTER_ASSET_DICTIONARY.forEach((category) => {
+          category.assets.forEach((asset) => {
+            asset.metrics.forEach((metric) => {
+              if (metric.defaultValue !== undefined) {
+                seed[metric.id] = metric.defaultValue;
+              }
+              if (metric.carryForward && prevMetrics[metric.id] !== undefined) {
+                seed[metric.id] = prevMetrics[metric.id];
+              }
             });
           });
+        });
 
-          setFormData(initialData);
-        }
-      } catch (err) {
-        console.error("Error in fetchSlotData:", err);
+        setFormData(seed);
+      } catch (err: any) {
+        console.error('[DCIMe] fetchSlotData error:', err);
+        setFetchError(err.message || 'Failed to load telemetry slot data');
       } finally {
         setIsLoading(false);
       }
@@ -141,294 +158,258 @@ export function RoutineTasksDashboard({
     fetchSlotData();
   }, [targetHour]);
 
-  const handleBack = () => {
-    if (onBack) {
-      onBack();
-    } else {
-      navigate("/tech");
-    }
+  // ── Input change handler ───────────────────────────────────────────────────
+  const handleChange = (metricId: string, value: string) => {
+    setFormData((prev) => ({ ...prev, [metricId]: value }));
+    setSubmitError(null);
   };
 
-  const handleFieldChange = (id: string, value: string) => {
-    setValidationError(null);
-    setFormData(prev => ({ ...prev, [id]: value }));
-  };
+  // ── Submit handler ─────────────────────────────────────────────────────────
+  const handleSubmit = async () => {
+    setIsSubmitting(true);
+    setSubmitError(null);
 
-  const validateForm = (): boolean => {
-    const currentVisibleMetrics: AssetMetric[] = [];
+    // Calculate ambient average — collect all *_ambient_temp metrics
+    // that are currently visible, excluding HQ (4-hour only at non-4 hours)
+    const tempValues: number[] = [];
     MASTER_ASSET_DICTIONARY.forEach((category) => {
       category.assets.forEach((asset) => {
-        getVisibleMetrics(asset.metrics).forEach((metric) => {
-          currentVisibleMetrics.push(metric);
+        if (!asset.id.includes('ambient') || asset.id === 'hq_ambient') return;
+        asset.metrics.forEach((metric) => {
+          if (metric.id.endsWith('_temp')) {
+            const visible = getVisibleMetrics(asset.id, asset.metrics).some(
+              (m) => m.id === metric.id
+            );
+            const raw = formData[metric.id];
+            if (visible && raw !== undefined && raw !== '' && raw !== 'NA') {
+              const parsed = parseFloat(raw);
+              if (!isNaN(parsed)) tempValues.push(parsed);
+            }
+          }
         });
       });
     });
 
-    const missingFields: string[] = [];
-    for (const metric of currentVisibleMetrics) {
-      const val = formData[metric.id];
-      if (val === undefined || val === null || String(val).trim() === "") {
-        missingFields.push(metric.label);
-      }
+    const ambientAvg =
+      tempValues.length > 0
+        ? parseFloat((tempValues.reduce((a, b) => a + b, 0) / tempValues.length).toFixed(1))
+        : null;
+
+    const payload = {
+      ...formData,
+      ...(ambientAvg !== null ? { ambient_avg_temp: ambientAvg } : {}),
+    };
+
+    const { error } = await supabase.from('telemetry_logs').upsert(
+      {
+        target_hour: buildHourTimestamp(targetHour),
+        metrics:     payload,
+        is_edited:   isEditMode,
+      },
+      { onConflict: 'target_hour' }
+    );
+
+    setIsSubmitting(false);
+
+    if (error) {
+      console.error('[DCIMe] submit error:', error.message);
+      setSubmitError(error.message);
+      return;
     }
 
-    if (missingFields.length > 0) {
-      setValidationError(
-        `Please complete all fields. Missing: ${missingFields.slice(0, 3).join(", ")}${
-          missingFields.length > 3 ? ` and ${missingFields.length - 3} more` : ""
-        }.`
-      );
-      return false;
-    }
-    return true;
-  };
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!validateForm()) return;
-
-    setIsSubmitting(true);
-    try {
-      const today = new Date();
-      today.setHours(targetHour, 0, 0, 0);
-      const targetIso = today.toISOString();
-
-      const { error } = await supabase
-        .from("telemetry_logs")
-        .upsert({
-          technician_name: "Anderson M.",
-          target_hour: targetIso,
-          frequency: "hourly",
-          asset_id: "facility_wide",
-          metrics: formData,
-          is_edited: isEditMode,
-          last_edited_at: isEditMode ? new Date().toISOString() : null
-        });
-
-      if (error) throw error;
-      setIsSuccess(true);
-    } catch (err) {
-      console.error("Error submitting telemetry to Supabase:", err);
-      setValidationError("Failed to submit telemetry data to database.");
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
-
-  const handleReturnToTimeline = () => {
-    if (onSubmitSuccess) {
+    setIsSuccess(true);
+    setTimeout(() => {
+      setIsSuccess(false);
       onSubmitSuccess(targetHour);
-    } else {
-      navigate("/tech");
-    }
+    }, 900);
   };
 
+  // ── Loading skeleton ───────────────────────────────────────────────────────
   if (isLoading) {
     return (
-      <div className="max-w-md mx-auto h-[60vh] flex flex-col items-center justify-center space-y-4">
-        <Loader2 className="w-12 h-12 text-red-500 animate-spin" />
-        <p className="text-xs text-gray-400 font-bold uppercase tracking-wider animate-pulse">
-          Fetching Slot Data...
-        </p>
+      <div className="flex flex-col items-center justify-center min-h-[50vh] gap-3 text-gray-400">
+        <Loader2 size={32} className="text-red-500 animate-spin" />
+        <p className="text-xs font-bold uppercase tracking-widest text-gray-400">Loading slot data…</p>
       </div>
     );
   }
 
-  if (isSuccess) {
-    return (
-      <div className="max-w-md mx-auto bg-slate-905 border border-slate-800 rounded-3xl p-6 text-center space-y-6 animate-fade-in pb-24 shadow-2xl bg-slate-900">
-        <div className="w-20 h-20 bg-green-500/10 rounded-full flex items-center justify-center mx-auto text-green-500 border border-green-500/20">
-          <CheckCircle2 size={40} className="animate-bounce" />
-        </div>
-
-        <div className="space-y-2">
-          <h1 className="text-xl font-black text-white tracking-tight">Telemetry Logged</h1>
-          <p className="text-sm text-gray-400 px-4">
-            Hourly numerical logs compiled and verified successfully.
-          </p>
-        </div>
-
-        <div className="bg-slate-950/60 rounded-2xl p-4 text-left border border-slate-800 space-y-2.5">
-          <div className="flex justify-between text-xs font-semibold">
-            <span className="text-gray-400">Site ID:</span>
-            <span className="text-white">LUSAKA-HQ-DC1</span>
-          </div>
-          <div className="flex justify-between text-xs font-semibold">
-            <span className="text-gray-400">Total Fields:</span>
-            <span className="text-green-500 font-bold">
-              {Object.keys(formData).length} Points
-            </span>
-          </div>
-        </div>
-
-        <div className="space-y-2 text-left">
-          <button
-            type="button"
-            onClick={() => setShowPayload(!showPayload)}
-            className="w-full py-2.5 px-4 rounded-xl border border-slate-800 text-xs font-bold text-gray-400 hover:text-white active:scale-[0.98] transition-all flex items-center justify-center gap-2 bg-slate-950/40"
-          >
-            <Database size={14} />
-            <span>{showPayload ? "Hide System Payload" : "View System Payload"}</span>
-          </button>
-          
-          {showPayload && (
-            <pre className="p-4 rounded-2xl bg-slate-950 text-green-400 font-mono text-[9px] overflow-auto max-h-60 border border-slate-800">
-              {JSON.stringify({
-                metadata: {
-                  siteName: "LUSAKA-HQ-DC1",
-                  date: new Date().toISOString(),
-                  technicianId: "Anderson M."
-                },
-                readings: formData
-              }, null, 2)}
-            </pre>
-          )}
-        </div>
-
-        <button
-          onClick={handleReturnToTimeline}
-          className="w-full py-4 bg-red-600 hover:bg-red-700 text-white font-bold rounded-2xl text-sm uppercase tracking-wide active:scale-[0.98] transition-all shadow-lg shadow-red-600/20"
-        >
-          {onSubmitSuccess ? "Complete Slot & Return" : "Back to Dashboard"}
-        </button>
-      </div>
-    );
-  }
-
+  // ── Render ─────────────────────────────────────────────────────────────────
   return (
-    <div className="max-w-md mx-auto space-y-6 pb-28 text-slate-100">
-      {/* Header Bar */}
-      <div className="px-1 space-y-4">
+    <div className="max-w-md mx-auto space-y-6 pb-24">
+      {/* Back Button */}
+      <div className="px-1">
         <button
-          onClick={handleBack}
-          className="inline-flex items-center gap-2 py-2.5 px-4 rounded-xl bg-slate-900 border border-slate-800 text-xs font-bold text-gray-300 hover:text-red-500 active:scale-[0.98] transition-all cursor-pointer"
+          type="button"
+          onClick={onBack}
+          className="inline-flex items-center gap-2 py-3 px-4 rounded-xl bg-white border border-gray-200 text-xs font-bold text-gray-600 hover:text-red-600 active:scale-[0.98] transition-all cursor-pointer shadow-sm"
         >
           <ArrowLeft size={14} />
-          <span>Back to Shift Timeline</span>
+          <span>← Back</span>
         </button>
-
-        <div className="relative overflow-hidden bg-gradient-to-br from-slate-900 via-slate-950 to-slate-900 border border-slate-800 rounded-3xl p-5 shadow-xl">
-          <div className="absolute -top-16 -right-16 w-36 h-36 bg-blue-600 rounded-full blur-3xl opacity-10 pointer-events-none" />
-          <h2 className="text-2xl font-black text-white tracking-tight">Log for {targetHour.toString().padStart(2, "0")}:00</h2>
-          <p className="text-xs text-blue-400 mt-1 font-semibold uppercase tracking-wider">
-            {isFourHour ? "Hourly + 2-Hour + 4-Hour Checks" : isTwoHour ? "Hourly + 2-Hour Checks" : "Standard Hourly Checks"}
-            {isDaily && " + Daily Checks"}
-          </p>
-          {isEditMode && (
-            <div className="inline-flex items-center gap-1 mt-3 px-2 py-0.5 rounded-full text-[10px] font-black bg-blue-500/10 text-blue-400 border border-blue-500/20">
-              <AlertCircle size={10} />
-              <span>EDIT MODE</span>
-            </div>
-          )}
-        </div>
       </div>
 
-      {/* Validation Message */}
-      {validationError && (
-        <div className="bg-red-500/10 border border-red-500/20 p-4 rounded-3xl text-xs text-red-400 font-semibold flex items-center gap-2.5 animate-pulse">
-          <AlertTriangle size={16} className="shrink-0 text-red-500" />
-          <span>{validationError}</span>
+      {/* Header */}
+      <div className="px-1">
+        <h1 className="text-xl font-black text-gray-900 tracking-tight">
+          Log for {String(targetHour).padStart(2, '0')}:00
+        </h1>
+        <p className="text-xs text-gray-500 mt-1 flex flex-wrap gap-2 items-center">
+          <span>{activeChecksLabel(isTwoHour, isFourHour, isDaily)}</span>
+          {isEditMode && (
+            <span className="bg-amber-100 text-amber-800 text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full border border-amber-200">
+              ✏️ Editing
+            </span>
+          )}
+          {isGridOff && (
+            <span className="bg-red-100 text-red-800 text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full border border-red-200">
+              ⚡ Outage Mode
+            </span>
+          )}
+        </p>
+      </div>
+
+      {/* Fetch Error Banner */}
+      {fetchError && (
+        <div className="bg-red-50 border border-red-200 rounded-2xl p-4 flex items-center gap-3 text-sm text-red-800 shadow-sm mx-1">
+          <AlertTriangle size={18} className="text-red-600 shrink-0" />
+          <span className="font-medium">{fetchError}</span>
         </div>
       )}
 
-      {/* Accordion Categories */}
-      <form onSubmit={handleSubmit} className="space-y-6">
+      {/* Dictionary loop */}
+      <div className="space-y-4">
         {MASTER_ASSET_DICTIONARY.map((category) => {
-          // Check if category has any visible assets
-          const visibleAssets = category.assets.filter(asset => getVisibleMetrics(asset.metrics).length > 0);
-          if (visibleAssets.length === 0) return null;
+          // Determine if any asset in this category has visible metrics
+          const categoryHasContent = category.assets.some(
+            (asset) => getVisibleMetrics(asset.id, asset.metrics).length > 0
+          );
+          if (!categoryHasContent) return null;
+
+          const isOpen = openCategories[category.categoryName] !== false;
 
           return (
-            <div key={category.categoryName} className="space-y-3.5">
-              <div className="flex items-center gap-2 px-1">
-                {getCategoryIcon(category.categoryName)}
-                <h3 className="text-xs font-black text-gray-400 uppercase tracking-widest">
-                  {category.categoryName}
-                </h3>
-              </div>
+            <div key={category.categoryName} className="bg-white rounded-3xl border border-gray-100 shadow-sm overflow-hidden">
+              {/* Collapsible Header */}
+              <button
+                type="button"
+                onClick={() => setOpenCategories(prev => ({ ...prev, [category.categoryName]: !isOpen }))}
+                className="w-full flex items-center justify-between px-5 py-4 text-left hover:bg-gray-50 transition-colors border-b border-gray-50"
+              >
+                <div className="flex items-center gap-3">
+                  <div
+                    className="w-8 h-8 rounded-xl flex items-center justify-center flex-shrink-0 transition-colors"
+                    style={{ backgroundColor: isOpen ? "#FF0000" : "#F3F4F6" }}
+                  >
+                    <span className="text-sm">{categoryEmoji(category.categoryName)}</span>
+                  </div>
+                  <span className="font-black text-xs text-gray-800 uppercase tracking-wider">{category.categoryName}</span>
+                </div>
+                {isOpen ? <ChevronUp size={16} className="text-gray-400" /> : <ChevronDown size={16} className="text-gray-400" />}
+              </button>
 
-              <div className="space-y-4">
-                {visibleAssets.map((asset) => {
-                  const visibleMetrics = getVisibleMetrics(asset.metrics);
-                  return (
-                    <div 
-                      key={asset.id} 
-                      className="bg-slate-900/60 backdrop-blur-md p-5 rounded-3xl border border-slate-800 shadow-lg space-y-4"
-                    >
-                      <h4 className="font-bold text-sm text-gray-200 border-b border-slate-800/60 pb-2 flex items-center justify-between">
-                        <span>{asset.name}</span>
-                        <span className="text-[10px] text-gray-500 font-normal">
-                          {visibleMetrics.length} {visibleMetrics.length === 1 ? 'Reading' : 'Readings'}
-                        </span>
-                      </h4>
+              {/* Asset Cards */}
+              {isOpen && (
+                <div className="p-4 bg-gray-50/50 space-y-4">
+                  {category.assets.map((asset) => {
+                    const visibleMetrics = getVisibleMetrics(asset.id, asset.metrics);
+                    if (visibleMetrics.length === 0) return null;
 
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                        {visibleMetrics.map(metric => {
-                          const hasUnit = !!metric.unit;
-                          return (
-                            <div key={metric.id} className="space-y-1.5">
-                              <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block">
-                                {metric.label}
-                                {metric.isConstant && (
-                                  <span className="inline-flex items-center ml-1 text-[9px] text-slate-500 lowercase font-normal gap-0.5">
-                                    <Lock size={8} /> constant
-                                  </span>
-                                )}
-                              </label>
+                    return (
+                      <div key={asset.id} className="bg-white rounded-2xl border border-gray-100 p-4 shadow-sm space-y-3">
+                        <h3 className="text-xs font-black text-gray-500 uppercase tracking-wider border-b border-gray-50 pb-2">
+                          {asset.name}
+                        </h3>
 
-                              <div className="relative flex rounded-2xl bg-slate-950/40 border border-slate-800 focus-within:border-red-500 focus-within:ring-1 focus-within:ring-red-500 transition-all overflow-hidden">
-                                <input
-                                  type={metric.type === 'number' ? 'number' : 'text'}
-                                  step="any"
-                                  inputMode={metric.type === 'number' ? 'decimal' : undefined}
-                                  className={`w-full bg-transparent p-3 text-sm font-bold font-mono focus:outline-none ${
-                                    metric.isConstant ? 'text-slate-400' : 'text-white'
-                                  }`}
-                                  value={formData[metric.id] ?? ''}
-                                  onChange={(e) => handleFieldChange(metric.id, e.target.value)}
-                                  placeholder={metric.isConstant && metric.defaultValue !== undefined ? String(metric.defaultValue) : "Enter reading"}
-                                />
-                                {hasUnit && (
-                                  <span className="flex items-center justify-center px-3 bg-slate-900 text-[10px] font-bold text-gray-500 border-l border-slate-800">
-                                    {metric.unit}
-                                  </span>
-                                )}
+                        <div className="grid grid-cols-2 gap-3">
+                          {visibleMetrics.map((metric) => {
+                            const value = formData[metric.id] ?? '';
+                            const locked = metric.isConstant === true;
+
+                            return (
+                              <div key={metric.id} className="space-y-1">
+                                <label htmlFor={metric.id} className="block text-[10px] font-bold text-gray-400 uppercase tracking-wider flex items-center gap-1">
+                                  <span>{metric.label}</span>
+                                  {locked && (
+                                    <span className="cursor-help" title="Auto-filled constant value — tap to override">
+                                      <Lock size={10} className="text-gray-400" />
+                                    </span>
+                                  )}
+                                </label>
+                                <div className="relative">
+                                  <input
+                                    id={metric.id}
+                                    type={metric.type === 'number' ? 'number' : 'text'}
+                                    inputMode={metric.type === 'number' ? 'decimal' : 'text'}
+                                    value={value}
+                                    onChange={(e) => handleChange(metric.id, e.target.value)}
+                                    placeholder={locked ? String(metric.defaultValue ?? '') : '—'}
+                                    className={`w-full px-3 py-2.5 rounded-xl border text-xs font-semibold text-gray-800 focus:outline-none transition-all ${
+                                      locked 
+                                        ? "bg-gray-100 border-gray-200 text-gray-400 border-dashed cursor-not-allowed" 
+                                        : "bg-gray-50 border-gray-200 focus:border-red-500 focus:ring-1 focus:ring-red-500"
+                                    }`}
+                                  />
+                                </div>
                               </div>
-                            </div>
-                          );
-                        })}
+                            );
+                          })}
+                        </div>
                       </div>
-                    </div>
-                  );
-                })}
-              </div>
+                    );
+                  })}
+                </div>
+              )}
             </div>
           );
         })}
+      </div>
 
-        {/* Submit Bar */}
-        <div className="fixed bottom-0 left-0 right-0 bg-gradient-to-t from-slate-950 via-slate-950 to-transparent pt-8 pb-4 px-4 z-40 max-w-md mx-auto">
+      {/* Error banner */}
+      {submitError && (
+        <div className="bg-red-50 border border-red-200 rounded-2xl p-4 flex items-center gap-3 text-sm text-red-800 shadow-sm">
+          <AlertTriangle size={18} className="text-red-600 shrink-0" />
+          <span className="font-medium">{submitError}</span>
+        </div>
+      )}
+
+      {/* Sticky submit button */}
+      <div className="fixed bottom-0 left-0 right-0 p-4 bg-gradient-to-t from-gray-50 via-gray-50/95 to-transparent z-40">
+        <div className="max-w-md mx-auto">
           <button
-            type="submit"
-            disabled={isSubmitting}
-            className="w-full bg-red-600 hover:bg-red-700 text-white font-bold py-4 rounded-2xl shadow-xl hover:scale-[1.01] active:scale-[0.99] transition-all uppercase tracking-wider text-sm flex items-center justify-center gap-2"
+            onClick={handleSubmit}
+            disabled={isSubmitting || isSuccess}
+            className={`w-full py-4 rounded-2xl text-white font-black text-sm tracking-widest uppercase transition-all shadow-lg flex items-center justify-center gap-2 ${
+              isSubmitting
+                ? "bg-gray-400 shadow-none cursor-not-allowed text-gray-100"
+                : isSuccess
+                ? "bg-green-600 shadow-green-600/10 active:scale-[0.98]"
+                : isGridOff
+                ? "bg-amber-600 hover:bg-amber-700 shadow-amber-600/10 active:scale-[0.98]"
+                : "bg-red-600 hover:bg-red-700 shadow-red-600/10 active:scale-[0.98]"
+            }`}
           >
             {isSubmitting ? (
               <>
-                <Loader2 size={16} className="animate-spin" />
-                <span>Saving Report...</span>
+                <Loader2 size={18} className="animate-spin" />
+                <span>Saving…</span>
+              </>
+            ) : isSuccess ? (
+              <>
+                <CheckCircle2 size={18} />
+                <span>Saved!</span>
               </>
             ) : (
               <>
-                <Save size={16} />
-                <span>Submit {targetHour.toString().padStart(2, "0")}:00 Report</span>
+                {isGridOff ? <Zap size={18} /> : <Save size={18} />}
+                <span>{isEditMode ? 'Update Log' : 'Submit Log'}</span>
               </>
             )}
           </button>
         </div>
-      </form>
+      </div>
     </div>
   );
-}
+};
 
 export default RoutineTasksDashboard;
