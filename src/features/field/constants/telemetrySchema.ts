@@ -1,13 +1,13 @@
 // ─────────────────────────────────────────────────────────────────────────────
 // DCIMe Engine — Relational Asset Dictionary
 // Single source of truth for the mobile app and Excel export engine.
-// destinations: [] are intentionally stubbed and will be injected by the
-// Excel mapping engine in a subsequent pass.
 // ─────────────────────────────────────────────────────────────────────────────
 
 export type CheckFrequency = 'hourly' | '2-hour' | '4-hour' | 'daily';
+export type TargetWorkbook = 'daily_canvas' | 'commercial_logbook';
 
 export interface ExcelTarget {
+  workbook: TargetWorkbook;
   sheetName: string;
   excelColumnIndex: number; // 0-based column index
 }
@@ -16,10 +16,10 @@ export interface AssetMetric {
   id: string;
   label: string;
   type: 'number' | 'text' | 'boolean';
-  frequency: CheckFrequency;
-  isConstant?: boolean;
-  defaultValue?: string | number;
-  carryForward?: boolean;
+  frequency: CheckFrequency; 
+  isConstant?: boolean;      
+  defaultValue?: string | number; 
+  carryForward?: boolean;    
   destinations: ExcelTarget[];
 }
 
@@ -35,8 +35,7 @@ export interface AssetCategory {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Shared metric blueprints — avoids repeating the same 7-field PAC block
-// for every unit. Each builder stamps in the asset-specific id prefix.
+// Shared metric blueprints — avoids repeating the same fields
 // ─────────────────────────────────────────────────────────────────────────────
 
 function buildPacMetrics(prefix: string): AssetMetric[] {
@@ -85,14 +84,12 @@ function buildDgMetrics(prefix: string): AssetMetric[] {
 // ─────────────────────────────────────────────────────────────────────────────
 
 export const MASTER_ASSET_DICTIONARY: AssetCategory[] = [
-
   // ══════════════════════════════════════════════════════════════════════════
-  // CATEGORY 1 — Server Room
+  // CATEGORY 1 — The Server Room
   // ══════════════════════════════════════════════════════════════════════════
   {
-    categoryName: 'Server Room',
+    categoryName: 'The Server Room',
     assets: [
-      // Ambient conditions
       {
         id: 'room_server_ambient',
         name: 'Server Room Ambient',
@@ -101,7 +98,6 @@ export const MASTER_ASSET_DICTIONARY: AssetCategory[] = [
           { id: 'server_ambient_humidity', label: 'Humidity (%)',      type: 'number', frequency: 'hourly', destinations: [] },
         ],
       },
-      // Emerson Aircon units 1–7
       { id: 'pac_server_em1', name: 'Emerson Aircon 1', metrics: buildPacMetrics('pac_server_em1') },
       { id: 'pac_server_em2', name: 'Emerson Aircon 2', metrics: buildPacMetrics('pac_server_em2') },
       { id: 'pac_server_em3', name: 'Emerson Aircon 3', metrics: buildPacMetrics('pac_server_em3') },
@@ -109,13 +105,11 @@ export const MASTER_ASSET_DICTIONARY: AssetCategory[] = [
       { id: 'pac_server_em5', name: 'Emerson Aircon 5', metrics: buildPacMetrics('pac_server_em5') },
       { id: 'pac_server_em6', name: 'Emerson Aircon 6', metrics: buildPacMetrics('pac_server_em6') },
       { id: 'pac_server_em7', name: 'Emerson Aircon 7', metrics: buildPacMetrics('pac_server_em7') },
-      // Vertiv units 1–5
       { id: 'pac_server_vt1', name: 'Vertiv 1', metrics: buildPacMetrics('pac_server_vt1') },
       { id: 'pac_server_vt2', name: 'Vertiv 2', metrics: buildPacMetrics('pac_server_vt2') },
       { id: 'pac_server_vt3', name: 'Vertiv 3', metrics: buildPacMetrics('pac_server_vt3') },
       { id: 'pac_server_vt4', name: 'Vertiv 4', metrics: buildPacMetrics('pac_server_vt4') },
       { id: 'pac_server_vt5', name: 'Vertiv 5', metrics: buildPacMetrics('pac_server_vt5') },
-      // Dragor
       { id: 'pac_server_dragor', name: 'Dragor', metrics: buildPacMetrics('pac_server_dragor') },
     ],
   },
@@ -126,7 +120,6 @@ export const MASTER_ASSET_DICTIONARY: AssetCategory[] = [
   {
     categoryName: 'Power Room 1',
     assets: [
-      // Ambient conditions
       {
         id: 'room_pr1_ambient',
         name: 'Power Room 1 Ambient',
@@ -135,11 +128,8 @@ export const MASTER_ASSET_DICTIONARY: AssetCategory[] = [
           { id: 'pr1_ambient_humidity', label: 'Humidity (%)',      type: 'text',   frequency: 'hourly', isConstant: true, defaultValue: 'NA', destinations: [] },
         ],
       },
-      // UPS 1 — output voltage default: 230V
       { id: 'ups_1', name: 'UPS 1', metrics: buildUpsMetrics('ups_1', 230) },
-      // Rectifier 1
       { id: 'rectifier_1', name: 'Rectifier 1', metrics: buildRectifierMetrics('rectifier_1') },
-      // Emerson Aircon units 1–3
       { id: 'pac_pr1_em1', name: 'Emerson Aircon 1', metrics: buildPacMetrics('pac_pr1_em1') },
       { id: 'pac_pr1_em2', name: 'Emerson Aircon 2', metrics: buildPacMetrics('pac_pr1_em2') },
       { id: 'pac_pr1_em3', name: 'Emerson Aircon 3', metrics: buildPacMetrics('pac_pr1_em3') },
@@ -152,7 +142,6 @@ export const MASTER_ASSET_DICTIONARY: AssetCategory[] = [
   {
     categoryName: 'Power Room 2',
     assets: [
-      // Ambient conditions
       {
         id: 'room_pr2_ambient',
         name: 'Power Room 2 Ambient',
@@ -161,11 +150,8 @@ export const MASTER_ASSET_DICTIONARY: AssetCategory[] = [
           { id: 'pr2_ambient_humidity', label: 'Humidity (%)',      type: 'text',   frequency: 'hourly', isConstant: true, defaultValue: 'NA', destinations: [] },
         ],
       },
-      // UPS 2 — output voltage default: 231V
       { id: 'ups_2', name: 'UPS 2', metrics: buildUpsMetrics('ups_2', 231) },
-      // Rectifier 2
       { id: 'rectifier_2', name: 'Rectifier 2', metrics: buildRectifierMetrics('rectifier_2') },
-      // Emerson Aircon units 1–2
       { id: 'pac_pr2_em1', name: 'Emerson Aircon 1', metrics: buildPacMetrics('pac_pr2_em1') },
       { id: 'pac_pr2_em2', name: 'Emerson Aircon 2', metrics: buildPacMetrics('pac_pr2_em2') },
     ],
@@ -177,23 +163,30 @@ export const MASTER_ASSET_DICTIONARY: AssetCategory[] = [
   {
     categoryName: 'Outside / Main Grid',
     assets: [
-      // ZESCO commercial grid
       {
         id: 'grid_main',
         name: 'ZESCO Grid',
         metrics: [
-          { id: 'grid_voltage_r',     label: 'Voltage (R)',        type: 'number', frequency: 'hourly', destinations: [] },
-          { id: 'grid_amps_r',        label: 'Amps (R)',           type: 'number', frequency: 'hourly', destinations: [] },
-          { id: 'grid_frequency',     label: 'Frequency (Hz)',     type: 'number', frequency: 'hourly', destinations: [] },
-          { id: 'grid_status',        label: 'Status',             type: 'text',   frequency: 'hourly', isConstant: true, defaultValue: 'ON', destinations: [] },
-          { id: 'grid_total_site_load',label: 'Total Site Load (kW)', type: 'number', frequency: 'hourly', destinations: [] },
+          { id: 'grid_voltage_r',      label: 'Voltage (R)',        type: 'number', frequency: 'hourly', destinations: [] },
+          { id: 'grid_amps_r',         label: 'Amps (R)',           type: 'number', frequency: 'hourly', destinations: [] },
+          { id: 'grid_frequency',      label: 'Frequency (Hz)',     type: 'number', frequency: 'hourly', destinations: [] },
+          { id: 'grid_status',         label: 'Status',             type: 'text',   frequency: 'hourly', isConstant: true, defaultValue: 'ON', destinations: [] },
+          { id: 'grid_total_site_load', label: 'Total Site Load (kW)', type: 'number', frequency: 'hourly', destinations: [] },
+          { id: 'grid_off_time',       label: 'Off Time',           type: 'text',   frequency: 'hourly', isConstant: true, defaultValue: '0:00', destinations: [] },
+          { id: 'grid_restored_time',  label: 'Restored Time',      type: 'text',   frequency: 'hourly', isConstant: true, defaultValue: '0:00', destinations: [] },
         ],
       },
-      // Generators 1–4
-      { id: 'dg_1', name: 'Generator 1', metrics: buildDgMetrics('dg_1') },
-      { id: 'dg_2', name: 'Generator 2', metrics: buildDgMetrics('dg_2') },
-      { id: 'dg_3', name: 'Generator 3', metrics: buildDgMetrics('dg_3') },
-      { id: 'dg_4', name: 'Generator 4', metrics: buildDgMetrics('dg_4') },
+      {
+        id: 'fm200_panel',
+        name: 'FM 200 Panel',
+        metrics: [
+          { id: 'fm200_status',        label: 'Status',             type: 'text',   frequency: 'hourly', isConstant: true, defaultValue: 'OK', destinations: [] },
+        ],
+      },
+      { id: 'dg_1', name: 'Generator 1 (Built Room)', metrics: buildDgMetrics('dg_1') },
+      { id: 'dg_2', name: 'Generator 2 (Built Room)', metrics: buildDgMetrics('dg_2') },
+      { id: 'dg_3', name: 'Generator 3 (Container)',  metrics: buildDgMetrics('dg_3') },
+      { id: 'dg_4', name: 'Generator 4 (Container)',  metrics: buildDgMetrics('dg_4') },
     ],
   },
 
@@ -203,7 +196,6 @@ export const MASTER_ASSET_DICTIONARY: AssetCategory[] = [
   {
     categoryName: 'HQ Zone',
     assets: [
-      // Ambient conditions
       {
         id: 'hq_ambient',
         name: 'HQ Power Room Ambient',
@@ -212,8 +204,7 @@ export const MASTER_ASSET_DICTIONARY: AssetCategory[] = [
           { id: 'hq_ambient_humidity', label: 'Humidity (%)',      type: 'text',   frequency: '4-hour', isConstant: true, defaultValue: 'NA', destinations: [] },
         ],
       },
-      // Generator HQ
-      { id: 'dg_hq', name: 'Generator HQ', metrics: buildDgMetrics('dg_hq') },
+      { id: 'dg_hq', name: 'Generator HQ (Container)', metrics: buildDgMetrics('dg_hq') },
     ],
   },
 
@@ -223,7 +214,6 @@ export const MASTER_ASSET_DICTIONARY: AssetCategory[] = [
   {
     categoryName: 'IT Room 2',
     assets: [
-      // Ambient conditions
       {
         id: 'room_it2_ambient',
         name: 'IT Room 2 Ambient',
@@ -232,7 +222,6 @@ export const MASTER_ASSET_DICTIONARY: AssetCategory[] = [
           { id: 'it2_ambient_humidity', label: 'Humidity (%)',      type: 'text',   frequency: '4-hour', isConstant: true, defaultValue: 'NA', destinations: [] },
         ],
       },
-      // Emerson Aircon units 1–2
       { id: 'pac_it2_em1', name: 'Emerson Aircon 1', metrics: buildPacMetrics('pac_it2_em1') },
       { id: 'pac_it2_em2', name: 'Emerson Aircon 2', metrics: buildPacMetrics('pac_it2_em2') },
     ],
@@ -244,7 +233,6 @@ export const MASTER_ASSET_DICTIONARY: AssetCategory[] = [
   {
     categoryName: 'IT Room 1',
     assets: [
-      // Ambient conditions
       {
         id: 'room_it1_ambient',
         name: 'IT Room 1 Ambient',
@@ -253,9 +241,28 @@ export const MASTER_ASSET_DICTIONARY: AssetCategory[] = [
           { id: 'it1_ambient_humidity', label: 'Humidity (%)',      type: 'text',   frequency: '4-hour', isConstant: true, defaultValue: 'NA', destinations: [] },
         ],
       },
-      // Emerson Aircon units 1–2
       { id: 'pac_it1_em1', name: 'Emerson Aircon 1', metrics: buildPacMetrics('pac_it1_em1') },
       { id: 'pac_it1_em2', name: 'Emerson Aircon 2', metrics: buildPacMetrics('pac_it1_em2') },
+    ],
+  },
+
+  // ══════════════════════════════════════════════════════════════════════════
+  // CATEGORY 8 — Fuel Logistics
+  // ══════════════════════════════════════════════════════════════════════════
+  {
+    categoryName: 'Fuel Logistics',
+    assets: [
+      {
+        id: 'site_fuel_record',
+        name: 'Site Fuel Record',
+        metrics: [
+          { id: 'fuel_brought_forward', label: 'Fuel Brought Forward (L)', type: 'number', frequency: 'daily', carryForward: true, destinations: [] },
+          { id: 'fuel_received',        label: 'Fuel Received (L)',        type: 'number', frequency: 'daily', defaultValue: 0, destinations: [] },
+          { id: 'fuel_consumed',        label: 'Fuel Consumed (L)',        type: 'number', frequency: 'daily', defaultValue: 0, destinations: [] },
+          { id: 'fuel_balance',         label: 'Fuel Balance (L)',         type: 'number', frequency: 'daily', carryForward: true, destinations: [] },
+          { id: 'leakage_sign',         label: 'Leakage Sign',             type: 'text',   frequency: 'daily', isConstant: true, defaultValue: 'NO', destinations: [] },
+        ],
+      },
     ],
   },
 ];

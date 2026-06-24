@@ -4,13 +4,14 @@ import { MASTER_ASSET_DICTIONARY, AssetMetric } from '../constants/telemetrySche
 import { supabase } from '@/shared/api/supabaseClient';
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Types
+// Types & Props
 // ─────────────────────────────────────────────────────────────────────────────
 
 interface RoutineTasksDashboardProps {
   targetHour: number;
-  onBack: () => void;
-  onSubmitSuccess: (hour: number) => void;
+  onComplete?: () => void;
+  onBack?: () => void;
+  onSubmitSuccess?: (hour: number) => void;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -26,12 +27,14 @@ function buildHourTimestamp(hour: number): string {
 
 /** Returns the category icon character for a category name */
 function categoryEmoji(name: string): string {
-  if (name.includes('Server')) return '🖥️';
-  if (name.includes('Power Room 1')) return '⚡';
-  if (name.includes('Power Room 2')) return '🔋';
-  if (name.includes('Grid') || name.includes('Outside')) return '🏗️';
-  if (name.includes('HQ')) return '🏢';
-  if (name.includes('IT Room')) return '📡';
+  const n = name.toLowerCase();
+  if (n.includes('server')) return '🖥️';
+  if (n.includes('power room 1')) return '⚡';
+  if (n.includes('power room 2')) return '🔋';
+  if (n.includes('grid') || n.includes('outside')) return '🏗️';
+  if (n.includes('hq')) return '🏢';
+  if (n.includes('it room')) return '📡';
+  if (n.includes('fuel')) return '⛽';
   return '📋';
 }
 
@@ -48,7 +51,12 @@ function activeChecksLabel(isTwoHour: boolean, isFourHour: boolean, isDaily: boo
 // Component
 // ─────────────────────────────────────────────────────────────────────────────
 
-export const RoutineTasksDashboard = ({ targetHour, onBack, onSubmitSuccess }: RoutineTasksDashboardProps) => {
+export const RoutineTasksDashboard = ({ 
+  targetHour, 
+  onComplete,
+  onBack,
+  onSubmitSuccess 
+}: RoutineTasksDashboardProps) => {
   // ── State ──────────────────────────────────────────────────────────────────
   const [formData, setFormData] = useState<Record<string, any>>({});
   const [isLoading, setIsLoading] = useState(true);
@@ -104,6 +112,7 @@ export const RoutineTasksDashboard = ({ targetHour, onBack, onSubmitSuccess }: R
           .from('telemetry_logs')
           .select('metrics')
           .eq('target_hour', currentTimestamp)
+          .eq('frequency', 'hourly')
           .maybeSingle();
 
         if (existingErr) {
@@ -122,6 +131,7 @@ export const RoutineTasksDashboard = ({ targetHour, onBack, onSubmitSuccess }: R
           .from('telemetry_logs')
           .select('metrics')
           .eq('target_hour', prevTimestamp)
+          .eq('frequency', 'hourly')
           .maybeSingle();
 
         if (prevErr) {
@@ -176,12 +186,12 @@ export const RoutineTasksDashboard = ({ targetHour, onBack, onSubmitSuccess }: R
       category.assets.forEach((asset) => {
         if (!asset.id.includes('ambient') || asset.id === 'hq_ambient') return;
         asset.metrics.forEach((metric) => {
-          if (metric.id.endsWith('_temp')) {
+          if (metric.id.endsWith('_temp') || metric.id.endsWith('_ambient_temp')) {
             const visible = getVisibleMetrics(asset.id, asset.metrics).some(
               (m) => m.id === metric.id
             );
             const raw = formData[metric.id];
-            if (visible && raw !== undefined && raw !== '' && raw !== 'NA') {
+            if (visible && raw !== undefined && raw !== '' && raw !== null) {
               const parsed = parseFloat(raw);
               if (!isNaN(parsed)) tempValues.push(parsed);
             }
@@ -200,29 +210,40 @@ export const RoutineTasksDashboard = ({ targetHour, onBack, onSubmitSuccess }: R
       ...(ambientAvg !== null ? { ambient_avg_temp: ambientAvg } : {}),
     };
 
-    const { error } = await supabase.from('telemetry_logs').upsert(
-      {
-        target_hour: buildHourTimestamp(targetHour),
-        metrics:     payload,
-        is_edited:   isEditMode,
-      },
-      { onConflict: 'target_hour' }
-    );
+    try {
+      const { error } = await supabase.from('telemetry_logs').upsert(
+        {
+          target_hour: buildHourTimestamp(targetHour),
+          frequency: 'hourly',
+          metrics: payload,
+          is_edited: isEditMode,
+          asset_id: 'facility_wide',
+          technician_name: 'Anderson M.'
+        },
+        { onConflict: 'target_hour' }
+      );
 
-    setIsSubmitting(false);
+      if (error) throw error;
 
-    if (error) {
-      console.error('[DCIMe] submit error:', error.message);
-      setSubmitError(error.message);
-      return;
+      setIsSuccess(true);
+      setTimeout(() => {
+        setIsSuccess(false);
+        if (onComplete) {
+          onComplete();
+        } else if (onSubmitSuccess) {
+          onSubmitSuccess(targetHour);
+        }
+      }, 900);
+    } catch (err: any) {
+      console.error('[DCIMe] submit error:', err.message || err);
+      setSubmitError(err.message || 'Failed to save telemetry log');
+    } finally {
+      setIsSubmitting(false);
     }
-
-    setIsSuccess(true);
-    setTimeout(() => {
-      setIsSuccess(false);
-      onSubmitSuccess(targetHour);
-    }, 900);
   };
+
+  // ── Back handler ───────────────────────────────────────────────────────────
+  const handleBack = onBack || onComplete;
 
   // ── Loading skeleton ───────────────────────────────────────────────────────
   if (isLoading) {
@@ -238,31 +259,35 @@ export const RoutineTasksDashboard = ({ targetHour, onBack, onSubmitSuccess }: R
   return (
     <div className="max-w-md mx-auto space-y-6 pb-24">
       {/* Back Button */}
-      <div className="px-1">
-        <button
-          type="button"
-          onClick={onBack}
-          className="inline-flex items-center gap-2 py-3 px-4 rounded-xl bg-white border border-gray-200 text-xs font-bold text-gray-600 hover:text-red-600 active:scale-[0.98] transition-all cursor-pointer shadow-sm"
-        >
-          <ArrowLeft size={14} />
-          <span>← Back</span>
-        </button>
-      </div>
+      {handleBack && (
+        <div className="px-1">
+          <button
+            type="button"
+            onClick={handleBack}
+            className="inline-flex items-center gap-2 py-3 px-4 rounded-xl bg-white border border-gray-200 text-xs font-bold text-gray-600 hover:text-red-600 active:scale-[0.98] transition-all cursor-pointer shadow-sm"
+          >
+            <ArrowLeft size={14} />
+            <span>← Back</span>
+          </button>
+        </div>
+      )}
 
       {/* Header */}
-      <div className="px-1">
+      <div className="backdrop-blur-md bg-white/75 border border-gray-200/50 rounded-3xl p-5 shadow-sm">
         <h1 className="text-xl font-black text-gray-900 tracking-tight">
           Log for {String(targetHour).padStart(2, '0')}:00
         </h1>
-        <p className="text-xs text-gray-500 mt-1 flex flex-wrap gap-2 items-center">
-          <span>{activeChecksLabel(isTwoHour, isFourHour, isDaily)}</span>
+        <p className="text-xs text-gray-500 mt-1.5 flex flex-wrap gap-2 items-center">
+          <span className="font-semibold text-red-600 bg-red-50 px-2.5 py-0.5 rounded-full border border-red-100">
+            {activeChecksLabel(isTwoHour, isFourHour, isDaily)}
+          </span>
           {isEditMode && (
-            <span className="bg-amber-100 text-amber-800 text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full border border-amber-200">
+            <span className="bg-amber-50 text-amber-800 text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full border border-amber-200">
               ✏️ Editing
             </span>
           )}
           {isGridOff && (
-            <span className="bg-red-100 text-red-800 text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full border border-red-200">
+            <span className="bg-red-50 text-red-800 text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full border border-red-200">
               ⚡ Outage Mode
             </span>
           )}
@@ -289,7 +314,7 @@ export const RoutineTasksDashboard = ({ targetHour, onBack, onSubmitSuccess }: R
           const isOpen = openCategories[category.categoryName] !== false;
 
           return (
-            <div key={category.categoryName} className="bg-white rounded-3xl border border-gray-100 shadow-sm overflow-hidden">
+            <div key={category.categoryName} className="bg-white rounded-3xl border border-gray-100 shadow-sm overflow-hidden transition-all">
               {/* Collapsible Header */}
               <button
                 type="button"
@@ -324,14 +349,14 @@ export const RoutineTasksDashboard = ({ targetHour, onBack, onSubmitSuccess }: R
                         <div className="grid grid-cols-2 gap-3">
                           {visibleMetrics.map((metric) => {
                             const value = formData[metric.id] ?? '';
-                            const locked = metric.isConstant === true;
+                            const isConst = metric.isConstant === true;
 
                             return (
                               <div key={metric.id} className="space-y-1">
                                 <label htmlFor={metric.id} className="block text-[10px] font-bold text-gray-400 uppercase tracking-wider flex items-center gap-1">
                                   <span>{metric.label}</span>
-                                  {locked && (
-                                    <span className="cursor-help" title="Auto-filled constant value — tap to override">
+                                  {isConst && (
+                                    <span className="cursor-help" title="Constant value — tap to override">
                                       <Lock size={10} className="text-gray-400" />
                                     </span>
                                   )}
@@ -343,10 +368,10 @@ export const RoutineTasksDashboard = ({ targetHour, onBack, onSubmitSuccess }: R
                                     inputMode={metric.type === 'number' ? 'decimal' : 'text'}
                                     value={value}
                                     onChange={(e) => handleChange(metric.id, e.target.value)}
-                                    placeholder={locked ? String(metric.defaultValue ?? '') : '—'}
+                                    placeholder={isConst ? String(metric.defaultValue ?? '') : '—'}
                                     className={`w-full px-3 py-2.5 rounded-xl border text-xs font-semibold text-gray-800 focus:outline-none transition-all ${
-                                      locked 
-                                        ? "bg-gray-100 border-gray-200 text-gray-400 border-dashed cursor-not-allowed" 
+                                      isConst 
+                                        ? "bg-slate-100 border-slate-200 text-slate-500 border-dashed" 
                                         : "bg-gray-50 border-gray-200 focus:border-red-500 focus:ring-1 focus:ring-red-500"
                                     }`}
                                   />
@@ -367,7 +392,7 @@ export const RoutineTasksDashboard = ({ targetHour, onBack, onSubmitSuccess }: R
 
       {/* Error banner */}
       {submitError && (
-        <div className="bg-red-50 border border-red-200 rounded-2xl p-4 flex items-center gap-3 text-sm text-red-800 shadow-sm">
+        <div className="bg-red-50 border border-red-200 rounded-2xl p-4 flex items-center gap-3 text-sm text-red-800 shadow-sm mx-1">
           <AlertTriangle size={18} className="text-red-600 shrink-0" />
           <span className="font-medium">{submitError}</span>
         </div>
