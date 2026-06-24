@@ -51,28 +51,40 @@ export const RoutineTasksDashboard = ({
   onSubmitSuccess 
 }: RoutineTasksDashboardProps) => {
   // ── Consume the Telemetry Hook ─────────────────────────────────────────────
-  const {
-    formData,
-    isLoading,
-    isEditMode,
-    isSubmitting,
+  const { 
+    formData, 
+    isLoading, 
+    isSubmitting, 
+    isEditMode, 
+    handleInputChange, 
+    handleSubmit, 
+    isGridOff,
     isSuccess,
     submitError,
-    fetchError,
-    handleChange,
-    handleSubmit,
-    getVisibleMetrics
+    fetchError
   } = useTelemetryData(targetHour, onComplete, onSubmitSuccess);
 
   const [openCategories, setOpenCategories] = useState<Record<string, boolean>>({});
 
-  // ── Frequency accordion math (for header display only) ─────────────────────
+  // ── Frequency accordion math (for header display and filtering) ────────────
   const isTwoHour  = targetHour % 2 === 0;
   const isFourHour = targetHour % 4 === 0;
   const isDaily    = targetHour === 9;
 
-  // ── Outage override ────────────────────────────────────────────────────────
-  const isGridOff = formData['grid_status'] === 'OFF';
+  // ── Filtering Logic ────────────────────────────────────────────────────────
+  const getVisibleMetrics = (assetId: string, metrics: any[]): any[] => {
+    return metrics.filter((metric) => {
+      if (assetId.includes('dg_') && isGridOff) return true;
+
+      switch (metric.frequency) {
+        case 'hourly':  return true;
+        case '2-hour':  return isTwoHour;
+        case '4-hour':  return isFourHour;
+        case 'daily':   return isDaily;
+        default:        return false;
+      }
+    });
+  };
 
   // ── Back handler ───────────────────────────────────────────────────────────
   const handleBack = onBack || onComplete;
@@ -134,8 +146,8 @@ export const RoutineTasksDashboard = ({
         </div>
       )}
 
-      {/* Dictionary loop */}
-      <div className="space-y-4">
+      {/* Dictionary loop wrapped in scrollable flex-1 div */}
+      <div className="flex-1 overflow-y-auto p-4 pb-40">
         {MASTER_ASSET_DICTIONARY.map((category) => {
           // Determine if any asset in this category has visible metrics
           const categoryHasContent = category.assets.some(
@@ -146,7 +158,7 @@ export const RoutineTasksDashboard = ({
           const isOpen = openCategories[category.categoryName] !== false;
 
           return (
-            <div key={category.categoryName} className="bg-white rounded-3xl border border-gray-100 shadow-sm overflow-hidden transition-all">
+            <div key={category.categoryName} className="bg-white rounded-3xl border border-gray-100 shadow-sm overflow-hidden transition-all mb-4">
               {/* Collapsible Header */}
               <button
                 type="button"
@@ -180,7 +192,6 @@ export const RoutineTasksDashboard = ({
 
                         <div className="grid grid-cols-2 gap-3">
                           {visibleMetrics.map((metric) => {
-                            const value = formData[metric.id] ?? '';
                             const isConst = metric.isConstant === true;
 
                             return (
@@ -198,8 +209,8 @@ export const RoutineTasksDashboard = ({
                                     id={metric.id}
                                     type={metric.type === 'number' ? 'number' : 'text'}
                                     inputMode={metric.type === 'number' ? 'decimal' : 'text'}
-                                    value={value}
-                                    onChange={(e) => handleChange(metric.id, e.target.value)}
+                                    value={formData[metric.id] ?? ''}
+                                    onChange={(e) => handleInputChange(metric.id, e.target.value)}
                                     placeholder={isConst ? String(metric.defaultValue ?? '') : '—'}
                                     className={`w-full px-3 py-2.5 rounded-xl border text-xs font-semibold text-gray-800 focus:outline-none transition-all ${
                                       isConst 
@@ -230,8 +241,8 @@ export const RoutineTasksDashboard = ({
         </div>
       )}
 
-      {/* Sticky submit button */}
-      <div className="fixed bottom-0 left-0 right-0 p-4 bg-gradient-to-t from-gray-50 via-gray-50/95 to-transparent z-40">
+      {/* Sticky submit button container with high z-index and border */}
+      <div className="fixed bottom-0 left-0 w-full p-4 bg-slate-50 border-t border-slate-200 z-[999] shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.1)]">
         <div className="max-w-md mx-auto">
           <button
             onClick={handleSubmit}

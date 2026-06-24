@@ -1,4 +1,3 @@
-import React from "react";
 
 export function GlowDot({ color }: { color: string }) {
   return (

@@ -493,10 +493,8 @@ export function ShiftReports() {
   const [activeReport, setActiveReport] = useState<ShiftLog | null>(null);
   const [isExporting, setIsExporting] = useState(false);
   const [dbReports, setDbReports] = useState<ShiftLog[]>([]);
-  const [isDbLoading, setIsDbLoading] = useState(true);
 
   const fetchDbReports = async () => {
-    setIsDbLoading(true);
     try {
       const { data, error } = await supabase
         .from("shift_reports")
@@ -531,7 +529,7 @@ export function ShiftReports() {
             shiftLabel: report.shift_duration || "Day Shift",
             site: report.site_id || "NTC ZM-0874",
             zone: "Power Room 1",
-            verificationStatus: report.certified ? "verified" : "discrepancy" as const,
+            verificationStatus: (report.certified ? "verified" : "discrepancy") as VerificationStatus,
             telemetry: [
               { label: "Power Source", value: report.active_power_source || "Mains Active", icon: <Zap size={11} />, flag: false },
               { label: "Routine Logs", value: `${report.routine_logs_completed || 0} / 4 Saved`, icon: <CheckCircle2 size={11} />, flag: false },
@@ -546,8 +544,6 @@ export function ShiftReports() {
       }
     } catch (err) {
       console.error("Error loading real shift logs:", err);
-    } finally {
-      setIsDbLoading(false);
     }
   };
 

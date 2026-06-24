@@ -2,7 +2,7 @@ import ExcelJS from "exceljs";
 import { saveAs } from "file-saver";
 import { MASTER_ASSET_DICTIONARY, TargetWorkbook } from "../../features/field/constants/telemetrySchema";
 
-/** Translates 0-based index to Excel column letter (0 -> A, 1 -> B) */
+// Helper to translate 0-based index to Excel column letter
 const getExcelColumn = (index: number): string => {
   let colName = "";
   let dividend = index + 1;
@@ -14,12 +14,12 @@ const getExcelColumn = (index: number): string => {
   return colName;
 };
 
-export const generateLegacyMonthlyReport = async (
+export const generateMonthlyReport = async (
   month: string,
   year: string,
-  flatData: any[]
+  logs: any[]
 ): Promise<void> => {
-  // 1. Fetch BOTH Master Templates
+  // 3. Fetch Templates concurrently
   const [dailyRes, commRes] = await Promise.all([
     fetch("/template_daily_canvas.xlsx").catch(() => null),
     fetch("/template_commercial_logbook.xlsx").catch(() => null)
@@ -29,61 +29,93 @@ export const generateLegacyMonthlyReport = async (
     throw new Error("Failed to fetch templates. Ensure template_daily_canvas.xlsx and template_commercial_logbook.xlsx are in the /public folder.");
   }
 
-  const dailyWorkbook = new ExcelJS.Workbook();
-  await dailyWorkbook.xlsx.load(await dailyRes.arrayBuffer());
+  // Load them into separate ExcelJS.Workbook instances
+  const dailyWb = new ExcelJS.Workbook();
+  await dailyWb.xlsx.load(await dailyRes.arrayBuffer());
 
-  const commWorkbook = new ExcelJS.Workbook();
-  await commWorkbook.xlsx.load(await commRes.arrayBuffer());
+  const commWb = new ExcelJS.Workbook();
+  await commWb.xlsx.load(await commRes.arrayBuffer());
 
-  const getWorkbook = (wb: TargetWorkbook) => wb === 'daily_canvas' ? dailyWorkbook : commWorkbook;
-
-  // 2. Process all chronological data
-  for (const rowData of flatData) {
-    // Rely on target_hour (from our new upsert logic) or fallback to created_at
-    const timestampStr = rowData.target_hour || rowData.created_at;
+  // 4. The Routing Engine (The Loop)
+  for (const log of logs) {
+    const timestampStr = log.target_hour;
     if (!timestampStr) continue;
 
     const date = new Date(timestampStr);
     const day = date.getDate();
     const hour = date.getHours();
 
-    // 3. Loop the Master Dictionary for routing
+    if (!log.metrics) continue;
+
+    // Loop over MASTER_ASSET_DICTIONARY -> categories -> assets -> metrics
     MASTER_ASSET_DICTIONARY.forEach((category) => {
       category.assets.forEach((asset) => {
         asset.metrics.forEach((metric) => {
-          const cellValue = rowData[metric.id];
+          const cellValue = log.metrics[metric.id];
           if (cellValue === undefined || cellValue === null) return;
 
+          // 5. Geometric Matrix Injections
           metric.destinations.forEach((dest) => {
-            const targetWb = getWorkbook(dest.workbook);
+            const targetWb = dest.workbook === 'daily_canvas' ? dailyWb : commWb;
             const sheetName = dest.sheetName === 'DYNAMIC_DAY' ? day.toString() : dest.sheetName;
-            
-            // Try exact match or padded match (e.g. "1" or "01")
+
             const sheet = targetWb.getWorksheet(sheetName) || targetWb.getWorksheet(day.toString().padStart(2, '0'));
             if (!sheet) return;
 
             const colLetter = getExcelColumn(dest.excelColumnIndex);
             let targetRow = 0;
 
-            // 4. Advanced Geometry Routing
+            // 6. Exhaustive Target Row Calculations
             if (dest.workbook === 'daily_canvas') {
-              // Hourly logic: 00:00 starts on row 5
-              targetRow = hour + 5; 
+              // Condition A (The Hourly Canvas): 00:00 starts on Row 5, each hour is 1 row down
+              targetRow = hour + 5;
             } else if (dest.workbook === 'commercial_logbook') {
               if (sheetName === 'Commercial Power Log' || sheetName === 'Temp Record') {
-                // 4-Hour blocks: 6 rows per day. Day 1 00:00 is on Row 5.
+                // Condition B (4-Hour Blocks): 6 rows per day. Day 1 00:00 is on Row 5
                 targetRow = 5 + ((day - 1) * 6) + Math.floor(hour / 4);
               } else if (sheetName === 'Fuel Record' || sheetName.startsWith('DG-')) {
-                // 1 row per day. Day 1 is on Row 4 for DG, Row 3 for Fuel (approximated, script will land safely)
+                // Condition C (Cumulative Daily Logs): 1 row per day. Fuel starts on Row 3, DGs start on Row 4
                 const baseRow = sheetName === 'Fuel Record' ? 3 : 4;
                 targetRow = baseRow + (day - 1);
+              } else if (sheetName === 'Eqpt status') {
+                // Condition D (Transposed Matrix - Eqpt Status)
+                // Search Column C (from row 5 to 100) for asset.name
+                let assetRowIndex = -1;
+                sheet.getColumn(3).eachCell((cell, rowNumber) => {
+                  if (rowNumber >= 5 && rowNumber <= 100) {
+                    const cellValStr = cell.value?.toString() || "";
+                    if (cellValStr.trim() === asset.name.trim()) {
+                      assetRowIndex = rowNumber;
+                    }
+                  }
+                });
+
+                // Search Row 3 (from col 5 to 150) for day
+                let dayColIndex = -1;
+                sheet.getRow(3).eachCell((cell, colNumber) => {
+                  if (colNumber >= 5 && colNumber <= 150) {
+                    const cellVal = cell.value;
+                    if (cellVal !== undefined && cellVal !== null) {
+                      const parsedDay = parseInt(cellVal.toString(), 10);
+                      if (parsedDay === day) {
+                        dayColIndex = colNumber;
+                      }
+                    }
+                  }
+                });
+
+                // If both intersect, inject the cellValue at that specific cell coordinate
+                if (assetRowIndex !== -1 && dayColIndex !== -1) {
+                  const colLetterIntersect = getExcelColumn(dayColIndex - 1);
+                  const cellAddr = `${colLetterIntersect}${assetRowIndex}`;
+                  sheet.getCell(cellAddr).value = cellValue === "" ? "NA" : cellValue;
+                }
               }
             }
 
-            // 5. Injection
+            // 7. Write the Value
             if (targetRow > 0) {
-              const safeValue = cellValue === "" ? "NA" : cellValue;
-              sheet.getCell(colLetter + targetRow).value = safeValue;
+              sheet.getCell(colLetter + targetRow).value = cellValue === "" ? "NA" : cellValue;
             }
           });
         });
@@ -91,10 +123,30 @@ export const generateLegacyMonthlyReport = async (
     });
   }
 
-  // 6. Trigger Dual Download
-  const dailyBuffer = await dailyWorkbook.xlsx.writeBuffer();
+  // 8. Trigger Dual Download
+  const dailyBuffer = await dailyWb.xlsx.writeBuffer();
   saveAs(new Blob([dailyBuffer]), `Airtel_Daily_Canvas_${month}_${year}.xlsx`);
 
-  const commBuffer = await commWorkbook.xlsx.writeBuffer();
+  const commBuffer = await commWb.xlsx.writeBuffer();
   saveAs(new Blob([commBuffer]), `Airtel_Commercial_Logbook_${month}_${year}.xlsx`);
+};
+
+export const generateLegacyMonthlyReport = async (
+  month: string,
+  year: string,
+  flatData: any[]
+): Promise<void> => {
+  const mappedLogs = flatData.map((row) => {
+    const metrics: Record<string, any> = {};
+    Object.keys(row).forEach((key) => {
+      if (key !== "target_hour" && key !== "created_at") {
+        metrics[key] = row[key];
+      }
+    });
+    return {
+      target_hour: row.target_hour || row.created_at,
+      metrics,
+    };
+  });
+  return generateMonthlyReport(month, year, mappedLogs);
 };

@@ -1,244 +1,281 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect } from 'react';
 import { supabase } from '@/shared/api/supabaseClient';
-import { MASTER_ASSET_DICTIONARY, AssetMetric } from '../constants/telemetrySchema';
+import { MASTER_ASSET_DICTIONARY } from '../constants/telemetrySchema';
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Helpers
-// ─────────────────────────────────────────────────────────────────────────────
-
-/** Builds a UTC ISO timestamp anchored to a specific hour today */
-function buildHourTimestamp(hour: number): string {
-  const d = new Date();
-  d.setHours(hour, 0, 0, 0);
-  return d.toISOString();
-}
-
-/**
- * Custom React Hook managing the state, local caching, background synchronization,
- * ambient averaging calculations, and database submissions for routine telemetry.
- */
-export function useTelemetryData(
-  targetHour: number, 
-  onComplete?: () => void, 
+export const useTelemetryData = (
+  targetHour: number,
+  onComplete?: () => void,
   onSubmitSuccess?: (hour: number) => void
-) {
-  // ── State ──────────────────────────────────────────────────────────────────
+) => {
+  // 2. Exhaustive State Initialization
   const [formData, setFormData] = useState<Record<string, any>>({});
-  const [isLoading, setIsLoading] = useState(true);
-  const [isEditMode, setIsEditMode] = useState(false);
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [isSuccess, setIsSuccess] = useState(false);
+  const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
+  const [isEditMode, setIsEditMode] = useState<boolean>(false);
+
+  // Compatibility states for RoutineTasksDashboard
+  const [isSuccess, setIsSuccess] = useState<boolean>(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [fetchError, setFetchError] = useState<string | null>(null);
 
-  // ── Frequency accordion math ───────────────────────────────────────────────
-  const isTwoHour  = targetHour % 2 === 0;
-  const isFourHour = targetHour % 4 === 0;
-  const isDaily    = targetHour === 9;
-
-  // ── Outage override ────────────────────────────────────────────────────────
+  // 6. The Grid Override Boolean
   const isGridOff = formData['grid_status'] === 'OFF';
 
-  // ── Metric visibility filter ───────────────────────────────────────────────
-  const getVisibleMetrics = useCallback(
-    (assetId: string, metrics: AssetMetric[]): AssetMetric[] => {
-      return metrics.filter((metric) => {
-        if (assetId.includes('dg_') && isGridOff) return true;
-
-        switch (metric.frequency) {
-          case 'hourly':  return true;
-          case '2-hour':  return isTwoHour;
-          case '4-hour':  return isFourHour;
-          case 'daily':   return isDaily;
-          default:        return false;
-        }
-      });
-    },
-    [isTwoHour, isFourHour, isDaily, isGridOff]
-  );
-
-  // ── Zero-Delay Fetch Engine ────────────────────────────────────────────────
+  // 3. Zero-Delay Local Cache & Supabase Fetch Engine
   useEffect(() => {
-    const fetchSlotData = async () => {
-      const cacheKey = `telemetry_cache_${targetHour}`;
-      
-      // 1. Instant Local Cache Load
-      const cached = localStorage.getItem(cacheKey);
-      if (cached) {
-        try {
-          const parsed = JSON.parse(cached);
-          setFormData(parsed);
-          setIsLoading(false); // Render UI immediately
-        } catch (e) {
-          console.warn('[DCIMe] Failed to parse telemetry cache:', e);
-        }
-      } else {
-        setIsLoading(true);
-      }
+    let active = true;
 
-      setIsEditMode(false);
-      setFetchError(null);
+    // Step A (Instant Load)
+    const cacheKey = `telemetry_cache_${targetHour}`;
+    const cached = localStorage.getItem(cacheKey);
+    let hasCache = false;
 
+    if (cached) {
       try {
-        const currentTimestamp = buildHourTimestamp(targetHour);
-        const prevTimestamp    = buildHourTimestamp(targetHour - 1);
+        const parsed = JSON.parse(cached);
+        setFormData(parsed);
+        setIsLoading(false);
+        hasCache = true;
+      } catch (e) {
+        console.warn('[DCIMe] Failed to parse telemetry cache:', e);
+      }
+    }
 
-        // ── Query 1: check whether this slot already has a submission ──────────
-        const { data: existing, error: existingErr } = await supabase
+    if (!hasCache) {
+      setFormData({});
+      setIsLoading(true);
+    }
+
+    setIsEditMode(false);
+    setFetchError(null);
+    setIsSuccess(false);
+
+    // Step B (Date Construction)
+    const today = new Date();
+    today.setHours(targetHour, 0, 0, 0);
+    const targetHourISO = today.toISOString();
+
+    const fetchTelemetryData = async () => {
+      try {
+        // Step C (Supabase Query 1 - Current Hour)
+        const { data: currentData, error: currentError } = await supabase
           .from('telemetry_logs')
-          .select('metrics')
-          .eq('target_hour', currentTimestamp)
-          .eq('frequency', 'hourly')
+          .select('*')
+          .eq('target_hour', targetHourISO)
           .maybeSingle();
 
-        if (existingErr) {
-          throw new Error(`[Current Hour Query] ${existingErr.message}`);
+        if (!active) return;
+
+        if (currentError) {
+          throw currentError;
         }
 
-        if (existing?.metrics) {
-          const fetchedData = existing.metrics as Record<string, any>;
-          setFormData(fetchedData);
+        if (currentData && currentData.metrics) {
           setIsEditMode(true);
-          localStorage.setItem(cacheKey, JSON.stringify(fetchedData));
+          const metrics = currentData.metrics as Record<string, any>;
+          setFormData(metrics);
+          localStorage.setItem(cacheKey, JSON.stringify(metrics));
+          setIsLoading(false);
           return;
         }
 
-        // ── Query 2: no current-hour data — fetch previous hour for carry-forward
-        const { data: previous, error: prevErr } = await supabase
+        // Step D (Supabase Query 2 - Carry-Forward)
+        const prevHour = targetHour - 1;
+        const prevDate = new Date();
+        prevDate.setHours(prevHour, 0, 0, 0);
+        const prevHourISO = prevDate.toISOString();
+
+        const { data: previousData, error: prevError } = await supabase
           .from('telemetry_logs')
-          .select('metrics')
-          .eq('target_hour', prevTimestamp)
-          .eq('frequency', 'hourly')
+          .select('*')
+          .eq('target_hour', prevHourISO)
           .maybeSingle();
 
-        if (prevErr) {
-          throw new Error(`[Previous Hour Query] ${prevErr.message}`);
+        if (!active) return;
+
+        if (prevError) {
+          throw prevError;
         }
 
-        const prevMetrics: Record<string, any> = (previous?.metrics as Record<string, any>) ?? {};
+        const newFormState: Record<string, any> = {};
+        const previousMetrics = (previousData?.metrics as Record<string, any>) || {};
 
-        // ── Build initial formData from dictionary defaults & carry-forwards ───
-        const seed: Record<string, any> = {};
-
+        // Loop through every category, asset, and metric in MASTER_ASSET_DICTIONARY
         MASTER_ASSET_DICTIONARY.forEach((category) => {
           category.assets.forEach((asset) => {
             asset.metrics.forEach((metric) => {
+              // If a metric has defaultValue, set newFormState[metric.id] = metric.defaultValue
               if (metric.defaultValue !== undefined) {
-                seed[metric.id] = metric.defaultValue;
+                newFormState[metric.id] = metric.defaultValue;
               }
-              if (metric.carryForward && prevMetrics[metric.id] !== undefined) {
-                seed[metric.id] = prevMetrics[metric.id];
+              // If a metric has carryForward: true AND previous hour data exists, set newFormState[metric.id] = previousData.metrics[metric.id]
+              if (metric.carryForward && previousMetrics[metric.id] !== undefined) {
+                newFormState[metric.id] = previousMetrics[metric.id];
               }
             });
           });
         });
 
-        setFormData(seed);
-        localStorage.setItem(cacheKey, JSON.stringify(seed));
-      } catch (err: any) {
-        console.error('[DCIMe] fetchSlotData error:', err);
-        // Only trigger visible error if we do not have cached data as fallback
-        if (!localStorage.getItem(cacheKey)) {
-          setFetchError(err.message || 'Failed to load telemetry slot data');
-        }
-      } finally {
+        setFormData(newFormState);
+        localStorage.setItem(cacheKey, JSON.stringify(newFormState));
         setIsLoading(false);
+      } catch (err: any) {
+        console.error('[DCIMe] Fetch telemetry error:', err);
+        if (active) {
+          setFetchError(err.message || 'Failed to fetch telemetry data');
+          setIsLoading(false);
+        }
       }
     };
 
-    fetchSlotData();
+    fetchTelemetryData();
+
+    return () => {
+      active = false;
+    };
   }, [targetHour]);
 
-  // ── Input change handler with local cache update ───────────────────────────
-  const handleChange = useCallback((metricId: string, value: string) => {
+  // 4. The Input Handler
+  const handleInputChange = (id: string, value: any) => {
     setFormData((prev) => {
-      const next = { ...prev, [metricId]: value };
-      localStorage.setItem(`telemetry_cache_${targetHour}`, JSON.stringify(next));
-      return next;
+      const updated = { ...prev, [id]: value };
+      const cacheKey = `telemetry_cache_${targetHour}`;
+      localStorage.setItem(cacheKey, JSON.stringify(updated));
+      return updated;
     });
     setSubmitError(null);
-  }, [targetHour]);
+  };
 
-  // ── Submit handler ─────────────────────────────────────────────────────────
-  const handleSubmit = useCallback(async () => {
+  // 5. Exhaustive Ambient Average Math & Submission
+  const handleSubmit = async () => {
     setIsSubmitting(true);
     setSubmitError(null);
+    setIsSuccess(false);
 
-    // Calculate ambient average dynamically checking visible metrics
+    // The Math: Calculate the ambient_avg_temp.
+    // You MUST exclusively average these specific exact IDs:
+    // server_ambient_temp, pr1_ambient_temp, pr2_ambient_temp, it1_ambient_temp, it2_ambient_temp.
+    // Ignore hq_ambient_temp or any empty/null values.
+    const ambientIDs = [
+      'server_ambient_temp',
+      'pr1_ambient_temp',
+      'pr2_ambient_temp',
+      'it1_ambient_temp',
+      'it2_ambient_temp',
+    ];
+
     const tempValues: number[] = [];
-    MASTER_ASSET_DICTIONARY.forEach((category) => {
-      category.assets.forEach((asset) => {
-        if (!asset.id.includes('ambient') || asset.id === 'hq_ambient') return;
-        asset.metrics.forEach((metric) => {
-          if (metric.id.endsWith('_temp') || metric.id.endsWith('_ambient_temp')) {
-            const visible = getVisibleMetrics(asset.id, asset.metrics).some(
-              (m) => m.id === metric.id
-            );
-            const raw = formData[metric.id];
-            if (visible && raw !== undefined && raw !== '' && raw !== null) {
-              const parsed = parseFloat(raw);
-              if (!isNaN(parsed)) tempValues.push(parsed);
-            }
-          }
-        });
-      });
+    ambientIDs.forEach((id) => {
+      const val = formData[id];
+      if (val !== undefined && val !== null && val !== '') {
+        const parsed = parseFloat(val);
+        if (!isNaN(parsed)) {
+          tempValues.push(parsed);
+        }
+      }
     });
 
-    const ambientAvg =
-      tempValues.length > 0
-        ? parseFloat((tempValues.reduce((a, b) => a + b, 0) / tempValues.length).toFixed(1))
-        : null;
+    let ambient_avg_temp: number | null = null;
+    if (tempValues.length > 0) {
+      const sum = tempValues.reduce((acc, curr) => acc + curr, 0);
+      ambient_avg_temp = parseFloat((sum / tempValues.length).toFixed(1));
+    }
 
+    // Append ambient_avg_temp to the formData payload
     const payload = {
       ...formData,
-      ...(ambientAvg !== null ? { ambient_avg_temp: ambientAvg } : {}),
     };
+    if (ambient_avg_temp !== null) {
+      payload['ambient_avg_temp'] = ambient_avg_temp;
+    }
+
+    const today = new Date();
+    today.setHours(targetHour, 0, 0, 0);
+    const targetHourISO = today.toISOString();
 
     try {
-      const { error } = await supabase.from('telemetry_logs').upsert(
-        {
-          target_hour: buildHourTimestamp(targetHour),
-          frequency: 'hourly',
-          metrics: payload,
-          is_edited: isEditMode,
-          asset_id: 'facility_wide',
-          technician_name: 'Anderson M.'
-        },
-        { onConflict: 'target_hour' }
-      );
+      // Instantly get the cached user session (Zero Network Delay)
+      const { data: { session } } = await supabase.auth.getSession();
 
-      if (error) throw error;
+      // Intelligently fallback: full_name -> email -> 'Unknown Tech'
+      const technicianName = session?.user?.user_metadata?.full_name 
+        || session?.user?.email 
+        || 'Unknown Technician';
 
-      // Clear cache for this hour on success
-      localStorage.removeItem(`telemetry_cache_${targetHour}`);
+      // The Upsert: Execute a Supabase .upsert to telemetry_logs.
+      const { error } = await supabase
+        .from('telemetry_logs')
+        .upsert(
+          {
+            target_hour: targetHourISO,
+            frequency: 'hourly',
+            metrics: payload,
+            is_edited: isEditMode,
+            asset_id: 'facility_wide', // Keeping site hardcoded as requested
+            technician_name: technicianName // DYNAMIC IDENTITY
+          },
+          { onConflict: 'target_hour' }
+        );
 
+      if (error) {
+        throw error;
+      }
+
+      // Cleanup: On success, localStorage.removeItem(cacheKey), set isSubmitting(false), call onComplete?.() and onSubmitSuccess?.().
+      const cacheKey = `telemetry_cache_${targetHour}`;
+      localStorage.removeItem(cacheKey);
+      
       setIsSuccess(true);
-      setTimeout(() => {
-        setIsSuccess(false);
-        if (onComplete) {
-          onComplete();
-        } else if (onSubmitSuccess) {
-          onSubmitSuccess(targetHour);
-        }
-      }, 900);
+      setIsSubmitting(false);
+
+      onComplete?.();
+      onSubmitSuccess?.(targetHour);
     } catch (err: any) {
-      console.error('[DCIMe] submit error:', err.message || err);
-      setSubmitError(err.message || 'Failed to save telemetry log');
-    } finally {
+      console.error('[DCIMe] Submit telemetry error:', err);
+      setSubmitError(err.message || 'Failed to submit telemetry data');
       setIsSubmitting(false);
     }
-  }, [targetHour, formData, isEditMode, getVisibleMetrics, onComplete, onSubmitSuccess]);
+  };
 
+  // Compatibility helper: getVisibleMetrics
+  const isTwoHour = targetHour % 2 === 0;
+  const isFourHour = targetHour % 4 === 0;
+  const isDaily = targetHour === 9;
+
+  const getVisibleMetrics = (assetId: string, metrics: any[]): any[] => {
+    return metrics.filter((metric) => {
+      if (assetId.includes('dg_') && isGridOff) return true;
+
+      switch (metric.frequency) {
+        case 'hourly':
+          return true;
+        case '2-hour':
+          return isTwoHour;
+        case '4-hour':
+          return isFourHour;
+        case 'daily':
+          return isDaily;
+        default:
+          return false;
+      }
+    });
+  };
+
+  // 7. Return Statement
   return {
     formData,
     isLoading,
-    isEditMode,
     isSubmitting,
+    isEditMode,
+    handleInputChange,
+    handleSubmit,
+    isGridOff,
+
+    // Compatibility exports for existing TechDashboard / RoutineTasksDashboard
+    handleChange: handleInputChange,
     isSuccess,
     submitError,
     fetchError,
-    handleChange,
-    handleSubmit,
-    getVisibleMetrics
+    getVisibleMetrics,
   };
-}
+};

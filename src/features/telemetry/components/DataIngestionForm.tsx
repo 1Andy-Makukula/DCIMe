@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import { useState } from "react";
 import { Zap, Cpu, Shield, Thermometer, CheckCircle } from "lucide-react";
 import { AccordionSection, FInput } from "@/shared/ui";
 import { PowerSource, AccordionKey } from "@/shared/types";

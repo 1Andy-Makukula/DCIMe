@@ -1,4 +1,3 @@
-import React from "react";
 import { useNavigate } from "react-router";
 import { LoginForm } from "@/features/auth/components/LoginForm";
 

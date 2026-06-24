@@ -1,18 +1,13 @@
-import React, { useState, useEffect } from "react";
+import { useState, useEffect } from "react";
 import { 
   Clock, 
   User, 
   MapPin, 
   CheckCircle, 
-  Play, 
-  AlertTriangle, 
-  Zap, 
   ShieldCheck,
-  ChevronRight,
   MessageSquare,
   AlertOctagon,
-  Loader2,
-  Calendar
+  Loader2
 } from "lucide-react";
 import { ShiftTimeline } from "./ShiftTimeline";
 import { RoutineTasksDashboard } from "./RoutineTasksDashboard";

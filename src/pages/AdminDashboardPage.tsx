@@ -1,4 +1,3 @@
-import React from "react";
 import { NocDashboard } from "@/features/topology/components/NocDashboard";
 
 export interface AdminDashboardPageProps {

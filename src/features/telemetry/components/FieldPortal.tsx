@@ -1,4 +1,3 @@
-import React from "react";
 import { CheckCircle, AlertTriangle, RefreshCw, ArrowLeft, Plus } from "lucide-react";
 import { AirtelMark, GlowDot, TopologyBG } from "@/shared/ui";
 import { shiftLogs } from "@/shared/utils/mockData";

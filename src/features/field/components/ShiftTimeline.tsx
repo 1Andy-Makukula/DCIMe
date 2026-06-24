@@ -1,4 +1,3 @@
-import React from "react";
 import { CheckCircle2, AlertTriangle, Play, Lock } from "lucide-react";
 
 interface ShiftTimelineProps {
@@ -33,7 +32,6 @@ export function ShiftTimeline({ currentTime, completedHours, onSelectSlot }: Shi
           const isCompleted = completedHours.includes(hour);
           const isActive = hour === currentHour;
           const isOverdue = hour < currentHour && !isCompleted;
-          const isFuture = hour > currentHour;
 
           let status: "completed" | "active" | "overdue" | "future" = "future";
           if (isCompleted) status = "completed";

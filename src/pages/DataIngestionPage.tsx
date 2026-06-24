@@ -1,4 +1,3 @@
-import React from "react";
 import { DataIngestionForm } from "@/features/telemetry/components/DataIngestionForm";
 
 export interface DataIngestionPageProps {
