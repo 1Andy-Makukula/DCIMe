@@ -7,25 +7,48 @@ import {
   CheckCircle2, 
   ArrowLeft
 } from "lucide-react";
+import { useShiftReports } from "../hooks/useShiftReports";
 
 export function ShiftHandover() {
   const navigate = useNavigate();
+  const { submitShiftReport } = useShiftReports();
   const [notes, setNotes] = useState("");
   const [certified, setCertified] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
+  const [generatedSig, setGeneratedSig] = useState("");
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!certified) return;
+    if (!notes.trim()) {
+      alert("Please provide pass-down notes for the incoming shift.");
+      return;
+    }
     
     setIsSubmitting(true);
     
-    // Simulate immutable ledger signature delay
-    setTimeout(() => {
-      setIsSubmitting(false);
+    try {
+      const sigId = `SHA256:${Math.random().toString(16).substring(2, 10)}${Math.random().toString(16).substring(2, 10)}`;
+      setGeneratedSig(sigId);
+
+      await submitShiftReport({
+        notes: notes,
+        certified: certified,
+        technician_name: "Anderson M.",
+        technician_id: "EMP-0874-AM",
+        signature_id: sigId,
+        shift_duration: "06:00 - 14:00",
+        routine_logs_completed: 4,
+        incidents_filed: 0
+      });
+
       setIsSuccess(true);
-    }, 1500);
+    } catch (err) {
+      alert("Failed to submit shift handover to the database. Please try again.");
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   if (isSuccess) {
@@ -49,7 +72,7 @@ export function ShiftHandover() {
           </div>
           <div className="flex justify-between border-b border-gray-800 pb-1.5">
             <span className="text-gray-500">Timestamp:</span>
-            <span className="font-bold">2026-06-22 12:49 UTC</span>
+            <span className="font-bold">{new Date().toLocaleString("en-US", { hour12: false })}</span>
           </div>
           <div className="flex justify-between border-b border-gray-800 pb-1.5">
             <span className="text-gray-500">Routine Check:</span>
@@ -57,7 +80,7 @@ export function ShiftHandover() {
           </div>
           <div className="flex justify-between">
             <span className="text-gray-500">Signature ID:</span>
-            <span className="text-red-400 font-bold font-mono">SHA256:d3f58a...b72a</span>
+            <span className="text-red-400 font-bold font-mono truncate max-w-[200px]">{generatedSig}</span>
           </div>
         </div>
 

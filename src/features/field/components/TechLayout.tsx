@@ -1,6 +1,6 @@
-import React from "react";
 import { NavLink, Outlet, useNavigate } from "react-router";
-import { Home, ClipboardEdit, AlertOctagon, UserCheck, LogOut } from "lucide-react";
+
+import { Home, Activity, AlertOctagon, UserCheck, LogOut } from "lucide-react";
 import { AirtelMark } from "@/shared/ui";
 
 export function TechLayout() {
@@ -44,7 +44,7 @@ export function TechLayout() {
       </main>
 
       {/* Fixed Bottom Navigation Bar */}
-      <nav className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 h-16 flex items-center justify-around px-2 z-50">
+      <nav className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 h-16 flex items-center justify-around px-2 z-[9999]">
         <NavLink
           to="/tech"
           end
@@ -66,9 +66,10 @@ export function TechLayout() {
             }`
           }
         >
-          <ClipboardEdit size={20} className="mb-0.5" />
-          <span className="text-[9px] tracking-wide">Log</span>
+          <Activity size={20} className="mb-0.5" />
+          <span className="text-[9px] tracking-wide">Tracking</span>
         </NavLink>
+
 
         <NavLink
           to="/tech/incident"

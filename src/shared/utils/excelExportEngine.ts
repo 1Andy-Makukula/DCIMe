@@ -1,11 +1,8 @@
 import ExcelJS from "exceljs";
 import { saveAs } from "file-saver";
-import { HOURLY_TELEMETRY_SCHEMA } from "../../features/field/constants/telemetrySchema";
+import { MASTER_ASSET_DICTIONARY, TargetWorkbook } from "../../features/field/constants/telemetrySchema";
 
-/**
- * Mathematically translates a 0-based index to an Excel column letter.
- * E.g., 0 -> A, 1 -> B, 25 -> Z, 26 -> AA, 27 -> AB
- */
+/** Translates 0-based index to Excel column letter (0 -> A, 1 -> B) */
 const getExcelColumn = (index: number): string => {
   let colName = "";
   let dividend = index + 1;
@@ -17,68 +14,87 @@ const getExcelColumn = (index: number): string => {
   return colName;
 };
 
-/**
- * Generates the legacy monthly report by taking flat chronological telemetry data
- * and injecting it into a legacy 40-sheet Excel template, preserving all corporate
- * formatting.
- * 
- * @param month Name of the month (e.g. "June")
- * @param year Year (e.g. "2026")
- * @param flatData Array of chronological telemetry records
- */
 export const generateLegacyMonthlyReport = async (
   month: string,
   year: string,
   flatData: any[]
 ): Promise<void> => {
-  // Fetch the blank template from the public folder
-  const response = await fetch("/Blank_Monthly_Template.xlsx");
-  if (!response.ok) {
-    throw new Error(`Failed to fetch Excel template: ${response.statusText}`);
+  // 1. Fetch BOTH Master Templates
+  const [dailyRes, commRes] = await Promise.all([
+    fetch("/template_daily_canvas.xlsx").catch(() => null),
+    fetch("/template_commercial_logbook.xlsx").catch(() => null)
+  ]);
+
+  if (!dailyRes || !commRes || !dailyRes.ok || !commRes.ok) {
+    throw new Error("Failed to fetch templates. Ensure template_daily_canvas.xlsx and template_commercial_logbook.xlsx are in the /public folder.");
   }
-  const arrayBuffer = await response.arrayBuffer();
 
-  // Load it into ExcelJS
-  const workbook = new ExcelJS.Workbook();
-  await workbook.xlsx.load(arrayBuffer);
+  const dailyWorkbook = new ExcelJS.Workbook();
+  await dailyWorkbook.xlsx.load(await dailyRes.arrayBuffer());
 
-  // The Router Loop: Iterate through flatData
+  const commWorkbook = new ExcelJS.Workbook();
+  await commWorkbook.xlsx.load(await commRes.arrayBuffer());
+
+  const getWorkbook = (wb: TargetWorkbook) => wb === 'daily_canvas' ? dailyWorkbook : commWorkbook;
+
+  // 2. Process all chronological data
   for (const rowData of flatData) {
-    if (!rowData.created_at) continue;
+    // Rely on target_hour (from our new upsert logic) or fallback to created_at
+    const timestampStr = rowData.target_hour || rowData.created_at;
+    if (!timestampStr) continue;
 
-    // Time & Date Parsing: Extract the day (1-31) and hour (0-23) from the row's created_at ISO string
-    const date = new Date(rowData.created_at);
+    const date = new Date(timestampStr);
     const day = date.getDate();
     const hour = date.getHours();
 
-    // Select the correct sheet: fallback check for padded names
-    const sheetName = day.toString();
-    const sheet = workbook.getWorksheet(sheetName) || workbook.getWorksheet(day.toString().padStart(2, '0'));
-    if (!sheet) {
-      console.warn(`Sheet ${sheetName} not found, skipping.`);
-      continue;
-    }
+    // 3. Loop the Master Dictionary for routing
+    MASTER_ASSET_DICTIONARY.forEach((category) => {
+      category.assets.forEach((asset) => {
+        asset.metrics.forEach((metric) => {
+          const cellValue = rowData[metric.id];
+          if (cellValue === undefined || cellValue === null) return;
 
-    // Calculate the exact Excel row. (Assuming 00:00 starts on Row 5)
-    const targetRow = hour + 5;
+          metric.destinations.forEach((dest) => {
+            const targetWb = getWorkbook(dest.workbook);
+            const sheetName = dest.sheetName === 'DYNAMIC_DAY' ? day.toString() : dest.sheetName;
+            
+            // Try exact match or padded match (e.g. "1" or "01")
+            const sheet = targetWb.getWorksheet(sheetName) || targetWb.getWorksheet(day.toString().padStart(2, '0'));
+            if (!sheet) return;
 
-    // Add Traceability
-    console.log(`Injecting Data -> Sheet: ${sheet.name}, Hour: ${hour}:00, Row: ${targetRow}`);
+            const colLetter = getExcelColumn(dest.excelColumnIndex);
+            let targetRow = 0;
 
-    // Dynamic Schema Loop
-    HOURLY_TELEMETRY_SCHEMA.forEach((field) => {
-      if (field.excelColumnIndex !== undefined && field.excelColumnIndex >= 0) {
-        const colLetter = getExcelColumn(field.excelColumnIndex);
-        const cellValue = rowData[field.id];
-        
-        // The Null-to-NA Pipeline
-        sheet.getCell(colLetter + targetRow).value = 
-          (cellValue === null || cellValue === undefined || cellValue === "") ? "NA" : cellValue;
-      }
+            // 4. Advanced Geometry Routing
+            if (dest.workbook === 'daily_canvas') {
+              // Hourly logic: 00:00 starts on row 5
+              targetRow = hour + 5; 
+            } else if (dest.workbook === 'commercial_logbook') {
+              if (sheetName === 'Commercial Power Log' || sheetName === 'Temp Record') {
+                // 4-Hour blocks: 6 rows per day. Day 1 00:00 is on Row 5.
+                targetRow = 5 + ((day - 1) * 6) + Math.floor(hour / 4);
+              } else if (sheetName === 'Fuel Record' || sheetName.startsWith('DG-')) {
+                // 1 row per day. Day 1 is on Row 4 for DG, Row 3 for Fuel (approximated, script will land safely)
+                const baseRow = sheetName === 'Fuel Record' ? 3 : 4;
+                targetRow = baseRow + (day - 1);
+              }
+            }
+
+            // 5. Injection
+            if (targetRow > 0) {
+              const safeValue = cellValue === "" ? "NA" : cellValue;
+              sheet.getCell(colLetter + targetRow).value = safeValue;
+            }
+          });
+        });
+      });
     });
   }
 
-  // Save and trigger download
-  const buffer = await workbook.xlsx.writeBuffer();
-  saveAs(new Blob([buffer]), `NTC_Daily_Checks_${month}_${year}.xlsx`);
+  // 6. Trigger Dual Download
+  const dailyBuffer = await dailyWorkbook.xlsx.writeBuffer();
+  saveAs(new Blob([dailyBuffer]), `Airtel_Daily_Canvas_${month}_${year}.xlsx`);
+
+  const commBuffer = await commWorkbook.xlsx.writeBuffer();
+  saveAs(new Blob([commBuffer]), `Airtel_Commercial_Logbook_${month}_${year}.xlsx`);
 };

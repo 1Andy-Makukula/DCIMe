@@ -1,5 +1,5 @@
-import React from "react";
 import { BrowserRouter, Routes, Route } from "react-router";
+
 
 // Pages
 import LoginPage from "@/pages/LoginPage";
@@ -7,7 +7,7 @@ import LoginPage from "@/pages/LoginPage";
 // Tech shell + views
 import { TechLayout } from "@/features/field/components/TechLayout";
 import { TechDashboard } from "@/features/field/components/TechDashboard";
-import { RoutineTasksDashboard } from "@/features/field/components/RoutineTasksDashboard";
+import { IncidentTracker } from "@/features/field/components/IncidentTracker";
 import { IncidentReport } from "@/features/field/components/IncidentReport";
 import { ShiftHandover } from "@/features/field/components/ShiftHandover";
 
@@ -29,10 +29,11 @@ export default function App() {
         {/* Tech shell — nested routing */}
         <Route path="/tech" element={<TechLayout />}>
           <Route index element={<TechDashboard />} />
-          <Route path="log" element={<RoutineTasksDashboard />} />
+          <Route path="log" element={<IncidentTracker />} />
           <Route path="incident" element={<IncidentReport />} />
           <Route path="handover" element={<ShiftHandover />} />
         </Route>
+
 
         {/* Admin shell — nested routing */}
         <Route path="/admin" element={<AdminLayout />}>

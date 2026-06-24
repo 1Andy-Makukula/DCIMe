@@ -1,7 +1,7 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState } from 'react';
 import { Lock, Save, CheckCircle2, Loader2, Zap, AlertTriangle, ChevronUp, ChevronDown, ArrowLeft } from 'lucide-react';
-import { MASTER_ASSET_DICTIONARY, AssetMetric } from '../constants/telemetrySchema';
-import { supabase } from '@/shared/api/supabaseClient';
+import { MASTER_ASSET_DICTIONARY } from '../constants/telemetrySchema';
+import { useTelemetryData } from '../hooks/useTelemetryData';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Types & Props
@@ -17,13 +17,6 @@ interface RoutineTasksDashboardProps {
 // ─────────────────────────────────────────────────────────────────────────────
 // Helpers
 // ─────────────────────────────────────────────────────────────────────────────
-
-/** Builds a UTC ISO timestamp anchored to a specific hour today */
-function buildHourTimestamp(hour: number): string {
-  const d = new Date();
-  d.setHours(hour, 0, 0, 0);
-  return d.toISOString();
-}
 
 /** Returns the category icon character for a category name */
 function categoryEmoji(name: string): string {
@@ -57,190 +50,29 @@ export const RoutineTasksDashboard = ({
   onBack,
   onSubmitSuccess 
 }: RoutineTasksDashboardProps) => {
-  // ── State ──────────────────────────────────────────────────────────────────
-  const [formData, setFormData] = useState<Record<string, any>>({});
-  const [isLoading, setIsLoading] = useState(true);
-  const [isEditMode, setIsEditMode] = useState(false);
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [isSuccess, setIsSuccess] = useState(false);
-  const [submitError, setSubmitError] = useState<string | null>(null);
-  const [fetchError, setFetchError] = useState<string | null>(null);
+  // ── Consume the Telemetry Hook ─────────────────────────────────────────────
+  const {
+    formData,
+    isLoading,
+    isEditMode,
+    isSubmitting,
+    isSuccess,
+    submitError,
+    fetchError,
+    handleChange,
+    handleSubmit,
+    getVisibleMetrics
+  } = useTelemetryData(targetHour, onComplete, onSubmitSuccess);
+
   const [openCategories, setOpenCategories] = useState<Record<string, boolean>>({});
 
-  // ── Frequency accordion math ───────────────────────────────────────────────
+  // ── Frequency accordion math (for header display only) ─────────────────────
   const isTwoHour  = targetHour % 2 === 0;
   const isFourHour = targetHour % 4 === 0;
   const isDaily    = targetHour === 9;
 
   // ── Outage override ────────────────────────────────────────────────────────
-  // When the technician flips ZESCO status to OFF, all generator metrics
-  // become immediately visible regardless of the hour.
   const isGridOff = formData['grid_status'] === 'OFF';
-
-  // ── Metric visibility filter ───────────────────────────────────────────────
-  const getVisibleMetrics = useCallback(
-    (assetId: string, metrics: AssetMetric[]): AssetMetric[] => {
-      return metrics.filter((metric) => {
-        // Outage override: generators always show when grid is off
-        if (assetId.includes('dg_') && isGridOff) return true;
-
-        switch (metric.frequency) {
-          case 'hourly':  return true;
-          case '2-hour':  return isTwoHour;
-          case '4-hour':  return isFourHour;
-          case 'daily':   return isDaily;
-          default:        return false;
-        }
-      });
-    },
-    [isTwoHour, isFourHour, isDaily, isGridOff]
-  );
-
-  // ── Supabase: fetch existing log or carry-forward from previous hour ────────
-  useEffect(() => {
-    const fetchSlotData = async () => {
-      setIsLoading(true);
-      setIsEditMode(false);
-      setFetchError(null);
-
-      try {
-        const currentTimestamp = buildHourTimestamp(targetHour);
-        const prevTimestamp    = buildHourTimestamp(targetHour - 1);
-
-        // ── Query 1: check whether this slot already has a submission ──────────
-        const { data: existing, error: existingErr } = await supabase
-          .from('telemetry_logs')
-          .select('metrics')
-          .eq('target_hour', currentTimestamp)
-          .eq('frequency', 'hourly')
-          .maybeSingle();
-
-        if (existingErr) {
-          throw new Error(`[Current Hour Query] ${existingErr.message}`);
-        }
-
-        if (existing?.metrics) {
-          // Edit mode — populate form with saved data
-          setFormData(existing.metrics as Record<string, any>);
-          setIsEditMode(true);
-          return;
-        }
-
-        // ── Query 2: no current-hour data — fetch previous hour for carry-forward
-        const { data: previous, error: prevErr } = await supabase
-          .from('telemetry_logs')
-          .select('metrics')
-          .eq('target_hour', prevTimestamp)
-          .eq('frequency', 'hourly')
-          .maybeSingle();
-
-        if (prevErr) {
-          throw new Error(`[Previous Hour Query] ${prevErr.message}`);
-        }
-
-        const prevMetrics: Record<string, any> = (previous?.metrics as Record<string, any>) ?? {};
-
-        // ── Build initial formData from dictionary defaults & carry-forwards ───
-        const seed: Record<string, any> = {};
-
-        MASTER_ASSET_DICTIONARY.forEach((category) => {
-          category.assets.forEach((asset) => {
-            asset.metrics.forEach((metric) => {
-              if (metric.defaultValue !== undefined) {
-                seed[metric.id] = metric.defaultValue;
-              }
-              if (metric.carryForward && prevMetrics[metric.id] !== undefined) {
-                seed[metric.id] = prevMetrics[metric.id];
-              }
-            });
-          });
-        });
-
-        setFormData(seed);
-      } catch (err: any) {
-        console.error('[DCIMe] fetchSlotData error:', err);
-        setFetchError(err.message || 'Failed to load telemetry slot data');
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    fetchSlotData();
-  }, [targetHour]);
-
-  // ── Input change handler ───────────────────────────────────────────────────
-  const handleChange = (metricId: string, value: string) => {
-    setFormData((prev) => ({ ...prev, [metricId]: value }));
-    setSubmitError(null);
-  };
-
-  // ── Submit handler ─────────────────────────────────────────────────────────
-  const handleSubmit = async () => {
-    setIsSubmitting(true);
-    setSubmitError(null);
-
-    // Calculate ambient average — collect all *_ambient_temp metrics
-    // that are currently visible, excluding HQ (4-hour only at non-4 hours)
-    const tempValues: number[] = [];
-    MASTER_ASSET_DICTIONARY.forEach((category) => {
-      category.assets.forEach((asset) => {
-        if (!asset.id.includes('ambient') || asset.id === 'hq_ambient') return;
-        asset.metrics.forEach((metric) => {
-          if (metric.id.endsWith('_temp') || metric.id.endsWith('_ambient_temp')) {
-            const visible = getVisibleMetrics(asset.id, asset.metrics).some(
-              (m) => m.id === metric.id
-            );
-            const raw = formData[metric.id];
-            if (visible && raw !== undefined && raw !== '' && raw !== null) {
-              const parsed = parseFloat(raw);
-              if (!isNaN(parsed)) tempValues.push(parsed);
-            }
-          }
-        });
-      });
-    });
-
-    const ambientAvg =
-      tempValues.length > 0
-        ? parseFloat((tempValues.reduce((a, b) => a + b, 0) / tempValues.length).toFixed(1))
-        : null;
-
-    const payload = {
-      ...formData,
-      ...(ambientAvg !== null ? { ambient_avg_temp: ambientAvg } : {}),
-    };
-
-    try {
-      const { error } = await supabase.from('telemetry_logs').upsert(
-        {
-          target_hour: buildHourTimestamp(targetHour),
-          frequency: 'hourly',
-          metrics: payload,
-          is_edited: isEditMode,
-          asset_id: 'facility_wide',
-          technician_name: 'Anderson M.'
-        },
-        { onConflict: 'target_hour' }
-      );
-
-      if (error) throw error;
-
-      setIsSuccess(true);
-      setTimeout(() => {
-        setIsSuccess(false);
-        if (onComplete) {
-          onComplete();
-        } else if (onSubmitSuccess) {
-          onSubmitSuccess(targetHour);
-        }
-      }, 900);
-    } catch (err: any) {
-      console.error('[DCIMe] submit error:', err.message || err);
-      setSubmitError(err.message || 'Failed to save telemetry log');
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
 
   // ── Back handler ───────────────────────────────────────────────────────────
   const handleBack = onBack || onComplete;

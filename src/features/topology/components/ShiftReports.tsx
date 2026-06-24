@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   FileText,
   Download,
@@ -19,6 +19,7 @@ import {
   FileSpreadsheet,
 } from "lucide-react";
 import { generateLegacyMonthlyReport } from "../../../shared/utils/excelExportEngine";
+import { supabase } from "@/shared/api/supabaseClient";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 type VerificationStatus = "verified" | "discrepancy";
@@ -435,7 +436,7 @@ function ShiftCard({
               <span className="truncate">{t.label}</span>
             </div>
             <span
-              className={`text-[11px] font-black ml-1 flex-shrink-0 ${t.flag ? "text-red-500" : "text-gray-800"
+              className={`text-[11px] font-black ml-1 flex-shrink-0 ${t.flag ? "text-red-505" : "text-gray-800"
                 }`}
             >
               {t.value}
@@ -491,6 +492,70 @@ export function ShiftReports() {
   const [showPicker, setShowPicker] = useState(false);
   const [activeReport, setActiveReport] = useState<ShiftLog | null>(null);
   const [isExporting, setIsExporting] = useState(false);
+  const [dbReports, setDbReports] = useState<ShiftLog[]>([]);
+  const [isDbLoading, setIsDbLoading] = useState(true);
+
+  const fetchDbReports = async () => {
+    setIsDbLoading(true);
+    try {
+      const { data, error } = await supabase
+        .from("shift_reports")
+        .select("*")
+        .order("timestamp", { ascending: false });
+
+      if (error) throw error;
+
+      if (data) {
+        const mapped = data.map((report: any) => {
+          const initials = report.technician_name
+            ? report.technician_name.split(" ").map((n: string) => n[0]).join("").toUpperCase()
+            : "AM";
+          
+          const colors = ["bg-red-500", "bg-blue-500", "bg-emerald-500", "bg-purple-500", "bg-amber-500"];
+          const colorIdx = initials.charCodeAt(0) % colors.length;
+          
+          return {
+            id: report.log_id,
+            logNumber: `#${report.log_id.substring(0, 5).toUpperCase()}`,
+            author: report.technician_name || "Anderson M.",
+            authorInitials: initials,
+            avatarColor: colors[colorIdx],
+            badgeId: report.technician_id || "EMP-0874-AM",
+            role: "Field Technician",
+            time: new Date(report.timestamp).toLocaleTimeString("en-US", {
+              hour: "2-digit",
+              minute: "2-digit",
+              hour12: false
+            }) + " CAT",
+            date: new Date(report.timestamp).toISOString().split("T")[0],
+            shiftLabel: report.shift_duration || "Day Shift",
+            site: report.site_id || "NTC ZM-0874",
+            zone: "Power Room 1",
+            verificationStatus: report.certified ? "verified" : "discrepancy" as const,
+            telemetry: [
+              { label: "Power Source", value: report.active_power_source || "Mains Active", icon: <Zap size={11} />, flag: false },
+              { label: "Routine Logs", value: `${report.routine_logs_completed || 0} / 4 Saved`, icon: <CheckCircle2 size={11} />, flag: false },
+              { label: "Signature", value: "Verified Ledger", icon: <Shield size={11} />, flag: false }
+            ],
+            notes: report.notes || "No pass-down notes submitted.",
+            alertsAcked: report.incidents_filed || 0,
+            signedOff: report.certified || false
+          };
+        });
+        setDbReports(mapped);
+      }
+    } catch (err) {
+      console.error("Error loading real shift logs:", err);
+    } finally {
+      setIsDbLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchDbReports();
+  }, []);
+
+  const allShiftLogs = [...dbReports, ...SHIFT_LOGS];
 
   const handleExport = async () => {
     setIsExporting(true);
@@ -547,15 +612,15 @@ export function ShiftReports() {
   };
 
   // Derived counts
-  const verifiedCount = SHIFT_LOGS.filter((l) => l.verificationStatus === "verified").length;
-  const discrepancyCount = SHIFT_LOGS.filter((l) => l.verificationStatus === "discrepancy").length;
-  const totalAlertsAcked = SHIFT_LOGS.reduce((sum, l) => sum + l.alertsAcked, 0);
+  const verifiedCount = allShiftLogs.filter((l) => l.verificationStatus === "verified").length;
+  const discrepancyCount = allShiftLogs.filter((l) => l.verificationStatus === "discrepancy").length;
+  const totalAlertsAcked = allShiftLogs.reduce((sum, l) => sum + l.alertsAcked, 0);
 
   const activeDateLabel = DATE_RANGES.find((r) => r.id === dateRange)?.label ?? "Last 7 Days";
 
   // Audit CSV/PDF export handler
   function handleAuditExport(format: "csv" | "pdf") {
-    const rows = SHIFT_LOGS.map((l) =>
+    const rows = allShiftLogs.map((l) =>
       [l.id, l.author, l.badgeId, l.date, l.time, l.shiftLabel, l.zone, l.verificationStatus, l.alertsAcked].join(",")
     );
     const headers = "Log ID,Author,Badge ID,Date,Time,Shift,Zone,Verification,Alerts Acked";
@@ -662,7 +727,7 @@ export function ShiftReports() {
             </div>
             <div>
               <div className="text-[22px] font-black text-gray-900 leading-none">
-                {SHIFT_LOGS.length}
+                {allShiftLogs.length}
               </div>
               <div className="text-[9px] font-black text-gray-400 uppercase tracking-widest mt-0.5">
                 Total Reports
@@ -730,7 +795,7 @@ export function ShiftReports() {
 
         {/* ── Timeline grid ─────────────────────────────────────────────────── */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {SHIFT_LOGS.map((log) => (
+          {allShiftLogs.map((log) => (
             <ShiftCard
               key={log.id}
               log={log}
@@ -748,7 +813,7 @@ export function ShiftReports() {
             </span>
           </div>
           <span className="font-mono">
-            {SHIFT_LOGS.length} records · {activeDateLabel}
+            {allShiftLogs.length} records · {activeDateLabel}
           </span>
         </div>
       </div>

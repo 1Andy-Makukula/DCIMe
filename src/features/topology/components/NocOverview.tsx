@@ -18,6 +18,9 @@ import {
   Activity,
   CheckCircle2,
   Clock,
+  User,
+  Search,
+  RefreshCw,
 } from "lucide-react";
 import { GlowDot } from "@/shared/ui";
 import {
@@ -25,6 +28,8 @@ import {
   thermalData,
   phaseAlerts,
 } from "@/shared/utils/mockData";
+import { supabase } from "@/shared/api/supabaseClient";
+
 
 // ── Shared card wrapper ──────────────────────────────────────────────────────
 function Card({
@@ -64,6 +69,116 @@ const darkTooltipStyle = {
 // ── Main component ────────────────────────────────────────────────────────────
 export function NocOverview() {
   const currentLoad = loadChartData[loadChartData.length - 1].kw;
+
+  interface IncidentLog {
+    id: string;
+    ticket_number: string;
+    status: string;
+    site_name: string;
+    asset_id: string;
+    severity: string;
+    notes: string;
+    comments: Array<{
+      author_name: string;
+      author_id: string;
+      comment_text: string;
+      type: string;
+      timestamp: string;
+    }>;
+    created_at: string;
+    raised_by_name: string;
+    raised_by_id: string;
+    occurred_at: string;
+    resolved_at: string | null;
+    resolved_by_name: string | null;
+    resolved_by_id: string | null;
+    receipt_number: string | null;
+    impact: string | null;
+    contractor_engaged: string | null;
+    resolution_details: string | null;
+  }
+
+  const [incidents, setIncidents] = React.useState<IncidentLog[]>([]);
+  const [isLoading, setIsLoading] = React.useState(true);
+  const [filter, setFilter] = React.useState<"all" | "open" | "resolved">("all");
+  const [searchQuery, setSearchQuery] = React.useState("");
+
+  const fetchIncidents = async () => {
+    setIsLoading(true);
+    try {
+      const { data, error } = await supabase
+        .from("incidents")
+        .select("*")
+        .order("created_at", { ascending: false });
+      if (error) throw error;
+      setIncidents(data || []);
+    } catch (err) {
+      console.error("Error fetching incidents for NOC:", err);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  React.useEffect(() => {
+    fetchIncidents();
+  }, []);
+
+  // Filter and search logic
+  const filteredIncidents = incidents.filter((incident) => {
+    if (filter === "open" && incident.status !== "OPEN") return false;
+    if (filter === "resolved" && incident.status !== "RESOLVED") return false;
+
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase();
+      const matchTicket = incident.ticket_number?.toLowerCase().includes(q);
+      const matchAsset = incident.asset_id?.toLowerCase().includes(q);
+      const matchTech = incident.raised_by_name?.toLowerCase().includes(q) || 
+                         incident.resolved_by_name?.toLowerCase().includes(q) ||
+                         incident.raised_by_id?.toLowerCase().includes(q) ||
+                         incident.resolved_by_id?.toLowerCase().includes(q);
+      const matchContractor = incident.contractor_engaged?.toLowerCase().includes(q);
+      const matchDetails = incident.resolution_details?.toLowerCase().includes(q);
+      
+      return matchTicket || matchAsset || matchTech || matchContractor || matchDetails;
+    }
+
+    return true;
+  });
+
+  const formatDateTime = (dateStr: string) => {
+    const d = new Date(dateStr);
+    return d.toLocaleString("en-US", {
+      month: "short",
+      day: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: false
+    });
+  };
+
+  const getDurationText = (created: string, resolved: string) => {
+    const start = new Date(created);
+    const end = new Date(resolved);
+    const diff = Math.abs(end.getTime() - start.getTime());
+    const diffDays = Math.floor(diff / (1000 * 60 * 60 * 24));
+    if (diffDays === 0) {
+      const diffHours = Math.floor(diff / (1000 * 60 * 60));
+      if (diffHours === 0) {
+        return "Resolved in <1 hr";
+      }
+      return `Resolved in ${diffHours} hr${diffHours === 1 ? '' : 's'}`;
+    }
+    return `Resolved in ${diffDays} day${diffDays === 1 ? '' : 's'}`;
+  };
+
+  const getAgingText = (created: string) => {
+    const start = new Date(created);
+    const now = new Date();
+    const diff = Math.abs(now.getTime() - start.getTime());
+    const diffDays = Math.floor(diff / (1000 * 60 * 60 * 24));
+    if (diffDays === 0) return "Active today";
+    return `Active for ${diffDays} day${diffDays === 1 ? '' : 's'}`;
+  };
 
   return (
     <div className="min-h-full p-4 lg:p-6 bg-gray-50">
@@ -460,7 +575,215 @@ export function NocOverview() {
             </div>
           </div>
         </Card>
+
+        {/* ═══════════════════════════════════════════════════════════════════
+            SECTION 5: Incident Resolution & NOC Audit Log (col-span-12)
+        ════════════════════════════════════════════════════════════════════ */}
+        <Card className="lg:col-span-12 p-5 flex flex-col space-y-4">
+          {/* Card Header */}
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 border-b border-gray-100 pb-4">
+            <div>
+              <SectionLabel>Incident Resolution & NOC Audit Log</SectionLabel>
+              <div className="text-[11px] font-semibold text-gray-400 mt-0.5">
+                Official facility dispatch registry and technician audit trail.
+              </div>
+            </div>
+            
+            <div className="flex flex-wrap items-center gap-3">
+              {/* Search Bar */}
+              <div className="relative">
+                <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                <input
+                  type="text"
+                  placeholder="Search by ticket, asset, tech..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="pl-8 pr-4 py-1.5 bg-gray-50 border border-gray-200 rounded-xl text-xs font-semibold text-gray-800 placeholder-gray-400 focus:outline-none focus:border-red-500 w-48 transition-all"
+                />
+              </div>
+
+              {/* Filter Buttons */}
+              <div className="bg-gray-100 p-1 rounded-xl flex gap-1 border border-gray-200/40">
+                {(["all", "open", "resolved"] as const).map((t) => (
+                  <button
+                    key={t}
+                    onClick={() => setFilter(t)}
+                    className={`px-3 py-1 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all ${
+                      filter === t
+                        ? "bg-white text-gray-900 shadow-sm"
+                        : "text-gray-400 hover:text-gray-600"
+                    }`}
+                  >
+                    {t}
+                  </button>
+                ))}
+              </div>
+
+              {/* Refresh Button */}
+              <button
+                onClick={fetchIncidents}
+                className="p-2 rounded-xl bg-gray-50 border border-gray-200 text-gray-400 hover:text-gray-950 active:scale-95 transition-all shadow-sm flex items-center justify-center"
+                title="Refresh Audits"
+                disabled={isLoading}
+              >
+                <RefreshCw size={13} className={isLoading ? "animate-spin text-red-500" : ""} />
+              </button>
+            </div>
+          </div>
+
+          {/* Table Container */}
+          <div className="overflow-x-auto rounded-xl border border-gray-100">
+            <table className="w-full text-left border-collapse text-xs">
+              <thead>
+                <tr className="bg-gray-50/75 border-b border-gray-100 text-[10px] uppercase font-black text-gray-400 tracking-wider">
+                  <th className="p-4">Ticket & Asset</th>
+                  <th className="p-4">Status & Severity</th>
+                  <th className="p-4">Reporter Audit</th>
+                  <th className="p-4">Resolution Audit</th>
+                  <th className="p-4">Duration / Aging</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-50">
+                {isLoading && incidents.length === 0 ? (
+                  <tr>
+                    <td colSpan={5} className="p-8 text-center text-gray-400 font-semibold">
+                      Loading incident audit logs from Supabase...
+                    </td>
+                  </tr>
+                ) : filteredIncidents.length === 0 ? (
+                  <tr>
+                    <td colSpan={5} className="p-8 text-center text-gray-400 font-semibold">
+                      No incidents found matching current filters.
+                    </td>
+                  </tr>
+                ) : (
+                  filteredIncidents.map((incident) => {
+                    const isResolved = incident.status === "RESOLVED";
+                    return (
+                      <tr key={incident.id} className="hover:bg-gray-50/40 transition-colors">
+                        {/* Ticket & Asset */}
+                        <td className="p-4">
+                          <div className="flex items-center gap-2">
+                            <span className="font-mono font-black text-gray-900">{incident.ticket_number}</span>
+                            {incident.comments && incident.comments.length > 0 && (
+                              <span className="inline-block bg-amber-50 text-amber-700 border border-amber-100 text-[8px] font-black uppercase tracking-wider px-1.5 py-0.5 rounded" title={`${incident.comments.length} appended updates`}>
+                                {incident.comments.length} {incident.comments.length === 1 ? "Update" : "Updates"}
+                              </span>
+                            )}
+                          </div>
+                          <div className="text-[10px] font-bold text-gray-400 uppercase mt-0.5">{incident.asset_id}</div>
+                        </td>
+
+
+                        {/* Status & Severity */}
+                        <td className="p-4">
+                          <div className="flex flex-col gap-1">
+                            <span className={`inline-block w-fit px-2 py-0.5 rounded text-[9px] font-black uppercase tracking-wider ${
+                              isResolved 
+                                ? "bg-green-50 text-green-700 border border-green-100" 
+                                : "bg-red-50 text-red-700 border border-red-100 animate-pulse"
+                            }`}>
+                              {incident.status}
+                            </span>
+                            <span className={`inline-block w-fit text-[9px] font-bold capitalize ${
+                              incident.severity === "critical"
+                                ? "text-red-600 font-black"
+                                : incident.severity === "medium"
+                                ? "text-amber-600"
+                                : "text-blue-600"
+                            }`}>
+                              {incident.severity}
+                            </span>
+                          </div>
+                        </td>
+
+                        {/* Reporter Audit */}
+                        <td className="p-4 space-y-1.5">
+                          <div className="flex items-center gap-1.5">
+                            <User size={12} className="text-gray-400 shrink-0" />
+                            <span className="font-bold text-gray-800">{incident.raised_by_name}</span>
+                            <span className="text-[9px] text-gray-400">({incident.raised_by_id})</span>
+                          </div>
+                          <div className="text-[10px] font-semibold text-gray-400 font-mono">
+                            {formatDateTime(incident.occurred_at)}
+                          </div>
+                          {incident.notes && (
+                            <div className="text-[10px] text-gray-500 max-w-xs truncate italic">
+                              "{incident.notes}"
+                            </div>
+                          )}
+                          {/* Appended logs timeline in NOC Audit view */}
+                          {incident.comments && incident.comments.length > 0 && (
+                            <div className="mt-2.5 space-y-1 pl-2 border-l border-red-200">
+                              <div className="text-[8px] font-black text-gray-400 uppercase tracking-wider">Comments ({incident.comments.length})</div>
+                              {incident.comments.map((cmt, idx) => (
+                                <div key={idx} className="text-[10px] text-gray-600 leading-normal">
+                                  <span className={`font-bold ${cmt.type === 'correction' ? 'text-red-500' : 'text-blue-500'}`}>
+                                    {cmt.type === 'correction' ? 'Correction: ' : 'Add: '}
+                                  </span>
+                                  {cmt.comment_text} <span className="text-[8px] text-gray-450 font-mono">({formatDateTime(cmt.timestamp)})</span>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        </td>
+
+                        {/* Resolution Audit */}
+                        <td className="p-4">
+                          {isResolved ? (
+                            <div className="space-y-1.5">
+                              <div className="flex items-center gap-1">
+                                <span className="font-bold text-green-700 font-mono text-[10px] bg-green-50 px-1.5 py-0.5 rounded border border-green-100">
+                                  {incident.receipt_number}
+                                </span>
+                                <span className="text-[9px] text-gray-400">by {incident.resolved_by_name} ({incident.resolved_by_id})</span>
+                              </div>
+                              
+                              <div className="text-[10px] font-semibold text-gray-400 font-mono">
+                                {incident.resolved_at ? formatDateTime(incident.resolved_at) : ""}
+                              </div>
+
+                              <div className="text-[10px] text-gray-600 leading-relaxed max-w-sm">
+                                <span className="font-bold text-gray-500">Work:</span> {incident.resolution_details}
+                              </div>
+
+                              <div className="flex flex-wrap items-center gap-2 text-[9px] font-bold">
+                                <span className="text-gray-400">Impact:</span>
+                                <span className="bg-gray-100 text-gray-700 px-1.5 py-0.5 rounded uppercase">{incident.impact}</span>
+                                <span className="text-gray-400">Contractor:</span>
+                                <span className="bg-gray-100 text-gray-700 px-1.5 py-0.5 rounded">{incident.contractor_engaged}</span>
+                              </div>
+                            </div>
+                          ) : (
+                            <span className="text-gray-400 italic font-semibold">Awaiting Field Clearance</span>
+                          )}
+                        </td>
+
+                        {/* Duration / Aging */}
+                        <td className="p-4">
+                          <span className={`font-bold font-mono px-2 py-1 rounded-full text-[10px] border ${
+                            isResolved
+                              ? "bg-green-50 text-green-700 border-green-100"
+                              : "bg-amber-50 text-amber-700 border-amber-100 animate-pulse"
+                          }`}>
+                            {isResolved 
+                              ? incident.resolved_at 
+                                ? getDurationText(incident.occurred_at, incident.resolved_at)
+                                : "Cleared"
+                              : getAgingText(incident.occurred_at)
+                            }
+                          </span>
+                        </td>
+                      </tr>
+                    );
+                  })
+                )}
+              </tbody>
+            </table>
+          </div>
+        </Card>
       </div>
     </div>
   );
 }
+

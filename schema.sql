@@ -34,8 +34,18 @@ create table if not exists public.shift_reports (
     log_id uuid default gen_random_uuid() primary key,
     timestamp timestamptz default now(),
     logged_by uuid references public.employees(id) on delete set null,
-    active_power_source text,
-    site_id text
+    active_power_source text default 'Mains Active',
+    site_id text default 'NTC ZM 0874',
+    
+    -- Added Handover Details
+    notes text,
+    certified boolean default false,
+    technician_name text default 'Anderson M.',
+    technician_id text default 'EMP-0874-AM',
+    signature_id text,
+    shift_duration text default '06:00 - 14:00',
+    routine_logs_completed integer default 0,
+    incidents_filed integer default 0
 );
 
 -- ═════════════════════════════════════════════════════════════════════════════
@@ -127,3 +137,46 @@ alter table public.telemetry_ups enable row level security;
 create policy "Allow public read access" on public.telemetry_logs for select using (true);
 create policy "Allow public insert access" on public.telemetry_logs for insert with check (true);
 create policy "Allow public update access" on public.telemetry_logs for update using (true);
+
+-- ═════════════════════════════════════════════════════════════════════════════
+-- 9. Incidents Table (Facility alert lifecycles and audits)
+-- ═════════════════════════════════════════════════════════════════════════════
+create table if not exists public.incidents (
+    id uuid default gen_random_uuid() primary key,
+    ticket_number text not null unique,
+    status text not null default 'OPEN', -- 'OPEN' or 'RESOLVED'
+    site_name text not null default 'NTC ZM 0874',
+    asset_id text not null,
+    severity text not null, -- 'LOW', 'MEDIUM', 'HIGH'
+    notes text,
+    photo_url text,
+    comments jsonb not null default '[]'::jsonb,
+    created_at timestamptz default now(),
+
+    raised_by_name text not null default 'Anderson M.',
+    raised_by_id text not null default 'EMP-0874-AM',
+    occurred_at timestamptz not null default now(),
+    
+    -- Resolution details
+    resolved_at timestamptz,
+    resolved_by_name text,
+    resolved_by_id text,
+    receipt_number text unique,
+    impact text,
+    contractor_engaged text,
+    resolution_details text
+);
+
+-- Row Level Security (RLS) Enablement
+alter table public.incidents enable row level security;
+
+-- Frictionless Development RLS Policies
+create policy "Allow public read access" on public.incidents for select using (true);
+create policy "Allow public insert access" on public.incidents for insert with check (true);
+create policy "Allow public update access" on public.incidents for update using (true);
+
+-- Frictionless Development RLS Policies for shift_reports
+create policy "Allow public read access" on public.shift_reports for select using (true);
+create policy "Allow public insert access" on public.shift_reports for insert with check (true);
+create policy "Allow public update access" on public.shift_reports for update using (true);
+
