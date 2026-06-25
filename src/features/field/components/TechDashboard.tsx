@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useOutletContext } from "react-router";
 import { 
   Clock, 
   User, 
@@ -13,8 +14,10 @@ import { ShiftTimeline } from "./ShiftTimeline";
 import { RoutineTasksDashboard } from "./RoutineTasksDashboard";
 import { supabase } from "@/shared/api/supabaseClient";
 import { useShiftReports } from "../hooks/useShiftReports";
+import { TechUser } from "./TechLayout";
 
 export function TechDashboard() {
+  const { user } = useOutletContext<{ user: TechUser | null }>();
   const [selectedTargetHour, setSelectedTargetHour] = useState<number | null>(null);
   const [completedHours, setCompletedHours] = useState<number[]>([]);
   const [currentTime, setCurrentTime] = useState(new Date());
@@ -117,7 +120,7 @@ export function TechDashboard() {
               </div>
               <div>
                 <p className="text-[10px] text-gray-400 font-semibold uppercase tracking-wider">Technician</p>
-                <p className="font-bold text-sm text-gray-100">Anderson M.</p>
+                <p className="font-bold text-sm text-gray-100">{user?.name || "Loading..."}</p>
               </div>
             </div>
 

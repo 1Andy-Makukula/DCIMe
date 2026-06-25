@@ -5,7 +5,6 @@ import {
   Calendar,
   CheckCircle2,
   AlertTriangle,
-  User,
   Clock,
   MapPin,
   Zap,
@@ -515,10 +514,10 @@ export function ShiftReports() {
           return {
             id: report.log_id,
             logNumber: `#${report.log_id.substring(0, 5).toUpperCase()}`,
-            author: report.technician_name || "Anderson M.",
+            author: report.technician_name || "Unknown Technician",
             authorInitials: initials,
             avatarColor: colors[colorIdx],
-            badgeId: report.technician_id || "EMP-0874-AM",
+            badgeId: report.technician_id || "UNKNOWN",
             role: "Field Technician",
             time: new Date(report.timestamp).toLocaleTimeString("en-US", {
               hour: "2-digit",

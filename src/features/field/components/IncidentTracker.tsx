@@ -1,5 +1,7 @@
 import React, { useState } from "react";
+import { useOutletContext } from "react-router";
 import { useIncidents, Incident } from "../hooks/useIncidents";
+import { TechUser } from "./TechLayout";
 import { 
   AlertTriangle,
   CheckCircle2, 
@@ -16,6 +18,7 @@ import {
 } from "lucide-react";
 
 export function IncidentTracker() {
+  const { user } = useOutletContext<{ user: TechUser | null }>();
   const { 
     incidents, 
     isLoading, 
@@ -92,8 +95,8 @@ export function IncidentTracker() {
         contractor_engaged: resContractor,
         resolution_details: resDetails,
         resolved_at: new Date(resResolvedAt).toISOString(),
-        resolved_by_name: "Anderson M.",
-        resolved_by_id: "EMP-0874-AM"
+        resolved_by_name: user?.name || "Field Tech",
+        resolved_by_id: user?.id || "EMP-UNKNOWN"
       });
 
       setShowReceipt(resolved.receipt_number);
@@ -342,11 +345,11 @@ export function IncidentTracker() {
               </div>
               <div className="flex justify-between">
                 <span className="text-gray-400">Resolved By:</span>
-                <span className="font-bold text-gray-800">Anderson M.</span>
+                <span className="font-bold text-gray-800">{user?.name || "Field Tech"}</span>
               </div>
               <div className="flex justify-between">
                 <span className="text-gray-400">Employee ID:</span>
-                <span className="font-bold text-gray-800">EMP-0874-AM</span>
+                <span className="font-bold text-gray-800">{user?.id || "EMP-UNKNOWN"}</span>
               </div>
               <div className="flex justify-between">
                 <span className="text-gray-400">Timestamp:</span>

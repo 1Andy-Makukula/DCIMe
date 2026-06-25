@@ -91,8 +91,8 @@ export function useIncidents() {
         photo_url: payload.photo_url || null,
         comments: [],
         occurred_at: payload.occurred_at || new Date().toISOString(),
-        raised_by_name: payload.raised_by_name || "Anderson M.",
-        raised_by_id: payload.raised_by_id || "EMP-0874-AM",
+        raised_by_name: payload.raised_by_name || "",
+        raised_by_id: payload.raised_by_id || "",
         created_at: new Date().toISOString(),
       };
 
@@ -134,8 +134,8 @@ export function useIncidents() {
       const currentComments = existing?.comments || [];
 
       const newComment = {
-        author_name: payload.author_name || "Anderson M.",
-        author_id: payload.author_id || "EMP-0874-AM",
+        author_name: payload.author_name || "",
+        author_id: payload.author_id || "",
         comment_text: payload.comment_text,
         type: payload.type,
         timestamp: new Date().toISOString(),
@@ -191,8 +191,8 @@ export function useIncidents() {
       const updateData = {
         status: "RESOLVED",
         resolved_at: payload.resolved_at || new Date().toISOString(),
-        resolved_by_name: payload.resolved_by_name || "Anderson M.",
-        resolved_by_id: payload.resolved_by_id || "EMP-0874-AM",
+        resolved_by_name: payload.resolved_by_name || "",
+        resolved_by_id: payload.resolved_by_id || "",
         receipt_number: receiptNumber,
         impact: payload.impact,
         contractor_engaged: payload.contractor_engaged,

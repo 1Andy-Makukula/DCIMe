@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { useNavigate } from "react-router";
+import { useNavigate, useOutletContext } from "react-router";
 import { 
   Camera, 
   ChevronDown, 
@@ -14,9 +14,11 @@ import {
   History
 } from "lucide-react";
 import { useIncidents } from "../hooks/useIncidents";
+import { TechUser } from "./TechLayout";
 
 export function IncidentReport() {
   const navigate = useNavigate();
+  const { user } = useOutletContext<{ user: TechUser | null }>();
   const { 
     incidents, 
     reportIncident, 
@@ -80,8 +82,8 @@ export function IncidentReport() {
         notes: notes,
         photo_url: photo,
         occurred_at: new Date(occurredAt).toISOString(),
-        raised_by_name: "Anderson M.",
-        raised_by_id: "EMP-0874-AM"
+        raised_by_name: user?.name || "Field Tech",
+        raised_by_id: user?.id || "EMP-UNKNOWN"
       });
 
       if (result) {
@@ -106,8 +108,8 @@ export function IncidentReport() {
       await addIncidentComment(incidentId, {
         comment_text: commentText,
         type: commentType,
-        author_name: "Anderson M.",
-        author_id: "EMP-0874-AM"
+        author_name: user?.name || "Field Tech",
+        author_id: user?.id || "EMP-UNKNOWN"
       });
       setCommentText("");
       setSelectedIncidentId(null);
@@ -119,9 +121,9 @@ export function IncidentReport() {
     }
   };
 
-  // Filter incidents personally reported by this technician (Anderson M.)
+  // Filter incidents personally reported by this technician
   const myIncidents = incidents.filter(
-    (i) => i.raised_by_id === "EMP-0874-AM"
+    (i) => i.raised_by_id === (user?.id || "EMP-UNKNOWN")
   );
 
   const formatDate = (dateStr: string) => {

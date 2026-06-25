@@ -1,10 +1,65 @@
+import { useState, useEffect } from "react";
 import { NavLink, Outlet, useNavigate } from "react-router";
-
 import { Home, Activity, AlertOctagon, UserCheck, LogOut } from "lucide-react";
 import { AirtelMark } from "@/shared/ui";
+import { supabase } from "@/shared/api/supabaseClient";
+
+export interface TechUser {
+  id: string;       // e.g., "ZM-4891"
+  name: string;     // e.g., "Peter M."
+  initials: string; // e.g., "PM"
+}
 
 export function TechLayout() {
   const navigate = useNavigate();
+  const [user, setUser] = useState<TechUser | null>(null);
+
+  useEffect(() => {
+    const fetchProfile = async () => {
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!session?.user) {
+          navigate("/");
+          return;
+        }
+
+        const email = session.user.email || "";
+        const badgeId = email.includes("@dcime.local")
+          ? email.split("@")[0].toUpperCase()
+          : email;
+
+        // Query employees profile for real name
+        const { data: empData } = await supabase
+          .from("employees")
+          .select("full_name")
+          .eq("auth_id", session.user.id)
+          .maybeSingle();
+
+        const name = empData?.full_name || session.user.user_metadata?.full_name || badgeId;
+        
+        // Extract Initials
+        const parts = name.trim().split(/\s+/);
+        const initials = parts.length > 1
+          ? (parts[0][0] + parts[parts.length - 1][0]).toUpperCase()
+          : name.substring(0, 2).toUpperCase();
+
+        setUser({
+          id: badgeId,
+          name,
+          initials,
+        });
+      } catch (err) {
+        console.error("Error fetching user profile in TechLayout:", err);
+      }
+    };
+
+    fetchProfile();
+  }, [navigate]);
+
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
+    navigate("/");
+  };
 
   return (
     <div className="h-screen w-full flex flex-col bg-gray-50 overflow-hidden relative">
@@ -25,22 +80,25 @@ export function TechLayout() {
         <div className="flex items-center gap-3">
           {/* Logout Button */}
           <button 
-            onClick={() => navigate("/")}
-            className="p-2 text-gray-400 hover:text-red-500 transition-colors"
+            onClick={handleLogout}
+            className="p-2 text-gray-400 hover:text-red-500 transition-colors cursor-pointer"
             title="Logout"
           >
             <LogOut size={18} />
           </button>
           {/* User Avatar */}
-          <div className="w-8 h-8 rounded-full bg-red-500 text-white font-bold text-xs flex items-center justify-center shadow-sm">
-            AM
+          <div 
+            className="w-8 h-8 rounded-full bg-red-500 text-white font-bold text-xs flex items-center justify-center shadow-sm"
+            title={user?.name || "Loading..."}
+          >
+            {user ? user.initials : "..."}
           </div>
         </div>
       </header>
 
       {/* Viewport */}
       <main className="flex-1 overflow-y-auto p-4 pb-20">
-        <Outlet />
+        <Outlet context={{ user }} />
       </main>
 
       {/* Fixed Bottom Navigation Bar */}
@@ -69,7 +127,6 @@ export function TechLayout() {
           <Activity size={20} className="mb-0.5" />
           <span className="text-[9px] tracking-wide">Tracking</span>
         </NavLink>
-
 
         <NavLink
           to="/tech/incident"

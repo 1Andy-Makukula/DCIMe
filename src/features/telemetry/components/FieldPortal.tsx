@@ -1,6 +1,8 @@
+import { useState, useEffect } from "react";
 import { CheckCircle, AlertTriangle, RefreshCw, ArrowLeft, Plus } from "lucide-react";
 import { AirtelMark, GlowDot, TopologyBG } from "@/shared/ui";
 import { useShiftReports } from "@/features/field/hooks/useShiftReports";
+import { supabase } from "@/shared/api/supabaseClient";
 
 export interface FieldPortalProps {
   onBack: () => void;
@@ -9,6 +11,43 @@ export interface FieldPortalProps {
 
 export function FieldPortal({ onBack, onForm }: FieldPortalProps) {
   const { shiftReports, isLoading, refresh } = useShiftReports();
+  const [techName, setTechName] = useState<string>("Loading...");
+  const [initials, setInitials] = useState<string>("...");
+
+  useEffect(() => {
+    const fetchProfile = async () => {
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (session?.user) {
+          const email = session.user.email || "";
+          const badgeId = email.includes("@dcime.local")
+            ? email.split("@")[0].toUpperCase()
+            : email;
+
+          const { data: empData } = await supabase
+            .from("employees")
+            .select("full_name")
+            .eq("auth_id", session.user.id)
+            .maybeSingle();
+
+          const name = empData?.full_name || session.user.user_metadata?.full_name || badgeId;
+          setTechName(name);
+
+          const parts = name.trim().split(/\s+/);
+          const init = parts.length > 1
+            ? (parts[0][0] + parts[parts.length - 1][0]).toUpperCase()
+            : name.substring(0, 2).toUpperCase();
+          setInitials(init);
+        } else {
+          setTechName("Unknown Tech");
+          setInitials("UT");
+        }
+      } catch (err) {
+        console.error("Error fetching profile in FieldPortal:", err);
+      }
+    };
+    fetchProfile();
+  }, []);
 
   // Map ShiftReport → the shape the list JSX expects
   const shiftLogs = shiftReports.map((r) => ({
@@ -43,13 +82,14 @@ export function FieldPortal({ onBack, onForm }: FieldPortalProps) {
               <div
                 className="w-9 h-9 rounded-xl flex items-center justify-center text-white text-[11px] font-black flex-shrink-0"
                 style={{ backgroundColor: "#FF0000" }}
+                title={techName}
               >
-                AM
+                {initials}
               </div>
             </div>
           </div>
           <div className="text-[10px] font-bold text-gray-400 uppercase tracking-[0.12em]">
-            Anderson M. · Field Technician · NTC ZM-0874
+            {techName} · Field Technician · NTC ZM-0874
           </div>
         </div>
 

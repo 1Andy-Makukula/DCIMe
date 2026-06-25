@@ -1,12 +1,35 @@
-import React from "react";
+import React, { useState, useEffect } from "react";
 import { X, Download, Printer, Share2 } from "lucide-react";
 import { GlowDot } from "@/shared/ui";
+import { supabase } from "@/shared/api/supabaseClient";
 
 export interface AuditTrailModalProps {
   onClose: () => void;
 }
 
 export function AuditTrailModal({ onClose }: AuditTrailModalProps) {
+  const [techName, setTechName] = useState<string>("Anderson M.");
+
+  useEffect(() => {
+    const fetchProfile = async () => {
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (session?.user) {
+          const { data: empData } = await supabase
+            .from("employees")
+            .select("full_name")
+            .eq("auth_id", session.user.id)
+            .maybeSingle();
+          const name = empData?.full_name || session.user.user_metadata?.full_name;
+          if (name) setTechName(name);
+        }
+      } catch (err) {
+        console.error("Error fetching profile in AuditTrailModal:", err);
+      }
+    };
+    fetchProfile();
+  }, []);
+
   const auditRows = [
     { section: "POWER SOURCE", rows: [["Source", "ZESCO MAINS", ""]] },
     {
@@ -78,7 +101,7 @@ export function AuditTrailModal({ onClose }: AuditTrailModalProps) {
               SHIFT LOG: 2026-06-20 · 14:32 UTC+2
             </div>
             <div className="text-[10px] font-bold text-gray-400 uppercase tracking-[0.12em] mt-0.5">
-              Logged by: Anderson M. · NTC ZM-0874 · Airtel DCIMe
+              Logged by: {techName} · NTC ZM-0874 · Airtel DCIMe
             </div>
           </div>
           <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-gray-100 transition-colors text-gray-400">

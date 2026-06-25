@@ -40,8 +40,8 @@ create table if not exists public.shift_reports (
     -- Added Handover Details
     notes text,
     certified boolean default false,
-    technician_name text default 'Anderson M.',
-    technician_id text default 'EMP-0874-AM',
+    technician_name text default '',
+    technician_id text default '',
     signature_id text,
     shift_duration text default '06:00 - 14:00',
     routine_logs_completed integer default 0,
@@ -67,7 +67,7 @@ create table if not exists public.telemetry_logs (
     target_hour timestamptz not null unique,
     asset_id text default 'facility_wide', -- Nullable for unified hourly logging
     frequency text default 'hourly',       -- Nullable for unified hourly logging
-    technician_name text default 'Anderson M.', -- Nullable for unified hourly logging
+    technician_name text default '', -- Nullable for unified hourly logging
     metrics jsonb not null default '{}'::jsonb,
     is_edited boolean default false,
     submitted_at timestamptz default now(),
@@ -134,6 +134,10 @@ alter table public.telemetry_ups enable row level security;
 -- Frictionless Development RLS Policies (For telemetry_logs)
 -- ─────────────────────────────────────────────────────────────────────────────
 
+DROP POLICY IF EXISTS "Allow public read access" on public.telemetry_logs;
+DROP POLICY IF EXISTS "Allow public insert access" on public.telemetry_logs;
+DROP POLICY IF EXISTS "Allow public update access" on public.telemetry_logs;
+
 create policy "Allow public read access" on public.telemetry_logs for select using (true);
 create policy "Allow public insert access" on public.telemetry_logs for insert with check (true);
 create policy "Allow public update access" on public.telemetry_logs for update using (true);
@@ -153,8 +157,8 @@ create table if not exists public.incidents (
     comments jsonb not null default '[]'::jsonb,
     created_at timestamptz default now(),
 
-    raised_by_name text not null default 'Anderson M.',
-    raised_by_id text not null default 'EMP-0874-AM',
+    raised_by_name text not null default '',
+    raised_by_id text not null default '',
     occurred_at timestamptz not null default now(),
     
     -- Resolution details
@@ -171,11 +175,19 @@ create table if not exists public.incidents (
 alter table public.incidents enable row level security;
 
 -- Frictionless Development RLS Policies
+DROP POLICY IF EXISTS "Allow public read access" on public.incidents;
+DROP POLICY IF EXISTS "Allow public insert access" on public.incidents;
+DROP POLICY IF EXISTS "Allow public update access" on public.incidents;
+
 create policy "Allow public read access" on public.incidents for select using (true);
 create policy "Allow public insert access" on public.incidents for insert with check (true);
 create policy "Allow public update access" on public.incidents for update using (true);
 
 -- Frictionless Development RLS Policies for shift_reports
+DROP POLICY IF EXISTS "Allow public read access" on public.shift_reports;
+DROP POLICY IF EXISTS "Allow public insert access" on public.shift_reports;
+DROP POLICY IF EXISTS "Allow public update access" on public.shift_reports;
+
 create policy "Allow public read access" on public.shift_reports for select using (true);
 create policy "Allow public insert access" on public.shift_reports for insert with check (true);
 create policy "Allow public update access" on public.shift_reports for update using (true);

@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { useNavigate } from "react-router";
+import { useNavigate, useOutletContext } from "react-router";
 import { 
   Clock, 
   MessageSquare, 
@@ -8,9 +8,11 @@ import {
   ArrowLeft
 } from "lucide-react";
 import { useShiftReports } from "../hooks/useShiftReports";
+import { TechUser } from "./TechLayout";
 
 export function ShiftHandover() {
   const navigate = useNavigate();
+  const { user } = useOutletContext<{ user: TechUser | null }>();
   const { submitShiftReport } = useShiftReports();
   const [notes, setNotes] = useState("");
   const [certified, setCertified] = useState(false);
@@ -35,8 +37,8 @@ export function ShiftHandover() {
       await submitShiftReport({
         notes: notes,
         certified: certified,
-        technician_name: "Anderson M.",
-        technician_id: "EMP-0874-AM",
+        technician_name: user?.name || "Field Tech",
+        technician_id: user?.id || "EMP-UNKNOWN",
         signature_id: sigId,
         shift_duration: "06:00 - 14:00",
         routine_logs_completed: 4,
@@ -68,7 +70,7 @@ export function ShiftHandover() {
         <div className="bg-gray-900 text-gray-100 rounded-2xl p-4 text-left border border-gray-800 font-mono text-xs space-y-2.5">
           <div className="flex justify-between border-b border-gray-800 pb-1.5">
             <span className="text-gray-500">Signatory:</span>
-            <span className="font-bold">Anderson M.</span>
+            <span className="font-bold">{user?.name || "Field Tech"}</span>
           </div>
           <div className="flex justify-between border-b border-gray-800 pb-1.5">
             <span className="text-gray-500">Timestamp:</span>

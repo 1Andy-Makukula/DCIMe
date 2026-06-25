@@ -74,3 +74,12 @@ CREATE POLICY "Authenticated users can read shift_reports"
   ON public.shift_reports FOR SELECT USING (auth.role() = 'authenticated');
 CREATE POLICY "Authenticated users can insert shift_reports"
   ON public.shift_reports FOR INSERT WITH CHECK (auth.role() = 'authenticated');
+
+-- ── employees RLS Policies ───────────────────────────────────
+ALTER TABLE public.employees ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "Authenticated users can read employees" ON public.employees;
+
+CREATE POLICY "Authenticated users can read employees"
+  ON public.employees FOR SELECT USING (auth.role() = 'authenticated');
+
