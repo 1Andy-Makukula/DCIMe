@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { createClient } from "@supabase/supabase-js";
 import { useAuth } from "@/shared/context/AuthContext";
 import { supabase } from "@/shared/api/supabaseClient";
@@ -50,8 +50,41 @@ export function RegistrationForm({ onClose, onSaveSuccess }: RegistrationFormPro
   const [error, setError] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
 
-  // 1. Guard Check: Only authenticated users with ADMIN role can access
-  if (isAuthLoading) {
+  // Bootstrapping State
+  const [hasAdmins, setHasAdmins] = useState<boolean | null>(null);
+
+  useEffect(() => {
+    const checkAdmins = async () => {
+      try {
+        const { count, error: countError } = await supabase
+          .from("employees")
+          .select("*", { count: "exact", head: true })
+          .eq("role", "ADMIN");
+        
+        if (!countError) {
+          setHasAdmins((count || 0) > 0);
+        } else {
+          setHasAdmins(true); // Default to secure if database query fails
+        }
+      } catch (err) {
+        setHasAdmins(true);
+      }
+    };
+    checkAdmins();
+  }, []);
+
+  const isBootstrapMode = hasAdmins === false;
+
+  // Force role to ADMIN during first-time bootstrapping
+  useEffect(() => {
+    if (isBootstrapMode) {
+      setRole("ADMIN");
+    }
+  }, [isBootstrapMode]);
+
+  // 1. Guard Check: Only authenticated users with ADMIN role can access, 
+  // EXCEPT when the database is completely uninitialized (Bootstrap mode).
+  if (isAuthLoading || hasAdmins === null) {
     return (
       <div className="flex items-center justify-center p-12 min-h-[300px]">
         <div className="flex flex-col items-center gap-3">
@@ -62,7 +95,7 @@ export function RegistrationForm({ onClose, onSaveSuccess }: RegistrationFormPro
     );
   }
 
-  if (!employee || employee.role !== "ADMIN") {
+  if (!isBootstrapMode && (!employee || employee.role !== "ADMIN")) {
     return (
       <div className="max-w-md mx-auto my-12 p-8 bg-white border border-red-100 rounded-3xl shadow-sm text-center space-y-4">
         <div className="w-16 h-16 bg-red-50 rounded-full flex items-center justify-center mx-auto text-red-500 border border-red-100">
@@ -116,7 +149,6 @@ export function RegistrationForm({ onClose, onSaveSuccess }: RegistrationFormPro
         }]);
 
       if (dbError) {
-        // If DB write fails, attempt cleanup in Auth if supported, but typically throw
         throw dbError;
       }
 
@@ -126,8 +158,11 @@ export function RegistrationForm({ onClose, onSaveSuccess }: RegistrationFormPro
       setPassword("");
       setBadgeId("");
       setPhone("");
-      setRole("FIELD_TECH");
-      setSuccessMsg(`Account for ${name} provisioned successfully! Auth linked.`);
+      setSuccessMsg(isBootstrapMode 
+        ? "Primary NOC Administrator account created successfully! Bootstrapping complete."
+        : `Account for ${name} provisioned successfully! Auth linked.`
+      );
+      
       setTimeout(() => {
         if (onSaveSuccess) onSaveSuccess();
         if (onClose) onClose();
@@ -146,10 +181,10 @@ export function RegistrationForm({ onClose, onSaveSuccess }: RegistrationFormPro
       {/* Header */}
       <div className="px-6 py-5 border-b border-gray-100 bg-gray-50/50">
         <div className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-0.5">
-          IAM · Identity Access Provisioning
+          {isBootstrapMode ? "System Bootstrap · Step 1/1" : "IAM · Identity Access Provisioning"}
         </div>
         <h2 className="text-[16px] font-black text-gray-900 leading-none">
-          Register New Employee
+          {isBootstrapMode ? "Create Primary NOC Admin Account" : "Register New Employee"}
         </h2>
       </div>
 
@@ -286,12 +321,13 @@ export function RegistrationForm({ onClose, onSaveSuccess }: RegistrationFormPro
           <div className="grid grid-cols-2 gap-4">
             <button
               type="button"
+              disabled={isBootstrapMode}
               onClick={() => setRole("FIELD_TECH")}
               className={`py-3 rounded-xl text-center text-xs font-black uppercase tracking-wider transition-all border cursor-pointer ${
                 role === "FIELD_TECH"
                   ? "bg-red-50 border-red-500 text-red-700"
                   : "bg-gray-50 border-gray-200 text-gray-500 hover:bg-gray-100"
-              }`}
+              } ${isBootstrapMode ? "opacity-40 cursor-not-allowed" : ""}`}
             >
               Field Tech
             </button>
@@ -304,7 +340,7 @@ export function RegistrationForm({ onClose, onSaveSuccess }: RegistrationFormPro
                   : "bg-gray-50 border-gray-200 text-gray-500 hover:bg-gray-100"
               }`}
             >
-              NOC Admin (L5)
+              {isBootstrapMode ? "NOC Admin (First Boot)" : "NOC Admin (L5)"}
             </button>
           </div>
         </div>
