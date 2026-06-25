@@ -43,15 +43,43 @@ export function LoginForm({ onAdmin, onField }: LoginFormProps) {
       return;
     }
 
-    // 4. Schema-Aware Role & Status Check
-    // Query the public.employees table using the authenticated user's ID
-    const { data: empData, error: empError } = await supabase
-      .from('employees')
-      .select('role, status')
-      .eq('auth_id', authData.user.id)
-      .single();
+    // 4. Schema-Aware Role & Status Check with Self-Healing Link
+    let empData = null;
 
-    if (empError || !empData) {
+    // A. Query standard auth_id matching first
+    const { data: directData } = await supabase
+      .from('employees')
+      .select('id, role, status, auth_id')
+      .eq('auth_id', authData.user.id)
+      .maybeSingle();
+
+    empData = directData;
+
+    // B. Fallback: If no auth_id is linked yet, look up by badge_id or email to dynamically link it
+    if (!empData) {
+      const { data: linkData } = await supabase
+        .from('employees')
+        .select('id, role, status, auth_id')
+        .or(`badge_id.ieq.${rawId},email.ieq.${rawId}`)
+        .maybeSingle();
+
+      if (linkData) {
+        // Link the auth_id in the database
+        const { error: updateError } = await supabase
+          .from('employees')
+          .update({ auth_id: authData.user.id })
+          .eq('id', linkData.id);
+
+        if (!updateError) {
+          empData = { ...linkData, auth_id: authData.user.id };
+        } else {
+          console.error("Failed to dynamically link employee auth_id:", updateError);
+          empData = linkData;
+        }
+      }
+    }
+
+    if (!empData) {
       console.warn("Employee record missing, defaulting to Field Tech routing.");
       navigate("/tech");
       return;
@@ -67,7 +95,7 @@ export function LoginForm({ onAdmin, onField }: LoginFormProps) {
 
     // 5. Intelligent Routing based on schema enums
     if (empData.role === 'ADMIN') {
-      navigate("/admin"); // Assuming /admin is the NOC/Admin dashboard route
+      navigate("/admin"); // Navigate to NOC/Admin dashboard
     } else {
       navigate("/tech");
     }
