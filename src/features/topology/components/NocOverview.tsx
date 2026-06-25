@@ -107,12 +107,12 @@ export function NocOverview() {
   }
 
   const [incidents, setIncidents] = React.useState<IncidentLog[]>([]);
-  const [isLoading, setIsLoading] = React.useState(true);
+  const [isIncidentsLoading, setIsIncidentsLoading] = React.useState(true);
   const [filter, setFilter] = React.useState<"all" | "open" | "resolved">("all");
   const [searchQuery, setSearchQuery] = React.useState("");
 
   const fetchIncidents = async () => {
-    setIsLoading(true);
+    setIsIncidentsLoading(true);
     try {
       const { data, error } = await supabase
         .from("incidents")
@@ -123,7 +123,7 @@ export function NocOverview() {
     } catch (err) {
       console.error("Error fetching incidents for NOC:", err);
     } finally {
-      setIsLoading(false);
+      setIsIncidentsLoading(false);
     }
   };
 
