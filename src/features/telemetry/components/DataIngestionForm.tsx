@@ -6,10 +6,12 @@ import { PowerSource, AccordionKey } from "@/shared/types";
 export interface DataIngestionFormProps {
   onBack: () => void;
   onSubmit: () => void;
+  formData: Record<string, any>;
+  handleInputChange: (id: string, value: any) => void;
 }
 
-export function DataIngestionForm({ onBack, onSubmit }: DataIngestionFormProps) {
-  const [powerSource, setPowerSource] = useState<PowerSource>("mains");
+export function DataIngestionForm({ onBack, onSubmit, formData, handleInputChange }: DataIngestionFormProps) {
+  const powerSource: PowerSource = formData['grid_status'] === 'OFF' ? 'generator' : 'mains';
   const [open, setOpen] = useState<Record<AccordionKey, boolean>>({
     zesco: true,
     rectifier: false,
@@ -57,7 +59,7 @@ export function DataIngestionForm({ onBack, onSubmit }: DataIngestionFormProps) 
             {(["mains", "generator"] as const).map((src) => (
               <button
                 key={src}
-                onClick={() => setPowerSource(src)}
+                onClick={() => handleInputChange('grid_status', src === 'mains' ? 'ON' : 'OFF')}
                 className="flex-1 py-2.5 rounded-lg text-[12px] font-black uppercase tracking-[0.06em] transition-all"
                 style={
                   powerSource === src
@@ -84,10 +86,34 @@ export function DataIngestionForm({ onBack, onSubmit }: DataIngestionFormProps) 
           >
             {/* 1 column on phone, 2 columns on tablets/PCs */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-3">
-              <FInput label="Load Voltage" placeholder="230" unit="V" />
-              <FInput label="Load Current" placeholder="98" unit="A" />
-              <FInput label="Total KW" placeholder="476" unit="KW" />
-              <FInput label="Power Factor" placeholder="0.98" unit="PF" />
+              <FInput
+                label="Load Voltage"
+                placeholder="230"
+                unit="V"
+                value={formData['grid_voltage_r'] || ''}
+                onChange={(val) => handleInputChange('grid_voltage_r', val)}
+              />
+              <FInput
+                label="Load Current"
+                placeholder="98"
+                unit="A"
+                value={formData['grid_amps_r'] || ''}
+                onChange={(val) => handleInputChange('grid_amps_r', val)}
+              />
+              <FInput
+                label="Total KW"
+                placeholder="476"
+                unit="KW"
+                value={formData['grid_total_site_load'] || ''}
+                onChange={(val) => handleInputChange('grid_total_site_load', val)}
+              />
+              <FInput
+                label="Power Factor"
+                placeholder="0.98"
+                unit="PF"
+                value={formData['grid_power_factor'] || ''}
+                onChange={(val) => handleInputChange('grid_power_factor', val)}
+              />
             </div>
           </AccordionSection>
 
@@ -100,10 +126,34 @@ export function DataIngestionForm({ onBack, onSubmit }: DataIngestionFormProps) 
             >
               {/* 1 column on phone, 2 columns on tablets/PCs */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-3">
-                <FInput label="Gen Voltage" placeholder="230" unit="V" />
-                <FInput label="Gen Current" placeholder="120" unit="A" />
-                <FInput label="Fuel Level" placeholder="75" unit="%" />
-                <FInput label="Run Hours" placeholder="0" unit="hrs" />
+                <FInput
+                  label="Gen Voltage"
+                  placeholder="230"
+                  unit="V"
+                  value={formData['dg_1_batt_voltage'] || ''}
+                  onChange={(val) => handleInputChange('dg_1_batt_voltage', val)}
+                />
+                <FInput
+                  label="Gen Current"
+                  placeholder="120"
+                  unit="A"
+                  value={formData['dg_1_amps'] || ''}
+                  onChange={(val) => handleInputChange('dg_1_amps', val)}
+                />
+                <FInput
+                  label="Fuel Level"
+                  placeholder="75"
+                  unit="%"
+                  value={formData['fuel_balance'] || ''}
+                  onChange={(val) => handleInputChange('fuel_balance', val)}
+                />
+                <FInput
+                  label="Run Hours"
+                  placeholder="0"
+                  unit="hrs"
+                  value={formData['dg_1_run_hrs'] || ''}
+                  onChange={(val) => handleInputChange('dg_1_run_hrs', val)}
+                />
               </div>
             </AccordionSection>
           )}
@@ -115,16 +165,37 @@ export function DataIngestionForm({ onBack, onSubmit }: DataIngestionFormProps) 
             onToggle={() => toggle("rectifier")}
           >
             <div className="space-y-4 mt-2">
-              {["Room 1", "Room 2"].map((room) => (
-                <div key={room}>
-                  <div className="text-[9px] font-black text-gray-400 uppercase tracking-[0.15em] mb-2">{room}</div>
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                    <FInput label="Voltage" placeholder="48.1" unit="V" />
-                    <FInput label="Current" placeholder="32" unit="A" />
-                    <FInput label="Load" placeholder="75" unit="%" />
+              {["Room 1", "Room 2"].map((room, index) => {
+                const roomNum = index + 1;
+                return (
+                  <div key={room}>
+                    <div className="text-[9px] font-black text-gray-400 uppercase tracking-[0.15em] mb-2">{room}</div>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                      <FInput
+                        label="Voltage"
+                        placeholder="48.1"
+                        unit="V"
+                        value={formData[`rectifier_${roomNum}_dc_voltage`] || ''}
+                        onChange={(val) => handleInputChange(`rectifier_${roomNum}_dc_voltage`, val)}
+                      />
+                      <FInput
+                        label="Current"
+                        placeholder="32"
+                        unit="A"
+                        value={formData[`rectifier_${roomNum}_amps`] || ''}
+                        onChange={(val) => handleInputChange(`rectifier_${roomNum}_amps`, val)}
+                      />
+                      <FInput
+                        label="Load"
+                        placeholder="75"
+                        unit="%"
+                        value={formData[`rectifier_${roomNum}_used_percentage`] || ''}
+                        onChange={(val) => handleInputChange(`rectifier_${roomNum}_used_percentage`, val)}
+                      />
+                    </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           </AccordionSection>
 
@@ -155,29 +226,67 @@ export function DataIngestionForm({ onBack, onSubmit }: DataIngestionFormProps) 
                 <div className="text-[9px] font-black text-gray-400 uppercase text-center tracking-wider">Phase</div>
                 <div className="text-[9px] font-black text-gray-400 uppercase text-center tracking-wider">Volts</div>
                 <div className="text-[9px] font-black text-gray-400 uppercase text-center tracking-wider">Amps</div>
-                {["L1", "L2", "L3"].map((ph) => (
-                  <div key={ph} className="contents">
-                    <div className="flex items-center justify-center py-2.5 rounded-xl bg-gray-100 text-[12px] font-black text-gray-600">
-                      {ph}
+                {["L1", "L2", "L3"].map((ph) => {
+                  const prefix = upsTab === "ups1" ? "ups_1" : "ups_2";
+                  const voltsKey = `${prefix}_${ph.toLowerCase()}_volts`;
+                  const ampsKey = `${prefix}_${ph.toLowerCase()}_amps`;
+                  return (
+                    <div key={ph} className="contents">
+                      <div className="flex items-center justify-center py-2.5 rounded-xl bg-gray-100 text-[12px] font-black text-gray-600">
+                        {ph}
+                      </div>
+                      <input
+                        className="px-2 py-2.5 rounded-xl bg-white border-2 border-gray-100 text-[12px] font-semibold text-center text-gray-900 outline-none focus:border-red-400 transition-all"
+                        placeholder="0.0"
+                        value={formData[voltsKey] || ""}
+                        onChange={(e) => handleInputChange(voltsKey, e.target.value)}
+                      />
+                      <input
+                        className="px-2 py-2.5 rounded-xl bg-white border-2 border-gray-100 text-[12px] font-semibold text-center text-gray-900 outline-none focus:border-red-400 transition-all"
+                        placeholder="0"
+                        value={formData[ampsKey] || ""}
+                        onChange={(e) => handleInputChange(ampsKey, e.target.value)}
+                      />
                     </div>
-                    <input
-                      className="px-2 py-2.5 rounded-xl bg-white border-2 border-gray-100 text-[12px] font-semibold text-center text-gray-900 outline-none focus:border-red-400 transition-all"
-                      placeholder="0.0"
-                    />
-                    <input
-                      className="px-2 py-2.5 rounded-xl bg-white border-2 border-gray-100 text-[12px] font-semibold text-center text-gray-900 outline-none focus:border-red-400 transition-all"
-                      placeholder="0"
-                    />
-                  </div>
-                ))}
+                  );
+                })}
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                <FInput label="Battery VDC" placeholder="215" unit="V" />
-                <FInput label="Charge %" placeholder="100" unit="%" />
-                <FInput label="Capacity Used" placeholder="0" unit="%" />
-                <FInput label="Load KW" placeholder="0.0" unit="KW" />
-              </div>
+              {(() => {
+                const prefix = upsTab === "ups1" ? "ups_1" : "ups_2";
+                return (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    <FInput
+                      label="Battery VDC"
+                      placeholder="215"
+                      unit="V"
+                      value={formData[`${prefix}_battery_voltage`] || ''}
+                      onChange={(val) => handleInputChange(`${prefix}_battery_voltage`, val)}
+                    />
+                    <FInput
+                      label="Charge %"
+                      placeholder="100"
+                      unit="%"
+                      value={formData[`${prefix}_battery_charge_percent`] || ''}
+                      onChange={(val) => handleInputChange(`${prefix}_battery_charge_percent`, val)}
+                    />
+                    <FInput
+                      label="Capacity Used"
+                      placeholder="0"
+                      unit="%"
+                      value={formData[`${prefix}_used_capacity`] || ''}
+                      onChange={(val) => handleInputChange(`${prefix}_used_capacity`, val)}
+                    />
+                    <FInput
+                      label="Load KW"
+                      placeholder="0.0"
+                      unit="KW"
+                      value={formData[`${prefix}_output_load_kw`] || ''}
+                      onChange={(val) => handleInputChange(`${prefix}_output_load_kw`, val)}
+                    />
+                  </div>
+                );
+              })()}
             </div>
           </AccordionSection>
 
@@ -188,12 +297,48 @@ export function DataIngestionForm({ onBack, onSubmit }: DataIngestionFormProps) 
             onToggle={() => toggle("env")}
           >
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mt-2">
-              <FInput label="Main Room" placeholder="20.7" unit="°C" />
-              <FInput label="Power Rm 1" placeholder="19.2" unit="°C" />
-              <FInput label="Power Rm 2" placeholder="21.1" unit="°C" />
-              <FInput label="Enterprise 1" placeholder="21.3" unit="°C" />
-              <FInput label="Enterprise 2" placeholder="20.4" unit="°C" />
-              <FInput label="Humidity" placeholder="63" unit="%" />
+              <FInput
+                label="Main Room"
+                placeholder="20.7"
+                unit="°C"
+                value={formData['server_ambient_temp'] || ''}
+                onChange={(val) => handleInputChange('server_ambient_temp', val)}
+              />
+              <FInput
+                label="Power Rm 1"
+                placeholder="19.2"
+                unit="°C"
+                value={formData['pr1_ambient_temp'] || ''}
+                onChange={(val) => handleInputChange('pr1_ambient_temp', val)}
+              />
+              <FInput
+                label="Power Rm 2"
+                placeholder="21.1"
+                unit="°C"
+                value={formData['pr2_ambient_temp'] || ''}
+                onChange={(val) => handleInputChange('pr2_ambient_temp', val)}
+              />
+              <FInput
+                label="Enterprise 1"
+                placeholder="21.3"
+                unit="°C"
+                value={formData['it1_ambient_temp'] || ''}
+                onChange={(val) => handleInputChange('it1_ambient_temp', val)}
+              />
+              <FInput
+                label="Enterprise 2"
+                placeholder="20.4"
+                unit="°C"
+                value={formData['it2_ambient_temp'] || ''}
+                onChange={(val) => handleInputChange('it2_ambient_temp', val)}
+              />
+              <FInput
+                label="Humidity"
+                placeholder="63"
+                unit="%"
+                value={formData['server_ambient_humidity'] || ''}
+                onChange={(val) => handleInputChange('server_ambient_humidity', val)}
+              />
             </div>
           </AccordionSection>
         </div>

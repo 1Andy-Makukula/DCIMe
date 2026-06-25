@@ -1,4 +1,4 @@
-﻿export type Json =
+export type Json =
   | string
   | number
   | boolean
@@ -20,62 +20,143 @@ export type Database = {
           created_at: string | null
           full_name: string
           id: string
-          role: string
+          email: string
+          employee_id: string
+          phone_number: string | null
+          site_id: string
+          role: "ADMIN" | "FIELD_TECH"
         }
         Insert: {
           auth_id?: string | null
           created_at?: string | null
           full_name: string
           id?: string
-          role: string
+          email: string
+          employee_id: string
+          phone_number?: string | null
+          site_id?: string
+          role: "ADMIN" | "FIELD_TECH"
         }
         Update: {
           auth_id?: string | null
           created_at?: string | null
           full_name?: string
           id?: string
-          role?: string
+          email?: string
+          employee_id?: string
+          phone_number?: string | null
+          site_id?: string
+          role?: "ADMIN" | "FIELD_TECH"
         }
         Relationships: []
       }
       equipment_registry: {
         Row: {
-          category: string
+          category: "UPS" | "GENERATOR" | "MAINS" | "RECTIFIER" | "AIRCON"
           equipment_id: string
           is_active: boolean | null
           location: string
         }
         Insert: {
-          category: string
+          category: "UPS" | "GENERATOR" | "MAINS" | "RECTIFIER" | "AIRCON"
           equipment_id: string
           is_active?: boolean | null
           location: string
         }
         Update: {
-          category?: string
+          category?: "UPS" | "GENERATOR" | "MAINS" | "RECTIFIER" | "AIRCON"
           equipment_id?: string
           is_active?: boolean | null
           location?: string
         }
         Relationships: []
       }
+      incidents: {
+        Row: {
+          id: string
+          ticket_number: string
+          status: "OPEN" | "RESOLVED"
+          site_name: string
+          asset_id: string
+          severity: "low" | "medium" | "critical"
+          notes: string | null
+          photo_url: string | null
+          comments: Json
+          created_at: string | null
+          raised_by_name: string
+          raised_by_id: string
+          occurred_at: string
+          resolved_at: string | null
+          resolved_by_name: string | null
+          resolved_by_id: string | null
+          receipt_number: string | null
+          impact: string | null
+          contractor_engaged: string | null
+          resolution_details: string | null
+        }
+        Insert: {
+          id?: string
+          ticket_number: string
+          status?: "OPEN" | "RESOLVED"
+          site_name?: string
+          asset_id: string
+          severity: "low" | "medium" | "critical"
+          notes?: string | null
+          photo_url?: string | null
+          comments?: Json
+          created_at?: string | null
+          raised_by_name?: string
+          raised_by_id?: string
+          occurred_at?: string
+          resolved_at?: string | null
+          resolved_by_name?: string | null
+          resolved_by_id?: string | null
+          receipt_number?: string | null
+          impact?: string | null
+          contractor_engaged?: string | null
+          resolution_details?: string | null
+        }
+        Update: {
+          id?: string
+          ticket_number?: string
+          status?: "OPEN" | "RESOLVED"
+          site_name?: string
+          asset_id?: string
+          severity?: "low" | "medium" | "critical"
+          notes?: string | null
+          photo_url?: string | null
+          comments?: Json
+          created_at?: string | null
+          raised_by_name?: string
+          raised_by_id?: string
+          occurred_at?: string
+          resolved_at?: string | null
+          resolved_by_name?: string | null
+          resolved_by_id?: string | null
+          receipt_number?: string | null
+          impact?: string | null
+          contractor_engaged?: string | null
+          resolution_details?: string | null
+        }
+        Relationships: []
+      }
       shift_reports: {
         Row: {
-          active_power_source: string | null
+          active_power_source: "MAINS" | "GENERATOR" | "BLACKOUT" | null
           log_id: string
           logged_by: string | null
           site_id: string | null
           timestamp: string | null
         }
         Insert: {
-          active_power_source?: string | null
+          active_power_source?: "MAINS" | "GENERATOR" | "BLACKOUT" | null
           log_id?: string
           logged_by?: string | null
           site_id?: string | null
           timestamp?: string | null
         }
         Update: {
-          active_power_source?: string | null
+          active_power_source?: "MAINS" | "GENERATOR" | "BLACKOUT" | null
           log_id?: string
           logged_by?: string | null
           site_id?: string | null

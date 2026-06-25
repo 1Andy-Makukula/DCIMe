@@ -13,8 +13,13 @@ create table if not exists public.employees (
     id uuid default gen_random_uuid() primary key,
     auth_id uuid unique,
     full_name text not null,
-    role text not null,
-    created_at timestamptz default now()
+    email text not null unique,
+    employee_id text not null unique,
+    phone_number text,
+    site_id text not null default 'NTC ZM 0874',
+    role text not null check (role = any (array['ADMIN'::text, 'FIELD_TECH'::text])),
+    created_at timestamptz default now(),
+    constraint employees_auth_id_fkey foreign key (auth_id) references auth.users(id)
 );
 
 -- ═════════════════════════════════════════════════════════════════════════════
@@ -22,7 +27,7 @@ create table if not exists public.employees (
 -- ═════════════════════════════════════════════════════════════════════════════
 create table if not exists public.equipment_registry (
     equipment_id text primary key,
-    category text not null,
+    category text not null check (category = any (array['UPS'::text, 'GENERATOR'::text, 'MAINS'::text, 'RECTIFIER'::text, 'AIRCON'::text])),
     location text not null,
     is_active boolean default true
 );
@@ -34,7 +39,7 @@ create table if not exists public.shift_reports (
     log_id uuid default gen_random_uuid() primary key,
     timestamp timestamptz default now(),
     logged_by uuid references public.employees(id) on delete set null,
-    active_power_source text default 'Mains Active',
+    active_power_source text default 'MAINS' check (active_power_source = any (array['MAINS'::text, 'GENERATOR'::text, 'BLACKOUT'::text])),
     site_id text default 'NTC ZM 0874',
     
     -- Added Handover Details

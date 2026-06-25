@@ -71,7 +71,7 @@ export function useShiftReports() {
         shift_duration: payload.shift_duration,
         routine_logs_completed: payload.routine_logs_completed,
         incidents_filed: payload.incidents_filed,
-        active_power_source: payload.active_power_source || "Mains Active",
+        active_power_source: payload.active_power_source || "MAINS",
         site_id: payload.site_id || "NTC ZM 0874",
         timestamp: new Date().toISOString()
       };
