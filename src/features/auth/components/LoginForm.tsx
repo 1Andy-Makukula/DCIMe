@@ -1,6 +1,8 @@
 import React, { useState } from "react";
+import { useNavigate } from "react-router";
 import { Eye, EyeOff } from "lucide-react";
 import { AirtelMark, TopologyBG } from "@/shared/ui";
+import { supabase } from "@/shared/api/supabaseClient";
 
 export interface LoginFormProps {
   onAdmin: () => void;
@@ -8,9 +10,60 @@ export interface LoginFormProps {
 }
 
 export function LoginForm({ onAdmin, onField }: LoginFormProps) {
+  const navigate = useNavigate();
   const [showPw, setShowPw] = useState(false);
   const [empId, setEmpId] = useState("");
   const [pw, setPw] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [targetRole, setTargetRole] = useState<"admin" | "field" | null>(null);
+
+  const handleLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsLoading(true);
+    setError(null);
+
+    // 1. Clean the input (e.g., "PETER-01")
+    const rawId = empId.trim().toLowerCase();
+
+    // 2. The Interceptor: Fake the email if they just typed an ID
+    const supabaseEmail = rawId.includes('@') 
+      ? rawId 
+      : `${rawId}@dcime.local`;
+
+    // 3. Authenticate with Supabase
+    const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
+      email: supabaseEmail,
+      password: pw,
+    });
+
+    if (authError || !authData.user) {
+      setError("Invalid ID or Password.");
+      setIsLoading(false);
+      return;
+    }
+
+    // 4. Schema-Aware Role Check
+    // Query the public.employees table using the authenticated user's ID
+    const { data: empData, error: empError } = await supabase
+      .from('employees')
+      .select('role')
+      .eq('auth_id', authData.user.id)
+      .single();
+
+    if (empError || !empData) {
+      console.warn("Employee record missing, defaulting to Field Tech routing.");
+      navigate("/tech");
+      return;
+    }
+
+    // 5. Intelligent Routing based on schema enums
+    if (empData.role === 'ADMIN') {
+      navigate("/admin"); // Assuming /admin is the NOC/Admin dashboard route
+    } else {
+      navigate("/tech");
+    }
+  };
 
   return (
     <div className="min-h-screen w-full flex bg-[#0C0D0D]">
@@ -39,7 +92,7 @@ export function LoginForm({ onAdmin, onField }: LoginFormProps) {
         <div className="absolute inset-0 lg:hidden pointer-events-none" 
              style={{ background: "linear-gradient(145deg, #CC0000 0%, #FF0000 45%, #CC0000 70%, #880000 100%)" }} />
 
-        <div className="relative bg-white rounded-[28px] p-8 sm:p-10 w-full max-w-[420px] z-10 shadow-[0_40px_100px_rgba(0,0,0,0.55)] lg:shadow-xl lg:border lg:border-gray-100">
+        <form onSubmit={handleLogin} className="relative bg-white rounded-[28px] p-8 sm:p-10 w-full max-w-[420px] z-10 shadow-[0_40px_100px_rgba(0,0,0,0.55)] lg:shadow-xl lg:border lg:border-gray-100">
           <div className="flex flex-col items-center mb-8 lg:hidden">
             <AirtelMark size={38} />
             <h2 className="text-[17px] font-bold text-center text-gray-900 leading-snug mt-3">
@@ -82,23 +135,33 @@ export function LoginForm({ onAdmin, onField }: LoginFormProps) {
             </div>
           </div>
 
+          {error && (
+            <div className="mb-4 text-xs font-bold text-red-500 bg-red-50 p-3 rounded-xl border border-red-100 text-center">
+              {error}
+            </div>
+          )}
+
           <div className="space-y-3">
             <button
-              onClick={onAdmin}
-              className="w-full py-4 rounded-xl font-black text-white text-[13px] tracking-[0.08em] uppercase transition-all hover:opacity-90 active:scale-[0.98] shadow-lg shadow-red-500/30"
+              type="submit"
+              onClick={() => setTargetRole("admin")}
+              disabled={isLoading}
+              className="w-full py-4 rounded-xl font-black text-white text-[13px] tracking-[0.08em] uppercase transition-all hover:opacity-90 active:scale-[0.98] shadow-lg shadow-red-500/30 disabled:opacity-50"
               style={{ backgroundColor: "#FF0000" }}
             >
-              Log In · Admin NOC
+              {isLoading && targetRole === "admin" ? "Authenticating..." : "Log In · Admin NOC"}
             </button>
             <button
-              onClick={onField}
-              className="w-full py-4 rounded-xl font-black text-[13px] tracking-[0.08em] uppercase border-2 transition-all hover:bg-red-50 active:scale-[0.98]"
+              type="submit"
+              onClick={() => setTargetRole("field")}
+              disabled={isLoading}
+              className="w-full py-4 rounded-xl font-black text-[13px] tracking-[0.08em] uppercase border-2 transition-all hover:bg-red-50 active:scale-[0.98] disabled:opacity-50"
               style={{ borderColor: "#FF0000", color: "#FF0000" }}
             >
-              Log In · Field Tech
+              {isLoading && targetRole === "field" ? "Authenticating..." : "Log In · Field Tech"}
             </button>
           </div>
-        </div>
+        </form>
       </div>
     </div>
   );

@@ -1,6 +1,6 @@
 import { CheckCircle, AlertTriangle, RefreshCw, ArrowLeft, Plus } from "lucide-react";
 import { AirtelMark, GlowDot, TopologyBG } from "@/shared/ui";
-import { shiftLogs } from "@/shared/utils/mockData";
+import { useShiftReports } from "@/features/field/hooks/useShiftReports";
 
 export interface FieldPortalProps {
   onBack: () => void;
@@ -8,6 +8,18 @@ export interface FieldPortalProps {
 }
 
 export function FieldPortal({ onBack, onForm }: FieldPortalProps) {
+  const { shiftReports, isLoading, refresh } = useShiftReports();
+
+  // Map ShiftReport → the shape the list JSX expects
+  const shiftLogs = shiftReports.map((r) => ({
+    id:     r.log_id,
+    by:     r.technician_name || r.logged_by || "Unknown",
+    time:   new Date(r.timestamp).toLocaleString("en-US", {
+              month: "short", day: "numeric",
+              hour: "2-digit", minute: "2-digit", hour12: false,
+            }),
+    status: r.certified ? "ok" : "warn",
+  }));
   return (
     <div className="min-h-screen flex items-center justify-center p-0 md:p-4" style={{ backgroundColor: "#0C0D0D" }}>
       <div
@@ -95,12 +107,20 @@ export function FieldPortal({ onBack, onForm }: FieldPortalProps) {
         <div className="px-4 pb-2 flex-shrink-0">
           <div className="flex items-center justify-between mb-2">
             <span className="text-[10px] font-black text-gray-400 uppercase tracking-[0.12em]">Recent Shift Logs</span>
-            <RefreshCw size={11} color="#ccc" />
+            <button onClick={refresh} className="transition-opacity hover:opacity-70">
+              <RefreshCw size={11} color={isLoading ? "#FF0000" : "#ccc"}
+                className={isLoading ? "animate-spin" : ""} />
+            </button>
           </div>
         </div>
 
         <div className="px-4 pb-4 overflow-y-auto flex-1">
           <div className="space-y-2">
+            {shiftLogs.length === 0 && !isLoading && (
+              <div className="text-center py-8 text-[12px] font-semibold text-gray-400">
+                No shift logs yet. Submit the first hourly report above.
+              </div>
+            )}
             {shiftLogs.map((log) => (
               <div
                 key={log.id}

@@ -556,50 +556,36 @@ export function ShiftReports() {
   const handleExport = async () => {
     setIsExporting(true);
     try {
-      // Generate exactly 3 chronological records for testing the NA pipeline
-      const mockData = [
-        {
-          created_at: "2026-06-01T08:00:00",
-          grid_amps_R: 125,
-          grid_volts_R: 405,
-          grid_i_r: 125,
-          grid_v_rn: 405,
-          dg1_run_hrs: 12.5,
-          dg1_run_hours: 12.5,
-          ups1_load_kw: 55.4,
-          room1_temp: 21.2,
-          pwr1_temp: 21.2,
-          dg1_fuel_level: 85
-        },
-        {
-          created_at: "2026-06-01T09:00:00",
-          grid_amps_R: null, // to test the NA pipeline
-          grid_volts_R: 408,
-          grid_i_r: null,
-          grid_v_rn: 408,
-          dg1_run_hrs: null,
-          dg1_run_hours: null,
-          ups1_load_kw: 56.1,
-          room1_temp: 21.5,
-          pwr1_temp: 21.5,
-          dg1_fuel_level: null
-        },
-        {
-          created_at: "2026-06-02T14:00:00",
-          grid_amps_R: 130,
-          grid_volts_R: 412,
-          grid_i_r: 130,
-          grid_v_rn: 412,
-          dg1_run_hrs: 13.0,
-          dg1_run_hours: 13.0,
-          ups1_load_kw: null,
-          room1_temp: null,
-          pwr1_temp: null,
-          dg1_fuel_level: 84
-        }
-      ];
+      // Query live telemetry_logs for the current calendar month
+      const now = new Date();
+      const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+      const monthEnd   = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999);
 
-      await generateLegacyMonthlyReport("June", "2026", mockData);
+      const monthName = now.toLocaleString("en-US", { month: "long" });
+      const yearStr   = String(now.getFullYear());
+
+      const { data: telemetryRows, error: telemetryError } = await supabase
+        .from("telemetry_logs")
+        .select("*")
+        .gte("target_hour", monthStart.toISOString())
+        .lte("target_hour", monthEnd.toISOString())
+        .order("target_hour", { ascending: true });
+
+      if (telemetryError) throw telemetryError;
+
+      if (!telemetryRows || telemetryRows.length === 0) {
+        alert(`No telemetry data found for ${monthName} ${yearStr}. Logs must be submitted before they can be exported.`);
+        setIsExporting(false);
+        return;
+      }
+
+      // Flatten each row: { target_hour (or created_at), ...metrics }
+      const flatData = telemetryRows.map((row: any) => ({
+        created_at: row.target_hour ?? row.created_at,
+        ...(row.metrics as Record<string, any> || {}),
+      }));
+
+      await generateLegacyMonthlyReport(monthName, yearStr, flatData);
     } catch (err) {
       console.error("Error generating legacy monthly report:", err);
     } finally {

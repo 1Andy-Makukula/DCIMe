@@ -147,7 +147,7 @@ export const RoutineTasksDashboard = ({
       )}
 
       {/* Dictionary loop wrapped in scrollable flex-1 div */}
-      <div className="flex-1 overflow-y-auto p-4 pb-40">
+      <div className="flex-1 overflow-y-auto p-4 pb-52">
         {MASTER_ASSET_DICTIONARY.map((category) => {
           // Determine if any asset in this category has visible metrics
           const categoryHasContent = category.assets.some(
@@ -242,7 +242,7 @@ export const RoutineTasksDashboard = ({
       )}
 
       {/* Sticky submit button container with high z-index and border */}
-      <div className="fixed bottom-0 left-0 w-full p-4 bg-slate-50 border-t border-slate-200 z-[999] shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.1)]">
+      <div className="fixed bottom-16 left-0 w-full p-4 bg-slate-50 border-t border-slate-200 z-[999] shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.1)]">
         <div className="max-w-md mx-auto">
           <button
             onClick={handleSubmit}

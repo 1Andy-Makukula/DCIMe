@@ -23,11 +23,7 @@ import {
   RefreshCw,
 } from "lucide-react";
 import { GlowDot } from "@/shared/ui";
-import {
-  loadChartData,
-  thermalData,
-  phaseAlerts,
-} from "@/shared/utils/mockData";
+import { useNocTelemetry } from "../hooks/useNocTelemetry";
 import { supabase } from "@/shared/api/supabaseClient";
 
 
@@ -68,7 +64,19 @@ const darkTooltipStyle = {
 
 // ── Main component ────────────────────────────────────────────────────────────
 export function NocOverview() {
-  const currentLoad = loadChartData[loadChartData.length - 1].kw;
+  const {
+    loadChartData,
+    thermalData,
+    phaseAlerts,
+    lastSync,
+    isLoading,
+    hasData,
+    refresh,
+  } = useNocTelemetry();
+
+  const currentLoad = loadChartData.length > 0
+    ? loadChartData[loadChartData.length - 1].kw
+    : 0;
 
   interface IncidentLog {
     id: string;

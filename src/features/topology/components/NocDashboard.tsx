@@ -29,7 +29,7 @@ import {
   Shield,
 } from "lucide-react";
 import { AirtelMark, GlowDot, TopologyBG } from "@/shared/ui";
-import { loadChartData, thermalData, phaseAlerts } from "@/shared/utils/mockData";
+import { useNocTelemetry } from "../hooks/useNocTelemetry";
 
 export interface NocDashboardProps {
   onBack: () => void;
@@ -38,11 +38,12 @@ export interface NocDashboardProps {
 
 export function NocDashboard({ onBack, onAudit }: NocDashboardProps) {
   const [navTab, setNavTab] = useState<"grid" | "list" | "alerts" | "reports">("grid");
+  const { loadChartData, thermalData, phaseAlerts, lastSync, isLoading } = useNocTelemetry();
 
   const navItems = [
     { id: "grid", icon: <LayoutGrid size={14} />, label: "Grid" },
     { id: "list", icon: <AlignJustify size={14} />, label: "List" },
-    { id: "alerts", icon: <Bell size={14} />, label: "Alerts", badge: 4 },
+    { id: "alerts", icon: <Bell size={14} />, label: "Alerts", badge: phaseAlerts.length },
     { id: "reports", icon: <FileText size={14} />, label: "Reports" },
   ] as const;
 
@@ -137,7 +138,7 @@ export function NocDashboard({ onBack, onAudit }: NocDashboardProps) {
               {[
                 { label: "Facility Load", value: "476 KW", color: "#19C853" },
                 { label: "UPS Charge", value: "100%", color: "#19C853" },
-                { label: "Active Alerts", value: "4", color: "#FFB020" },
+                { label: "Active Alerts", value: String(phaseAlerts.length), color: phaseAlerts.length > 0 ? "#FFB020" : "#19C853" },
                 { label: "Site Uptime", value: "99.97%", color: "#19C853" },
               ].map((s) => (
                 <div key={s.label} className="text-center">
@@ -404,7 +405,9 @@ export function NocDashboard({ onBack, onAudit }: NocDashboardProps) {
 
         {/* Footer */}
         <div className="px-5 py-2.5 border-t border-gray-100 flex items-center justify-between flex-shrink-0">
-          <div className="text-[10px] font-semibold text-gray-400 font-mono">NTC ZM-0874 · Last sync: 14:31 UTC+2 · 2026-06-20</div>
+          <div className="text-[10px] font-semibold text-gray-400 font-mono">
+            NTC ZM-0874 · Last sync: {isLoading ? "syncing…" : `${lastSync} UTC+2`}
+          </div>
           <button
             onClick={onBack}
             className="flex items-center gap-1.5 text-[11px] font-bold text-gray-400 hover:text-red-500 transition-colors"
