@@ -139,13 +139,10 @@ export function RegistrationForm({ onClose, onSaveSuccess }: RegistrationFormPro
           auth_id: authData.user.id,
           full_name: name.trim(),
           email: email.trim(),
-          phone: phone.trim(),
-          badge_id: badgeId.trim().toUpperCase(),
+          phone_number: phone.trim(),
+          employee_id: badgeId.trim().toUpperCase(),
           role: role,
-          clearance_zone: site,
-          shift_schedule: "06:00 – 14:00", // Default standard shift
-          access_level: role === "ADMIN" ? 5 : 3,
-          status: "Active"
+          site_id: site
         }]);
 
       if (dbError) {

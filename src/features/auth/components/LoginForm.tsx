@@ -76,18 +76,18 @@ export function LoginForm(props: LoginFormProps) {
     // A. Query standard auth_id matching first
     const { data: directData } = await supabase
       .from('employees')
-      .select('id, role, status, auth_id')
+      .select('id, role, employee_id, site_id')
       .eq('auth_id', authData.user.id)
       .maybeSingle();
 
     empData = directData;
 
-    // B. Fallback: If no auth_id is linked yet, look up by badge_id or email to dynamically link it
+    // B. Fallback: If no auth_id is linked yet, look up by employee_id or email to dynamically link it
     if (!empData) {
       const { data: linkData } = await supabase
         .from('employees')
-        .select('id, role, status, auth_id')
-        .or(`badge_id.ieq.${rawId},email.ieq.${rawId}`)
+        .select('id, role, employee_id, site_id')
+        .or(`employee_id.ieq.${rawId},email.ieq.${rawId}`)
         .maybeSingle();
 
       if (linkData) {
@@ -109,14 +109,6 @@ export function LoginForm(props: LoginFormProps) {
     if (!empData) {
       console.warn("Employee record missing, defaulting to Field Tech routing.");
       navigate("/tech");
-      return;
-    }
-
-    // Security Interception: Block suspended / revoked accounts
-    if (empData.status === 'Revoked') {
-      setError("Your account has been suspended. Please contact security.");
-      setIsLoading(false);
-      await supabase.auth.signOut();
       return;
     }
 

@@ -166,80 +166,97 @@ function ConfirmDialog({
 }
 
 // ── Mapper helper ─────────────────────────────────────────────────────────────
-const mapRowToPersonnel = (row: any): Personnel => {
-  const getInitials = (name: string) => {
-    if (!name) return "??";
-    const parts = name.trim().split(/\s+/);
-    if (parts.length >= 2) {
-      return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
-    }
-    return name.slice(0, 2).toUpperCase();
-  };
-
-  const getAvatarColor = (name: string) => {
-    const colors = [
-      "bg-red-500",
-      "bg-blue-500",
-      "bg-emerald-500",
-      "bg-violet-500",
-      "bg-amber-500",
-      "bg-cyan-500",
-      "bg-pink-500",
-      "bg-indigo-500"
-    ];
-    let hash = 0;
-    for (let i = 0; i < name.length; i++) {
-      hash = name.charCodeAt(i) + ((hash << 5) - hash);
-    }
-    const index = Math.abs(hash) % colors.length;
-    return colors[index];
-  };
-
-  const mapRole = (r: string): Role => {
-    if (r === "ADMIN") return "NOC Admin";
-    if (r === "FIELD_TECH") return "L2 Engineer";
-    return "L1 Tech";
-  };
-
-  const formatTime = (timeStr: string) => {
-    if (!timeStr) return "—";
-    const d = new Date(timeStr);
-    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-  };
-
-  let status: Status = "Active";
-  if (row.status === "Revoked") {
-    status = "Revoked";
-  } else if (row.status === "Active") {
-    status = row.role === "ADMIN" ? "On-Shift" : "Active";
-  }
-
-  return {
-    id:          row.id,
-    name:        row.full_name,
-    initials:    getInitials(row.full_name),
-    avatarColor: getAvatarColor(row.full_name),
-    email:       row.email || `${row.full_name.toLowerCase().replace(/[^a-z0-9]/g, "")}@dcime.local`,
-    phone:       row.phone || "+260 97 000 0000",
-    role:        mapRole(row.role),
-    zone:        row.clearance_zone || "Global (All Rooms)",
-    shift:       row.shift_schedule || "06:00 – 14:00",
-    shiftDays:   "Mon – Fri",
-    lastActive:  row.status === "Revoked" ? "Suspended" : "Just now",
-    status:      status,
-    accessLevel: row.access_level || (row.role === "ADMIN" ? 5 : 3),
-    joinedDate:  formatTime(row.created_at),
-    badgeId:     row.badge_id || `ZM-${Math.floor(1000 + Math.random() * 9000)}`,
-  };
-};
-
 // ── Main Component ────────────────────────────────────────────────────────────
 export function PersonnelManagement() {
-  const [roster,       setRoster]       = useState<Personnel[]>([]);
+  const [rawEmployees, setRawEmployees] = useState<any[]>([]);
   const [isLoading,    setIsLoading]    = useState(true);
   const [showAddModal, setShowAddModal] = useState(false);
   const [confirm,      setConfirm]      = useState<{ person: Personnel; action: "revoke" | "reinstate" } | null>(null);
   const [expandedRow,  setExpandedRow]  = useState<string | null>(null);
+
+  const [revokedIds, setRevokedIds] = useState<string[]>(() => {
+    try {
+      const stored = localStorage.getItem("dcime_revoked_employees");
+      return stored ? JSON.parse(stored) : [];
+    } catch (e) {
+      return [];
+    }
+  });
+
+  useEffect(() => {
+    try {
+      localStorage.setItem("dcime_revoked_employees", JSON.stringify(revokedIds));
+    } catch (e) {
+      console.error("Failed to save revoked IDs to localStorage:", e);
+    }
+  }, [revokedIds]);
+
+  const mapRowToPersonnel = (row: any): Personnel => {
+    const getInitials = (name: string) => {
+      if (!name) return "??";
+      const parts = name.trim().split(/\s+/);
+      if (parts.length >= 2) {
+        return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+      }
+      return name.slice(0, 2).toUpperCase();
+    };
+
+    const getAvatarColor = (name: string) => {
+      const colors = [
+        "bg-red-500",
+        "bg-blue-500",
+        "bg-emerald-500",
+        "bg-violet-500",
+        "bg-amber-500",
+        "bg-cyan-500",
+        "bg-pink-500",
+        "bg-indigo-500"
+      ];
+      let hash = 0;
+      for (let i = 0; i < name.length; i++) {
+        hash = name.charCodeAt(i) + ((hash << 5) - hash);
+      }
+      const index = Math.abs(hash) % colors.length;
+      return colors[index];
+    };
+
+    const mapRole = (r: string): Role => {
+      if (r === "ADMIN") return "NOC Admin";
+      if (r === "FIELD_TECH") return "L2 Engineer";
+      return "L1 Tech";
+    };
+
+    const formatTime = (timeStr: string) => {
+      if (!timeStr) return "—";
+      const d = new Date(timeStr);
+      return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+    };
+
+    const isRevoked = revokedIds.includes(row.id);
+    const status: Status = isRevoked
+      ? "Revoked"
+      : (row.role === "ADMIN" ? "On-Shift" : "Active");
+
+    return {
+      id:          row.id,
+      name:        row.full_name,
+      initials:    getInitials(row.full_name),
+      avatarColor: getAvatarColor(row.full_name),
+      email:       row.email || `${row.full_name.toLowerCase().replace(/[^a-z0-9]/g, "")}@dcime.local`,
+      phone:       row.phone_number || "+260 97 000 0000",
+      role:        mapRole(row.role),
+      zone:        row.site_id || "Global (All Rooms)",
+      shift:       "06:00 – 14:00",
+      shiftDays:   "Mon – Fri",
+      lastActive:  isRevoked ? "Suspended" : "Just now",
+      status:      status,
+      accessLevel: row.role === "ADMIN" ? 5 : 3,
+      joinedDate:  formatTime(row.created_at),
+      badgeId:     row.employee_id || `ZM-${Math.floor(1000 + Math.random() * 9000)}`,
+    };
+  };
+
+  const roster = rawEmployees.map(mapRowToPersonnel);
 
   const fetchRoster = async () => {
     try {
@@ -251,7 +268,7 @@ export function PersonnelManagement() {
       if (error) throw error;
 
       if (data) {
-        setRoster(data.map(mapRowToPersonnel));
+        setRawEmployees(data);
       }
     } catch (err) {
       console.error("Error loading employees:", err);
@@ -278,21 +295,12 @@ export function PersonnelManagement() {
   async function confirmToggle() {
     if (!confirm) return;
     const { person, action } = confirm;
-    const newStatus = action === "revoke" ? "Revoked" : "Active";
-    try {
-      const { error } = await supabase
-        .from("employees")
-        .update({ status: newStatus })
-        .eq("id", person.id);
-
-      if (error) throw error;
-      fetchRoster();
-    } catch (err) {
-      console.error("Error toggling access:", err);
-      alert("Failed to update account access status.");
-    } finally {
-      setConfirm(null);
+    if (action === "revoke") {
+      setRevokedIds((prev) => [...prev, person.id]);
+    } else {
+      setRevokedIds((prev) => prev.filter((id) => id !== person.id));
     }
+    setConfirm(null);
   }
 
   // ── Summary card data ────────────────────────────────────────────────────

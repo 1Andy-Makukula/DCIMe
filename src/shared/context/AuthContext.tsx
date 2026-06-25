@@ -3,22 +3,21 @@ import { supabase } from "@/shared/api/supabaseClient";
 
 export interface EmployeeProfile {
   id: string;             // database UUID
-  badge_id: string;       // e.g., "ZM-4891"
-  full_name: string;     // e.g., "Ndabane Anderson M."
-  role: string;          // e.g., "ADMIN" or "FIELD_TECH"
-  email: string;         
-  phone: string;
-  clearance_zone: string; // The "site_id" or location clearance
-  shift_schedule: string;
-  access_level: number;
-  status: string;
+  auth_id: string;       // auth UUID
+  full_name: string;     // full name
+  email: string;         // unique email
+  employee_id: string;   // unique badge/staff ID (e.g. ZM-4891)
+  phone_number: string;  // phone number
+  site_id: string;       // primary site location (e.g. NTC ZM 0874)
+  role: "ADMIN" | "FIELD_TECH";
+  created_at: string;
 }
 
 interface AuthContextType {
   user: any;
   employee: EmployeeProfile | null;
-  siteId: string;        // clearance_zone / site
-  employeeId: string;    // badge_id / staff ID
+  siteId: string;        // mapped from employee.site_id
+  employeeId: string;    // mapped from employee.employee_id
   isLoading: boolean;
   logout: () => Promise<void>;
   refreshProfile: () => Promise<void>;
@@ -35,7 +34,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     try {
       const { data, error } = await supabase
         .from("employees")
-        .select("*")
+        .select("id, auth_id, full_name, email, employee_id, phone_number, site_id, role, created_at")
         .eq("auth_id", userId)
         .maybeSingle();
 
@@ -63,7 +62,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   useEffect(() => {
-    // Check active session on mount
     const initSession = async () => {
       setIsLoading(true);
       const { data: { session } } = await supabase.auth.getSession();
@@ -76,7 +74,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     initSession();
 
-    // Listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
       if (session?.user) {
         setUser(session.user);
@@ -101,8 +98,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setIsLoading(false);
   };
 
-  const siteId = employee?.clearance_zone || "NTC ZM 0874";
-  const employeeId = employee?.badge_id || "EMP-UNKNOWN";
+  const siteId = employee?.site_id || "NTC ZM 0874";
+  const employeeId = employee?.employee_id || "EMP-UNKNOWN";
 
   return (
     <AuthContext.Provider

@@ -341,84 +341,105 @@ function ResolvedCard({ incident }: { incident: Incident }) {
   );
 }
 
-// ── Mapper helpers ────────────────────────────────────────────────────────────
-const mapRowToIncident = (row: any): Incident => {
-  const mapSeverity = (sev: string): Severity => {
-    const s = (sev || "").toLowerCase();
-    if (s === "critical" || s === "high") return "critical";
-    if (s === "medium" || s === "warning" || s === "warn") return "warning";
-    return "info";
-  };
-
-  const formatTime = (timeStr: string) => {
-    if (!timeStr) return "—";
-    const d = new Date(timeStr);
-    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")} ${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
-  };
-
-  const formatShortTime = (timeStr: string) => {
-    if (!timeStr) return "—";
-    const d = new Date(timeStr);
-    return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
-  };
-
-  const formatDuration = (start: string, end: string) => {
-    if (!start || !end) return "—";
-    const diffMs = new Date(end).getTime() - new Date(start).getTime();
-    if (isNaN(diffMs) || diffMs <= 0) return "—";
-    const diffMins = Math.floor(diffMs / 60000);
-    if (diffMins < 60) return `${diffMins}m`;
-    const diffHours = Math.floor(diffMins / 60);
-    const mins = diffMins % 60;
-    return `${diffHours}h ${mins}m`;
-  };
-
-  let telemetryStr = `Raised by: ${row.raised_by_name || 'System'} (${row.raised_by_id || '—'})`;
-  if (row.impact) {
-    telemetryStr += `  |  Impact: ${row.impact}`;
-  }
-  if (row.contractor_engaged) {
-    telemetryStr += `  |  Contractor: ${row.contractor_engaged}`;
-  }
-
-  // Determine a nice category
-  let categoryStr = "System Alert";
-  if (row.asset_id) {
-    if (row.asset_id.startsWith("PWR-")) categoryStr = "Power / Fault";
-    else if (row.asset_id.startsWith("COOL-")) categoryStr = "Cooling / Thermal";
-    else if (row.asset_id.startsWith("NET-")) categoryStr = "Network / Connectivity";
-    else if (row.asset_id.startsWith("COMP-")) categoryStr = "Compute / Server";
-  }
-
-  return {
-    id:             row.ticket_number || row.id,
-    dbId:           row.id,
-    severity:       mapSeverity(row.severity),
-    timestamp:      formatTime(row.occurred_at || row.created_at),
-    asset:          row.asset_id,
-    assetId:        row.asset_id,
-    location:       row.site_name || "NTC ZM 0874",
-    description:    row.notes || "No description provided",
-    telemetry:      telemetryStr,
-    category:       categoryStr,
-    acknowledged:   row.acknowledged || false,
-    acknowledgedBy: row.acknowledged_by,
-    acknowledgedAt: row.acknowledged_at ? formatShortTime(row.acknowledged_at) : undefined,
-    resolvedBy:     row.resolved_by_name,
-    resolvedAt:     row.resolved_at ? formatShortTime(row.resolved_at) : undefined,
-    resolution:     row.resolution_details,
-    duration:       row.resolved_at ? formatDuration(row.occurred_at || row.created_at, row.resolved_at) : undefined,
-  };
-};
-
 // ── Main Component ────────────────────────────────────────────────────────────
 export function AlertsLog() {
   const [view,         setView]         = useState<View>("active");
-  const [activeAlerts, setActiveAlerts] = useState<Incident[]>([]);
-  const [resolved,     setResolved]     = useState<Incident[]>([]);
+  const [rawIncidents, setRawIncidents] = useState<any[]>([]);
   const [isLoading,    setIsLoading]    = useState(true);
   const [expandedId,   setExpandedId]   = useState<string | null>(null);
   const [lastSync,     setLastSync]     = useState<string>("");
+
+  const [acknowledgedList, setAcknowledgedList] = useState<{ id: string; by: string; at: string }[]>(() => {
+    try {
+      const stored = localStorage.getItem("dcime_acknowledged_incidents");
+      return stored ? JSON.parse(stored) : [];
+    } catch (e) {
+      return [];
+    }
+  });
+
+  useEffect(() => {
+    try {
+      localStorage.setItem("dcime_acknowledged_incidents", JSON.stringify(acknowledgedList));
+    } catch (e) {
+      console.error("Failed to save acknowledged list to localStorage:", e);
+    }
+  }, [acknowledgedList]);
+
+  const mapRowToIncident = (row: any): Incident => {
+    const mapSeverity = (sev: string): Severity => {
+      const s = (sev || "").toLowerCase();
+      if (s === "critical" || s === "high") return "critical";
+      if (s === "medium" || s === "warning" || s === "warn") return "warning";
+      return "info";
+    };
+
+    const formatTime = (timeStr: string) => {
+      if (!timeStr) return "—";
+      const d = new Date(timeStr);
+      return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")} ${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
+    };
+
+    const formatShortTime = (timeStr: string) => {
+      if (!timeStr) return "—";
+      const d = new Date(timeStr);
+      return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
+    };
+
+    const formatDuration = (start: string, end: string) => {
+      if (!start || !end) return "—";
+      const diffMs = new Date(end).getTime() - new Date(start).getTime();
+      if (isNaN(diffMs) || diffMs <= 0) return "—";
+      const diffMins = Math.floor(diffMs / 60000);
+      if (diffMins < 60) return `${diffMins}m`;
+      const diffHours = Math.floor(diffMins / 60);
+      const mins = diffMins % 60;
+      return `${diffHours}h ${mins}m`;
+    };
+
+    let telemetryStr = `Raised by: ${row.raised_by_name || 'System'} (${row.raised_by_id || '—'})`;
+    if (row.impact) {
+      telemetryStr += `  |  Impact: ${row.impact}`;
+    }
+    if (row.contractor_engaged) {
+      telemetryStr += `  |  Contractor: ${row.contractor_engaged}`;
+    }
+
+    // Determine a nice category
+    let categoryStr = "System Alert";
+    if (row.asset_id) {
+      if (row.asset_id.startsWith("PWR-")) categoryStr = "Power / Fault";
+      else if (row.asset_id.startsWith("COOL-")) categoryStr = "Cooling / Thermal";
+      else if (row.asset_id.startsWith("NET-")) categoryStr = "Network / Connectivity";
+      else if (row.asset_id.startsWith("COMP-")) categoryStr = "Compute / Server";
+    }
+
+    const localAck = acknowledgedList.find((item) => item.id === row.id);
+
+    return {
+      id:             row.ticket_number || row.id,
+      dbId:           row.id,
+      severity:       mapSeverity(row.severity),
+      timestamp:      formatTime(row.occurred_at || row.created_at),
+      asset:          row.asset_id,
+      assetId:        row.asset_id,
+      location:       row.site_name || "NTC ZM 0874",
+      description:    row.notes || "No description provided",
+      telemetry:      telemetryStr,
+      category:       categoryStr,
+      acknowledged:   !!localAck,
+      acknowledgedBy: localAck?.by,
+      acknowledgedAt: localAck ? formatShortTime(localAck.at) : undefined,
+      resolvedBy:     row.resolved_by_name,
+      resolvedAt:     row.resolved_at ? formatShortTime(row.resolved_at) : undefined,
+      resolution:     row.resolution_details,
+      duration:       row.resolved_at ? formatDuration(row.occurred_at || row.created_at, row.resolved_at) : undefined,
+    };
+  };
+
+  const incidents = rawIncidents.map(mapRowToIncident);
+  const activeAlerts = incidents.filter((i) => !i.resolvedAt);
+  const resolved = incidents.filter((i) => !!i.resolvedAt);
 
   const fetchIncidents = async () => {
     try {
@@ -430,9 +451,7 @@ export function AlertsLog() {
       if (error) throw error;
 
       if (data) {
-        const mapped = data.map(mapRowToIncident);
-        setActiveAlerts(mapped.filter((i) => !i.resolvedAt));
-        setResolved(mapped.filter((i) => !!i.resolvedAt));
+        setRawIncidents(data);
       }
       setLastSync(new Date().toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" }));
     } catch (err) {
@@ -469,23 +488,11 @@ export function AlertsLog() {
 
   // ── Actions ───────────────────────────────────────────────────────────────
   const handleAck = async (dbId: string) => {
-    try {
-      const { error } = await supabase
-        .from("incidents")
-        .update({
-          acknowledged: true,
-          acknowledged_by: "Ndabane Anderson M.",
-          acknowledged_at: new Date().toISOString(),
-        })
-        .eq("id", dbId);
-
-      if (error) throw error;
-      // Real-time listener will trigger the refresh, but let's fetch for safety & instant response
-      fetchIncidents();
-    } catch (err) {
-      console.error("Error acknowledging incident:", err);
-      alert("Failed to acknowledge incident.");
-    }
+    const nowStr = new Date().toISOString();
+    setAcknowledgedList((prev) => [
+      ...prev,
+      { id: dbId, by: "Ndabane Anderson M.", at: nowStr }
+    ]);
   };
 
   const handleResolve = async (dbId: string) => {

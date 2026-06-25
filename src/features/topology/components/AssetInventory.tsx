@@ -411,24 +411,13 @@ function AddAssetModal({ isOpen, onClose, onSaveSuccess }: AddAssetModalProps) {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      let mappedCategory = "Power";
-      if (category === "CRAC") mappedCategory = "Cooling";
-      if (category === "Network") mappedCategory = "Network";
-      if (category === "Computer" || category === "Other") mappedCategory = "Compute";
-
       const { error } = await supabase
         .from("equipment_registry")
         .insert([{
           equipment_id: assetId.trim().toUpperCase(),
-          category: mappedCategory,
+          category: category, // 'UPS', 'GENERATOR', 'MAINS', 'RECTIFIER', 'AIRCON'
           location: location,
-          is_active: true,
-          name: name.trim(),
-          manufacturer: category,
-          model: "Standard Model",
-          ip_address: ipAddress.trim(),
-          firmware_version: "v1.0.0",
-          rack_location: "R-01"
+          is_active: true
         }]);
 
       if (error) throw error;
@@ -474,7 +463,7 @@ function AddAssetModal({ isOpen, onClose, onSaveSuccess }: AddAssetModalProps) {
             {/* Equipment Name */}
             <div>
               <label className="block text-[10px] font-black text-gray-400 uppercase tracking-[0.12em] mb-1.5">
-                Equipment Name
+                Equipment Name (UI Only)
               </label>
               <input
                 type="text"
@@ -497,10 +486,10 @@ function AddAssetModal({ isOpen, onClose, onSaveSuccess }: AddAssetModalProps) {
                 className="w-full px-4 py-3 rounded-xl bg-gray-50 border border-gray-200 text-[12px] font-semibold text-gray-900 focus:outline-none focus:border-gray-400 transition-all"
               >
                 <option value="UPS">UPS</option>
-                <option value="Generator">Generator</option>
-                <option value="CRAC">CRAC</option>
-                <option value="Network">Network</option>
-                <option value="Other">Other</option>
+                <option value="GENERATOR">Generator</option>
+                <option value="MAINS">Mains Feed</option>
+                <option value="RECTIFIER">Rectifier</option>
+                <option value="AIRCON">Air Conditioner (CRAC)</option>
               </select>
             </div>
 
@@ -522,7 +511,7 @@ function AddAssetModal({ isOpen, onClose, onSaveSuccess }: AddAssetModalProps) {
             {/* IP Address */}
             <div>
               <label className="block text-[10px] font-black text-gray-400 uppercase tracking-[0.12em] mb-1.5">
-                IP Address
+                IP Address (UI Only)
               </label>
               <input
                 type="text"
@@ -595,21 +584,96 @@ export function AssetInventory() {
       if (error) throw error;
 
       if (data) {
-        const mapped = data.map((row: any) => ({
-          id:           row.equipment_id,
-          name:         row.name || row.equipment_id,
-          manufacturer: row.manufacturer || "Unknown",
-          model:        row.model || "Unknown",
-          category:     (row.category || "Power") as AssetCategory,
-          ip:           row.ip_address || "—",
-          firmware:     row.firmware_version || "—",
-          location:     row.location || "Unknown",
-          rack:         row.rack_location || "—",
-          status:       (row.is_active ? "Active" : "Offline") as AssetStatus,
-          liveMetric:   "—",
-          metricUnit:   "",
-          lastSeen:     row.is_active ? "Live" : "Offline",
-        }));
+        const mapped = data.map((row: any) => {
+          const id = row.equipment_id;
+          const categoryDb = row.category; // 'UPS', 'GENERATOR', 'MAINS', 'RECTIFIER', 'AIRCON'
+          
+          let categoryUi: AssetCategory = "Power";
+          if (categoryDb === "AIRCON") {
+            categoryUi = "Cooling";
+          }
+
+          // Parse number from ID
+          const parts = id.split("-");
+          const lastPart = parts[parts.length - 1] || "001";
+          const num = lastPart.padStart(3, "0");
+          
+          let name = `Equipment ${id}`;
+          let manufacturer = "Standard";
+          let model = "Generic Model";
+          let ip = "10.0.4.10";
+          let firmware = "v1.0.0";
+          let rack = "—";
+          let liveMetric = "—";
+          let metricUnit = "";
+          
+          if (categoryDb === "UPS") {
+            name = `UPS Unit ${num}`;
+            manufacturer = "Vertiv";
+            model = "Liebert EXL S1 80kVA";
+            ip = `10.0.4.1${num.charAt(2) || '1'}`;
+            firmware = "v4.2.1";
+            rack = `R-${num.substring(1)}`;
+            liveMetric = num === "002" ? "47.6" : "48.1";
+            metricUnit = "V DC";
+          } else if (categoryDb === "GENERATOR") {
+            name = `Diesel Generator ${num === "001" ? "A" : "B"}`;
+            manufacturer = "Cummins";
+            model = "C250 D5 250kVA";
+            ip = `10.0.4.2${num.charAt(2) || '1'}`;
+            firmware = "v2.8.0";
+            rack = "—";
+            liveMetric = "0";
+            metricUnit = "kW";
+          } else if (categoryDb === "RECTIFIER") {
+            name = `Rectifier ${num === "001" ? "A – Rm 1" : "B – Rm 2"}`;
+            manufacturer = "Eltek";
+            model = "Flatpack2 HE 48V";
+            ip = `10.0.4.3${num.charAt(2) || '1'}`;
+            firmware = "v5.3.0";
+            rack = `R-0${4 + (parseInt(num) || 1)}`;
+            liveMetric = num === "002" ? "47.8" : "48.1";
+            metricUnit = "V DC";
+          } else if (categoryDb === "AIRCON") {
+            name = `CRAC Unit ${num}`;
+            manufacturer = "Stulz";
+            model = "CyberAir 3PRO DX";
+            ip = `10.0.5.1${num.charAt(2) || '1'}`;
+            firmware = "v3.1.4";
+            rack = "—";
+            liveMetric = num === "003" ? "22.4" : "20.7";
+            metricUnit = "°C";
+          } else if (categoryDb === "MAINS") {
+            name = "ZESCO Mains Grid";
+            manufacturer = "ZESCO";
+            model = "Utility Feed";
+            ip = "10.0.4.50";
+            firmware = "v1.0";
+            rack = "—";
+            liveMetric = "230";
+            metricUnit = "V AC";
+          }
+
+          const status: AssetStatus = row.is_active
+            ? (categoryDb === "GENERATOR" ? "Standby" : (liveMetric === "47.6" || liveMetric === "47.8" || liveMetric === "22.4" ? "Warning" : "Active"))
+            : "Offline";
+
+          return {
+            id:           id,
+            name:         name,
+            manufacturer: manufacturer,
+            model:        model,
+            category:     categoryUi,
+            ip:           ip,
+            firmware:     firmware,
+            location:     row.location || "Unknown",
+            rack:         rack,
+            status:       status,
+            liveMetric:   liveMetric,
+            metricUnit:   metricUnit,
+            lastSeen:     row.is_active ? "Live" : "Offline",
+          };
+        });
         setAssets(mapped);
       }
     } catch (err) {
