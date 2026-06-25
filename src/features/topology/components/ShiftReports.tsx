@@ -550,7 +550,7 @@ export function ShiftReports() {
     fetchDbReports();
   }, []);
 
-  const allShiftLogs = [...dbReports, ...SHIFT_LOGS];
+  const allShiftLogs = [...dbReports];
 
   const handleExport = async () => {
     setIsExporting(true);

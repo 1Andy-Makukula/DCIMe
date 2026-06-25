@@ -43,17 +43,25 @@ export function LoginForm({ onAdmin, onField }: LoginFormProps) {
       return;
     }
 
-    // 4. Schema-Aware Role Check
+    // 4. Schema-Aware Role & Status Check
     // Query the public.employees table using the authenticated user's ID
     const { data: empData, error: empError } = await supabase
       .from('employees')
-      .select('role')
+      .select('role, status')
       .eq('auth_id', authData.user.id)
       .single();
 
     if (empError || !empData) {
       console.warn("Employee record missing, defaulting to Field Tech routing.");
       navigate("/tech");
+      return;
+    }
+
+    // Security Interception: Block suspended / revoked accounts
+    if (empData.status === 'Revoked') {
+      setError("Your account has been suspended. Please contact security.");
+      setIsLoading(false);
+      await supabase.auth.signOut();
       return;
     }
 

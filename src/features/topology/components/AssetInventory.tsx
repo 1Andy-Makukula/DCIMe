@@ -1,4 +1,5 @@
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect } from "react";
+import { supabase } from "@/shared/api/supabaseClient";
 import {
   Search,
   Filter,
@@ -395,9 +396,10 @@ function Th({ children, className = "" }: { children: React.ReactNode; className
 interface AddAssetModalProps {
   isOpen: boolean;
   onClose: () => void;
+  onSaveSuccess: () => void;
 }
 
-function AddAssetModal({ isOpen, onClose }: AddAssetModalProps) {
+function AddAssetModal({ isOpen, onClose, onSaveSuccess }: AddAssetModalProps) {
   const [name, setName] = useState("");
   const [category, setCategory] = useState("UPS");
   const [assetId, setAssetId] = useState("");
@@ -406,10 +408,40 @@ function AddAssetModal({ isOpen, onClose }: AddAssetModalProps) {
 
   if (!isOpen) return null;
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    console.log("Mock save equipment:", { name, category, assetId, ipAddress, location });
-    onClose();
+    try {
+      let mappedCategory = "Power";
+      if (category === "CRAC") mappedCategory = "Cooling";
+      if (category === "Network") mappedCategory = "Network";
+      if (category === "Computer" || category === "Other") mappedCategory = "Compute";
+
+      const { error } = await supabase
+        .from("equipment_registry")
+        .insert([{
+          equipment_id: assetId.trim().toUpperCase(),
+          category: mappedCategory,
+          location: location,
+          is_active: true,
+          name: name.trim(),
+          manufacturer: category,
+          model: "Standard Model",
+          ip_address: ipAddress.trim(),
+          firmware_version: "v1.0.0",
+          rack_location: "R-01"
+        }]);
+
+      if (error) throw error;
+
+      onSaveSuccess();
+      onClose();
+      setName("");
+      setAssetId("");
+      setIpAddress("");
+    } catch (err) {
+      console.error("Error saving equipment:", err);
+      alert("Failed to save equipment to the database.");
+    }
   };
 
   return (
@@ -545,15 +577,56 @@ function AddAssetModal({ isOpen, onClose }: AddAssetModalProps) {
 
 // ── Main Component ────────────────────────────────────────────────────────────
 export function AssetInventory() {
+  const [assets,         setAssets]         = useState<Asset[]>([]);
+  const [isLoading,      setIsLoading]      = useState(true);
   const [query,          setQuery]          = useState("");
   const [filterCategory, setFilterCategory] = useState("");
   const [filterStatus,   setFilterStatus]   = useState("");
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
 
+  const fetchAssets = async () => {
+    setIsLoading(true);
+    try {
+      const { data, error } = await supabase
+        .from("equipment_registry")
+        .select("*")
+        .order("equipment_id", { ascending: true });
+
+      if (error) throw error;
+
+      if (data) {
+        const mapped = data.map((row: any) => ({
+          id:           row.equipment_id,
+          name:         row.name || row.equipment_id,
+          manufacturer: row.manufacturer || "Unknown",
+          model:        row.model || "Unknown",
+          category:     (row.category || "Power") as AssetCategory,
+          ip:           row.ip_address || "—",
+          firmware:     row.firmware_version || "—",
+          location:     row.location || "Unknown",
+          rack:         row.rack_location || "—",
+          status:       (row.is_active ? "Active" : "Offline") as AssetStatus,
+          liveMetric:   "—",
+          metricUnit:   "",
+          lastSeen:     row.is_active ? "Live" : "Offline",
+        }));
+        setAssets(mapped);
+      }
+    } catch (err) {
+      console.error("Error loading live assets:", err);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchAssets();
+  }, []);
+
   // ── Filtered dataset ──────────────────────────────────────────────────────
   const filtered = useMemo(() => {
     const q = query.toLowerCase();
-    return ASSETS.filter((a) => {
+    return assets.filter((a) => {
       const matchQ =
         !q ||
         a.id.toLowerCase().includes(q)           ||
@@ -567,7 +640,7 @@ export function AssetInventory() {
         !filterStatus || a.status === filterStatus;
       return matchQ && matchCat && matchSt;
     });
-  }, [query, filterCategory, filterStatus]);
+  }, [assets, query, filterCategory, filterStatus]);
 
   // ── CSV export ────────────────────────────────────────────────────────────
   function exportCSV() {
@@ -597,7 +670,11 @@ export function AssetInventory() {
 
   return (
     <>
-      <AddAssetModal isOpen={isAddModalOpen} onClose={() => setIsAddModalOpen(false)} />
+      <AddAssetModal 
+        isOpen={isAddModalOpen} 
+        onClose={() => setIsAddModalOpen(false)} 
+        onSaveSuccess={fetchAssets} 
+      />
       <div className="min-h-full flex flex-col gap-5">
 
       {/* ── Page header ─────────────────────────────────────────────────── */}
@@ -610,7 +687,7 @@ export function AssetInventory() {
             Infrastructure Ledger
           </h1>
           <p className="text-[11px] font-semibold text-gray-400 mt-1">
-            {filtered.length} of {ASSETS.length} assets · Site NTC ZM-0874
+            {filtered.length} of {assets.length} assets · Site NTC ZM-0874
           </p>
         </div>
 
@@ -618,10 +695,10 @@ export function AssetInventory() {
         <div className="flex items-center gap-4 flex-wrap">
           {(
             [
-              { label: "Active",  count: ASSETS.filter((a) => a.status === "Active").length,  color: "text-green-600"  },
-              { label: "Warning", count: ASSETS.filter((a) => a.status === "Warning").length, color: "text-yellow-600" },
-              { label: "Standby", count: ASSETS.filter((a) => a.status === "Standby").length, color: "text-gray-500"   },
-              { label: "Offline", count: ASSETS.filter((a) => a.status === "Offline").length, color: "text-red-600"    },
+              { label: "Active",  count: assets.filter((a) => a.status === "Active").length,  color: "text-green-600"  },
+              { label: "Warning", count: assets.filter((a) => a.status === "Warning").length, color: "text-yellow-600" },
+              { label: "Standby", count: assets.filter((a) => a.status === "Standby").length, color: "text-gray-500"   },
+              { label: "Offline", count: assets.filter((a) => a.status === "Offline").length, color: "text-red-600"    },
             ] as const
           ).map((s) => (
             <div key={s.label} className="text-center">

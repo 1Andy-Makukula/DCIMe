@@ -1,4 +1,5 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
+import { supabase } from "@/shared/api/supabaseClient";
 import {
   Users,
   Shield,
@@ -27,7 +28,7 @@ interface Personnel {
   id:         string;
   name:       string;
   initials:   string;
-  avatarColor:string;          // tailwind bg class
+  avatarColor:string;
   email:      string;
   phone:      string;
   role:       Role;
@@ -36,150 +37,10 @@ interface Personnel {
   shiftDays:  string;
   lastActive: string;
   status:     Status;
-  accessLevel:number;          // 1–5
+  accessLevel:number;
   joinedDate: string;
   badgeId:    string;
 }
-
-// ── Mock roster ───────────────────────────────────────────────────────────────
-const INITIAL_ROSTER: Personnel[] = [
-  {
-    id:          "STF-001",
-    name:        "Ndabane Anderson M.",
-    initials:    "AM",
-    avatarColor: "bg-red-500",
-    email:       "anderson.m@airtel.zm",
-    phone:       "+260 97 123 4567",
-    role:        "NOC Admin",
-    zone:        "Global (All Rooms)",
-    shift:       "06:00 – 14:00",
-    shiftDays:   "Mon – Fri",
-    lastActive:  "Just now",
-    status:      "On-Shift",
-    accessLevel: 5,
-    joinedDate:  "2021-03-15",
-    badgeId:     "ZM-4891",
-  },
-  {
-    id:          "STF-002",
-    name:        "Chileshe Kapumpe K.",
-    initials:    "CK",
-    avatarColor: "bg-blue-500",
-    email:       "chileshe.k@airtel.zm",
-    phone:       "+260 96 234 5678",
-    role:        "L2 Engineer",
-    zone:        "Power Room 1 & 2",
-    shift:       "14:00 – 22:00",
-    shiftDays:   "Mon – Sat",
-    lastActive:  "32 mins ago",
-    status:      "Active",
-    accessLevel: 3,
-    joinedDate:  "2022-07-01",
-    badgeId:     "ZM-5204",
-  },
-  {
-    id:          "STF-003",
-    name:        "Mwansa Bwalya B.",
-    initials:    "MB",
-    avatarColor: "bg-emerald-500",
-    email:       "mwansa.b@airtel.zm",
-    phone:       "+260 95 345 6789",
-    role:        "L2 Engineer",
-    zone:        "Main Room",
-    shift:       "22:00 – 06:00",
-    shiftDays:   "Tue – Sun",
-    lastActive:  "1 day ago",
-    status:      "Active",
-    accessLevel: 3,
-    joinedDate:  "2022-11-22",
-    badgeId:     "ZM-5491",
-  },
-  {
-    id:          "STF-004",
-    name:        "Tembo Sikazwe R.",
-    initials:    "TR",
-    avatarColor: "bg-violet-500",
-    email:       "tembo.r@airtel.zm",
-    phone:       "+260 97 456 7890",
-    role:        "NOC Admin",
-    zone:        "Global (All Rooms)",
-    shift:       "14:00 – 22:00",
-    shiftDays:   "Mon – Fri",
-    lastActive:  "4 hours ago",
-    status:      "On-Shift",
-    accessLevel: 5,
-    joinedDate:  "2020-06-10",
-    badgeId:     "ZM-3874",
-  },
-  {
-    id:          "STF-005",
-    name:        "Phiri Grace N.",
-    initials:    "GN",
-    avatarColor: "bg-amber-500",
-    email:       "grace.n@airtel.zm",
-    phone:       "+260 96 567 8901",
-    role:        "L1 Tech",
-    zone:        "Entrance Room 1",
-    shift:       "06:00 – 14:00",
-    shiftDays:   "Mon – Fri",
-    lastActive:  "2 hours ago",
-    status:      "Active",
-    accessLevel: 1,
-    joinedDate:  "2024-01-08",
-    badgeId:     "ZM-6102",
-  },
-  {
-    id:          "STF-006",
-    name:        "Lungu Mpande D.",
-    initials:    "LD",
-    avatarColor: "bg-slate-400",
-    email:       "lungu.d@airtel.zm",
-    phone:       "+260 95 678 9012",
-    role:        "L1 Tech",
-    zone:        "Power Room 2",
-    shift:       "22:00 – 06:00",
-    shiftDays:   "Wed – Sun",
-    lastActive:  "3 days ago",
-    status:      "Revoked",
-    accessLevel: 1,
-    joinedDate:  "2023-05-14",
-    badgeId:     "ZM-5889",
-  },
-  {
-    id:          "STF-007",
-    name:        "Kabwe Mutale F.",
-    initials:    "KF",
-    avatarColor: "bg-cyan-500",
-    email:       "kabwe.f@airtel.zm",
-    phone:       "+260 97 789 0123",
-    role:        "Security Officer",
-    zone:        "Global (All Rooms)",
-    shift:       "06:00 – 18:00",
-    shiftDays:   "Mon – Sun",
-    lastActive:  "15 mins ago",
-    status:      "On-Shift",
-    accessLevel: 4,
-    joinedDate:  "2021-09-30",
-    badgeId:     "ZM-4477",
-  },
-  {
-    id:          "STF-008",
-    name:        "Sakala Josephine M.",
-    initials:    "SM",
-    avatarColor: "bg-pink-500",
-    email:       "josephine.s@airtel.zm",
-    phone:       "+260 96 890 1234",
-    role:        "L2 Engineer",
-    zone:        "Main Room",
-    shift:       "06:00 – 14:00",
-    shiftDays:   "Mon – Sat",
-    lastActive:  "Just now",
-    status:      "On-Shift",
-    accessLevel: 3,
-    joinedDate:  "2023-02-19",
-    badgeId:     "ZM-5714",
-  },
-];
 
 // ── Role badge config ─────────────────────────────────────────────────────────
 const ROLE_BADGE: Record<Role, string> = {
@@ -225,7 +86,55 @@ function Th({ children, className = "" }: { children: React.ReactNode; className
 }
 
 // ── Add Personnel Modal ───────────────────────────────────────────────────────
-function AddPersonnelModal({ onClose }: { onClose: () => void }) {
+interface AddPersonnelModalProps {
+  onClose: () => void;
+  onSaveSuccess: () => void;
+}
+
+function AddPersonnelModal({ onClose, onSaveSuccess }: AddPersonnelModalProps) {
+  const [name, setName] = useState("");
+  const [email, setEmail] = useState("");
+  const [phone, setPhone] = useState("");
+  const [badgeId, setBadgeId] = useState("");
+  const [role, setRole] = useState("L1 Tech");
+  const [zone, setZone] = useState("Main Room");
+  const [shift, setShift] = useState("06:00 – 14:00 (Day)");
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      const dbRole = role === "NOC Admin" ? "ADMIN" : "FIELD_TECH";
+      let accessLvl = 1;
+      if (role === "NOC Admin") accessLvl = 5;
+      else if (role === "Security Officer") accessLvl = 4;
+      else if (role === "L2 Engineer") accessLvl = 3;
+
+      const cleanShift = shift.split(" (")[0];
+
+      const { error } = await supabase
+        .from("employees")
+        .insert([{
+          full_name: name.trim(),
+          email: email.trim(),
+          phone: phone.trim(),
+          badge_id: badgeId.trim().toUpperCase(),
+          role: dbRole,
+          clearance_zone: zone,
+          shift_schedule: cleanShift,
+          access_level: accessLvl,
+          status: "Active"
+        }]);
+
+      if (error) throw error;
+
+      onSaveSuccess();
+      onClose();
+    } catch (err) {
+      console.error("Error saving personnel:", err);
+      alert("Failed to save personnel profile.");
+    }
+  };
+
   return (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center p-4"
@@ -244,105 +153,172 @@ function AddPersonnelModal({ onClose }: { onClose: () => void }) {
           </div>
           <button
             onClick={onClose}
-            className="p-2 rounded-xl text-gray-400 hover:text-gray-700 hover:bg-gray-100 transition-all"
+            className="p-2 rounded-xl text-gray-400 hover:text-gray-700 hover:bg-gray-100 transition-all cursor-pointer"
           >
             <X size={16} />
           </button>
         </div>
 
         {/* Modal body */}
-        <div className="px-6 py-5 space-y-4 max-h-[75vh] overflow-y-auto">
-          {[
-            { label: "Full Name",        icon: Users,       placeholder: "e.g. Mwila Joseph K.",    type: "text"  },
-            { label: "Employee Email",   icon: Mail,        placeholder: "e.g. mwila.j@airtel.zm",  type: "email" },
-            { label: "Phone Number",     icon: Phone,       placeholder: "e.g. +260 97 000 0000",   type: "tel"   },
-            { label: "Badge / Staff ID", icon: Key,         placeholder: "e.g. ZM-6200",            type: "text"  },
-          ].map(({ label, icon: Icon, placeholder, type }) => (
-            <div key={label}>
+        <form onSubmit={handleSubmit}>
+          <div className="px-6 py-5 space-y-4 max-h-[70vh] overflow-y-auto">
+            {/* Full Name */}
+            <div>
               <label className="block text-[10px] font-black text-gray-400 uppercase tracking-[0.12em] mb-1.5">
-                {label}
+                Full Name
               </label>
               <div className="relative">
-                <Icon size={13} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400" />
+                <Users size={13} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400" />
                 <input
-                  type={type}
-                  placeholder={placeholder}
+                  type="text"
+                  required
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  placeholder="e.g. Mwila Joseph K."
                   className="w-full pl-9 pr-4 py-3 rounded-xl bg-gray-50 border border-gray-200 text-[12px] font-semibold text-gray-900 placeholder-gray-400 focus:outline-none focus:border-gray-400 transition-all"
                 />
               </div>
             </div>
-          ))}
 
-          <div className="grid grid-cols-2 gap-4">
-            {/* Role */}
+            {/* Email */}
             <div>
               <label className="block text-[10px] font-black text-gray-400 uppercase tracking-[0.12em] mb-1.5">
-                Role
+                Employee Email
               </label>
               <div className="relative">
-                <Shield size={13} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400" />
-                <select className="w-full appearance-none pl-9 pr-8 py-3 rounded-xl bg-gray-50 border border-gray-200 text-[12px] font-semibold text-gray-900 focus:outline-none focus:border-gray-400 transition-all">
-                  <option>L1 Tech</option>
-                  <option>L2 Engineer</option>
-                  <option>NOC Admin</option>
-                  <option>Security Officer</option>
-                </select>
-                <ChevronDown size={12} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
+                <Mail size={13} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400" />
+                <input
+                  type="email"
+                  required
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="e.g. mwila.j@airtel.zm"
+                  className="w-full pl-9 pr-4 py-3 rounded-xl bg-gray-50 border border-gray-200 text-[12px] font-semibold text-gray-900 placeholder-gray-400 focus:outline-none focus:border-gray-400 transition-all"
+                />
               </div>
             </div>
 
-            {/* Zone */}
+            {/* Phone */}
             <div>
               <label className="block text-[10px] font-black text-gray-400 uppercase tracking-[0.12em] mb-1.5">
-                Zone Clearance
+                Phone Number
               </label>
               <div className="relative">
-                <MapPin size={13} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400" />
-                <select className="w-full appearance-none pl-9 pr-8 py-3 rounded-xl bg-gray-50 border border-gray-200 text-[12px] font-semibold text-gray-900 focus:outline-none focus:border-gray-400 transition-all">
-                  <option>Main Room</option>
-                  <option>Power Room 1</option>
-                  <option>Power Room 2</option>
-                  <option>Entrance Room 1</option>
-                  <option>Global (All Rooms)</option>
+                <Phone size={13} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400" />
+                <input
+                  type="text"
+                  required
+                  value={phone}
+                  onChange={(e) => setPhone(e.target.value)}
+                  placeholder="e.g. +260 97 000 0000"
+                  className="w-full pl-9 pr-4 py-3 rounded-xl bg-gray-50 border border-gray-200 text-[12px] font-semibold text-gray-900 placeholder-gray-400 focus:outline-none focus:border-gray-400 transition-all"
+                />
+              </div>
+            </div>
+
+            {/* Badge ID */}
+            <div>
+              <label className="block text-[10px] font-black text-gray-400 uppercase tracking-[0.12em] mb-1.5">
+                Badge / Staff ID
+              </label>
+              <div className="relative">
+                <Key size={13} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400" />
+                <input
+                  type="text"
+                  required
+                  value={badgeId}
+                  onChange={(e) => setBadgeId(e.target.value)}
+                  placeholder="e.g. ZM-6200"
+                  className="w-full pl-9 pr-4 py-3 rounded-xl bg-gray-50 border border-gray-200 text-[12px] font-semibold text-gray-900 placeholder-gray-400 focus:outline-none focus:border-gray-400 transition-all"
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              {/* Role */}
+              <div>
+                <label className="block text-[10px] font-black text-gray-400 uppercase tracking-[0.12em] mb-1.5">
+                  Role
+                </label>
+                <div className="relative">
+                  <Shield size={13} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400" />
+                  <select
+                    value={role}
+                    onChange={(e) => setRole(e.target.value)}
+                    className="w-full appearance-none pl-9 pr-8 py-3 rounded-xl bg-gray-50 border border-gray-200 text-[12px] font-semibold text-gray-900 focus:outline-none focus:border-gray-400 transition-all"
+                  >
+                    <option>L1 Tech</option>
+                    <option>L2 Engineer</option>
+                    <option>NOC Admin</option>
+                    <option>Security Officer</option>
+                  </select>
+                  <ChevronDown size={12} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
+                </div>
+              </div>
+
+              {/* Zone */}
+              <div>
+                <label className="block text-[10px] font-black text-gray-400 uppercase tracking-[0.12em] mb-1.5">
+                  Zone Clearance
+                </label>
+                <div className="relative">
+                  <MapPin size={13} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400" />
+                  <select
+                    value={zone}
+                    onChange={(e) => setZone(e.target.value)}
+                    className="w-full appearance-none pl-9 pr-8 py-3 rounded-xl bg-gray-50 border border-gray-200 text-[12px] font-semibold text-gray-900 focus:outline-none focus:border-gray-400 transition-all"
+                  >
+                    <option>Main Room</option>
+                    <option>Power Room 1</option>
+                    <option>Power Room 2</option>
+                    <option>Entrance Room 1</option>
+                    <option>Global (All Rooms)</option>
+                  </select>
+                  <ChevronDown size={12} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
+                </div>
+              </div>
+            </div>
+
+            {/* Shift Schedule */}
+            <div>
+              <label className="block text-[10px] font-black text-gray-400 uppercase tracking-[0.12em] mb-1.5">
+                Shift Schedule
+              </label>
+              <div className="relative">
+                <Clock size={13} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400" />
+                <select
+                  value={shift}
+                  onChange={(e) => setShift(e.target.value)}
+                  className="w-full appearance-none pl-9 pr-8 py-3 rounded-xl bg-gray-50 border border-gray-200 text-[12px] font-semibold text-gray-900 focus:outline-none focus:border-gray-400 transition-all"
+                >
+                  <option>06:00 – 14:00 (Day)</option>
+                  <option>14:00 – 22:00 (Evening)</option>
+                  <option>22:00 – 06:00 (Night)</option>
+                  <option>06:00 – 18:00 (Extended Day)</option>
                 </select>
                 <ChevronDown size={12} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
               </div>
             </div>
           </div>
 
-          <div>
-            <label className="block text-[10px] font-black text-gray-400 uppercase tracking-[0.12em] mb-1.5">
-              Shift Schedule
-            </label>
-            <div className="relative">
-              <Clock size={13} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400" />
-              <select className="w-full appearance-none pl-9 pr-8 py-3 rounded-xl bg-gray-50 border border-gray-200 text-[12px] font-semibold text-gray-900 focus:outline-none focus:border-gray-400 transition-all">
-                <option>06:00 – 14:00 (Day)</option>
-                <option>14:00 – 22:00 (Evening)</option>
-                <option>22:00 – 06:00 (Night)</option>
-                <option>06:00 – 18:00 (Extended Day)</option>
-              </select>
-              <ChevronDown size={12} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
-            </div>
+          {/* Modal footer */}
+          <div className="flex items-center justify-end gap-2 px-6 py-4 border-t border-gray-100 bg-gray-50/50">
+            <button
+              type="button"
+              onClick={onClose}
+              className="px-4 py-2.5 rounded-xl text-[11px] font-black text-gray-500 hover:bg-gray-100 transition-all uppercase tracking-wider cursor-pointer"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-gray-900 text-white text-[11px] font-black uppercase tracking-wider hover:bg-gray-700 active:scale-[0.98] transition-all cursor-pointer"
+            >
+              <UserPlus size={13} />
+              Provision Account
+            </button>
           </div>
-        </div>
-
-        {/* Modal footer */}
-        <div className="flex items-center justify-end gap-2 px-6 py-4 border-t border-gray-100 bg-gray-50/50">
-          <button
-            onClick={onClose}
-            className="px-4 py-2.5 rounded-xl text-[11px] font-black text-gray-500 hover:bg-gray-100 transition-all uppercase tracking-wider"
-          >
-            Cancel
-          </button>
-          <button
-            onClick={onClose}
-            className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-gray-900 text-white text-[11px] font-black uppercase tracking-wider hover:bg-gray-700 active:scale-[0.98] transition-all"
-          >
-            <UserPlus size={13} />
-            Provision Account
-          </button>
-        </div>
+        </form>
       </div>
     </div>
   );
@@ -389,13 +365,13 @@ function ConfirmDialog({
         <div className="px-6 pb-5 pt-4 flex items-center gap-2 justify-end border-t border-gray-100">
           <button
             onClick={onCancel}
-            className="px-4 py-2 rounded-xl text-[11px] font-black text-gray-500 hover:bg-gray-100 transition-all uppercase tracking-wider"
+            className="px-4 py-2 rounded-xl text-[11px] font-black text-gray-500 hover:bg-gray-100 transition-all uppercase tracking-wider cursor-pointer"
           >
             Cancel
           </button>
           <button
             onClick={onConfirm}
-            className={`flex items-center gap-1.5 px-4 py-2 rounded-xl text-[11px] font-black text-white uppercase tracking-wider active:scale-[0.98] transition-all ${
+            className={`flex items-center gap-1.5 px-4 py-2 rounded-xl text-[11px] font-black text-white uppercase tracking-wider active:scale-[0.98] transition-all cursor-pointer ${
               isRevoke ? "bg-red-600 hover:bg-red-700" : "bg-green-600 hover:bg-green-700"
             }`}
           >
@@ -408,12 +384,104 @@ function ConfirmDialog({
   );
 }
 
+// ── Mapper helper ─────────────────────────────────────────────────────────────
+const mapRowToPersonnel = (row: any): Personnel => {
+  const getInitials = (name: string) => {
+    if (!name) return "??";
+    const parts = name.trim().split(/\s+/);
+    if (parts.length >= 2) {
+      return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+    }
+    return name.slice(0, 2).toUpperCase();
+  };
+
+  const getAvatarColor = (name: string) => {
+    const colors = [
+      "bg-red-500",
+      "bg-blue-500",
+      "bg-emerald-500",
+      "bg-violet-500",
+      "bg-amber-500",
+      "bg-cyan-500",
+      "bg-pink-500",
+      "bg-indigo-500"
+    ];
+    let hash = 0;
+    for (let i = 0; i < name.length; i++) {
+      hash = name.charCodeAt(i) + ((hash << 5) - hash);
+    }
+    const index = Math.abs(hash) % colors.length;
+    return colors[index];
+  };
+
+  const mapRole = (r: string): Role => {
+    if (r === "ADMIN") return "NOC Admin";
+    if (r === "FIELD_TECH") return "L2 Engineer";
+    return "L1 Tech";
+  };
+
+  const formatTime = (timeStr: string) => {
+    if (!timeStr) return "—";
+    const d = new Date(timeStr);
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+  };
+
+  let status: Status = "Active";
+  if (row.status === "Revoked") {
+    status = "Revoked";
+  } else if (row.status === "Active") {
+    status = row.role === "ADMIN" ? "On-Shift" : "Active";
+  }
+
+  return {
+    id:          row.id,
+    name:        row.full_name,
+    initials:    getInitials(row.full_name),
+    avatarColor: getAvatarColor(row.full_name),
+    email:       row.email || `${row.full_name.toLowerCase().replace(/[^a-z0-9]/g, "")}@dcime.local`,
+    phone:       row.phone || "+260 97 000 0000",
+    role:        mapRole(row.role),
+    zone:        row.clearance_zone || "Global (All Rooms)",
+    shift:       row.shift_schedule || "06:00 – 14:00",
+    shiftDays:   "Mon – Fri",
+    lastActive:  row.status === "Revoked" ? "Suspended" : "Just now",
+    status:      status,
+    accessLevel: row.access_level || (row.role === "ADMIN" ? 5 : 3),
+    joinedDate:  formatTime(row.created_at),
+    badgeId:     row.badge_id || `ZM-${Math.floor(1000 + Math.random() * 9000)}`,
+  };
+};
+
 // ── Main Component ────────────────────────────────────────────────────────────
 export function PersonnelManagement() {
-  const [roster,       setRoster]       = useState<Personnel[]>(INITIAL_ROSTER);
+  const [roster,       setRoster]       = useState<Personnel[]>([]);
+  const [isLoading,    setIsLoading]    = useState(true);
   const [showAddModal, setShowAddModal] = useState(false);
   const [confirm,      setConfirm]      = useState<{ person: Personnel; action: "revoke" | "reinstate" } | null>(null);
   const [expandedRow,  setExpandedRow]  = useState<string | null>(null);
+
+  const fetchRoster = async () => {
+    try {
+      const { data, error } = await supabase
+        .from("employees")
+        .select("*")
+        .order("full_name", { ascending: true });
+
+      if (error) throw error;
+
+      if (data) {
+        setRoster(data.map(mapRowToPersonnel));
+      }
+    } catch (err) {
+      console.error("Error loading employees:", err);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchRoster();
+  }, []);
 
   // ── Computed stats ──────────────────────────────────────────────────────
   const totalCleared  = roster.filter((p) => p.status !== "Revoked").length;
@@ -426,17 +494,24 @@ export function PersonnelManagement() {
     setConfirm({ person, action });
   }
 
-  function confirmToggle() {
+  async function confirmToggle() {
     if (!confirm) return;
     const { person, action } = confirm;
-    setRoster((prev) =>
-      prev.map((p) =>
-        p.id === person.id
-          ? { ...p, status: action === "revoke" ? "Revoked" : "Active" }
-          : p
-      )
-    );
-    setConfirm(null);
+    const newStatus = action === "revoke" ? "Revoked" : "Active";
+    try {
+      const { error } = await supabase
+        .from("employees")
+        .update({ status: newStatus })
+        .eq("id", person.id);
+
+      if (error) throw error;
+      fetchRoster();
+    } catch (err) {
+      console.error("Error toggling access:", err);
+      alert("Failed to update account access status.");
+    } finally {
+      setConfirm(null);
+    }
   }
 
   // ── Summary card data ────────────────────────────────────────────────────
@@ -471,11 +546,25 @@ export function PersonnelManagement() {
     },
   ] as const;
 
+  if (isLoading && roster.length === 0) {
+    return (
+      <div className="min-h-full flex items-center justify-center p-12">
+        <div className="flex flex-col items-center gap-3">
+          <div className="w-8 h-8 rounded-full border-2 border-gray-900 border-t-transparent animate-spin" />
+          <span className="text-[11px] font-black text-gray-500 uppercase tracking-widest">Synchronizing Identity Roster...</span>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <>
       {/* ── Modals ─────────────────────────────────────────────────────── */}
       {showAddModal && (
-        <AddPersonnelModal onClose={() => setShowAddModal(false)} />
+        <AddPersonnelModal
+          onClose={() => setShowAddModal(false)}
+          onSaveSuccess={fetchRoster}
+        />
       )}
       {confirm && (
         <ConfirmDialog
@@ -504,7 +593,7 @@ export function PersonnelManagement() {
 
           <button
             onClick={() => setShowAddModal(true)}
-            className="flex items-center gap-2 px-5 py-3 rounded-xl bg-gray-900 text-white text-[12px] font-black uppercase tracking-wider hover:bg-gray-700 active:scale-[0.98] transition-all shadow-sm flex-shrink-0"
+            className="flex items-center gap-2 px-5 py-3 rounded-xl bg-gray-900 text-white text-[12px] font-black uppercase tracking-wider hover:bg-gray-700 active:scale-[0.98] transition-all shadow-sm flex-shrink-0 cursor-pointer"
           >
             <UserPlus size={15} />
             Add New Personnel
@@ -654,7 +743,7 @@ export function PersonnelManagement() {
                           <div className="flex items-center gap-1.5 ml-[18px]">
                             <CalendarDays size={10} className="text-gray-300 flex-shrink-0" />
                             <span className="text-[10px] font-semibold text-gray-400">
-                              {person.shiftDays}
+                              Mon – Fri
                             </span>
                           </div>
                         </td>
@@ -687,10 +776,10 @@ export function PersonnelManagement() {
                             <button
                               onClick={() => setExpandedRow(isExpanded ? null : person.id)}
                               title="View profile"
-                              className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg border border-gray-200 text-gray-500 hover:border-gray-300 hover:bg-gray-50 text-[10px] font-black uppercase tracking-wider transition-all"
+                              className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg border border-gray-200 text-gray-500 hover:border-gray-300 hover:bg-gray-50 text-[10px] font-black uppercase tracking-wider transition-all cursor-pointer"
                             >
                               <Pencil size={11} />
-                              Edit
+                              View Profile
                             </button>
 
                             {/* Revoke / Reinstate */}
@@ -698,7 +787,7 @@ export function PersonnelManagement() {
                               <button
                                 onClick={() => handleToggleAccess(person)}
                                 title="Reinstate access"
-                                className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg border border-green-300 text-green-700 bg-green-50 hover:bg-green-100 text-[10px] font-black uppercase tracking-wider transition-all active:scale-[0.97]"
+                                className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg border border-green-300 text-green-700 bg-green-50 hover:bg-green-100 text-[10px] font-black uppercase tracking-wider transition-all active:scale-[0.97] cursor-pointer"
                               >
                                 <UserCheck size={11} />
                                 Reinstate
@@ -707,7 +796,7 @@ export function PersonnelManagement() {
                               <button
                                 onClick={() => handleToggleAccess(person)}
                                 title="Revoke access"
-                                className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg border border-red-300 text-red-700 bg-red-50 hover:bg-red-100 text-[10px] font-black uppercase tracking-wider transition-all active:scale-[0.97]"
+                                className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg border border-red-300 text-red-700 bg-red-50 hover:bg-red-100 text-[10px] font-black uppercase tracking-wider transition-all active:scale-[0.97] cursor-pointer"
                               >
                                 <ShieldBan size={11} />
                                 Revoke
@@ -730,14 +819,14 @@ export function PersonnelManagement() {
                                 { label: "Joined",         value: person.joinedDate, icon: CalendarDays },
                                 { label: "Access Level",   value: `Level ${person.accessLevel} / 5`, icon: CheckCircle2 },
                               ].map(({ label, value, icon: Icon }) => (
-                                <div key={label} className="bg-white border border-gray-100 rounded-xl px-3 py-2.5">
+                                <div key={label} className="bg-white border border-gray-100 rounded-xl px-3 py-2.5" style={{ minWidth: 0 }}>
                                   <div className="flex items-center gap-1.5 mb-1">
                                     <Icon size={10} className="text-gray-400" />
                                     <span className="text-[9px] font-black text-gray-400 uppercase tracking-widest">
                                       {label}
                                     </span>
                                   </div>
-                                  <div className="text-[11px] font-bold text-gray-700 font-mono">
+                                  <div className="text-[11px] font-bold text-gray-700 font-mono truncate" title={value}>
                                     {value}
                                   </div>
                                 </div>
@@ -766,7 +855,7 @@ export function PersonnelManagement() {
           {/* Table footer */}
           <div className="px-5 py-3 border-t border-gray-100 bg-gray-50/50 flex items-center justify-between">
             <span className="text-[10px] font-semibold text-gray-400">
-              {roster.length} accounts registered · {onShiftCount} currently active · Last sync: 14:31 UTC+2
+              {roster.length} accounts registered · {onShiftCount} currently active
             </span>
             <div className="flex items-center gap-1.5 text-[10px] font-black text-gray-400 uppercase tracking-wider">
               <Shield size={11} />

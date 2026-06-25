@@ -1,4 +1,5 @@
-import { useState } from "react";
+import React, { useState, useEffect } from "react";
+import { supabase } from "@/shared/api/supabaseClient";
 import {
   AlertTriangle,
   AlertCircle,
@@ -20,7 +21,8 @@ type Severity = "critical" | "warning" | "info";
 type View     = "active" | "resolved";
 
 interface Incident {
-  id:          string;
+  id:          string; // ticket_number
+  dbId:        string; // database uuid
   severity:    Severity;
   timestamp:   string;
   asset:       string;
@@ -39,149 +41,6 @@ interface Incident {
   resolution?: string;
   duration?:   string;
 }
-
-// ── Mock datasets ─────────────────────────────────────────────────────────────
-const ACTIVE_INCIDENTS: Incident[] = [
-  {
-    id:          "INC-2026-0891",
-    severity:    "critical",
-    timestamp:   "2026-06-22 14:22",
-    asset:       "UPS Unit 1",
-    assetId:     "PWR-UPS-001",
-    location:    "Main Room · Rack R-01",
-    description: "Phase L3 Current Overload — Severe Imbalance Detected",
-    telemetry:   "L1: 98A · L2: 83A · L3: 112A  |  Threshold: ±15%  |  Deviation: +35%",
-    category:    "Power / Phase",
-    acknowledged: false,
-  },
-  {
-    id:          "INC-2026-0890",
-    severity:    "critical",
-    timestamp:   "2026-06-22 13:55",
-    asset:       "Rectifier B – Rm 2",
-    assetId:     "PWR-RECT-002",
-    location:    "Power Room 2 · Rack R-06",
-    description: "DC Bus Voltage Drop Below Nominal — Rectifier Output Degraded",
-    telemetry:   "Output: 47.8V DC  |  Nominal: 48.0V  |  Δ: −0.42%  |  Load: 35A",
-    category:    "Power / DC",
-    acknowledged: true,
-    acknowledgedBy: "Anderson M.",
-    acknowledgedAt: "14:01",
-  },
-  {
-    id:          "INC-2026-0889",
-    severity:    "warning",
-    timestamp:   "2026-06-22 13:44",
-    asset:       "CRAC Unit 3",
-    assetId:     "COOL-CRAC-003",
-    location:    "Power Room 2",
-    description: "Inlet Temperature Elevated — Approaching Alarm Threshold",
-    telemetry:   "Inlet: 22.4°C  |  Threshold: 22.0°C  |  Δ: +0.4°C  |  Setpoint: 20.0°C",
-    category:    "Cooling / Thermal",
-    acknowledged: false,
-  },
-  {
-    id:          "INC-2026-0888",
-    severity:    "warning",
-    timestamp:   "2026-06-22 12:30",
-    asset:       "Main Room Environment",
-    assetId:     "ENV-HUM-001",
-    location:    "Main Room",
-    description: "Relative Humidity Approaching Upper Limit — Monitor Required",
-    telemetry:   "RH: 63%  |  Upper Threshold: 65%  |  Lower Threshold: 40%  |  Trend: ↑",
-    category:    "Environmental / Humidity",
-    acknowledged: false,
-  },
-  {
-    id:          "INC-2026-0887",
-    severity:    "warning",
-    timestamp:   "2026-06-22 11:15",
-    asset:       "UPS Unit 2",
-    assetId:     "PWR-UPS-002",
-    location:    "Main Room · Rack R-02",
-    description: "Phase L1 Imbalance Approaching Operational Limit",
-    telemetry:   "L1: 91A · L2: 83A · L3: 88A  |  Deviation: +9.6%  |  Limit: ±10%",
-    category:    "Power / Phase",
-    acknowledged: true,
-    acknowledgedBy: "Chileshe K.",
-    acknowledgedAt: "11:28",
-  },
-  {
-    id:          "INC-2026-0886",
-    severity:    "info",
-    timestamp:   "2026-06-22 09:14",
-    asset:       "Perimeter Firewall",
-    assetId:     "NET-FW-001",
-    location:    "Main Room · Rack R-01",
-    description: "Device Heartbeat Lost — NMS Poll Timeout (3 consecutive fails)",
-    telemetry:   "Last ICMP Response: 09:11:42  |  SNMP Status: Timeout  |  Port: 161/UDP",
-    category:    "Network / Connectivity",
-    acknowledged: false,
-  },
-];
-
-const RESOLVED_INCIDENTS: Incident[] = [
-  {
-    id:          "INC-2026-0885",
-    severity:    "critical",
-    timestamp:   "2026-06-22 06:02",
-    asset:       "Diesel Generator A",
-    assetId:     "PWR-GEN-001",
-    location:    "Generator Room",
-    description: "Scheduled Test Start Failure — Automatic Retry Initiated",
-    telemetry:   "Crank Attempts: 3/3  |  Fault Code: E112  |  Battery Voltage: 24.1V",
-    category:    "Power / Generator",
-    resolvedBy:  "Anderson M.",
-    resolvedAt:  "07:45",
-    resolution:  "Manual crank initiated. Injector purged. Unit started successfully on 4th attempt. Battery replaced.",
-    duration:    "1h 43m",
-  },
-  {
-    id:          "INC-2026-0884",
-    severity:    "warning",
-    timestamp:   "2026-06-21 23:48",
-    asset:       "CRAC Unit 1",
-    assetId:     "COOL-CRAC-001",
-    location:    "Main Room",
-    description: "Cooling Compressor Fan Speed Fluctuation Detected",
-    telemetry:   "Fan RPM: 1,840  |  Nominal: 2,100 RPM  |  Δ: −12.4%  |  Duration: 6 min",
-    category:    "Cooling / Mechanical",
-    resolvedBy:  "Chileshe K.",
-    resolvedAt:  "00:17",
-    resolution:  "Fan belt tension adjusted. RPM returned to nominal within 8 minutes of intervention.",
-    duration:    "29m",
-  },
-  {
-    id:          "INC-2026-0883",
-    severity:    "warning",
-    timestamp:   "2026-06-21 18:30",
-    asset:       "PDU Rack A",
-    assetId:     "PWR-PDU-001",
-    location:    "Main Room · Rack R-01",
-    description: "PDU Branch Circuit B3 Approaching Ampacity Limit",
-    telemetry:   "Branch B3: 15.6A  |  Rating: 16A  |  Load: 97.5%  |  Recommendation: Offload",
-    category:    "Power / Distribution",
-    resolvedBy:  "Mwansa B.",
-    resolvedAt:  "19:05",
-    resolution:  "Load redistributed from Branch B3 to Branch B5. Branch B3 now at 62% utilization.",
-    duration:    "35m",
-  },
-  {
-    id:          "INC-2026-0882",
-    severity:    "info",
-    timestamp:   "2026-06-21 14:00",
-    asset:       "Core Switch 2",
-    assetId:     "NET-SW-002",
-    location:    "Main Room · Rack R-02",
-    description: "Scheduled Firmware Update Completed — Reboot Required Notification",
-    telemetry:   "Previous FW: NX-OS 10.2(4)  |  New FW: NX-OS 10.2(5)  |  Reboot: Scheduled 02:00",
-    category:    "Network / Maintenance",
-    resolvedBy:  "System",
-    resolvedAt:  "02:05",
-    resolution:  "Automatic reboot completed successfully at 02:05. Uptime: 14d 6h reset.",
-    duration:    "Maintenance window",
-  },
-];
 
 // ── Severity config ───────────────────────────────────────────────────────────
 const SEV_CONFIG = {
@@ -254,8 +113,8 @@ function ActiveCard({
   incident:  Incident;
   expanded:  boolean;
   onToggle:  () => void;
-  onAck:     (id: string) => void;
-  onResolve: (id: string) => void;
+  onAck:     (dbId: string) => void;
+  onResolve: (dbId: string) => void;
 }) {
   const cfg = SEV_CONFIG[incident.severity];
   const { Icon } = cfg;
@@ -350,8 +209,8 @@ function ActiveCard({
           <div className="flex items-center gap-2 pt-1">
             {!incident.acknowledged ? (
               <button
-                onClick={(e) => { e.stopPropagation(); onAck(incident.id); }}
-                className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl border border-gray-200 bg-white text-[11px] font-black text-gray-600 hover:border-gray-300 hover:bg-gray-50 active:scale-[0.98] transition-all"
+                onClick={(e) => { e.stopPropagation(); onAck(incident.dbId); }}
+                className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl border border-gray-200 bg-white text-[11px] font-black text-gray-600 hover:border-gray-300 hover:bg-gray-50 active:scale-[0.98] transition-all cursor-pointer"
               >
                 <BellOff size={13} />
                 Acknowledge
@@ -364,8 +223,8 @@ function ActiveCard({
             )}
 
             <button
-              onClick={(e) => { e.stopPropagation(); onResolve(incident.id); }}
-              className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-green-600 text-white text-[11px] font-black hover:bg-green-700 active:scale-[0.98] transition-all shadow-sm shadow-green-500/20"
+              onClick={(e) => { e.stopPropagation(); onResolve(incident.dbId); }}
+              className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-green-600 text-white text-[11px] font-black hover:bg-green-700 active:scale-[0.98] transition-all shadow-sm shadow-green-500/20 cursor-pointer"
             >
               <CheckCircle2 size={13} />
               Resolve / Clear
@@ -470,7 +329,7 @@ function ResolvedCard({ incident }: { incident: Incident }) {
             <span>
               Cleared by{" "}
               <span className="font-black text-gray-600">{incident.resolvedBy}</span>
-              {" "}· Admin ZM-0874 · at {incident.resolvedAt}
+              {" "}· Operator · at {incident.resolvedAt}
             </span>
             <span className="ml-auto font-mono font-black text-gray-400">
               {incident.id}
@@ -482,12 +341,126 @@ function ResolvedCard({ incident }: { incident: Incident }) {
   );
 }
 
+// ── Mapper helpers ────────────────────────────────────────────────────────────
+const mapRowToIncident = (row: any): Incident => {
+  const mapSeverity = (sev: string): Severity => {
+    const s = (sev || "").toLowerCase();
+    if (s === "critical" || s === "high") return "critical";
+    if (s === "medium" || s === "warning" || s === "warn") return "warning";
+    return "info";
+  };
+
+  const formatTime = (timeStr: string) => {
+    if (!timeStr) return "—";
+    const d = new Date(timeStr);
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")} ${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
+  };
+
+  const formatShortTime = (timeStr: string) => {
+    if (!timeStr) return "—";
+    const d = new Date(timeStr);
+    return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
+  };
+
+  const formatDuration = (start: string, end: string) => {
+    if (!start || !end) return "—";
+    const diffMs = new Date(end).getTime() - new Date(start).getTime();
+    if (isNaN(diffMs) || diffMs <= 0) return "—";
+    const diffMins = Math.floor(diffMs / 60000);
+    if (diffMins < 60) return `${diffMins}m`;
+    const diffHours = Math.floor(diffMins / 60);
+    const mins = diffMins % 60;
+    return `${diffHours}h ${mins}m`;
+  };
+
+  let telemetryStr = `Raised by: ${row.raised_by_name || 'System'} (${row.raised_by_id || '—'})`;
+  if (row.impact) {
+    telemetryStr += `  |  Impact: ${row.impact}`;
+  }
+  if (row.contractor_engaged) {
+    telemetryStr += `  |  Contractor: ${row.contractor_engaged}`;
+  }
+
+  // Determine a nice category
+  let categoryStr = "System Alert";
+  if (row.asset_id) {
+    if (row.asset_id.startsWith("PWR-")) categoryStr = "Power / Fault";
+    else if (row.asset_id.startsWith("COOL-")) categoryStr = "Cooling / Thermal";
+    else if (row.asset_id.startsWith("NET-")) categoryStr = "Network / Connectivity";
+    else if (row.asset_id.startsWith("COMP-")) categoryStr = "Compute / Server";
+  }
+
+  return {
+    id:             row.ticket_number || row.id,
+    dbId:           row.id,
+    severity:       mapSeverity(row.severity),
+    timestamp:      formatTime(row.occurred_at || row.created_at),
+    asset:          row.asset_id,
+    assetId:        row.asset_id,
+    location:       row.site_name || "NTC ZM 0874",
+    description:    row.notes || "No description provided",
+    telemetry:      telemetryStr,
+    category:       categoryStr,
+    acknowledged:   row.acknowledged || false,
+    acknowledgedBy: row.acknowledged_by,
+    acknowledgedAt: row.acknowledged_at ? formatShortTime(row.acknowledged_at) : undefined,
+    resolvedBy:     row.resolved_by_name,
+    resolvedAt:     row.resolved_at ? formatShortTime(row.resolved_at) : undefined,
+    resolution:     row.resolution_details,
+    duration:       row.resolved_at ? formatDuration(row.occurred_at || row.created_at, row.resolved_at) : undefined,
+  };
+};
+
 // ── Main Component ────────────────────────────────────────────────────────────
 export function AlertsLog() {
   const [view,         setView]         = useState<View>("active");
-  const [activeAlerts, setActiveAlerts] = useState<Incident[]>(ACTIVE_INCIDENTS);
-  const [resolved,     setResolved]     = useState<Incident[]>(RESOLVED_INCIDENTS);
+  const [activeAlerts, setActiveAlerts] = useState<Incident[]>([]);
+  const [resolved,     setResolved]     = useState<Incident[]>([]);
+  const [isLoading,    setIsLoading]    = useState(true);
   const [expandedId,   setExpandedId]   = useState<string | null>(null);
+  const [lastSync,     setLastSync]     = useState<string>("");
+
+  const fetchIncidents = async () => {
+    try {
+      const { data, error } = await supabase
+        .from("incidents")
+        .select("*")
+        .order("created_at", { ascending: false });
+
+      if (error) throw error;
+
+      if (data) {
+        const mapped = data.map(mapRowToIncident);
+        setActiveAlerts(mapped.filter((i) => !i.resolvedAt));
+        setResolved(mapped.filter((i) => !!i.resolvedAt));
+      }
+      setLastSync(new Date().toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" }));
+    } catch (err) {
+      console.error("Error fetching incidents:", err);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchIncidents();
+
+    // Subscribe to realtime changes
+    const channel = supabase
+      .channel("incidents-realtime")
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "incidents" },
+        () => {
+          fetchIncidents();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, []);
 
   // ── Counters ──────────────────────────────────────────────────────────────
   const criticalCount = activeAlerts.filter((a) => a.severity === "critical").length;
@@ -495,31 +468,55 @@ export function AlertsLog() {
   const unackedCount  = activeAlerts.filter((a) => !a.acknowledged).length;
 
   // ── Actions ───────────────────────────────────────────────────────────────
-  function handleAck(id: string) {
-    setActiveAlerts((prev) =>
-      prev.map((a) =>
-        a.id === id
-          ? { ...a, acknowledged: true, acknowledgedBy: "Anderson M.", acknowledgedAt: new Date().toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" }) }
-          : a
-      )
-    );
-  }
+  const handleAck = async (dbId: string) => {
+    try {
+      const { error } = await supabase
+        .from("incidents")
+        .update({
+          acknowledged: true,
+          acknowledged_by: "Ndabane Anderson M.",
+          acknowledged_at: new Date().toISOString(),
+        })
+        .eq("id", dbId);
 
-  function handleResolve(id: string) {
-    const incident = activeAlerts.find((a) => a.id === id);
-    if (!incident) return;
-    const now = new Date().toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" });
-    const resolvedIncident: Incident = {
-      ...incident,
-      resolvedBy:  "Anderson M.",
-      resolvedAt:  now,
-      resolution:  "Manually resolved via NOC dashboard by operator.",
-      duration:    "—",
-    };
-    setActiveAlerts((prev) => prev.filter((a) => a.id !== id));
-    setResolved((prev) => [resolvedIncident, ...prev]);
-    if (expandedId === id) setExpandedId(null);
-  }
+      if (error) throw error;
+      // Real-time listener will trigger the refresh, but let's fetch for safety & instant response
+      fetchIncidents();
+    } catch (err) {
+      console.error("Error acknowledging incident:", err);
+      alert("Failed to acknowledge incident.");
+    }
+  };
+
+  const handleResolve = async (dbId: string) => {
+    try {
+      const now = new Date().toISOString();
+      const currentYear = new Date().getFullYear();
+      const randomCode = Math.floor(1000 + Math.random() * 9000);
+      const receiptNumber = `REC-${currentYear}-${randomCode}`;
+
+      const { error } = await supabase
+        .from("incidents")
+        .update({
+          status: "RESOLVED",
+          resolved_at: now,
+          resolved_by_name: "Ndabane Anderson M.",
+          resolved_by_id: "EMP-0874-AM",
+          receipt_number: receiptNumber,
+          impact: "Minimal operational impact, resolved by operator.",
+          contractor_engaged: "None",
+          resolution_details: "Manually resolved via NOC dashboard by operator.",
+        })
+        .eq("id", dbId);
+
+      if (error) throw error;
+      if (expandedId === dbId) setExpandedId(null);
+      fetchIncidents();
+    } catch (err) {
+      console.error("Error resolving incident:", err);
+      alert("Failed to resolve incident.");
+    }
+  };
 
   function toggleExpand(id: string) {
     setExpandedId((prev) => (prev === id ? null : id));
@@ -530,6 +527,17 @@ export function AlertsLog() {
     { id: "active",   label: "Active Alarms",    count: activeAlerts.length },
     { id: "resolved", label: "Resolved History",  count: resolved.length     },
   ];
+
+  if (isLoading && activeAlerts.length === 0 && resolved.length === 0) {
+    return (
+      <div className="min-h-full flex items-center justify-center p-12">
+        <div className="flex flex-col items-center gap-3">
+          <div className="w-8 h-8 rounded-full border-2 border-gray-900 border-t-transparent animate-spin" />
+          <span className="text-[11px] font-black text-gray-500 uppercase tracking-widest">Synchronizing Fault Queue...</span>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-full flex flex-col gap-5">
@@ -594,7 +602,7 @@ export function AlertsLog() {
               key={tab.id}
               onClick={() => setView(tab.id)}
               className={[
-                "flex items-center gap-2 px-4 py-2 rounded-lg text-[11px] font-black uppercase tracking-wider transition-all",
+                "flex items-center gap-2 px-4 py-2 rounded-lg text-[11px] font-black uppercase tracking-wider transition-all cursor-pointer",
                 view === tab.id
                   ? "bg-white text-gray-900 shadow-sm border border-gray-200"
                   : "text-gray-400 hover:text-gray-600",
@@ -683,10 +691,10 @@ export function AlertsLog() {
               })
               .map((incident) => (
                 <ActiveCard
-                  key={incident.id}
+                  key={incident.dbId}
                   incident={incident}
-                  expanded={expandedId === incident.id}
-                  onToggle={() => toggleExpand(incident.id)}
+                  expanded={expandedId === incident.dbId}
+                  onToggle={() => toggleExpand(incident.dbId)}
                   onAck={handleAck}
                   onResolve={handleResolve}
                 />
@@ -696,9 +704,24 @@ export function AlertsLog() {
       ) : (
         /* Resolved history */
         <div className="flex flex-col gap-4">
-          {resolved.map((incident) => (
-            <ResolvedCard key={incident.id} incident={incident} />
-          ))}
+          {resolved.length === 0 ? (
+            /* Empty state */
+            <div className="bg-white border border-gray-100 rounded-2xl shadow-sm px-8 py-16 flex flex-col items-center gap-4">
+              <div className="w-16 h-16 rounded-2xl bg-gray-50 flex items-center justify-center">
+                <RotateCcw size={32} className="text-gray-400" />
+              </div>
+              <div className="text-center">
+                <div className="text-[15px] font-black text-gray-900">No Resolved Incidents</div>
+                <p className="text-[12px] font-semibold text-gray-400 mt-1">
+                  No resolved incidents in history yet.
+                </p>
+              </div>
+            </div>
+          ) : (
+            resolved.map((incident) => (
+              <ResolvedCard key={incident.dbId} incident={incident} />
+            ))
+          )}
         </div>
       )}
 
@@ -706,7 +729,7 @@ export function AlertsLog() {
       <div className="flex items-center justify-between text-[10px] font-semibold text-gray-400 pt-1">
         <span>
           {view === "active"
-            ? `${activeAlerts.length} active incident${activeAlerts.length !== 1 ? "s" : ""} · Last sync: 14:31 UTC+2`
+            ? `${activeAlerts.length} active incident${activeAlerts.length !== 1 ? "s" : ""} · Last sync: ${lastSync} UTC+2`
             : `${resolved.length} resolved incidents in history`}
         </span>
         <span className="font-mono">Site NTC ZM-0874</span>
