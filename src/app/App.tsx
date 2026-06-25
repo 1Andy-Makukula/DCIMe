@@ -1,5 +1,5 @@
 import { BrowserRouter, Routes, Route } from "react-router";
-
+import { AuthProvider } from "@/shared/context/AuthContext";
 
 // Pages
 import LoginPage from "@/pages/LoginPage";
@@ -21,30 +21,30 @@ import { PersonnelManagement } from "@/features/topology/components/PersonnelMan
 
 export default function App() {
   return (
-    <BrowserRouter>
-      <Routes>
-        {/* Public routes */}
-        <Route path="/" element={<LoginPage />} />
+    <AuthProvider>
+      <BrowserRouter>
+        <Routes>
+          {/* Public routes */}
+          <Route path="/" element={<LoginPage />} />
 
-        {/* Tech shell — nested routing */}
-        <Route path="/tech" element={<TechLayout />}>
-          <Route index element={<TechDashboard />} />
-          <Route path="log" element={<IncidentTracker />} />
-          <Route path="incident" element={<IncidentReport />} />
-          <Route path="handover" element={<ShiftHandover />} />
-        </Route>
+          {/* Tech shell — nested routing */}
+          <Route path="/tech" element={<TechLayout />}>
+            <Route index element={<TechDashboard />} />
+            <Route path="log" element={<IncidentTracker />} />
+            <Route path="incident" element={<IncidentReport />} />
+            <Route path="handover" element={<ShiftHandover />} />
+          </Route>
 
-
-        {/* Admin shell — nested routing */}
-        <Route path="/admin" element={<AdminLayout />}>
-          <Route index element={<NocOverview />} />
-          <Route path="inventory"  element={<AssetInventory />} />
-          <Route path="alerts"     element={<AlertsLog />} />
-          <Route path="reports"    element={<ShiftReports />} />
-          <Route path="personnel"  element={<PersonnelManagement />} />
-        </Route>
-      </Routes>
-    </BrowserRouter>
+          {/* Admin shell — nested routing */}
+          <Route path="/admin" element={<AdminLayout />}>
+            <Route index element={<NocOverview />} />
+            <Route path="inventory"  element={<AssetInventory />} />
+            <Route path="alerts"     element={<AlertsLog />} />
+            <Route path="reports"    element={<ShiftReports />} />
+            <Route path="personnel"  element={<PersonnelManagement />} />
+          </Route>
+        </Routes>
+      </BrowserRouter>
+    </AuthProvider>
   );
 }
-

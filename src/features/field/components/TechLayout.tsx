@@ -1,8 +1,8 @@
-import { useState, useEffect } from "react";
+import { useEffect } from "react";
 import { NavLink, Outlet, useNavigate } from "react-router";
 import { Home, Activity, AlertOctagon, UserCheck, LogOut } from "lucide-react";
 import { AirtelMark } from "@/shared/ui";
-import { supabase } from "@/shared/api/supabaseClient";
+import { useAuth } from "@/shared/context/AuthContext";
 
 export interface TechUser {
   id: string;       // e.g., "ZM-4891"
@@ -12,53 +12,40 @@ export interface TechUser {
 
 export function TechLayout() {
   const navigate = useNavigate();
-  const [user, setUser] = useState<TechUser | null>(null);
+  const { employee, logout, isLoading } = useAuth();
 
   useEffect(() => {
-    const fetchProfile = async () => {
-      try {
-        const { data: { session } } = await supabase.auth.getSession();
-        if (!session?.user) {
-          navigate("/");
-          return;
-        }
-
-        const email = session.user.email || "";
-        const badgeId = email.includes("@dcime.local")
-          ? email.split("@")[0].toUpperCase()
-          : email;
-
-        // Query employees profile for real name
-        const { data: empData } = await supabase
-          .from("employees")
-          .select("full_name")
-          .eq("auth_id", session.user.id)
-          .maybeSingle();
-
-        const name = empData?.full_name || session.user.user_metadata?.full_name || badgeId;
-        
-        // Extract Initials
-        const parts = name.trim().split(/\s+/);
-        const initials = parts.length > 1
-          ? (parts[0][0] + parts[parts.length - 1][0]).toUpperCase()
-          : name.substring(0, 2).toUpperCase();
-
-        setUser({
-          id: badgeId,
-          name,
-          initials,
-        });
-      } catch (err) {
-        console.error("Error fetching user profile in TechLayout:", err);
-      }
-    };
-
-    fetchProfile();
-  }, [navigate]);
+    if (!isLoading && !employee) {
+      navigate("/");
+    }
+  }, [employee, isLoading, navigate]);
 
   const handleLogout = async () => {
-    await supabase.auth.signOut();
+    await logout();
     navigate("/");
+  };
+
+  if (isLoading) {
+    return (
+      <div className="h-screen w-full flex items-center justify-center bg-gray-50">
+        <div className="flex flex-col items-center gap-3">
+          <div className="w-8 h-8 rounded-full border-2 border-red-500 border-t-transparent animate-spin" />
+          <span className="text-xs font-bold text-gray-400 uppercase tracking-widest">Loading Field Session...</span>
+        </div>
+      </div>
+    );
+  }
+
+  const name = employee?.full_name || "Field Tech";
+  const parts = name.trim().split(/\s+/);
+  const initials = parts.length > 1
+    ? (parts[0][0] + parts[parts.length - 1][0]).toUpperCase()
+    : name.substring(0, 2).toUpperCase();
+
+  const user = {
+    id: employee?.badge_id || "EMP-UNKNOWN",
+    name,
+    initials,
   };
 
   return (
