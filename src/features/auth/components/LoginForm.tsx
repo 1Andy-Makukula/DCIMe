@@ -9,7 +9,7 @@ export interface LoginFormProps {
   onField: () => void;
 }
 
-export function LoginForm({ onAdmin, onField }: LoginFormProps) {
+export function LoginForm(props: LoginFormProps) {
   const navigate = useNavigate();
   const [showPw, setShowPw] = useState(false);
   const [empId, setEmpId] = useState("");
