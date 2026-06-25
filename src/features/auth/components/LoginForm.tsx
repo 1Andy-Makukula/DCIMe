@@ -16,7 +16,6 @@ export function LoginForm(props: LoginFormProps) {
   const [pw, setPw] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [targetRole, setTargetRole] = useState<"admin" | "field" | null>(null);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -177,24 +176,14 @@ export function LoginForm(props: LoginFormProps) {
             </div>
           )}
 
-          <div className="space-y-3">
+          <div>
             <button
               type="submit"
-              onClick={() => setTargetRole("admin")}
               disabled={isLoading}
-              className="w-full py-4 rounded-xl font-black text-white text-[13px] tracking-[0.08em] uppercase transition-all hover:opacity-90 active:scale-[0.98] shadow-lg shadow-red-500/30 disabled:opacity-50"
+              className="w-full py-4 rounded-xl font-black text-white text-[13px] tracking-[0.08em] uppercase transition-all hover:opacity-90 active:scale-[0.98] shadow-lg shadow-red-500/30 disabled:opacity-50 cursor-pointer"
               style={{ backgroundColor: "#FF0000" }}
             >
-              {isLoading && targetRole === "admin" ? "Authenticating..." : "Log In · Admin NOC"}
-            </button>
-            <button
-              type="submit"
-              onClick={() => setTargetRole("field")}
-              disabled={isLoading}
-              className="w-full py-4 rounded-xl font-black text-[13px] tracking-[0.08em] uppercase border-2 transition-all hover:bg-red-50 active:scale-[0.98] disabled:opacity-50"
-              style={{ borderColor: "#FF0000", color: "#FF0000" }}
-            >
-              {isLoading && targetRole === "field" ? "Authenticating..." : "Log In · Field Tech"}
+              {isLoading ? "Authenticating..." : "Sign In"}
             </button>
           </div>
         </form>
