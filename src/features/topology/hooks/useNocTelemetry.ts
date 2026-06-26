@@ -78,7 +78,7 @@ export function useNocTelemetry(): UseNocTelemetryResult {
         const metrics = (row.metrics as Record<string, any>) || {};
         // Try common load metric IDs; fallback to 0
         const kw =
-          parseFloat(metrics["ups1_load_kw"] ?? metrics["facility_load_kw"] ?? 0) || 0;
+          parseFloat(metrics["ups_1_output_load_kw"] ?? metrics["ups_2_output_load_kw"] ?? metrics["grid_total_site_load"] ?? 0) || 0;
         return { t: toHourLabel(date), kw };
       });
 

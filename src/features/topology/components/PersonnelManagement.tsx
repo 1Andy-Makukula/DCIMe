@@ -10,7 +10,6 @@ import {
   UserPlus,
   UserCheck,
   Pencil,
-  X,
   AlertTriangle,
   CheckCircle2,
   Activity,
@@ -18,7 +17,6 @@ import {
   Mail,
   Phone,
   CalendarDays,
-  ChevronDown,
 } from "lucide-react";
 
 // ── Types ─────────────────────────────────────────────────────────────────────

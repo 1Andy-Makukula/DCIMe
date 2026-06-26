@@ -1,6 +1,6 @@
 import ExcelJS from "exceljs";
 import { saveAs } from "file-saver";
-import { MASTER_ASSET_DICTIONARY, TargetWorkbook } from "../../features/field/constants/telemetrySchema";
+import { MASTER_ASSET_DICTIONARY } from "../../features/field/constants/telemetrySchema";
 
 // Helper to translate 0-based index to Excel column letter
 const getExcelColumn = (index: number): string => {

@@ -2,11 +2,11 @@ import { useState, useEffect } from 'react';
 import { supabase } from '@/shared/api/supabaseClient';
 import { MASTER_ASSET_DICTIONARY } from '../constants/telemetrySchema';
 
-export const useTelemetryData = (
+export function useTelemetryData(
   targetHour: number,
   onComplete?: () => void,
   onSubmitSuccess?: (hour: number) => void
-) => {
+) {
   // 2. Exhaustive State Initialization
   const [formData, setFormData] = useState<Record<string, any>>({});
   const [isLoading, setIsLoading] = useState<boolean>(true);
@@ -162,6 +162,7 @@ export const useTelemetryData = (
       'pr2_ambient_temp',
       'it1_ambient_temp',
       'it2_ambient_temp',
+      'media_ambient_temp',
     ];
 
     const tempValues: number[] = [];
@@ -278,4 +279,4 @@ export const useTelemetryData = (
     fetchError,
     getVisibleMetrics,
   };
-};
+}

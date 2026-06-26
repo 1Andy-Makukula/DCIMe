@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import { NavLink, Outlet, useNavigate } from "react-router";
 import {
   LayoutGrid,
@@ -9,6 +10,7 @@ import {
   LogOut,
 } from "lucide-react";
 import { AirtelMark } from "@/shared/ui";
+import { useAuth } from "@/shared/context/AuthContext";
 
 // ── Nav tab definition ────────────────────────────────────────────────────────
 const NAV_TABS = [
@@ -22,6 +24,35 @@ const NAV_TABS = [
 // ── AdminLayout ───────────────────────────────────────────────────────────────
 export function AdminLayout() {
   const navigate = useNavigate();
+  const { employee, logout, isLoading } = useAuth();
+
+  useEffect(() => {
+    if (!isLoading && (!employee || employee.role !== "ADMIN")) {
+      navigate("/");
+    }
+  }, [employee, isLoading, navigate]);
+
+  const handleLogout = async () => {
+    await logout();
+    navigate("/");
+  };
+
+  if (isLoading) {
+    return (
+      <div className="h-screen w-full flex items-center justify-center bg-gray-50">
+        <div className="flex flex-col items-center gap-3">
+          <div className="w-8 h-8 rounded-full border-2 border-red-500 border-t-transparent animate-spin" />
+          <span className="text-xs font-bold text-gray-400 uppercase tracking-widest">Loading Admin Session...</span>
+        </div>
+      </div>
+    );
+  }
+
+  const name = employee?.full_name || "Admin User";
+  const parts = name.trim().split(/\s+/);
+  const initials = parts.length > 1
+    ? (parts[0][0] + parts[parts.length - 1][0]).toUpperCase()
+    : name.substring(0, 2).toUpperCase();
 
   return (
     <div className="h-screen flex flex-col bg-white overflow-hidden">
@@ -87,7 +118,7 @@ export function AdminLayout() {
 
             {/* Logout */}
             <button
-              onClick={() => navigate("/")}
+              onClick={handleLogout}
               className="flex items-center gap-1.5 text-[11px] font-bold text-gray-400 hover:text-red-500 px-2.5 py-1.5 rounded-lg hover:bg-gray-100 transition-all"
               aria-label="Logout"
             >
@@ -99,8 +130,9 @@ export function AdminLayout() {
             <div
               className="w-8 h-8 rounded-xl flex items-center justify-center text-white text-[11px] font-black flex-shrink-0"
               style={{ backgroundColor: "#FF0000" }}
+              title={name}
             >
-              AM
+              {initials}
             </div>
           </div>
         </div>

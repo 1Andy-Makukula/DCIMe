@@ -43,7 +43,7 @@ export function TechLayout() {
     : name.substring(0, 2).toUpperCase();
 
   const user = {
-    id: employee?.badge_id || "EMP-UNKNOWN",
+    id: employee?.employee_id || "EMP-UNKNOWN",
     name,
     initials,
   };

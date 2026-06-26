@@ -68,10 +68,7 @@ export function NocOverview() {
     loadChartData,
     thermalData,
     phaseAlerts,
-    lastSync,
     isLoading,
-    hasData,
-    refresh,
   } = useNocTelemetry();
 
   const currentLoad = loadChartData.length > 0
@@ -107,12 +104,10 @@ export function NocOverview() {
   }
 
   const [incidents, setIncidents] = React.useState<IncidentLog[]>([]);
-  const [isIncidentsLoading, setIsIncidentsLoading] = React.useState(true);
   const [filter, setFilter] = React.useState<"all" | "open" | "resolved">("all");
   const [searchQuery, setSearchQuery] = React.useState("");
 
   const fetchIncidents = async () => {
-    setIsIncidentsLoading(true);
     try {
       const { data, error } = await supabase
         .from("incidents")
@@ -122,8 +117,6 @@ export function NocOverview() {
       setIncidents(data || []);
     } catch (err) {
       console.error("Error fetching incidents for NOC:", err);
-    } finally {
-      setIsIncidentsLoading(false);
     }
   };
 

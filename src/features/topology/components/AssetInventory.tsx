@@ -33,249 +33,6 @@ interface Asset {
   lastSeen: string;
 }
 
-// ── Mock Dataset ──────────────────────────────────────────────────────────────
-const ASSETS: Asset[] = [
-  {
-    id:           "PWR-UPS-001",
-    name:         "UPS Unit 1",
-    manufacturer: "Vertiv",
-    model:        "Liebert EXL S1 80kVA",
-    category:     "Power",
-    ip:           "10.0.4.11",
-    firmware:     "v4.2.1",
-    location:     "Main Room",
-    rack:         "R-01",
-    status:       "Active",
-    liveMetric:   "48.1",
-    metricUnit:   "V DC",
-    lastSeen:     "14:31",
-  },
-  {
-    id:           "PWR-UPS-002",
-    name:         "UPS Unit 2",
-    manufacturer: "Vertiv",
-    model:        "Liebert EXL S1 80kVA",
-    category:     "Power",
-    ip:           "10.0.4.12",
-    firmware:     "v4.2.1",
-    location:     "Main Room",
-    rack:         "R-02",
-    status:       "Warning",
-    liveMetric:   "47.6",
-    metricUnit:   "V DC",
-    lastSeen:     "14:30",
-  },
-  {
-    id:           "PWR-GEN-001",
-    name:         "Diesel Generator A",
-    manufacturer: "Cummins",
-    model:        "C250 D5 250kVA",
-    category:     "Power",
-    ip:           "10.0.4.21",
-    firmware:     "v2.8.0",
-    location:     "Generator Room",
-    rack:         "—",
-    status:       "Standby",
-    liveMetric:   "0",
-    metricUnit:   "kW",
-    lastSeen:     "14:28",
-  },
-  {
-    id:           "PWR-GEN-002",
-    name:         "Diesel Generator B",
-    manufacturer: "Cummins",
-    model:        "C250 D5 250kVA",
-    category:     "Power",
-    ip:           "10.0.4.22",
-    firmware:     "v2.8.0",
-    location:     "Generator Room",
-    rack:         "—",
-    status:       "Standby",
-    liveMetric:   "0",
-    metricUnit:   "kW",
-    lastSeen:     "14:28",
-  },
-  {
-    id:           "PWR-PDU-001",
-    name:         "PDU Rack A",
-    manufacturer: "APC",
-    model:        "AP8941 Metered Rack PDU",
-    category:     "Power",
-    ip:           "10.0.4.15",
-    firmware:     "v6.9.6",
-    location:     "Main Room",
-    rack:         "R-01",
-    status:       "Active",
-    liveMetric:   "32",
-    metricUnit:   "A",
-    lastSeen:     "14:31",
-  },
-  {
-    id:           "PWR-PDU-002",
-    name:         "PDU Rack B",
-    manufacturer: "APC",
-    model:        "AP8941 Metered Rack PDU",
-    category:     "Power",
-    ip:           "10.0.4.16",
-    firmware:     "v6.9.6",
-    location:     "Power Room 1",
-    rack:         "R-04",
-    status:       "Active",
-    liveMetric:   "28",
-    metricUnit:   "A",
-    lastSeen:     "14:31",
-  },
-  {
-    id:           "COOL-CRAC-001",
-    name:         "CRAC Unit 1",
-    manufacturer: "Stulz",
-    model:        "CyberAir 3PRO DX",
-    category:     "Cooling",
-    ip:           "10.0.5.11",
-    firmware:     "v3.1.4",
-    location:     "Main Room",
-    rack:         "—",
-    status:       "Active",
-    liveMetric:   "20.7",
-    metricUnit:   "°C",
-    lastSeen:     "14:31",
-  },
-  {
-    id:           "COOL-CRAC-002",
-    name:         "CRAC Unit 2",
-    manufacturer: "Stulz",
-    model:        "CyberAir 3PRO DX",
-    category:     "Cooling",
-    ip:           "10.0.5.12",
-    firmware:     "v3.1.4",
-    location:     "Power Room 1",
-    rack:         "—",
-    status:       "Active",
-    liveMetric:   "19.2",
-    metricUnit:   "°C",
-    lastSeen:     "14:31",
-  },
-  {
-    id:           "COOL-CRAC-003",
-    name:         "CRAC Unit 3",
-    manufacturer: "Stulz",
-    model:        "CyberAir 3PRO DX",
-    category:     "Cooling",
-    ip:           "10.0.5.13",
-    firmware:     "v3.0.9",
-    location:     "Power Room 2",
-    rack:         "—",
-    status:       "Warning",
-    liveMetric:   "22.4",
-    metricUnit:   "°C",
-    lastSeen:     "14:29",
-  },
-  {
-    id:           "COOL-CRAC-004",
-    name:         "CRAC Unit 4",
-    manufacturer: "Stulz",
-    model:        "CyberAir 3PRO DX",
-    category:     "Cooling",
-    ip:           "10.0.5.14",
-    firmware:     "v3.1.4",
-    location:     "Entrance Room 1",
-    rack:         "—",
-    status:       "Active",
-    liveMetric:   "21.3",
-    metricUnit:   "°C",
-    lastSeen:     "14:31",
-  },
-  {
-    id:           "NET-SW-001",
-    name:         "Core Switch 1",
-    manufacturer: "Cisco",
-    model:        "Nexus 93180YC-EX",
-    category:     "Network",
-    ip:           "10.0.1.1",
-    firmware:     "NX-OS 10.2(5)",
-    location:     "Main Room",
-    rack:         "R-01",
-    status:       "Active",
-    liveMetric:   "40",
-    metricUnit:   "Gbps",
-    lastSeen:     "14:31",
-  },
-  {
-    id:           "NET-SW-002",
-    name:         "Core Switch 2",
-    manufacturer: "Cisco",
-    model:        "Nexus 93180YC-EX",
-    category:     "Network",
-    ip:           "10.0.1.2",
-    firmware:     "NX-OS 10.2(5)",
-    location:     "Main Room",
-    rack:         "R-02",
-    status:       "Active",
-    liveMetric:   "38",
-    metricUnit:   "Gbps",
-    lastSeen:     "14:31",
-  },
-  {
-    id:           "PWR-RECT-001",
-    name:         "Rectifier A – Rm 1",
-    manufacturer: "Eltek",
-    model:        "Flatpack2 HE 48V",
-    category:     "Power",
-    ip:           "10.0.4.31",
-    firmware:     "v5.3.0",
-    location:     "Power Room 1",
-    rack:         "R-05",
-    status:       "Active",
-    liveMetric:   "48.1",
-    metricUnit:   "V DC",
-    lastSeen:     "14:31",
-  },
-  {
-    id:           "PWR-RECT-002",
-    name:         "Rectifier B – Rm 2",
-    manufacturer: "Eltek",
-    model:        "Flatpack2 HE 48V",
-    category:     "Power",
-    ip:           "10.0.4.32",
-    firmware:     "v5.3.0",
-    location:     "Power Room 2",
-    rack:         "R-06",
-    status:       "Warning",
-    liveMetric:   "47.8",
-    metricUnit:   "V DC",
-    lastSeen:     "14:25",
-  },
-  {
-    id:           "COMP-SRV-001",
-    name:         "Management Server",
-    manufacturer: "Dell",
-    model:        "PowerEdge R750xs",
-    category:     "Compute",
-    ip:           "10.0.2.10",
-    firmware:     "iDRAC 7.00.00",
-    location:     "Main Room",
-    rack:         "R-03",
-    status:       "Active",
-    liveMetric:   "34",
-    metricUnit:   "% CPU",
-    lastSeen:     "14:31",
-  },
-  {
-    id:           "NET-FW-001",
-    name:         "Perimeter Firewall",
-    manufacturer: "Fortinet",
-    model:        "FortiGate 600F",
-    category:     "Network",
-    ip:           "10.0.1.254",
-    firmware:     "FortiOS 7.4.3",
-    location:     "Main Room",
-    rack:         "R-01",
-    status:       "Offline",
-    liveMetric:   "—",
-    metricUnit:   "",
-    lastSeen:     "09:14",
-  },
-];
 
 // ── Category icon map ─────────────────────────────────────────────────────────
 const CATEGORY_ICON: Record<AssetCategory, React.ReactNode> = {
@@ -567,14 +324,13 @@ function AddAssetModal({ isOpen, onClose, onSaveSuccess }: AddAssetModalProps) {
 // ── Main Component ────────────────────────────────────────────────────────────
 export function AssetInventory() {
   const [assets,         setAssets]         = useState<Asset[]>([]);
-  const [isLoading,      setIsLoading]      = useState(true);
+
   const [query,          setQuery]          = useState("");
   const [filterCategory, setFilterCategory] = useState("");
   const [filterStatus,   setFilterStatus]   = useState("");
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
 
   const fetchAssets = async () => {
-    setIsLoading(true);
     try {
       const { data, error } = await supabase
         .from("equipment_registry")
@@ -678,8 +434,6 @@ export function AssetInventory() {
       }
     } catch (err) {
       console.error("Error loading live assets:", err);
-    } finally {
-      setIsLoading(false);
     }
   };
 
@@ -962,7 +716,7 @@ export function AssetInventory() {
         {/* Table footer */}
         <div className="px-5 py-3 border-t border-gray-100 flex items-center justify-between bg-gray-50/50">
           <span className="text-[10px] font-semibold text-gray-400">
-            Showing {filtered.length} of {ASSETS.length} records · Last sync: 14:31 UTC+2
+            Showing {filtered.length} of {assets.length} records · Site NTC ZM-0874
           </span>
           <div className="flex items-center gap-1.5 text-[10px] font-black text-gray-400 uppercase tracking-wider">
             <ArrowUpDown size={11} />
