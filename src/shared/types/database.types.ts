@@ -52,19 +52,19 @@ export type Database = {
       }
       equipment_registry: {
         Row: {
-          category: "UPS" | "GENERATOR" | "MAINS" | "RECTIFIER" | "AIRCON"
+          category: "UPS" | "GENERATOR" | "MAINS" | "RECTIFIER" | "AIRCON" | "ENVIRONMENT" | "FIRE_SUPPRESSION" | "FUEL_LOGISTICS" | "LOAD_PANEL"
           equipment_id: string
           is_active: boolean | null
           location: string
         }
         Insert: {
-          category: "UPS" | "GENERATOR" | "MAINS" | "RECTIFIER" | "AIRCON"
+          category: "UPS" | "GENERATOR" | "MAINS" | "RECTIFIER" | "AIRCON" | "ENVIRONMENT" | "FIRE_SUPPRESSION" | "FUEL_LOGISTICS" | "LOAD_PANEL"
           equipment_id: string
           is_active?: boolean | null
           location: string
         }
         Update: {
-          category?: "UPS" | "GENERATOR" | "MAINS" | "RECTIFIER" | "AIRCON"
+          category?: "UPS" | "GENERATOR" | "MAINS" | "RECTIFIER" | "AIRCON" | "ENVIRONMENT" | "FIRE_SUPPRESSION" | "FUEL_LOGISTICS" | "LOAD_PANEL"
           equipment_id?: string
           is_active?: boolean | null
           location?: string
@@ -147,6 +147,14 @@ export type Database = {
           logged_by: string | null
           site_id: string | null
           timestamp: string | null
+          notes: string | null
+          certified: boolean | null
+          technician_name: string | null
+          technician_id: string | null
+          signature_id: string | null
+          shift_duration: string | null
+          routine_logs_completed: number | null
+          incidents_filed: number | null
         }
         Insert: {
           active_power_source?: "MAINS" | "GENERATOR" | "BLACKOUT" | null
@@ -154,6 +162,14 @@ export type Database = {
           logged_by?: string | null
           site_id?: string | null
           timestamp?: string | null
+          notes?: string | null
+          certified?: boolean | null
+          technician_name?: string | null
+          technician_id?: string | null
+          signature_id?: string | null
+          shift_duration?: string | null
+          routine_logs_completed?: number | null
+          incidents_filed?: number | null
         }
         Update: {
           active_power_source?: "MAINS" | "GENERATOR" | "BLACKOUT" | null
@@ -161,6 +177,14 @@ export type Database = {
           logged_by?: string | null
           site_id?: string | null
           timestamp?: string | null
+          notes?: string | null
+          certified?: boolean | null
+          technician_name?: string | null
+          technician_id?: string | null
+          signature_id?: string | null
+          shift_duration?: string | null
+          routine_logs_completed?: number | null
+          incidents_filed?: number | null
         }
         Relationships: [
           {
@@ -169,41 +193,10 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "employees"
             referencedColumns: ["id"]
-          },
+          }
         ]
       }
-      telemetry_environment: {
-        Row: {
-          humidity_pct: number | null
-          id: string
-          log_id: string | null
-          room_name: string
-          temperature_c: number | null
-        }
-        Insert: {
-          humidity_pct?: number | null
-          id?: string
-          log_id?: string | null
-          room_name: string
-          temperature_c?: number | null
-        }
-        Update: {
-          humidity_pct?: number | null
-          id?: string
-          log_id?: string | null
-          room_name?: string
-          temperature_c?: number | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "telemetry_environment_log_id_fkey"
-            columns: ["log_id"]
-            isOneToOne: false
-            referencedRelation: "shift_reports"
-            referencedColumns: ["log_id"]
-          },
-        ]
-      }
+
       telemetry_logs: {
         Row: {
           asset_id: string
@@ -240,146 +233,7 @@ export type Database = {
         }
         Relationships: []
       }
-      telemetry_mains: {
-        Row: {
-          id: string
-          load_amps: number | null
-          load_voltage: number | null
-          log_id: string | null
-          power_factor: number | null
-          total_kw: number | null
-        }
-        Insert: {
-          id?: string
-          load_amps?: number | null
-          load_voltage?: number | null
-          log_id?: string | null
-          power_factor?: number | null
-          total_kw?: number | null
-        }
-        Update: {
-          id?: string
-          load_amps?: number | null
-          load_voltage?: number | null
-          log_id?: string | null
-          power_factor?: number | null
-          total_kw?: number | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "telemetry_mains_log_id_fkey"
-            columns: ["log_id"]
-            isOneToOne: false
-            referencedRelation: "shift_reports"
-            referencedColumns: ["log_id"]
-          },
-        ]
-      }
-      telemetry_rectifiers: {
-        Row: {
-          amperage: number | null
-          equipment_id: string | null
-          id: string
-          load_pct: number | null
-          log_id: string | null
-          voltage: number | null
-        }
-        Insert: {
-          amperage?: number | null
-          equipment_id?: string | null
-          id?: string
-          load_pct?: number | null
-          log_id?: string | null
-          voltage?: number | null
-        }
-        Update: {
-          amperage?: number | null
-          equipment_id?: string | null
-          id?: string
-          load_pct?: number | null
-          log_id?: string | null
-          voltage?: number | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "telemetry_rectifiers_equipment_id_fkey"
-            columns: ["equipment_id"]
-            isOneToOne: false
-            referencedRelation: "equipment_registry"
-            referencedColumns: ["equipment_id"]
-          },
-          {
-            foreignKeyName: "telemetry_rectifiers_log_id_fkey"
-            columns: ["log_id"]
-            isOneToOne: false
-            referencedRelation: "shift_reports"
-            referencedColumns: ["log_id"]
-          },
-        ]
-      }
-      telemetry_ups: {
-        Row: {
-          battery_vdc: number | null
-          charge_pct: number | null
-          equipment_id: string | null
-          id: string
-          l1_amps: number | null
-          l1_volts: number | null
-          l2_amps: number | null
-          l2_volts: number | null
-          l3_amps: number | null
-          l3_volts: number | null
-          log_id: string | null
-          total_load_kw: number | null
-          used_capacity_pct: number | null
-        }
-        Insert: {
-          battery_vdc?: number | null
-          charge_pct?: number | null
-          equipment_id?: string | null
-          id?: string
-          l1_amps?: number | null
-          l1_volts?: number | null
-          l2_amps?: number | null
-          l2_volts?: number | null
-          l3_amps?: number | null
-          l3_volts?: number | null
-          log_id?: string | null
-          total_load_kw?: number | null
-          used_capacity_pct?: number | null
-        }
-        Update: {
-          battery_vdc?: number | null
-          charge_pct?: number | null
-          equipment_id?: string | null
-          id?: string
-          l1_amps?: number | null
-          l1_volts?: number | null
-          l2_amps?: number | null
-          l2_volts?: number | null
-          l3_amps?: number | null
-          l3_volts?: number | null
-          log_id?: string | null
-          total_load_kw?: number | null
-          used_capacity_pct?: number | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "telemetry_ups_equipment_id_fkey"
-            columns: ["equipment_id"]
-            isOneToOne: false
-            referencedRelation: "equipment_registry"
-            referencedColumns: ["equipment_id"]
-          },
-          {
-            foreignKeyName: "telemetry_ups_log_id_fkey"
-            columns: ["log_id"]
-            isOneToOne: false
-            referencedRelation: "shift_reports"
-            referencedColumns: ["log_id"]
-          },
-        ]
-      }
+
     }
     Views: {
       [_ in never]: never
