@@ -31,6 +31,8 @@ interface Incident {
   description: string;
   telemetry:   string;
   category:    string;
+  photoUrl?:   string | null;
+  raisedByName?: string;
   // only on active
   acknowledged?: boolean;
   acknowledgedBy?: string;
@@ -99,6 +101,71 @@ function AckBadge({ by, at }: { by: string; at: string }) {
       <User size={9} />
       ACK · {by} · {at}
     </span>
+  );
+}
+
+function EvidenceImage({ photoUrl, technicianName }: { photoUrl?: string | null; technicianName?: string }) {
+  const name = technicianName || "Unknown Technician";
+  const getInitials = (n: string) => {
+    const parts = n.trim().split(/\s+/);
+    return parts.length > 1
+      ? (parts[0][0] + parts[parts.length - 1][0]).toUpperCase()
+      : n.substring(0, 2).toUpperCase();
+  };
+
+  const getStableColors = (n: string) => {
+    const themes = [
+      { bg: "from-rose-500 to-red-600", border: "border-rose-200" },
+      { bg: "from-blue-500 to-indigo-600", border: "border-blue-200" },
+      { bg: "from-emerald-500 to-teal-600", border: "border-emerald-200" },
+      { bg: "from-violet-500 to-purple-600", border: "border-violet-200" },
+      { bg: "from-amber-500 to-orange-600", border: "border-amber-200" },
+      { bg: "from-cyan-500 to-sky-600", border: "border-cyan-200" },
+      { bg: "from-pink-500 to-fuchsia-600", border: "border-pink-200" },
+      { bg: "from-teal-500 to-emerald-600", border: "border-teal-200" }
+    ];
+    if (!n) return themes[0];
+    let hash = 0;
+    for (let i = 0; i < n.length; i++) {
+      hash = n.charCodeAt(i) + ((hash << 5) - hash);
+    }
+    const index = Math.abs(hash) % themes.length;
+    return themes[index];
+  };
+
+  if (photoUrl) {
+    return (
+      <div className="mt-3">
+        <div className="text-[9px] font-black text-gray-400 uppercase tracking-widest mb-1.5">
+          Photo Evidence
+        </div>
+        <div className="relative rounded-2xl overflow-hidden border border-gray-150 max-h-80 shadow-sm max-w-md bg-gray-50 flex items-center justify-center">
+          <img 
+            src={photoUrl} 
+            alt="Incident Evidence" 
+            className="w-full h-full object-contain max-h-80"
+          />
+        </div>
+      </div>
+    );
+  }
+
+  const theme = getStableColors(name);
+  return (
+    <div className="mt-3">
+      <div className="text-[9px] font-black text-gray-400 uppercase tracking-widest mb-1.5">
+        Photo Evidence
+      </div>
+      <div className={`relative rounded-2xl overflow-hidden border-2 border-dashed ${theme.border} p-5 max-w-md bg-gradient-to-br ${theme.bg} text-white shadow-sm flex flex-col items-center justify-center text-center space-y-2`}>
+        <div className="w-12 h-12 rounded-full bg-white/20 backdrop-blur-md flex items-center justify-center text-xs font-black tracking-wider border border-white/20">
+          {getInitials(name)}
+        </div>
+        <div>
+          <span className="text-xs font-black uppercase tracking-wider block">No Photo Attached</span>
+          <span className="text-[10px] opacity-80 block mt-0.5 font-medium">Reported by {name}</span>
+        </div>
+      </div>
+    </div>
   );
 }
 
@@ -197,6 +264,9 @@ function ActiveCard({
               ))}
             </div>
           </div>
+
+          {/* Photo Evidence */}
+          <EvidenceImage photoUrl={incident.photoUrl} technicianName={incident.raisedByName} />
 
           {/* Incident ID row */}
           <div className="flex items-center gap-2 text-[10px] font-semibold text-gray-400">
@@ -313,6 +383,9 @@ function ResolvedCard({ incident }: { incident: Incident }) {
             </div>
           </div>
 
+          {/* Photo Evidence */}
+          <EvidenceImage photoUrl={incident.photoUrl} technicianName={incident.raisedByName} />
+
           {/* Resolution note */}
           <div>
             <div className="text-[9px] font-black text-gray-400 uppercase tracking-widest mb-1.5">
@@ -427,6 +500,8 @@ export function AlertsLog() {
       description:    row.notes || "No description provided",
       telemetry:      telemetryStr,
       category:       categoryStr,
+      photoUrl:       row.photo_url,
+      raisedByName:   row.raised_by_name || "Unknown Technician",
       acknowledged:   !!localAck,
       acknowledgedBy: localAck?.by,
       acknowledgedAt: localAck ? formatShortTime(localAck.at) : undefined,

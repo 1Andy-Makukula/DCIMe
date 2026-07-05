@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useRef } from "react";
 import { useNavigate, useOutletContext } from "react-router";
 import { 
   Camera, 
@@ -6,7 +6,6 @@ import {
   CheckCircle2, 
   X, 
   AlertOctagon, 
-  Image as ImageIcon,
   ArrowLeft,
   FileText,
   MessageSquare,
@@ -15,6 +14,47 @@ import {
 } from "lucide-react";
 import { useIncidents } from "../hooks/useIncidents";
 import { TechUser } from "./TechLayout";
+
+// Utility to compress image and convert to WebP base64 in-browser
+const compressToWebP = (file: File, maxWidth = 800, maxHeight = 800, quality = 0.7): Promise<string> => {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.readAsDataURL(file);
+    reader.onload = (event) => {
+      const img = new Image();
+      img.src = event.target?.result as string;
+      img.onload = () => {
+        const canvas = document.createElement("canvas");
+        let width = img.width;
+        let height = img.height;
+
+        if (width > maxWidth) {
+          height = Math.round((height * maxWidth) / width);
+          width = maxWidth;
+        }
+        if (height > maxHeight) {
+          width = Math.round((width * maxHeight) / height);
+          height = maxHeight;
+        }
+
+        canvas.width = width;
+        canvas.height = height;
+
+        const ctx = canvas.getContext("2d");
+        if (!ctx) {
+          reject(new Error("Canvas context is not available"));
+          return;
+        }
+
+        ctx.drawImage(img, 0, 0, width, height);
+        const base64 = canvas.toDataURL("image/webp", quality);
+        resolve(base64);
+      };
+      img.onerror = (err) => reject(err);
+    };
+    reader.onerror = (err) => reject(err);
+  });
+};
 
 export function IncidentReport() {
   const navigate = useNavigate();
@@ -27,6 +67,9 @@ export function IncidentReport() {
   
   // Tab state: "report" or "history"
   const [activeTab, setActiveTab] = useState<"report" | "history">("report");
+
+  // Ref for the hidden camera/file input
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Report Form State
   const [asset, setAsset] = useState("UPS-1");
@@ -58,13 +101,29 @@ export function IncidentReport() {
   ];
 
   const handlePhotoUpload = () => {
-    // Mock photo selection
-    setPhoto("incident_capture_zone1.jpg");
+    // Trigger hidden camera file input
+    fileInputRef.current?.click();
+  };
+
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    try {
+      const compressedBase64 = await compressToWebP(file);
+      setPhoto(compressedBase64);
+    } catch (err) {
+      console.error("Image processing failed:", err);
+      alert("Failed to process and compress the captured image. Please try again.");
+    }
   };
 
   const handleRemovePhoto = (e: React.MouseEvent) => {
     e.stopPropagation();
     setPhoto(null);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = "";
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -232,6 +291,16 @@ export function IncidentReport() {
           </div>
 
           <form onSubmit={handleSubmit} className="bg-white rounded-3xl border border-gray-100 shadow-sm p-5 flex flex-col gap-6">
+            {/* Hidden Input for Camera Capture */}
+            <input
+              type="file"
+              ref={fileInputRef}
+              accept="image/*"
+              capture="environment"
+              onChange={handleFileChange}
+              className="hidden"
+            />
+
             {/* Field 1: Asset Selector */}
             <div className="space-y-2">
               <label className="text-xs font-black text-gray-400 uppercase tracking-widest block">
@@ -291,7 +360,7 @@ export function IncidentReport() {
                 type="datetime-local"
                 value={occurredAt}
                 onChange={(e) => setOccurredAt(e.target.value)}
-                className="w-full p-4 rounded-2xl bg-gray-50 border border-gray-200 text-sm font-semibold text-gray-850 focus:outline-none focus:border-red-500 transition-colors"
+                className="w-full p-4 rounded-2xl bg-gray-50 border border-gray-200 text-sm font-semibold text-gray-900 focus:outline-none focus:border-red-500 transition-colors"
                 required
               />
             </div>
@@ -303,27 +372,31 @@ export function IncidentReport() {
               </label>
               <div
                 onClick={handlePhotoUpload}
-                className={`h-32 bg-gray-50 border-2 border-dashed rounded-2xl flex flex-col items-center justify-center text-gray-500 cursor-pointer active:bg-gray-100 transition-colors p-4 relative overflow-hidden ${
+                className={`h-32 bg-gray-50 border-2 border-dashed rounded-2xl flex flex-col items-center justify-center text-gray-500 cursor-pointer active:bg-gray-100 transition-colors p-0 relative overflow-hidden ${
                   photo ? "border-green-400" : "border-gray-200"
                 }`}
               >
                 {photo ? (
-                  <div className="flex flex-col items-center justify-center space-y-1">
-                    <div className="w-9 h-9 rounded-xl bg-green-50 text-green-500 flex items-center justify-center border border-green-100">
-                      <ImageIcon size={18} />
+                  <div className="w-full h-full flex flex-col items-center justify-center relative p-0">
+                    <img 
+                      src={photo} 
+                      alt="Captured evidence preview" 
+                      className="w-full h-full object-cover rounded-2xl"
+                    />
+                    <div className="absolute inset-0 bg-black/45 flex flex-col items-center justify-center text-white opacity-0 hover:opacity-100 transition-opacity rounded-2xl">
+                      <Camera size={20} />
+                      <span className="text-[10px] font-bold mt-1 uppercase tracking-wider">Tap to retake</span>
                     </div>
-                    <span className="text-xs font-bold text-gray-800">{photo}</span>
-                    <span className="text-[10px] text-gray-400">Tap to replace</span>
                     <button
                       type="button"
                       onClick={handleRemovePhoto}
-                      className="absolute top-2 right-2 p-1.5 rounded-full bg-gray-200/80 hover:bg-gray-300 text-gray-600 transition-colors"
+                      className="absolute top-2 right-2 p-1.5 rounded-full bg-black/60 hover:bg-black/80 text-white transition-colors z-10"
                     >
                       <X size={12} />
                     </button>
                   </div>
                 ) : (
-                  <div className="flex flex-col items-center justify-center space-y-1.5 text-center">
+                  <div className="flex flex-col items-center justify-center space-y-1.5 text-center px-4">
                     <Camera size={24} className="text-gray-400" />
                     <div>
                       <span className="text-xs font-bold text-gray-700 block">Tap to take photo</span>

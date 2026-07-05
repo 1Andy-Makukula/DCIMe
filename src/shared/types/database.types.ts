@@ -1,4 +1,4 @@
-export type Json =
+﻿export type Json =
   | string
   | number
   | boolean
@@ -18,53 +18,53 @@ export type Database = {
         Row: {
           auth_id: string | null
           created_at: string | null
-          full_name: string
-          id: string
           email: string
           employee_id: string
+          full_name: string
+          id: string
           phone_number: string | null
+          role: string
           site_id: string
-          role: "ADMIN" | "FIELD_TECH"
         }
         Insert: {
           auth_id?: string | null
           created_at?: string | null
-          full_name: string
-          id?: string
           email: string
           employee_id: string
+          full_name: string
+          id?: string
           phone_number?: string | null
-          site_id?: string
-          role: "ADMIN" | "FIELD_TECH"
+          role: string
+          site_id: string
         }
         Update: {
           auth_id?: string | null
           created_at?: string | null
-          full_name?: string
-          id?: string
           email?: string
           employee_id?: string
+          full_name?: string
+          id?: string
           phone_number?: string | null
+          role?: string
           site_id?: string
-          role?: "ADMIN" | "FIELD_TECH"
         }
         Relationships: []
       }
       equipment_registry: {
         Row: {
-          category: "UPS" | "GENERATOR" | "MAINS" | "RECTIFIER" | "AIRCON" | "ENVIRONMENT" | "FIRE_SUPPRESSION" | "FUEL_LOGISTICS" | "LOAD_PANEL"
+          category: string
           equipment_id: string
           is_active: boolean | null
           location: string
         }
         Insert: {
-          category: "UPS" | "GENERATOR" | "MAINS" | "RECTIFIER" | "AIRCON" | "ENVIRONMENT" | "FIRE_SUPPRESSION" | "FUEL_LOGISTICS" | "LOAD_PANEL"
+          category: string
           equipment_id: string
           is_active?: boolean | null
           location: string
         }
         Update: {
-          category?: "UPS" | "GENERATOR" | "MAINS" | "RECTIFIER" | "AIRCON" | "ENVIRONMENT" | "FIRE_SUPPRESSION" | "FUEL_LOGISTICS" | "LOAD_PANEL"
+          category?: string
           equipment_id?: string
           is_active?: boolean | null
           location?: string
@@ -73,118 +73,118 @@ export type Database = {
       }
       incidents: {
         Row: {
-          id: string
-          ticket_number: string
-          status: "OPEN" | "RESOLVED"
-          site_name: string
           asset_id: string
-          severity: "low" | "medium" | "critical"
-          notes: string | null
-          photo_url: string | null
           comments: Json
-          created_at: string | null
-          raised_by_name: string
-          raised_by_id: string
-          occurred_at: string
-          resolved_at: string | null
-          resolved_by_name: string | null
-          resolved_by_id: string | null
-          receipt_number: string | null
-          impact: string | null
           contractor_engaged: string | null
+          created_at: string | null
+          id: string
+          impact: string | null
+          notes: string | null
+          occurred_at: string
+          photo_url: string | null
+          raised_by_id: string
+          raised_by_name: string
+          receipt_number: string | null
           resolution_details: string | null
+          resolved_at: string | null
+          resolved_by_id: string | null
+          resolved_by_name: string | null
+          severity: string
+          site_name: string
+          status: string
+          ticket_number: string
         }
         Insert: {
-          id?: string
-          ticket_number: string
-          status?: "OPEN" | "RESOLVED"
-          site_name?: string
           asset_id: string
-          severity: "low" | "medium" | "critical"
-          notes?: string | null
-          photo_url?: string | null
           comments?: Json
-          created_at?: string | null
-          raised_by_name?: string
-          raised_by_id?: string
-          occurred_at?: string
-          resolved_at?: string | null
-          resolved_by_name?: string | null
-          resolved_by_id?: string | null
-          receipt_number?: string | null
-          impact?: string | null
           contractor_engaged?: string | null
+          created_at?: string | null
+          id?: string
+          impact?: string | null
+          notes?: string | null
+          occurred_at?: string
+          photo_url?: string | null
+          raised_by_id?: string
+          raised_by_name?: string
+          receipt_number?: string | null
           resolution_details?: string | null
+          resolved_at?: string | null
+          resolved_by_id?: string | null
+          resolved_by_name?: string | null
+          severity: string
+          site_name?: string
+          status?: string
+          ticket_number: string
         }
         Update: {
-          id?: string
-          ticket_number?: string
-          status?: "OPEN" | "RESOLVED"
-          site_name?: string
           asset_id?: string
-          severity?: "low" | "medium" | "critical"
-          notes?: string | null
-          photo_url?: string | null
           comments?: Json
-          created_at?: string | null
-          raised_by_name?: string
-          raised_by_id?: string
-          occurred_at?: string
-          resolved_at?: string | null
-          resolved_by_name?: string | null
-          resolved_by_id?: string | null
-          receipt_number?: string | null
-          impact?: string | null
           contractor_engaged?: string | null
+          created_at?: string | null
+          id?: string
+          impact?: string | null
+          notes?: string | null
+          occurred_at?: string
+          photo_url?: string | null
+          raised_by_id?: string
+          raised_by_name?: string
+          receipt_number?: string | null
           resolution_details?: string | null
+          resolved_at?: string | null
+          resolved_by_id?: string | null
+          resolved_by_name?: string | null
+          severity?: string
+          site_name?: string
+          status?: string
+          ticket_number?: string
         }
         Relationships: []
       }
       shift_reports: {
         Row: {
-          active_power_source: "MAINS" | "GENERATOR" | "BLACKOUT" | null
+          active_power_source: string | null
+          certified: boolean | null
+          incidents_filed: number | null
           log_id: string
           logged_by: string | null
-          site_id: string | null
-          timestamp: string | null
           notes: string | null
-          certified: boolean | null
-          technician_name: string | null
-          technician_id: string | null
-          signature_id: string | null
-          shift_duration: string | null
           routine_logs_completed: number | null
-          incidents_filed: number | null
+          shift_duration: string | null
+          signature_id: string | null
+          site_id: string | null
+          technician_id: string | null
+          technician_name: string | null
+          timestamp: string | null
         }
         Insert: {
-          active_power_source?: "MAINS" | "GENERATOR" | "BLACKOUT" | null
+          active_power_source?: string | null
+          certified?: boolean | null
+          incidents_filed?: number | null
           log_id?: string
           logged_by?: string | null
-          site_id?: string | null
-          timestamp?: string | null
           notes?: string | null
-          certified?: boolean | null
-          technician_name?: string | null
-          technician_id?: string | null
-          signature_id?: string | null
-          shift_duration?: string | null
           routine_logs_completed?: number | null
-          incidents_filed?: number | null
+          shift_duration?: string | null
+          signature_id?: string | null
+          site_id?: string | null
+          technician_id?: string | null
+          technician_name?: string | null
+          timestamp?: string | null
         }
         Update: {
-          active_power_source?: "MAINS" | "GENERATOR" | "BLACKOUT" | null
+          active_power_source?: string | null
+          certified?: boolean | null
+          incidents_filed?: number | null
           log_id?: string
           logged_by?: string | null
-          site_id?: string | null
-          timestamp?: string | null
           notes?: string | null
-          certified?: boolean | null
-          technician_name?: string | null
-          technician_id?: string | null
-          signature_id?: string | null
-          shift_duration?: string | null
           routine_logs_completed?: number | null
-          incidents_filed?: number | null
+          shift_duration?: string | null
+          signature_id?: string | null
+          site_id?: string | null
+          technician_id?: string | null
+          technician_name?: string | null
+          timestamp?: string | null
         }
         Relationships: [
           {
@@ -193,10 +193,9 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "employees"
             referencedColumns: ["id"]
-          }
+          },
         ]
       }
-
       telemetry_logs: {
         Row: {
           asset_id: string
@@ -233,7 +232,6 @@ export type Database = {
         }
         Relationships: []
       }
-
     }
     Views: {
       [_ in never]: never

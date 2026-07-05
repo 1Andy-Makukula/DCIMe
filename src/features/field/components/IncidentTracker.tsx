@@ -185,7 +185,7 @@ export function IncidentTracker() {
                     <CheckCircle2 size={32} />
                   </div>
                   <div className="space-y-1">
-                    <h3 className="font-black text-gray-955 text-sm">No Active Incidents</h3>
+                    <h3 className="font-black text-gray-800 text-sm">No Active Incidents</h3>
                     <p className="text-xs text-gray-400 max-w-[240px] mx-auto">
                       All systems are operating nominally. No hardware faults reported.
                     </p>
@@ -258,7 +258,7 @@ export function IncidentTracker() {
                     <FileText size={30} />
                   </div>
                   <div className="space-y-1">
-                    <h3 className="font-black text-gray-955 text-sm">Archive Empty</h3>
+                    <h3 className="font-black text-gray-800 text-sm">Archive Empty</h3>
                     <p className="text-xs text-gray-400 max-w-[240px] mx-auto">
                       No resolved incidents logged in the database archive.
                     </p>
@@ -318,7 +318,7 @@ export function IncidentTracker() {
 
       {/* Receipt Success Overlay Screen */}
       {showReceipt && (
-        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-md flex items-center justify-center p-4">
+        <div className="fixed inset-x-0 top-0 bottom-16 z-50 bg-black/60 backdrop-blur-md flex items-center justify-center p-4">
           <div className="bg-white w-full max-w-sm rounded-[32px] border border-gray-100 shadow-2xl p-6 text-center space-y-6 animate-fade-in relative overflow-hidden">
             <div className="absolute -top-24 -left-24 w-48 h-48 bg-green-500 rounded-full blur-3xl opacity-10 pointer-events-none" />
             <div className="absolute -bottom-24 -right-24 w-48 h-48 bg-red-500 rounded-full blur-3xl opacity-10 pointer-events-none" />
@@ -369,8 +369,8 @@ export function IncidentTracker() {
 
       {/* Main Full Details Modal & Editing/Resolution Flow */}
       {selectedIncident && (
-        <div className="fixed inset-0 z-50 bg-black/55 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-4">
-          <div className="bg-white w-full sm:max-w-md rounded-t-[32px] sm:rounded-[32px] border-t sm:border border-gray-100 shadow-2xl overflow-hidden max-h-[90vh] flex flex-col animate-slide-up">
+        <div className="fixed inset-x-0 top-0 bottom-16 z-50 bg-black/55 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-4">
+          <div className="bg-white w-full sm:max-w-md rounded-t-[32px] sm:rounded-[32px] border-t sm:border border-gray-100 shadow-2xl overflow-hidden max-h-[calc(100vh-5rem)] flex flex-col animate-slide-up">
             {/* Modal Header */}
             <div className="px-6 py-5 border-b border-gray-100 flex items-center justify-between shrink-0">
               <div>
@@ -587,7 +587,7 @@ export function IncidentTracker() {
                         type="datetime-local"
                         value={resResolvedAt}
                         onChange={(e) => setResResolvedAt(e.target.value)}
-                        className="w-full p-3.5 rounded-xl bg-gray-50 border border-gray-200 text-xs font-semibold text-gray-800 focus:outline-none focus:border-red-500"
+                        className="w-full p-3.5 rounded-xl bg-gray-50 border border-gray-200 text-xs font-semibold text-gray-900 focus:outline-none focus:border-red-500"
                       />
                     </div>
 

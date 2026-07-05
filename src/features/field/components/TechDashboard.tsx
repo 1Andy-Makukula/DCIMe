@@ -8,10 +8,12 @@ import {
   ShieldCheck,
   MessageSquare,
   AlertOctagon,
-  Loader2
+  Loader2,
+  FileText
 } from "lucide-react";
 import { ShiftTimeline } from "./ShiftTimeline";
 import { RoutineTasksDashboard } from "./RoutineTasksDashboard";
+import { PrintableChecklist } from "./PrintableChecklist";
 import { supabase } from "@/shared/api/supabaseClient";
 import { useShiftReports } from "../hooks/useShiftReports";
 import { TechUser } from "./TechLayout";
@@ -22,8 +24,8 @@ export function TechDashboard() {
   const [completedHours, setCompletedHours] = useState<number[]>([]);
   const [currentTime, setCurrentTime] = useState(new Date());
   
-  // Tab state: "checklist" or "handover"
-  const [activeTab, setActiveTab] = useState<"checklist" | "handover">("checklist");
+  // Tab state: "checklist", "handover", or "maintenance"
+  const [activeTab, setActiveTab] = useState<"checklist" | "handover" | "maintenance">("checklist");
 
   const { shiftReports, isLoading: isHandoversLoading, error: handoversError, refresh: refreshHandovers } = useShiftReports();
 
@@ -96,9 +98,9 @@ export function TechDashboard() {
   }
 
   return (
-    <div className="space-y-6 max-w-md mx-auto">
+    <div className="space-y-6 max-w-4xl mx-auto">
       {/* Shift Context Card */}
-      <div className="relative overflow-hidden bg-gradient-to-br from-gray-900 via-gray-950 to-gray-900 rounded-3xl p-5 text-white shadow-xl border border-gray-800">
+      <div className="relative overflow-hidden bg-gradient-to-br from-gray-900 via-gray-950 to-gray-900 rounded-3xl p-5 text-white shadow-xl border border-gray-800 print:hidden max-w-md mx-auto">
         {/* Subtle decorative glowing spot */}
         <div className="absolute -top-16 -right-16 w-36 h-36 bg-red-600 rounded-full blur-3xl opacity-20 pointer-events-none" />
 
@@ -139,7 +141,7 @@ export function TechDashboard() {
       </div>
 
       {/* Segmented Tab Controls */}
-      <div className="bg-white border border-gray-100 rounded-2xl p-1.5 flex shadow-sm">
+      <div className="bg-white border border-gray-100 rounded-2xl p-1.5 flex shadow-sm print:hidden max-w-md mx-auto">
         <button
           onClick={() => setActiveTab("checklist")}
           className={`flex-1 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider transition-all flex items-center justify-center gap-2 ${
@@ -149,8 +151,21 @@ export function TechDashboard() {
           }`}
         >
           <CheckCircle size={14} />
-          <span>Routine Checklist</span>
+          <span className="hidden sm:inline">Routine</span> Checklist
         </button>
+        
+        <button
+          onClick={() => setActiveTab("maintenance")}
+          className={`flex-1 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider transition-all flex items-center justify-center gap-2 ${
+            activeTab === "maintenance"
+              ? "bg-red-500 text-white shadow-sm shadow-red-500/10"
+              : "text-gray-400 hover:text-gray-600"
+          }`}
+        >
+          <FileText size={14} />
+          <span className="hidden sm:inline">Daily PDF</span> Checklist
+        </button>
+
         <button
           onClick={() => { setActiveTab("handover"); refreshHandovers(); }}
           className={`flex-1 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider transition-all flex items-center justify-center gap-2 relative ${
@@ -160,7 +175,7 @@ export function TechDashboard() {
           }`}
         >
           <MessageSquare size={14} />
-          <span>Pass-down Notes</span>
+          <span>Pass-down</span>
           {shiftReports.length > 0 && activeTab !== "handover" && (
             <span className="absolute -top-1.5 -right-1.5 w-5 h-5 bg-red-600 border-2 border-white text-[9px] font-black text-white rounded-full flex items-center justify-center">
               {shiftReports.length}
@@ -171,7 +186,7 @@ export function TechDashboard() {
 
       {/* Tab Content 1: Routine Checklist & Timeline */}
       {activeTab === "checklist" && (
-        <>
+        <div className="max-w-md mx-auto space-y-6">
           {/* Shift Timeline Section */}
           <div className="bg-white rounded-3xl p-5 border border-gray-100 shadow-sm">
             <ShiftTimeline 
@@ -197,12 +212,27 @@ export function TechDashboard() {
               </div>
             </div>
           </div>
-        </>
+        </div>
       )}
 
-      {/* Tab Content 2: Pass-down Notes from Outgoing Shifts */}
+      {/* Tab Content 2: Daily PDF Checklist */}
+      {activeTab === "maintenance" && (
+        <div className="w-full">
+          <PrintableChecklist 
+            data={{
+              siteName: "NTC ZM-0874",
+              date: new Date().toISOString().split("T")[0],
+              shift: "DAY SHIFT",
+              technicianName: user?.name || "Field Tech",
+              technicianId: user?.id || "EMP-TECH"
+            }}
+          />
+        </div>
+      )}
+
+      {/* Tab Content 3: Pass-down Notes from Outgoing Shifts */}
       {activeTab === "handover" && (
-        <div className="space-y-4">
+        <div className="max-w-md mx-auto space-y-4">
           <div className="px-1 flex justify-between items-center">
             <div>
               <h2 className="text-xs font-black text-gray-400 uppercase tracking-widest">
@@ -237,7 +267,7 @@ export function TechDashboard() {
                 <MessageSquare size={28} />
               </div>
               <div className="space-y-1">
-                <h3 className="font-black text-gray-955 text-sm">Clear Pass-down Ledger</h3>
+                <h3 className="font-black text-slate-800 text-sm">Clear Pass-down Ledger</h3>
                 <p className="text-xs text-gray-400 max-w-[240px] mx-auto">
                   No active handover notes or shift logs are archived in the database.
                 </p>

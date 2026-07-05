@@ -17,6 +17,7 @@ import {
 } from "lucide-react";
 import { generateLegacyMonthlyReport } from "../../../shared/utils/excelExportEngine";
 import { supabase } from "@/shared/api/supabaseClient";
+import { PrintableChecklist } from "../../field/components/PrintableChecklist";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 type VerificationStatus = "verified" | "discrepancy";
@@ -327,6 +328,7 @@ function ShiftCard({
 
 // ── Main Component ────────────────────────────────────────────────────────────
 export function ShiftReports() {
+  const [activeTab, setActiveTab] = useState<"shifts" | "checklists">("shifts");
   const [dateRange, setDateRange] = useState<DateRange>("7d");
   const [showPicker, setShowPicker] = useState(false);
   const [activeReport, setActiveReport] = useState<ShiftLog | null>(null);
@@ -467,176 +469,221 @@ export function ShiftReports() {
       <div className="min-h-full flex flex-col gap-6">
 
         {/* ── Page header ──────────────────────────────────────────────────── */}
-        <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-gray-100 pb-4 print:hidden">
           <div>
             <div className="text-[10px] font-black text-gray-400 uppercase tracking-[0.14em] mb-0.5">
               Audit System
             </div>
             <h1 className="text-[20px] font-black text-gray-900 tracking-tight leading-none">
-              Shift Logs &amp; Audit Trail
+              {activeTab === "shifts" ? "Shift Logs & Audit Trail" : "Daily Checklists & Audit"}
             </h1>
             <p className="text-[12px] font-semibold text-gray-400 mt-1">
-              Immutable field technician reports · Site NTC ZM-0874
+              {activeTab === "shifts"
+                ? "Immutable field technician reports · Site NTC ZM-0874"
+                : "Browse and print official daily checklists submitted by technicians."}
             </p>
           </div>
 
-          {/* Action bar */}
-          <div className="flex items-center gap-2 flex-shrink-0 flex-wrap">
-            {/* Date range picker */}
-            <div className="relative">
-              <button
-                onClick={() => setShowPicker((p) => !p)}
-                className="flex items-center gap-2 h-9 px-3.5 rounded-xl border border-gray-200 bg-white text-[11px] font-black text-gray-700 uppercase tracking-wider hover:border-gray-300 transition-all"
-              >
-                <Calendar size={13} className="text-gray-500" />
-                {activeDateLabel}
-                <ChevronDown size={12} className={`text-gray-400 transition-transform ${showPicker ? "rotate-180" : ""}`} />
-              </button>
+          {/* Segmented Tab Controls for Admin Reports */}
+          <div className="bg-slate-100 border border-slate-200 rounded-2xl p-1 flex shadow-sm shrink-0">
+            <button
+              onClick={() => setActiveTab("shifts")}
+              className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
+                activeTab === "shifts"
+                  ? "bg-red-500 text-white shadow-sm shadow-red-500/10"
+                  : "text-gray-400 hover:text-gray-600"
+              }`}
+            >
+              <Clock size={12} />
+              <span>Shift Handover Logs</span>
+            </button>
+            
+            <button
+              onClick={() => setActiveTab("checklists")}
+              className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
+                activeTab === "checklists"
+                  ? "bg-red-500 text-white shadow-sm shadow-red-500/10"
+                  : "text-gray-400 hover:text-gray-600"
+              }`}
+            >
+              <FileText size={12} />
+              <span>Daily Checklists</span>
+            </button>
+          </div>
+        </div>
 
-              {showPicker && (
-                <div className="absolute right-0 top-full mt-1.5 z-20 bg-white border border-gray-200 rounded-xl shadow-xl overflow-hidden w-44">
-                  {DATE_RANGES.map((range) => (
-                    <button
-                      key={range.id}
-                      onClick={() => { setDateRange(range.id); setShowPicker(false); }}
-                      className={`w-full text-left px-4 py-2.5 text-[11px] font-black uppercase tracking-wider transition-colors ${dateRange === range.id
-                          ? "bg-gray-900 text-white"
-                          : "text-gray-600 hover:bg-gray-50"
-                        }`}
-                    >
-                      {range.label}
-                    </button>
-                  ))}
+        {activeTab === "shifts" ? (
+          <>
+            {/* Action bar */}
+            <div className="flex items-center justify-end gap-2 flex-wrap print:hidden">
+              {/* Date range picker */}
+              <div className="relative">
+                <button
+                  onClick={() => setShowPicker((p) => !p)}
+                  className="flex items-center gap-2 h-9 px-3.5 rounded-xl border border-gray-200 bg-white text-[11px] font-black text-gray-700 uppercase tracking-wider hover:border-gray-300 transition-all"
+                >
+                  <Calendar size={13} className="text-gray-500" />
+                  {activeDateLabel}
+                  <ChevronDown size={12} className={`text-gray-400 transition-transform ${showPicker ? "rotate-180" : ""}`} />
+                </button>
+
+                {showPicker && (
+                  <div className="absolute right-0 top-full mt-1.5 z-20 bg-white border border-gray-200 rounded-xl shadow-xl overflow-hidden w-44">
+                    {DATE_RANGES.map((range) => (
+                      <button
+                        key={range.id}
+                        onClick={() => { setDateRange(range.id); setShowPicker(false); }}
+                        className={`w-full text-left px-4 py-2.5 text-[11px] font-black uppercase tracking-wider transition-colors ${dateRange === range.id
+                            ? "bg-gray-900 text-white"
+                            : "text-gray-600 hover:bg-gray-50"
+                          }`}
+                      >
+                        {range.label}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Export */}
+              <div className="flex items-center gap-1.5 flex-wrap">
+                <button
+                  onClick={handleExport}
+                  disabled={isExporting}
+                  className="bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-4 rounded-lg flex items-center gap-2 disabled:opacity-50 cursor-pointer disabled:cursor-not-allowed text-xs uppercase font-black tracking-wider"
+                >
+                  <FileSpreadsheet size={14} />
+                  {isExporting ? 'Generating...' : 'Generate Legacy Excel Report'}
+                </button>
+                <button
+                  onClick={() => handleAuditExport("csv")}
+                  className="flex items-center gap-1.5 h-9 px-3.5 rounded-xl bg-gray-900 text-white text-[11px] font-black uppercase tracking-wider hover:bg-gray-700 active:scale-[0.98] transition-all cursor-pointer"
+                >
+                  <Download size={13} />
+                  Export CSV
+                </button>
+                <button
+                  onClick={() => handleAuditExport("pdf")}
+                  className="flex items-center gap-1.5 h-9 px-3.5 rounded-xl border border-gray-200 bg-white text-[11px] font-black text-gray-700 uppercase tracking-wider hover:border-gray-300 hover:bg-gray-50 active:scale-[0.98] transition-all cursor-pointer"
+                >
+                  <FileText size={13} />
+                  PDF
+                </button>
+              </div>
+            </div>
+
+            {/* ── Summary bar ──────────────────────────────────────────────────── */}
+            <div className="bg-white border border-gray-100 rounded-2xl shadow-sm px-5 py-4 flex flex-wrap items-center gap-6 print:hidden">
+              {/* Log count */}
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-gray-100 flex items-center justify-center flex-shrink-0">
+                  <FileText size={18} className="text-gray-500" />
                 </div>
-              )}
-            </div>
-
-            {/* Export */}
-            <div className="flex items-center gap-1.5 flex-wrap">
-              <button
-                onClick={handleExport}
-                disabled={isExporting}
-                className="bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-4 rounded-lg flex items-center gap-2 disabled:opacity-50 cursor-pointer disabled:cursor-not-allowed"
-              >
-                <FileSpreadsheet />
-                {isExporting ? 'Generating...' : 'Generate Legacy Excel Report'}
-              </button>
-              <button
-                onClick={() => handleAuditExport("csv")}
-                className="flex items-center gap-1.5 h-9 px-3.5 rounded-xl bg-gray-900 text-white text-[11px] font-black uppercase tracking-wider hover:bg-gray-700 active:scale-[0.98] transition-all cursor-pointer"
-              >
-                <Download size={13} />
-                Export CSV
-              </button>
-              <button
-                onClick={() => handleAuditExport("pdf")}
-                className="flex items-center gap-1.5 h-9 px-3.5 rounded-xl border border-gray-200 bg-white text-[11px] font-black text-gray-700 uppercase tracking-wider hover:border-gray-300 hover:bg-gray-50 active:scale-[0.98] transition-all cursor-pointer"
-              >
-                <FileText size={13} />
-                PDF
-              </button>
-            </div>
-          </div>
-        </div>
-
-        {/* ── Summary bar ──────────────────────────────────────────────────── */}
-        <div className="bg-white border border-gray-100 rounded-2xl shadow-sm px-5 py-4 flex flex-wrap items-center gap-6">
-          {/* Log count */}
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-gray-100 flex items-center justify-center flex-shrink-0">
-              <FileText size={18} className="text-gray-500" />
-            </div>
-            <div>
-              <div className="text-[22px] font-black text-gray-900 leading-none">
-                {allShiftLogs.length}
+                <div>
+                  <div className="text-[22px] font-black text-gray-900 leading-none">
+                    {allShiftLogs.length}
+                  </div>
+                  <div className="text-[9px] font-black text-gray-400 uppercase tracking-widest mt-0.5">
+                    Total Reports
+                  </div>
+                </div>
               </div>
-              <div className="text-[9px] font-black text-gray-400 uppercase tracking-widest mt-0.5">
-                Total Reports
-              </div>
-            </div>
-          </div>
 
-          <div className="w-px h-10 bg-gray-100 hidden sm:block" />
+              <div className="w-px h-10 bg-gray-100 hidden sm:block" />
 
-          {/* Verified */}
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-green-50 flex items-center justify-center flex-shrink-0">
-              <CheckCircle2 size={18} className="text-green-500" />
-            </div>
-            <div>
-              <div className="text-[22px] font-black text-green-600 leading-none">
-                {verifiedCount}
+              {/* Verified */}
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-green-50 flex items-center justify-center flex-shrink-0">
+                  <CheckCircle2 size={18} className="text-green-500" />
+                </div>
+                <div>
+                  <div className="text-[22px] font-black text-green-600 leading-none">
+                    {verifiedCount}
+                  </div>
+                  <div className="text-[9px] font-black text-gray-400 uppercase tracking-widest mt-0.5">
+                    Verified
+                  </div>
+                </div>
               </div>
-              <div className="text-[9px] font-black text-gray-400 uppercase tracking-widest mt-0.5">
-                Verified
-              </div>
-            </div>
-          </div>
 
-          <div className="w-px h-10 bg-gray-100 hidden sm:block" />
+              <div className="w-px h-10 bg-gray-100 hidden sm:block" />
 
-          {/* Discrepancies */}
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-red-50 flex items-center justify-center flex-shrink-0">
-              <AlertTriangle size={18} className="text-red-500" />
-            </div>
-            <div>
-              <div className="text-[22px] font-black text-red-600 leading-none">
-                {discrepancyCount}
+              {/* Discrepancies */}
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-red-50 flex items-center justify-center flex-shrink-0">
+                  <AlertTriangle size={18} className="text-red-500" />
+                </div>
+                <div>
+                  <div className="text-[22px] font-black text-red-600 leading-none">
+                    {discrepancyCount}
+                  </div>
+                  <div className="text-[9px] font-black text-gray-400 uppercase tracking-widest mt-0.5">
+                    Discrepancies
+                  </div>
+                </div>
               </div>
-              <div className="text-[9px] font-black text-gray-400 uppercase tracking-widest mt-0.5">
-                Discrepancies
+
+              <div className="w-px h-10 bg-gray-100 hidden sm:block" />
+
+              {/* Alerts acked */}
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-yellow-50 flex items-center justify-center flex-shrink-0">
+                  <Activity size={18} className="text-yellow-500" />
+                </div>
+                <div>
+                  <div className="text-[22px] font-black text-yellow-600 leading-none">
+                    {totalAlertsAcked}
+                  </div>
+                  <div className="text-[9px] font-black text-gray-400 uppercase tracking-widest mt-0.5">
+                    Alerts Acked
+                  </div>
+                </div>
+              </div>
+
+              {/* Right: range label */}
+              <div className="ml-auto hidden lg:flex items-center gap-1.5 text-[10px] font-black text-gray-400 uppercase tracking-widest">
+                <Calendar size={11} />
+                {activeDateLabel}
               </div>
             </div>
-          </div>
 
-          <div className="w-px h-10 bg-gray-100 hidden sm:block" />
-
-          {/* Alerts acked */}
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-yellow-50 flex items-center justify-center flex-shrink-0">
-              <Activity size={18} className="text-yellow-500" />
+            {/* ── Timeline grid ─────────────────────────────────────────────────── */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {allShiftLogs.map((log) => (
+                <ShiftCard
+                  key={log.id}
+                  log={log}
+                  onViewReport={setActiveReport}
+                />
+              ))}
             </div>
-            <div>
-              <div className="text-[22px] font-black text-yellow-600 leading-none">
-                {totalAlertsAcked}
+
+            {/* ── Immutability footer ───────────────────────────────────────────── */}
+            <div className="flex items-center justify-between text-[10px] font-semibold text-gray-400 pt-1 print:hidden">
+              <div className="flex items-center gap-1.5">
+                <Shield size={11} className="text-gray-300" />
+                <span>
+                  All logs are immutable cryptographic records · NTC ZM-0874 Audit System
+                </span>
               </div>
-              <div className="text-[9px] font-black text-gray-400 uppercase tracking-widest mt-0.5">
-                Alerts Acked
-              </div>
+              <span className="font-mono">
+                {allShiftLogs.length} records · {activeDateLabel}
+              </span>
             </div>
-          </div>
-
-          {/* Right: range label */}
-          <div className="ml-auto hidden lg:flex items-center gap-1.5 text-[10px] font-black text-gray-400 uppercase tracking-widest">
-            <Calendar size={11} />
-            {activeDateLabel}
-          </div>
-        </div>
-
-        {/* ── Timeline grid ─────────────────────────────────────────────────── */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {allShiftLogs.map((log) => (
-            <ShiftCard
-              key={log.id}
-              log={log}
-              onViewReport={setActiveReport}
+          </>
+        ) : (
+          <div className="w-full">
+            <PrintableChecklist 
+              readOnly={true} 
+              showLogList={true} 
+              data={{
+                siteName: "NTC ZM-0874",
+                technicianName: "Admin Operator",
+                technicianId: "EMP-ADMIN"
+              }}
             />
-          ))}
-        </div>
-
-        {/* ── Immutability footer ───────────────────────────────────────────── */}
-        <div className="flex items-center justify-between text-[10px] font-semibold text-gray-400 pt-1">
-          <div className="flex items-center gap-1.5">
-            <Shield size={11} className="text-gray-300" />
-            <span>
-              All logs are immutable cryptographic records · NTC ZM-0874 Audit System
-            </span>
           </div>
-          <span className="font-mono">
-            {allShiftLogs.length} records · {activeDateLabel}
-          </span>
-        </div>
+        )}
       </div>
     </>
   );

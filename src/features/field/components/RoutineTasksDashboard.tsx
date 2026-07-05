@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Lock, Save, CheckCircle2, Loader2, Zap, AlertTriangle, ChevronUp, ChevronDown, ArrowLeft } from 'lucide-react';
 import { MASTER_ASSET_DICTIONARY } from '../constants/telemetrySchema';
 import { useTelemetryData } from '../hooks/useTelemetryData';
@@ -65,6 +65,28 @@ export const RoutineTasksDashboard = ({
   } = useTelemetryData(targetHour, onComplete, onSubmitSuccess);
 
   const [openCategories, setOpenCategories] = useState<Record<string, boolean>>({});
+  const [activeDgs, setActiveDgs] = useState<Set<string>>(new Set(['dg_hq']));
+
+  // Synchronize active DGs from loaded formData or cache
+  useEffect(() => {
+    setActiveDgs((prevDgs) => {
+      const nextDgs = new Set(prevDgs);
+      ['dg_1', 'dg_2', 'dg_3', 'dg_4', 'dg_hq'].forEach((dgId) => {
+        const hasValue = Object.keys(formData).some(
+          (key) => key.startsWith(dgId + '_') && formData[key] !== undefined && formData[key] !== null && formData[key] !== ''
+        );
+        if (hasValue) {
+          nextDgs.add(dgId);
+        }
+      });
+      if (isGridOff && nextDgs.size === 0) {
+        nextDgs.add('dg_hq');
+      }
+      
+      const setsAreEqual = nextDgs.size === prevDgs.size && [...nextDgs].every((x) => prevDgs.has(x));
+      return setsAreEqual ? prevDgs : nextDgs;
+    });
+  }, [formData, isGridOff]);
 
   // ── Frequency accordion math (for header display and filtering) ────────────
   const isTwoHour  = targetHour % 2 === 0;
@@ -74,6 +96,9 @@ export const RoutineTasksDashboard = ({
   // ── Filtering Logic ────────────────────────────────────────────────────────
   const getVisibleMetrics = (assetId: string, metrics: any[]): any[] => {
     return metrics.filter((metric) => {
+      // Exclude grid_status since it is now controlled by the Master Power Toggle at the top
+      if (metric.id === 'grid_status') return false;
+
       if (assetId.includes('dg_') && isGridOff) return true;
 
       switch (metric.frequency) {
@@ -138,6 +163,85 @@ export const RoutineTasksDashboard = ({
         </p>
       </div>
 
+      {/* Blackout Protocol Master Switch & Active Fleet Selector */}
+      <div className="backdrop-blur-md bg-white/75 border border-gray-200/50 rounded-3xl p-5 shadow-sm space-y-4">
+        <div className="flex items-center justify-between">
+          <span className="text-xs font-black text-gray-700 uppercase tracking-wider">Power Source</span>
+          <div className="flex bg-slate-100 rounded-xl p-1 border border-slate-200/50">
+            <button
+              type="button"
+              onClick={() => {
+                handleInputChange('grid_status', 'ON');
+              }}
+              className={`px-4.5 py-2 rounded-lg text-xs font-black uppercase tracking-wider transition-all cursor-pointer ${
+                !isGridOff
+                  ? "bg-white text-green-600 shadow-sm border border-slate-200/30"
+                  : "text-slate-500 hover:text-slate-700"
+              }`}
+            >
+              🔌 MAINS
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                handleInputChange('grid_status', 'OFF');
+                // Ensure DG-HQ is pre-selected
+                setActiveDgs((prev) => {
+                  const next = new Set(prev);
+                  next.add('dg_hq');
+                  return next;
+                });
+              }}
+              className={`px-4.5 py-2 rounded-lg text-xs font-black uppercase tracking-wider transition-all cursor-pointer ${
+                isGridOff
+                  ? "bg-red-500 text-white shadow-sm"
+                  : "text-slate-500 hover:text-slate-700"
+              }`}
+            >
+              ⚡ GENERATOR
+            </button>
+          </div>
+        </div>
+
+        {isGridOff && (
+          <div className="space-y-2 border-t border-slate-100 pt-3">
+            <label className="block text-[10px] font-black text-slate-400 uppercase tracking-wider">
+              Active Generator Fleet (Tap to toggle)
+            </label>
+            <div className="flex flex-wrap gap-2">
+              {['dg_1', 'dg_2', 'dg_3', 'dg_4', 'dg_hq'].map((dgId) => {
+                const label = dgId === 'dg_hq' ? 'DG-HQ' : `DG-${dgId.replace('dg_', '')}`;
+                const isActive = activeDgs.has(dgId);
+                return (
+                  <button
+                    key={dgId}
+                    type="button"
+                    onClick={() => {
+                      setActiveDgs((prev) => {
+                        const next = new Set(prev);
+                        if (next.has(dgId)) {
+                          next.delete(dgId);
+                        } else {
+                          next.add(dgId);
+                        }
+                        return next;
+                      });
+                    }}
+                    className={`px-3.5 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider transition-all cursor-pointer border ${
+                      isActive
+                        ? "bg-green-500 text-white border-green-600 shadow-sm"
+                        : "bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100"
+                    }`}
+                  >
+                    {label}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        )}
+      </div>
+
       {/* Fetch Error Banner */}
       {fetchError && (
         <div className="bg-red-50 border border-red-200 rounded-2xl p-4 flex items-center gap-3 text-sm text-red-800 shadow-sm mx-1">
@@ -150,9 +254,11 @@ export const RoutineTasksDashboard = ({
       <div className="flex-1 overflow-y-auto p-4 pb-52">
         {MASTER_ASSET_DICTIONARY.map((category) => {
           // Determine if any asset in this category has visible metrics
-          const categoryHasContent = category.assets.some(
-            (asset) => getVisibleMetrics(asset.id, asset.metrics).length > 0
-          );
+          const categoryHasContent = category.assets.some((asset) => {
+            const isDg = asset.id.startsWith('dg_');
+            if (isDg && !activeDgs.has(asset.id)) return false;
+            return getVisibleMetrics(asset.id, asset.metrics).length > 0;
+          });
           if (!categoryHasContent) return null;
 
           const isOpen = openCategories[category.categoryName] !== false;
@@ -181,6 +287,9 @@ export const RoutineTasksDashboard = ({
               {isOpen && (
                 <div className="p-4 bg-gray-50/50 space-y-4">
                   {category.assets.map((asset) => {
+                    const isDg = asset.id.startsWith('dg_');
+                    if (isDg && !activeDgs.has(asset.id)) return null;
+
                     const visibleMetrics = getVisibleMetrics(asset.id, asset.metrics);
                     if (visibleMetrics.length === 0) return null;
 

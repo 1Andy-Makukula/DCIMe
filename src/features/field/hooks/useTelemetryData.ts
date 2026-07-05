@@ -1,12 +1,14 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/shared/api/supabaseClient';
 import { MASTER_ASSET_DICTIONARY } from '../constants/telemetrySchema';
+import { useAuth } from '@/shared/context/AuthContext';
 
 export function useTelemetryData(
   targetHour: number,
   onComplete?: () => void,
   onSubmitSuccess?: (hour: number) => void
 ) {
+  const { employee } = useAuth();
   // 2. Exhaustive State Initialization
   const [formData, setFormData] = useState<Record<string, any>>({});
   const [isLoading, setIsLoading] = useState<boolean>(true);
@@ -198,8 +200,9 @@ export function useTelemetryData(
       // Instantly get the cached user session (Zero Network Delay)
       const { data: { session } } = await supabase.auth.getSession();
 
-      // Intelligently fallback: full_name -> email -> 'Unknown Tech'
-      const technicianName = session?.user?.user_metadata?.full_name 
+      // Intelligently fallback: employee.full_name -> auth.metadata -> auth.email -> 'Unknown Tech'
+      const technicianName = employee?.full_name
+        || session?.user?.user_metadata?.full_name 
         || session?.user?.email 
         || 'Unknown Technician';
 

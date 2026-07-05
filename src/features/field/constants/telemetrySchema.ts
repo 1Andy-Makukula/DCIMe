@@ -47,15 +47,15 @@ function buildPacMetrics(prefix: string): AssetMetric[] {
     { id: `${prefix}_humidity_set`,       label: 'Humidity (Set)',       type: 'number', frequency: '2-hour', carryForward: true, destinations: [{ workbook: 'commercial_logbook', sheetName: 'PAC', excelColumnIndex: 8 }] },
     
     // Voltages
-    { id: `${prefix}_voltage_ry`,         label: 'Voltage (R-Y)',        type: 'number', frequency: '2-hour', destinations: [] },
-    { id: `${prefix}_voltage_yb`,         label: 'Voltage (Y-B)',        type: 'number', frequency: '2-hour', destinations: [] },
-    { id: `${prefix}_voltage_br`,         label: 'Voltage (B-R)',        type: 'number', frequency: '2-hour', destinations: [] },
+    { id: `${prefix}_voltage_ry`,         label: 'Voltage (R-Y)',        type: 'text',   frequency: '2-hour', isConstant: true, defaultValue: 'NA', destinations: [{ workbook: 'commercial_logbook', sheetName: 'PAC', excelColumnIndex: 9 }] },
+    { id: `${prefix}_voltage_yb`,         label: 'Voltage (Y-B)',        type: 'text',   frequency: '2-hour', isConstant: true, defaultValue: 'NA', destinations: [{ workbook: 'commercial_logbook', sheetName: 'PAC', excelColumnIndex: 10 }] },
+    { id: `${prefix}_voltage_br`,         label: 'Voltage (B-R)',        type: 'text',   frequency: '2-hour', isConstant: true, defaultValue: 'NA', destinations: [{ workbook: 'commercial_logbook', sheetName: 'PAC', excelColumnIndex: 11 }] },
     
     // Currents
-    { id: `${prefix}_current_r`,          label: 'Current (R)',          type: 'number', frequency: '2-hour', destinations: [] },
-    { id: `${prefix}_current_y`,          label: 'Current (Y)',          type: 'number', frequency: '2-hour', destinations: [] },
-    { id: `${prefix}_current_b`,          label: 'Current (B)',          type: 'number', frequency: '2-hour', destinations: [] },
-    { id: `${prefix}_current_n`,          label: 'Current (N)',          type: 'number', frequency: '2-hour', destinations: [] },
+    { id: `${prefix}_current_r`,          label: 'Current (R)',          type: 'text',   frequency: '2-hour', isConstant: true, defaultValue: 'NA', destinations: [{ workbook: 'commercial_logbook', sheetName: 'PAC', excelColumnIndex: 12 }] },
+    { id: `${prefix}_current_y`,          label: 'Current (Y)',          type: 'text',   frequency: '2-hour', isConstant: true, defaultValue: 'NA', destinations: [{ workbook: 'commercial_logbook', sheetName: 'PAC', excelColumnIndex: 13 }] },
+    { id: `${prefix}_current_b`,          label: 'Current (B)',          type: 'text',   frequency: '2-hour', isConstant: true, defaultValue: 'NA', destinations: [{ workbook: 'commercial_logbook', sheetName: 'PAC', excelColumnIndex: 14 }] },
+    { id: `${prefix}_current_n`,          label: 'Current (N)',          type: 'text',   frequency: '2-hour', isConstant: true, defaultValue: 'NA', destinations: [{ workbook: 'commercial_logbook', sheetName: 'PAC', excelColumnIndex: 15 }] },
 
     // Daily Equipment Status Checks
     { id: `${prefix}_daily_status`, label: 'Status (OK/Not OK)', type: 'text', frequency: 'daily', isConstant: true, defaultValue: 'OK', destinations: [] },
