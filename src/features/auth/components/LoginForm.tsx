@@ -22,6 +22,7 @@ export function LoginForm() {
   // Bootstrapping states
   const [hasAdmins, setHasAdmins] = useState<boolean | null>(null);
   const [isBootstrapping, setIsBootstrapping] = useState(false);
+  const loginAttemptRef = React.useRef(0);
 
   // Check if any ADMIN accounts exist in the database
   const checkAdmins = async () => {
@@ -50,6 +51,8 @@ export function LoginForm() {
     setIsLoading(true);
     setError(null);
 
+    const currentAttempt = ++loginAttemptRef.current;
+
     // 1. Clean the input (e.g., "PETER-01")
     const rawId = empId.trim().toLowerCase();
 
@@ -73,12 +76,17 @@ export function LoginForm() {
       );
 
       const result = await Promise.race([loginPromise, timeoutPromise]);
+      
+      if (currentAttempt !== loginAttemptRef.current) return;
+
       authData = result.data;
       authError = result.error;
     } catch (err: any) {
+      if (currentAttempt !== loginAttemptRef.current) return;
+
       console.error("[DCIMe] Login timed out or encountered an error:", err);
-      // Clean up local auth storage and client state
-      await supabase.auth.signOut().catch(() => {});
+      // Clean up local auth storage and client state asynchronously
+      supabase.auth.signOut().catch(() => {});
       setError(err.message || "Login timed out. Please refresh and try again.");
       setIsLoading(false);
       return;

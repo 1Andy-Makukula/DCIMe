@@ -65,22 +65,41 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const initSession = async () => {
       setIsLoading(true);
       try {
-        const getSessionPromise = supabase.auth.getSession();
-        const timeoutPromise = new Promise<{ data: { session: null }; error: any }>((_, reject) =>
+        const loadSessionAndProfile = async () => {
+          const { data: { session } } = await supabase.auth.getSession();
+          if (session?.user) {
+            // Fetch profile database entry
+            const { data, error } = await supabase
+              .from("employees")
+              .select("id, auth_id, full_name, email, employee_id, phone_number, site_id, role, created_at")
+              .eq("auth_id", session.user.id)
+              .maybeSingle();
+
+            if (error) throw error;
+            return { session, employee: data };
+          }
+          return { session: null, employee: null };
+        };
+
+        const timeoutPromise = new Promise<never>((_, reject) =>
           setTimeout(() => reject(new Error("Session initialization timed out")), 10000)
         );
 
-        const result = await Promise.race([getSessionPromise, timeoutPromise]);
-        const session = result.data?.session;
+        const { session, employee: empProfile } = await Promise.race([
+          loadSessionAndProfile(),
+          timeoutPromise
+        ]);
 
         if (session?.user) {
           setUser(session.user);
-          await fetchProfile(session.user.id);
+          setEmployee(empProfile as EmployeeProfile);
         }
       } catch (err) {
         console.error("[DCIMe] Error or timeout during initial session fetch:", err);
-        // Clear stuck/stale local state
-        await supabase.auth.signOut().catch(() => {});
+        // Clear stuck/stale local state asynchronously (do NOT await it to keep finally reachable)
+        supabase.auth.signOut().catch(() => {});
+        setUser(null);
+        setEmployee(null);
       } finally {
         setIsLoading(false);
       }
