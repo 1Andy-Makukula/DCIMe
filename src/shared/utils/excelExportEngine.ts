@@ -14,14 +14,7 @@ const getExcelColumn = (index: number): string => {
   return colName;
 };
 
-// Helper to convert column letter to 0-based index
-const columnLetterToIndex = (colLetter: string): number => {
-  let index = 0;
-  for (let i = 0; i < colLetter.length; i++) {
-    index = index * 26 + (colLetter.charCodeAt(i) - 64);
-  }
-  return index - 1;
-};
+
 
 // Helper to get PAC unit equipment index (0 to 23)
 const getPacEquipmentIndex = (assetId: string): number => {

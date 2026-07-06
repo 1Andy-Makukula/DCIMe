@@ -1,5 +1,5 @@
 import React, { useState, useEffect, forwardRef } from "react";
-import { Download, Save, ArrowLeft, Loader2, Calendar as CalendarIcon, CheckSquare, ShieldCheck } from "lucide-react";
+import { Download, Save, ArrowLeft, Loader2, CheckSquare, ShieldCheck } from "lucide-react";
 import { useDailyChecklists } from "../hooks/useDailyChecklists";
 
 // Using forwardRef so a parent component can trigger the print action on this specific div

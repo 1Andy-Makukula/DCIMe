@@ -64,12 +64,26 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     const initSession = async () => {
       setIsLoading(true);
-      const { data: { session } } = await supabase.auth.getSession();
-      if (session?.user) {
-        setUser(session.user);
-        await fetchProfile(session.user.id);
+      try {
+        const getSessionPromise = supabase.auth.getSession();
+        const timeoutPromise = new Promise<{ data: { session: null }; error: any }>((_, reject) =>
+          setTimeout(() => reject(new Error("Session initialization timed out")), 10000)
+        );
+
+        const result = await Promise.race([getSessionPromise, timeoutPromise]);
+        const session = result.data?.session;
+
+        if (session?.user) {
+          setUser(session.user);
+          await fetchProfile(session.user.id);
+        }
+      } catch (err) {
+        console.error("[DCIMe] Error or timeout during initial session fetch:", err);
+        // Clear stuck/stale local state
+        await supabase.auth.signOut().catch(() => {});
+      } finally {
+        setIsLoading(false);
       }
-      setIsLoading(false);
     };
 
     initSession();

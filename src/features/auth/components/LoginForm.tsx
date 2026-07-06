@@ -58,14 +58,34 @@ export function LoginForm() {
       ? rawId 
       : `${rawId}@dcime.local`;
 
-    // 3. Authenticate with Supabase
-    const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
-      email: supabaseEmail,
-      password: pw,
-    });
+    // 3. Authenticate with Supabase with a Timeout Race to prevent freezing on stale sessions
+    let authData = null;
+    let authError = null;
 
-    if (authError || !authData.user) {
-      setError("Invalid ID or Password.");
+    try {
+      const loginPromise = supabase.auth.signInWithPassword({
+        email: supabaseEmail,
+        password: pw,
+      });
+
+      const timeoutPromise = new Promise<{ data: any; error: any }>((_, reject) =>
+        setTimeout(() => reject(new Error("Login timed out. Re-initializing session client... Please try again.")), 12000)
+      );
+
+      const result = await Promise.race([loginPromise, timeoutPromise]);
+      authData = result.data;
+      authError = result.error;
+    } catch (err: any) {
+      console.error("[DCIMe] Login timed out or encountered an error:", err);
+      // Clean up local auth storage and client state
+      await supabase.auth.signOut().catch(() => {});
+      setError(err.message || "Login timed out. Please refresh and try again.");
+      setIsLoading(false);
+      return;
+    }
+
+    if (authError || !authData?.user) {
+      setError(authError?.message || "Invalid ID or Password.");
       setIsLoading(false);
       return;
     }
