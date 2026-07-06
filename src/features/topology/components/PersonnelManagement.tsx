@@ -244,7 +244,7 @@ export function PersonnelManagement() {
       phone:       row.phone_number || "+260 97 000 0000",
       role:        mapRole(row.role),
       zone:        row.site_id || "Global (All Rooms)",
-      shift:       "06:00 – 14:00",
+      shift:       row.role === "ADMIN" ? "08:00 – 18:00" : (row.employee_id && /\d/.test(row.employee_id) ? (parseInt(row.employee_id.replace(/\D/g, ""), 10) % 2 === 0 ? "08:00 – 18:00" : "18:00 – 08:00") : "08:00 – 18:00"),
       shiftDays:   "Mon – Fri",
       lastActive:  isRevoked ? "Suspended" : "Just now",
       status:      status,

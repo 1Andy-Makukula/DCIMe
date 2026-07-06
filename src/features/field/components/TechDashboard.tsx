@@ -29,6 +29,11 @@ export function TechDashboard() {
 
   const { shiftReports, isLoading: isHandoversLoading, error: handoversError, refresh: refreshHandovers } = useShiftReports();
 
+  const hour = currentTime.getHours();
+  const isDayShift = hour >= 8 && hour < 18;
+  const currentShiftLabel = isDayShift ? "DAY SHIFT (08:00 - 18:00)" : "NIGHT SHIFT (18:00 - 08:00)";
+  const currentShiftHours = isDayShift ? "08:00 - 18:00" : "18:00 - 08:00";
+
   useEffect(() => {
     const timer = setInterval(() => {
       setCurrentTime(new Date());
@@ -133,7 +138,7 @@ export function TechDashboard() {
               </div>
               <div className="flex items-center gap-2">
                 <Clock size={14} className="text-gray-400" />
-                <span className="text-xs text-gray-300 font-medium font-mono">06:00 - 14:00</span>
+                <span className="text-xs text-gray-300 font-medium font-mono">{currentShiftHours}</span>
               </div>
             </div>
           </div>
@@ -222,7 +227,7 @@ export function TechDashboard() {
             data={{
               siteName: "NTC ZM-0874",
               date: new Date().toISOString().split("T")[0],
-              shift: "DAY SHIFT",
+              shift: currentShiftLabel,
               technicianName: user?.name || "Field Tech",
               technicianId: user?.id || "EMP-TECH"
             }}

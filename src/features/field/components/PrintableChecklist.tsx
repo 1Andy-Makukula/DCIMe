@@ -19,7 +19,7 @@ export const PrintableChecklist = forwardRef<HTMLDivElement, any>((props, ref) =
 
   // Core checklist inputs state
   const [checklistValues, setChecklistValues] = useState<Record<string, { status: string; comment: string }>>({});
-  const [shift, setShift] = useState("DAY SHIFT");
+  const [shift, setShift] = useState("DAY SHIFT (08:00 - 18:00)");
   const [date, setDate] = useState(() => new Date().toISOString().split("T")[0]);
 
   // If a historical report is selected or we are forced read-only from props
@@ -29,17 +29,17 @@ export const PrintableChecklist = forwardRef<HTMLDivElement, any>((props, ref) =
   useEffect(() => {
     if (selectedHistory) {
       setChecklistValues(selectedHistory.checklist_values || {});
-      setShift(selectedHistory.shift || "DAY SHIFT");
+      setShift(selectedHistory.shift || "DAY SHIFT (08:00 - 18:00)");
       const histDate = new Date(selectedHistory.target_hour).toISOString().split("T")[0];
       setDate(histDate);
     } else if (forceReadOnly && propData.checklist_values) {
       setChecklistValues(propData.checklist_values || {});
-      setShift(propData.shift || "DAY SHIFT");
+      setShift(propData.shift || "DAY SHIFT (08:00 - 18:00)");
       setDate(propData.date || new Date().toISOString().split("T")[0]);
     } else {
       // Clear or default for new entry
       setChecklistValues({});
-      setShift("DAY SHIFT");
+      setShift(props.data?.shift || "DAY SHIFT (08:00 - 18:00)");
       setDate(new Date().toISOString().split("T")[0]);
     }
   }, [selectedHistory, forceReadOnly, propData]);
@@ -245,9 +245,8 @@ export const PrintableChecklist = forwardRef<HTMLDivElement, any>((props, ref) =
               onChange={(e) => setShift(e.target.value)}
               className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-semibold text-gray-800 focus:outline-none focus:border-red-500"
             >
-              <option value="DAY SHIFT">DAY SHIFT</option>
-              <option value="NIGHT SHIFT">NIGHT SHIFT</option>
-              <option value="SWING SHIFT">SWING SHIFT</option>
+              <option value="DAY SHIFT (08:00 - 18:00)">DAY SHIFT (08:00 - 18:00)</option>
+              <option value="NIGHT SHIFT (18:00 - 08:00)">NIGHT SHIFT (18:00 - 08:00)</option>
             </select>
           </div>
         </div>

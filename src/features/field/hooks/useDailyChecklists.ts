@@ -36,7 +36,7 @@ export function useDailyChecklists() {
           target_hour: row.target_hour,
           technician_name: row.technician_name || "Unknown Tech",
           submitted_at: row.submitted_at || row.created_at || new Date().toISOString(),
-          shift: metrics.shift || "DAY SHIFT",
+          shift: metrics.shift || "DAY SHIFT (08:00 - 18:00)",
           technician_id: metrics.technician_id || "EMP-TECH",
           checklist_values: metrics.checklist_values || {},
         };

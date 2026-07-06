@@ -367,7 +367,7 @@ export function ShiftReports() {
               hour12: false
             }) + " CAT",
             date: new Date(report.timestamp).toISOString().split("T")[0],
-            shiftLabel: report.shift_duration || "Day Shift",
+            shiftLabel: report.shift_duration || "DAY SHIFT (08:00 - 18:00)",
             site: report.site_id || "NTC ZM-0874",
             zone: "Power Room 1",
             verificationStatus: (report.certified ? "verified" : "discrepancy") as VerificationStatus,

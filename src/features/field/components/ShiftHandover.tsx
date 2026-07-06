@@ -20,6 +20,9 @@ export function ShiftHandover() {
   const [isSuccess, setIsSuccess] = useState(false);
   const [generatedSig, setGeneratedSig] = useState("");
 
+  const hour = new Date().getHours();
+  const currentShiftHours = (hour >= 8 && hour < 18) ? "08:00 - 18:00" : "18:00 - 08:00";
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!certified) return;
@@ -40,7 +43,7 @@ export function ShiftHandover() {
         technician_name: user?.name || "Field Tech",
         technician_id: user?.id || "EMP-UNKNOWN",
         signature_id: sigId,
-        shift_duration: "06:00 - 14:00",
+        shift_duration: currentShiftHours,
         routine_logs_completed: 4,
         incidents_filed: 0
       });
@@ -125,7 +128,7 @@ export function ShiftHandover() {
             </div>
             <div>
               <p className="text-[10px] text-gray-400 font-bold uppercase tracking-wider">Shift Duration</p>
-              <p className="font-black text-sm text-gray-800">06:00 - 14:00</p>
+              <p className="font-black text-sm text-gray-800">{currentShiftHours}</p>
             </div>
           </div>
 
