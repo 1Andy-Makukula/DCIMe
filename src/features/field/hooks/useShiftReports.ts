@@ -15,6 +15,7 @@ export interface ShiftReport {
   shift_duration: string;
   routine_logs_completed: number;
   incidents_filed: number;
+  site_uuid?: string | null;
 }
 
 export function useShiftReports() {
@@ -59,6 +60,7 @@ export function useShiftReports() {
     incidents_filed: number;
     active_power_source?: string;
     site_id?: string;
+    site_uuid?: string | null;
   }) => {
     setError(null);
     try {
@@ -73,6 +75,7 @@ export function useShiftReports() {
         incidents_filed: payload.incidents_filed,
         active_power_source: payload.active_power_source || "MAINS",
         site_id: payload.site_id || "NTC ZM 0874",
+        site_uuid: payload.site_uuid || null,
         timestamp: new Date().toISOString()
       };
 

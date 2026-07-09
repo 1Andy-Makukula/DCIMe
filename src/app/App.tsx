@@ -1,8 +1,11 @@
-import { BrowserRouter, Routes, Route } from "react-router";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router";
 import { AuthProvider } from "@/shared/context/AuthContext";
+import { SiteProvider } from "@/shared/context/SiteContext";
+import { Toaster } from "./components/ui/sonner";
 
 // Pages
 import LoginPage from "@/pages/LoginPage";
+import AnalyticsPage from "@/pages/AnalyticsPage";
 
 // Tech shell + views
 import { TechLayout } from "@/features/field/components/TechLayout";
@@ -19,10 +22,19 @@ import { AlertsLog } from "@/features/topology/components/AlertsLog";
 import { ShiftReports } from "@/features/topology/components/ShiftReports";
 import { PersonnelManagement } from "@/features/topology/components/PersonnelManagement";
 
+// Analytics sub-views
+import { GridAnalytics } from "@/features/analytics/components/GridAnalytics";
+import { FuelAnalytics } from "@/features/analytics/components/FuelAnalytics";
+import { UpsAnalytics } from "@/features/analytics/components/UpsAnalytics";
+import { ThermalAnalytics } from "@/features/analytics/components/ThermalAnalytics";
+import { IncidentAnalytics } from "@/features/analytics/components/IncidentAnalytics";
+
 export default function App() {
   return (
-    <AuthProvider>
-      <BrowserRouter>
+    <SiteProvider>
+      <AuthProvider>
+        <Toaster />
+        <BrowserRouter>
         <Routes>
           {/* Public routes */}
           <Route path="/" element={<LoginPage />} />
@@ -42,9 +54,18 @@ export default function App() {
             <Route path="alerts"     element={<AlertsLog />} />
             <Route path="reports"    element={<ShiftReports />} />
             <Route path="personnel"  element={<PersonnelManagement />} />
+            <Route path="analytics" element={<AnalyticsPage />}>
+              <Route index element={<Navigate to="grid" replace />} />
+              <Route path="grid" element={<GridAnalytics />} />
+              <Route path="fuel" element={<FuelAnalytics />} />
+              <Route path="ups" element={<UpsAnalytics />} />
+              <Route path="thermal" element={<ThermalAnalytics />} />
+              <Route path="incidents" element={<IncidentAnalytics />} />
+            </Route>
           </Route>
         </Routes>
       </BrowserRouter>
-    </AuthProvider>
+      </AuthProvider>
+    </SiteProvider>
   );
 }

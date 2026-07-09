@@ -5,10 +5,14 @@ import { useAuth } from '@/shared/context/AuthContext';
 import { PAC_CONSTANTS } from '../constants/pacConstants';
 
 export function useTelemetryData(
-  targetHour: number,
+  targetHourProp: number | string,
   onComplete?: () => void,
   onSubmitSuccess?: (hour: number) => void
 ) {
+  const targetHour = typeof targetHourProp === "string" && targetHourProp.includes(":")
+    ? parseInt(targetHourProp.split(":")[0], 10)
+    : Number(targetHourProp);
+
   const { employee } = useAuth();
   // 2. Exhaustive State Initialization
   const [formData, setFormData] = useState<Record<string, any>>({});
@@ -209,11 +213,45 @@ export function useTelemetryData(
       payload['ambient_avg_temp'] = ambient_avg_temp;
     }
 
-    const today = new Date();
-    today.setHours(targetHour, 0, 0, 0);
-    const targetHourISO = today.toISOString();
-
     try {
+      const today = new Date();
+      today.setHours(targetHour, 0, 0, 0);
+      const targetHourISO = today.toISOString();
+
+      // Fetch all parameters to map parameter_id to equipment_id
+      const { data: allParams } = await supabase
+        .from('equipment_parameters')
+        .select('id, equipment_id');
+
+      const offlineAssetIds = new Set<string>();
+      Object.keys(formData).forEach((key) => {
+        if (key.startsWith('status_') && formData[key] === 'OFFLINE') {
+          const assetId = key.substring(7);
+          offlineAssetIds.add(assetId.toLowerCase().replace(/-/g, '_'));
+        }
+      });
+
+      // Strip legacy metrics for offline assets
+      MASTER_ASSET_DICTIONARY.forEach((cat) => {
+        cat.assets.forEach((asset) => {
+          const normalizedAssetId = asset.id.toLowerCase().replace(/-/g, '_');
+          if (offlineAssetIds.has(normalizedAssetId)) {
+            asset.metrics.forEach((m) => {
+              delete payload[m.id];
+            });
+          }
+        });
+      });
+
+      // Strip dynamic parameters for offline assets
+      if (allParams) {
+        allParams.forEach((param) => {
+          const normalizedAssetId = param.equipment_id.toLowerCase().replace(/-/g, '_');
+          if (offlineAssetIds.has(normalizedAssetId)) {
+            delete payload[`param_${param.id}`];
+          }
+        });
+      }
       // Instantly get the cached user session (Zero Network Delay)
       const { data: { session } } = await supabase.auth.getSession();
 
@@ -287,6 +325,7 @@ export function useTelemetryData(
   // 7. Return Statement
   return {
     formData,
+    setFormData,
     isLoading,
     isSubmitting,
     isEditMode,

@@ -30,6 +30,7 @@ export interface Incident {
   impact: string | null;
   contractor_engaged: string | null;
   resolution_details: string | null;
+  site_uuid?: string | null;
 }
 
 export function useIncidents() {
@@ -77,6 +78,8 @@ export function useIncidents() {
     occurred_at?: string;
     raised_by_name?: string;
     raised_by_id?: string;
+    site_name?: string;
+    site_uuid?: string | null;
   }) => {
     setError(null);
     try {
@@ -84,7 +87,8 @@ export function useIncidents() {
       const newIncident = {
         ticket_number: ticketNum,
         status: "OPEN",
-        site_name: "NTC ZM 0874",
+        site_name: payload.site_name || "NTC ZM 0874",
+        site_uuid: payload.site_uuid || null,
         asset_id: payload.asset_id,
         severity: payload.severity.toLowerCase(),
         notes: payload.notes,

@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { useOutletContext } from "react-router";
 import { useIncidents, Incident } from "../hooks/useIncidents";
 import { TechUser } from "./TechLayout";
+import { useCurrentSite } from "@/shared/context/SiteContext";
 import { 
   AlertTriangle,
   CheckCircle2, 
@@ -26,6 +27,7 @@ export function IncidentTracker() {
     refresh, 
     resolveIncident 
   } = useIncidents();
+  const { currentSite } = useCurrentSite();
 
   const [activeTab, setActiveTab] = useState<"active" | "resolved">("active");
   const [selectedIncident, setSelectedIncident] = useState<Incident | null>(null);
@@ -342,7 +344,7 @@ export function IncidentTracker() {
               </div>
               <div className="flex justify-between">
                 <span className="text-gray-400">Site Name:</span>
-                <span className="font-bold text-gray-800">NTC ZM 0874</span>
+                <span className="font-bold text-gray-800">{currentSite?.site_name || "NTC ZM 0874"}</span>
               </div>
               <div className="flex justify-between">
                 <span className="text-gray-400">Resolved By:</span>
@@ -554,7 +556,7 @@ export function IncidentTracker() {
                       <label className="text-[9px] font-black text-gray-400 uppercase tracking-wider block">Site Name</label>
                       <input
                         type="text"
-                        value="NTC ZM 0874"
+                        value={currentSite?.site_name || "NTC ZM 0874"}
                         disabled
                         className="w-full p-3.5 rounded-xl bg-gray-100 border border-gray-200 text-xs font-bold text-gray-500 cursor-not-allowed"
                       />

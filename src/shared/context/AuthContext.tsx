@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from "react";
 import { supabase } from "@/shared/api/supabaseClient";
+import { useCurrentSite } from "./SiteContext";
 
 export interface EmployeeProfile {
   id: string;             // database UUID
@@ -11,6 +12,12 @@ export interface EmployeeProfile {
   site_id: string;       // primary site location (e.g. NTC ZM 0874)
   role: "ADMIN" | "FIELD_TECH";
   created_at: string;
+  site_uuid?: string | null;
+  sites?: {
+    id: string;
+    site_code: string;
+    site_name: string;
+  }[] | null;
 }
 
 interface AuthContextType {
@@ -29,24 +36,34 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<any>(null);
   const [employee, setEmployee] = useState<EmployeeProfile | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const { setCurrentSite } = useCurrentSite();
 
   const fetchProfile = async (userId: string) => {
     try {
       const { data, error } = await supabase
         .from("employees")
-        .select("id, auth_id, full_name, email, employee_id, phone_number, site_id, role, created_at")
+        .select("id, auth_id, full_name, email, employee_id, phone_number, site_id, role, created_at, site_uuid, sites ( id, site_code, site_name )")
         .eq("auth_id", userId)
         .maybeSingle();
 
       if (error) throw error;
       if (data) {
         setEmployee(data as EmployeeProfile);
+        const joinedSites = data.sites;
+        const siteData = Array.isArray(joinedSites) ? joinedSites[0] : joinedSites;
+        if (siteData) {
+          setCurrentSite(siteData as any);
+        } else {
+          setCurrentSite(null);
+        }
       } else {
         setEmployee(null);
+        setCurrentSite(null);
       }
     } catch (err) {
       console.error("Error loading employee profile in AuthContext:", err);
       setEmployee(null);
+      setCurrentSite(null);
     }
   };
 
@@ -71,7 +88,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             // Fetch profile database entry
             const { data, error } = await supabase
               .from("employees")
-              .select("id, auth_id, full_name, email, employee_id, phone_number, site_id, role, created_at")
+              .select("id, auth_id, full_name, email, employee_id, phone_number, site_id, role, created_at, site_uuid, sites ( id, site_code, site_name )")
               .eq("auth_id", session.user.id)
               .maybeSingle();
 
@@ -93,6 +110,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         if (session?.user) {
           setUser(session.user);
           setEmployee(empProfile as EmployeeProfile);
+          const joinedSites = empProfile?.sites;
+          const siteData = Array.isArray(joinedSites) ? joinedSites[0] : joinedSites;
+          if (siteData) {
+            setCurrentSite(siteData);
+          } else {
+            setCurrentSite(null);
+          }
         }
       } catch (err) {
         console.error("[DCIMe] Error or timeout during initial session fetch:", err);
@@ -100,6 +124,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         supabase.auth.signOut().catch(() => {});
         setUser(null);
         setEmployee(null);
+        setCurrentSite(null);
       } finally {
         setIsLoading(false);
       }
@@ -114,6 +139,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       } else {
         setUser(null);
         setEmployee(null);
+        setCurrentSite(null);
       }
       setIsLoading(false);
     });
@@ -128,6 +154,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     await supabase.auth.signOut();
     setUser(null);
     setEmployee(null);
+    setCurrentSite(null);
     setIsLoading(false);
   };
 

@@ -3,6 +3,8 @@ import { NavLink, Outlet, useNavigate } from "react-router";
 import { Home, Activity, AlertOctagon, UserCheck, LogOut } from "lucide-react";
 import { AirtelMark } from "@/shared/ui";
 import { useAuth } from "@/shared/context/AuthContext";
+import { useCurrentSite } from "@/shared/context/SiteContext";
+
 
 export interface TechUser {
   id: string;       // e.g., "ZM-4891"
@@ -13,6 +15,7 @@ export interface TechUser {
 export function TechLayout() {
   const navigate = useNavigate();
   const { employee, logout, isLoading } = useAuth();
+  const { currentSite } = useCurrentSite();
 
   useEffect(() => {
     if (!isLoading && !employee) {
@@ -65,6 +68,11 @@ export function TechLayout() {
         </div>
         
         <div className="flex items-center gap-3">
+          {currentSite && (
+            <span className="px-3 py-1 bg-red-50 text-red-600 rounded-full text-[10px] font-black uppercase tracking-wider border border-red-100">
+              {currentSite.site_name}
+            </span>
+          )}
           {/* Logout Button */}
           <button 
             onClick={handleLogout}

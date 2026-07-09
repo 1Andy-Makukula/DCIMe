@@ -9,11 +9,13 @@ import {
 } from "lucide-react";
 import { useShiftReports } from "../hooks/useShiftReports";
 import { TechUser } from "./TechLayout";
+import { useCurrentSite } from "@/shared/context/SiteContext";
 
 export function ShiftHandover() {
   const navigate = useNavigate();
   const { user } = useOutletContext<{ user: TechUser | null }>();
   const { submitShiftReport } = useShiftReports();
+  const { currentSite } = useCurrentSite();
   const [notes, setNotes] = useState("");
   const [certified, setCertified] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -45,7 +47,9 @@ export function ShiftHandover() {
         signature_id: sigId,
         shift_duration: currentShiftHours,
         routine_logs_completed: 4,
-        incidents_filed: 0
+        incidents_filed: 0,
+        site_id: currentSite?.site_name || "NTC ZM 0874",
+        site_uuid: currentSite?.id || null
       });
 
       setIsSuccess(true);

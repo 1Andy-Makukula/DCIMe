@@ -12,7 +12,6 @@ import {
 } from "recharts";
 import {
   Zap,
-  Battery,
   Thermometer,
   AlertTriangle,
   Activity,
@@ -25,6 +24,7 @@ import {
 import { GlowDot } from "@/shared/ui";
 import { useNocTelemetry } from "../hooks/useNocTelemetry";
 import { supabase } from "@/shared/api/supabaseClient";
+import { useCurrentSite } from "@/shared/context/SiteContext";
 
 
 // ── Shared card wrapper ──────────────────────────────────────────────────────
@@ -75,6 +75,57 @@ export function NocOverview() {
     ? loadChartData[loadChartData.length - 1].kw
     : 0;
 
+  const { currentSite } = useCurrentSite();
+
+  // ── Live KPI state ────────────────────────────────────────────────────────
+  interface CategoryCount { category: string; count: number }
+  const [categoryCounts, setCategoryCounts] = React.useState<CategoryCount[]>([]);
+  const [totalAssets,    setTotalAssets]    = React.useState<number | null>(null);
+  const [totalRooms,     setTotalRooms]     = React.useState<number | null>(null);
+  const [kpiLoading,     setKpiLoading]     = React.useState(true);
+
+  const fetchKpis = React.useCallback(async () => {
+    if (!currentSite?.id) { setKpiLoading(false); return; }
+    setKpiLoading(true);
+    try {
+      // 1) Active equipment grouped by category
+      const { data: eqRows, error: eqErr } = await supabase
+        .from("equipment_registry")
+        .select("category")
+        .eq("site_uuid", currentSite.id)
+        .eq("is_active", true);
+      if (eqErr) throw eqErr;
+
+      const countMap: Record<string, number> = {};
+      (eqRows || []).forEach((r: any) => {
+        countMap[r.category] = (countMap[r.category] ?? 0) + 1;
+      });
+      const cats: CategoryCount[] = Object.entries(countMap)
+        .map(([category, count]) => ({ category, count }))
+        .sort((a, b) => b.count - a.count);
+
+      setCategoryCounts(cats);
+      setTotalAssets((eqRows || []).length);
+
+      // 2) Room count
+      const { count: roomCount, error: roomErr } = await supabase
+        .from("rooms")
+        .select("*", { count: "exact", head: true })
+        .eq("site_id", currentSite.id);
+      if (roomErr) throw roomErr;
+      setTotalRooms(roomCount ?? 0);
+    } catch (err) {
+      console.error("[NocOverview] KPI fetch error:", err);
+    } finally {
+      setKpiLoading(false);
+    }
+  }, [currentSite?.id]);
+
+  React.useEffect(() => { fetchKpis(); }, [fetchKpis]);
+
+  // ── Alarm count from already-fetched incidents — computed below after state ──
+  // (openAlarmCount is declared after `incidents` state below)
+
   interface IncidentLog {
     id: string;
     ticket_number: string;
@@ -106,6 +157,9 @@ export function NocOverview() {
   const [incidents, setIncidents] = React.useState<IncidentLog[]>([]);
   const [filter, setFilter] = React.useState<"all" | "open" | "resolved">("all");
   const [searchQuery, setSearchQuery] = React.useState("");
+
+  // Open alarm count — derived from incidents state
+  const openAlarmCount = incidents.filter((i) => i.status === "OPEN").length;
 
   const fetchIncidents = async () => {
     try {
@@ -200,15 +254,52 @@ export function NocOverview() {
           </div>
         </div>
 
-        {/* Live pulse badge */}
-        <div className="flex items-center gap-2 bg-green-50 border border-green-100 rounded-xl px-3 py-2">
-          <span
-            className="w-2 h-2 rounded-full bg-green-500 flex-shrink-0"
-            style={{ animation: "pulse 2s infinite" }}
-          />
-          <span className="text-[11px] font-black text-green-700 uppercase tracking-wider">
-            All Systems Nominal
-          </span>
+        {/* Seed Database buttons */}
+        <div className="flex items-center gap-3">
+          <button
+            onClick={async () => {
+              if (window.confirm("Are you sure you want to seed WTC database from legacy schema? This will clean up existing WTC rooms and parameters.")) {
+                const { seedWtcData } = await import("@/shared/utils/seedDatabase");
+                const res = await seedWtcData();
+                if (res.success) {
+                  alert(res.message);
+                } else {
+                  alert("Error: " + res.message);
+                }
+              }
+            }}
+            className="bg-white border border-gray-250 rounded-xl px-3 py-2 text-[10px] font-black uppercase tracking-wider text-slate-700 hover:text-red-500 hover:border-red-100 hover:bg-red-50/20 active:scale-95 transition-all shadow-sm flex items-center gap-2 cursor-pointer"
+          >
+            🌱 Seed WTC DB
+          </button>
+
+          <button
+            onClick={async () => {
+              if (window.confirm("Are you sure you want to seed NTC database from legacy schema? This will clean up existing NTC rooms and parameters.")) {
+                const { seedNtcData } = await import("@/shared/utils/seedDatabase");
+                const res = await seedNtcData();
+                if (res.success) {
+                  alert(res.message);
+                } else {
+                  alert("Error: " + res.message);
+                }
+              }
+            }}
+            className="bg-white border border-gray-250 rounded-xl px-3 py-2 text-[10px] font-black uppercase tracking-wider text-slate-700 hover:text-red-500 hover:border-red-100 hover:bg-red-50/20 active:scale-95 transition-all shadow-sm flex items-center gap-2 cursor-pointer"
+          >
+            🌱 Seed NTC DB
+          </button>
+
+          {/* Live pulse badge */}
+          <div className="flex items-center gap-2 bg-green-50 border border-green-100 rounded-xl px-3 py-2">
+            <span
+              className="w-2 h-2 rounded-full bg-green-500 flex-shrink-0"
+              style={{ animation: "pulse 2s infinite" }}
+            />
+            <span className="text-[11px] font-black text-green-700 uppercase tracking-wider">
+              All Systems Nominal
+            </span>
+          </div>
         </div>
       </div>
 
@@ -334,78 +425,102 @@ export function NocOverview() {
             SECTION 3: High-Level Asset Tally  (col-span-4, row 1)
         ════════════════════════════════════════════════════════════════════ */}
         <div className="lg:col-span-4 flex flex-col gap-4">
-          <SectionLabel>Asset Tally</SectionLabel>
+          <SectionLabel>Live Asset KPIs</SectionLabel>
 
-          {/* UPS card */}
+          {/* Total Active Assets */}
           <Card className="p-4 flex items-center gap-4">
             <div className="w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0 bg-green-50">
               <Zap size={22} color="#19C853" />
             </div>
             <div className="flex-1 min-w-0">
               <div className="text-[10px] font-black text-gray-400 uppercase tracking-[0.12em]">
-                UPS Units
+                Active Equipment
               </div>
-              <div className="font-black text-[24px] text-gray-900 leading-none mt-0.5">
-                2
-                <span className="text-sm font-semibold text-gray-300">/ 2</span>
-              </div>
-              <div className="flex items-center gap-1.5 mt-0.5">
-                <GlowDot color="#19C853" />
-                <span className="text-[11px] font-bold text-green-600">
-                  Active
-                </span>
+              {kpiLoading ? (
+                <div className="h-7 w-12 bg-gray-100 rounded-lg animate-pulse mt-1" />
+              ) : (
+                <div className="font-black text-[28px] text-gray-900 leading-none mt-0.5">
+                  {totalAssets ?? 0}
+                </div>
+              )}
+              <div className="text-[10px] font-semibold text-gray-400 mt-0.5">
+                {currentSite?.site_name ?? "—"}
               </div>
             </div>
             <CheckCircle2 size={20} className="text-green-400 flex-shrink-0" />
           </Card>
 
-          {/* Generators card */}
+          {/* Active Alarms */}
           <Card className="p-4 flex items-center gap-4">
-            <div className="w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0 bg-gray-100">
-              <Battery size={22} color="#999" />
+            <div className={`w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0 ${
+              openAlarmCount > 0 ? "bg-red-50" : "bg-gray-100"
+            }`}>
+              <AlertTriangle size={22} color={openAlarmCount > 0 ? "#DC2626" : "#999"} />
             </div>
             <div className="flex-1 min-w-0">
               <div className="text-[10px] font-black text-gray-400 uppercase tracking-[0.12em]">
-                Generators
+                Open Alarms
               </div>
-              <div className="font-black text-[24px] text-gray-900 leading-none mt-0.5">
-                2
-                <span className="text-sm font-semibold text-gray-300">/ 2</span>
-              </div>
-              <div className="flex items-center gap-1.5 mt-0.5">
-                <span className="w-2.5 h-2.5 rounded-full bg-gray-400 flex-shrink-0" />
-                <span className="text-[11px] font-bold text-gray-400">
-                  Standby
-                </span>
+              {kpiLoading ? (
+                <div className="h-7 w-12 bg-gray-100 rounded-lg animate-pulse mt-1" />
+              ) : (
+                <div className={`font-black text-[28px] leading-none mt-0.5 ${
+                  openAlarmCount > 0 ? "text-red-600" : "text-gray-900"
+                }`}>
+                  {openAlarmCount}
+                </div>
+              )}
+              <div className="text-[10px] font-semibold text-gray-400 mt-0.5">
+                Incidents requiring attention
               </div>
             </div>
-            <div className="flex items-center gap-1 text-gray-400 flex-shrink-0">
-              <Clock size={13} />
-              <span className="text-[10px] font-semibold">&lt;45s</span>
-            </div>
+            {openAlarmCount > 0 ? (
+              <AlertTriangle size={18} className="text-red-400 flex-shrink-0 animate-pulse" />
+            ) : (
+              <CheckCircle2 size={18} className="text-green-400 flex-shrink-0" />
+            )}
           </Card>
 
-          {/* Cooling units card */}
-          <Card className="p-4 flex items-center gap-4">
-            <div className="w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0 bg-blue-50">
-              <Thermometer size={22} color="#3B82F6" />
+          {/* Total Rooms + per-category breakdown */}
+          <Card className="p-4">
+            <div className="flex items-center gap-3 mb-3">
+              <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 bg-blue-50">
+                <Thermometer size={18} color="#3B82F6" />
+              </div>
+              <div>
+                <div className="text-[10px] font-black text-gray-400 uppercase tracking-[0.12em]">
+                  Physical Rooms
+                </div>
+                {kpiLoading ? (
+                  <div className="h-6 w-8 bg-gray-100 rounded animate-pulse mt-0.5" />
+                ) : (
+                  <div className="font-black text-[22px] text-gray-900 leading-none mt-0.5">
+                    {totalRooms ?? 0}
+                  </div>
+                )}
+              </div>
             </div>
-            <div className="flex-1 min-w-0">
-              <div className="text-[10px] font-black text-gray-400 uppercase tracking-[0.12em]">
-                Cooling Units
+            {/* Category breakdown pills */}
+            {!kpiLoading && categoryCounts.length > 0 && (
+              <div className="flex flex-wrap gap-1.5 mt-2 pt-2 border-t border-gray-50">
+                {categoryCounts.map(({ category, count }) => (
+                  <span
+                    key={category}
+                    className="inline-flex items-center gap-1 bg-gray-50 border border-gray-100 rounded-lg px-2 py-1 text-[9px] font-black uppercase tracking-wider text-gray-500"
+                  >
+                    <span className="font-mono text-gray-900">{count}</span>
+                    {category}
+                  </span>
+                ))}
               </div>
-              <div className="font-black text-[24px] text-gray-900 leading-none mt-0.5">
-                4
-                <span className="text-sm font-semibold text-gray-300">/ 4</span>
+            )}
+            {kpiLoading && (
+              <div className="flex gap-1.5 mt-2">
+                {[60, 50, 70].map((w) => (
+                  <div key={w} className="h-5 bg-gray-100 rounded animate-pulse" style={{ width: w }} />
+                ))}
               </div>
-              <div className="flex items-center gap-1.5 mt-0.5">
-                <GlowDot color="#19C853" />
-                <span className="text-[11px] font-bold text-green-600">
-                  Active
-                </span>
-              </div>
-            </div>
-            <CheckCircle2 size={20} className="text-green-400 flex-shrink-0" />
+            )}
           </Card>
         </div>
 

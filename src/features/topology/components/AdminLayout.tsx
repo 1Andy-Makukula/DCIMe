@@ -10,9 +10,11 @@ import {
   LogOut,
   Menu,
   X,
+  BarChart2,
 } from "lucide-react";
 import { AirtelMark } from "@/shared/ui";
 import { useAuth } from "@/shared/context/AuthContext";
+import { useCurrentSite } from "@/shared/context/SiteContext";
 
 // ── Nav tab definition ────────────────────────────────────────────────────────
 const NAV_TABS = [
@@ -21,6 +23,7 @@ const NAV_TABS = [
   { to: "/admin/alerts",     label: "Alerts",     icon: AlertTriangle, end: false },
   { to: "/admin/reports",    label: "Reports",    icon: FileText,      end: false },
   { to: "/admin/personnel",  label: "Personnel",  icon: Users,         end: false },
+  { to: "/admin/analytics",  label: "Analytics",  icon: BarChart2,     end: false },
 ] as const;
 
 // ── AdminLayout ───────────────────────────────────────────────────────────────
@@ -28,6 +31,7 @@ export function AdminLayout() {
   const navigate = useNavigate();
   const { employee, logout, isLoading } = useAuth();
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
+  const { currentSite } = useCurrentSite();
 
   useEffect(() => {
     if (!isLoading && (!employee || employee.role !== "ADMIN")) {
@@ -120,6 +124,11 @@ export function AdminLayout() {
 
           {/* Right: Bell + Logout (Desktop Only) + Avatar */}
           <div className="flex items-center gap-2">
+            {currentSite && (
+              <span className="hidden sm:inline-block px-3 py-1 bg-red-50 text-red-600 rounded-full text-[10px] font-black uppercase tracking-wider border border-red-100 mr-2">
+                {currentSite.site_name}
+              </span>
+            )}
             {/* Bell */}
             <button
               className="relative p-2 rounded-xl text-gray-400 hover:text-gray-700 hover:bg-gray-100 transition-all cursor-pointer"
@@ -171,9 +180,16 @@ export function AdminLayout() {
         <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100/50 bg-white/50">
           <div className="flex items-center gap-2.5">
             <AirtelMark size={28} />
-            <span className="font-black text-[13px] text-gray-900 tracking-tight">
-              DCIMe<span className="text-red-505 font-black">_Engine</span>
-            </span>
+            <div className="flex flex-col">
+              <span className="font-black text-[13px] text-gray-900 tracking-tight leading-none">
+                DCIMe<span className="text-red-505 font-black">_Engine</span>
+              </span>
+              {currentSite && (
+                <span className="text-[9px] font-bold text-red-650 mt-1.5 uppercase tracking-wider leading-none">
+                  {currentSite.site_name}
+                </span>
+              )}
+            </div>
           </div>
           <button
             onClick={() => setIsDrawerOpen(false)}

@@ -104,7 +104,7 @@ export function LoginForm() {
     // A. Query standard auth_id matching first
     const { data: directData } = await supabase
       .from('employees')
-      .select('id, role, employee_id, site_id')
+      .select('id, role, employee_id, site_id, site_uuid, sites ( id, site_code, site_name )')
       .eq('auth_id', authData.user.id)
       .maybeSingle();
 
@@ -114,7 +114,7 @@ export function LoginForm() {
     if (!empData) {
       const { data: linkData } = await supabase
         .from('employees')
-        .select('id, role, employee_id, site_id')
+        .select('id, role, employee_id, site_id, site_uuid, sites ( id, site_code, site_name )')
         .or(`employee_id.ieq.${rawId},email.ieq.${rawId}`)
         .maybeSingle();
 

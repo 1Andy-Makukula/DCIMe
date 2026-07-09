@@ -1,5 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/shared/api/supabaseClient";
+import localforage from "localforage";
+import { toast } from "sonner";
 
 export interface DailyChecklistLog {
   id: string;
@@ -77,6 +79,22 @@ export function useDailyChecklists() {
         },
         submitted_at: new Date().toISOString(),
       };
+
+      // Offline Interceptor
+      if (!navigator.onLine) {
+        const pending: any[] = (await localforage.getItem("pending_telemetry")) || [];
+        const filtered = pending.filter(
+          (item: any) => !(item.target_hour === dbPayload.target_hour && item.asset_id === dbPayload.asset_id)
+        );
+        filtered.push(dbPayload);
+        await localforage.setItem("pending_telemetry", filtered);
+
+        // Dispatch a custom event to notify components that queue size changed
+        window.dispatchEvent(new CustomEvent("pending_telemetry_updated"));
+
+        toast.info("Saved Offline. Will sync when network returns.");
+        return dbPayload;
+      }
 
       const { data, error: upsertError } = await supabase
         .from("telemetry_logs")

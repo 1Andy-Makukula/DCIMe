@@ -14,6 +14,8 @@ import {
 } from "lucide-react";
 import { useIncidents } from "../hooks/useIncidents";
 import { TechUser } from "./TechLayout";
+import { useCurrentSite } from "@/shared/context/SiteContext";
+
 
 // Utility to compress image and convert to WebP base64 in-browser
 const compressToWebP = (file: File, maxWidth = 800, maxHeight = 800, quality = 0.7): Promise<string> => {
@@ -64,6 +66,7 @@ export function IncidentReport() {
     reportIncident, 
     addIncidentComment 
   } = useIncidents();
+  const { currentSite } = useCurrentSite();
   
   // Tab state: "report" or "history"
   const [activeTab, setActiveTab] = useState<"report" | "history">("report");
@@ -143,7 +146,9 @@ export function IncidentReport() {
         photo_url: photo,
         occurred_at: new Date(occurredAt).toISOString(),
         raised_by_name: firstName,
-        raised_by_id: user?.id || "EMP-UNKNOWN"
+        raised_by_id: user?.id || "EMP-UNKNOWN",
+        site_name: currentSite?.site_name || "NTC ZM 0874",
+        site_uuid: currentSite?.id || null
       });
 
       if (result) {

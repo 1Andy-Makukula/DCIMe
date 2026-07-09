@@ -17,8 +17,10 @@ import { PrintableChecklist } from "./PrintableChecklist";
 import { supabase } from "@/shared/api/supabaseClient";
 import { useShiftReports } from "../hooks/useShiftReports";
 import { TechUser } from "./TechLayout";
+import { useOfflineSync } from "../hooks/useOfflineSync";
 
 export function TechDashboard() {
+  useOfflineSync();
   const { user } = useOutletContext<{ user: TechUser | null }>();
   const [selectedTargetHour, setSelectedTargetHour] = useState<number | null>(null);
   const [completedHours, setCompletedHours] = useState<number[]>([]);
