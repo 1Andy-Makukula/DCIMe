@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { supabase } from '@/shared/api/supabaseClient';
 import { MASTER_ASSET_DICTIONARY } from '../constants/telemetrySchema';
 import { useAuth } from '@/shared/context/AuthContext';
+import { PAC_CONSTANTS } from '../constants/pacConstants';
 
 export function useTelemetryData(
   targetHour: number,
@@ -114,6 +115,22 @@ export function useTelemetryData(
               if (metric.carryForward && previousMetrics[metric.id] !== undefined) {
                 newFormState[metric.id] = previousMetrics[metric.id];
               }
+
+              // PAC Constants override for initialization
+              if (asset.id.startsWith('pac_')) {
+                const constants = PAC_CONSTANTS[asset.id];
+                if (constants) {
+                  if (metric.id.endsWith('_return_temp_set')) {
+                    newFormState[metric.id] = constants.returnTempSet;
+                  } else if (metric.id.endsWith('_supply_temp_set')) {
+                    newFormState[metric.id] = constants.supplyTempSet;
+                  } else if (metric.id.endsWith('_humidity_set')) {
+                    newFormState[metric.id] = constants.humiditySet;
+                  } else if (metric.id.endsWith('_humidity_actual')) {
+                    newFormState[metric.id] = constants.humidityActual;
+                  }
+                }
+              }
             });
           });
         });
@@ -206,6 +223,8 @@ export function useTelemetryData(
         || session?.user?.email 
         || 'Unknown Technician';
 
+      const firstName = (technicianName || 'Field Tech').trim().split(/\s+/)[0];
+
       // The Upsert: Execute a Supabase .upsert to telemetry_logs.
       const { error } = await supabase
         .from('telemetry_logs')
@@ -216,7 +235,7 @@ export function useTelemetryData(
             metrics: payload,
             is_edited: isEditMode,
             asset_id: 'facility_wide', // Keeping site hardcoded as requested
-            technician_name: technicianName // DYNAMIC IDENTITY
+            technician_name: firstName // DYNAMIC IDENTITY (First name only)
           },
           { onConflict: 'target_hour' }
         );

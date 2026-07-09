@@ -135,13 +135,14 @@ export function IncidentReport() {
     
     setIsSubmitting(true);
     try {
+      const firstName = (user?.name || "Field Tech").trim().split(/\s+/)[0];
       const result = await reportIncident({
         asset_id: asset,
         severity: severity,
         notes: notes,
         photo_url: photo,
         occurred_at: new Date(occurredAt).toISOString(),
-        raised_by_name: user?.name || "Field Tech",
+        raised_by_name: firstName,
         raised_by_id: user?.id || "EMP-UNKNOWN"
       });
 
@@ -164,10 +165,11 @@ export function IncidentReport() {
     }
     setIsSubmittingComment(true);
     try {
+      const firstName = (user?.name || "Field Tech").trim().split(/\s+/)[0];
       await addIncidentComment(incidentId, {
         comment_text: commentText,
         type: commentType,
-        author_name: user?.name || "Field Tech",
+        author_name: firstName,
         author_id: user?.id || "EMP-UNKNOWN"
       });
       setCommentText("");
@@ -515,7 +517,7 @@ export function IncidentReport() {
                       {incident.comments && incident.comments.length > 0 ? (
                         <div className="relative pl-3.5 border-l border-gray-100 space-y-3 ml-1">
                           {incident.comments.map((cmt, idx) => (
-                            <div key={idx} className="relative space-y-1">
+                            <div key={`${cmt.timestamp}_${cmt.author_id}_${idx}`} className="relative space-y-1">
                               {/* Timeline dot */}
                               <div className="absolute -left-[21px] top-1 w-2 h-2 rounded-full bg-gray-300 border-2 border-white" />
                               <div className="flex items-center justify-between gap-2">

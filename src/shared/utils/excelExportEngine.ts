@@ -1,6 +1,7 @@
 import ExcelJS from "exceljs";
 import { saveAs } from "file-saver";
 import { MASTER_ASSET_DICTIONARY } from "../../features/field/constants/telemetrySchema";
+import { PAC_CONSTANTS } from "../../features/field/constants/pacConstants";
 
 // Helper to translate 0-based index to Excel column letter
 const getExcelColumn = (index: number): string => {
@@ -260,6 +261,33 @@ const getFallbackValue = (metricId: string, lastValue: any): any => {
 
   if (metricId.endsWith("_daily_abnormality")) return "NON";
 
+  // PAC sheet constants fallbacks from configuration
+  if (metricId.includes("_return_temp_") || metricId.includes("_supply_temp_") || metricId.includes("_humidity_")) {
+    const pacIndex = metricId.indexOf("_return_temp_");
+    const supplyIndex = metricId.indexOf("_supply_temp_");
+    const humIndex = metricId.indexOf("_humidity_");
+    let assetId = "";
+    let suffix = "";
+    if (pacIndex !== -1) {
+      assetId = metricId.substring(0, pacIndex);
+      suffix = metricId.substring(pacIndex + 1);
+    } else if (supplyIndex !== -1) {
+      assetId = metricId.substring(0, supplyIndex);
+      suffix = metricId.substring(supplyIndex + 1);
+    } else if (humIndex !== -1) {
+      assetId = metricId.substring(0, humIndex);
+      suffix = metricId.substring(humIndex + 1);
+    }
+
+    if (assetId && PAC_CONSTANTS[assetId]) {
+      const constants = PAC_CONSTANTS[assetId];
+      if (suffix === "return_temp_set") return constants.returnTempSet;
+      if (suffix === "supply_temp_set") return constants.supplyTempSet;
+      if (suffix === "humidity_set") return constants.humiditySet;
+      if (suffix === "humidity_actual") return constants.humidityActual;
+    }
+  }
+
   // PAC sheet constants
   if (metricId.endsWith("_return_temp_set") || metricId.endsWith("_supply_temp_set") || metricId.endsWith("_humidity_set")) {
     return "LAST ENTERED";
@@ -314,7 +342,8 @@ export const generateMonthlyReport = async (
     const date = new Date(timestampStr);
     const day = date.getDate();
     const hour = date.getHours();
-    const techName = log.technician_name || "Field Tech";
+    const fullTechName = log.technician_name || "Field Tech";
+    const techName = fullTechName.trim().split(/\s+/)[0];
 
     // Update state tracker with newly logged values
     if (log.metrics) {

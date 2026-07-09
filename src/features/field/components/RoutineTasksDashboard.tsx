@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { Lock, Save, CheckCircle2, Loader2, Zap, AlertTriangle, ChevronUp, ChevronDown, ArrowLeft } from 'lucide-react';
 import { MASTER_ASSET_DICTIONARY } from '../constants/telemetrySchema';
 import { useTelemetryData } from '../hooks/useTelemetryData';
@@ -65,28 +65,30 @@ export const RoutineTasksDashboard = ({
   } = useTelemetryData(targetHour, onComplete, onSubmitSuccess);
 
   const [openCategories, setOpenCategories] = useState<Record<string, boolean>>({});
-  const [activeDgs, setActiveDgs] = useState<Set<string>>(new Set(['dg_hq']));
 
-  // Synchronize active DGs from loaded formData or cache
-  useEffect(() => {
-    setActiveDgs((prevDgs) => {
-      const nextDgs = new Set(prevDgs);
-      ['dg_1', 'dg_2', 'dg_3', 'dg_4', 'dg_hq'].forEach((dgId) => {
-        const hasValue = Object.keys(formData).some(
-          (key) => key.startsWith(dgId + '_') && formData[key] !== undefined && formData[key] !== null && formData[key] !== ''
-        );
-        if (hasValue) {
-          nextDgs.add(dgId);
-        }
-      });
-      if (isGridOff && nextDgs.size === 0) {
-        nextDgs.add('dg_hq');
+  // Derive active generators directly from the parent form state (formData)
+  const activeDgs = new Set<string>();
+  const hasAnyActiveDg = ['dg_1', 'dg_2', 'dg_3', 'dg_4', 'dg_hq'].some(
+    (dgId) => formData[`active_${dgId}`] === true
+  );
+
+  ['dg_1', 'dg_2', 'dg_3', 'dg_4', 'dg_hq'].forEach((dgId) => {
+    if (formData[`active_${dgId}`] === true) {
+      activeDgs.add(dgId);
+    } else {
+      // Fallback: if data is already entered, treat it as active
+      const hasValue = Object.keys(formData).some(
+        (key) => key.startsWith(dgId + '_') && formData[key] !== undefined && formData[key] !== null && formData[key] !== '' && key !== `active_${dgId}`
+      );
+      if (hasValue) {
+        activeDgs.add(dgId);
       }
-      
-      const setsAreEqual = nextDgs.size === prevDgs.size && [...nextDgs].every((x) => prevDgs.has(x));
-      return setsAreEqual ? prevDgs : nextDgs;
-    });
-  }, [formData, isGridOff]);
+    }
+  });
+
+  if (isGridOff && activeDgs.size === 0 && !hasAnyActiveDg) {
+    activeDgs.add('dg_hq');
+  }
 
   // ── Frequency accordion math (for header display and filtering) ────────────
   const isTwoHour  = targetHour % 2 === 0;
@@ -185,12 +187,8 @@ export const RoutineTasksDashboard = ({
               type="button"
               onClick={() => {
                 handleInputChange('grid_status', 'OFF');
-                // Ensure DG-HQ is pre-selected
-                setActiveDgs((prev) => {
-                  const next = new Set(prev);
-                  next.add('dg_hq');
-                  return next;
-                });
+                // Ensure DG-HQ is pre-selected in parent state
+                handleInputChange('active_dg_hq', true);
               }}
               className={`px-4.5 py-2 rounded-lg text-xs font-black uppercase tracking-wider transition-all cursor-pointer ${
                 isGridOff
@@ -217,15 +215,8 @@ export const RoutineTasksDashboard = ({
                     key={dgId}
                     type="button"
                     onClick={() => {
-                      setActiveDgs((prev) => {
-                        const next = new Set(prev);
-                        if (next.has(dgId)) {
-                          next.delete(dgId);
-                        } else {
-                          next.add(dgId);
-                        }
-                        return next;
-                      });
+                      const isCurrentlyActive = activeDgs.has(dgId);
+                      handleInputChange(`active_${dgId}`, !isCurrentlyActive);
                     }}
                     className={`px-3.5 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider transition-all cursor-pointer border ${
                       isActive

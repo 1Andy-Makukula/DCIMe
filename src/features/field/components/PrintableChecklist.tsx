@@ -138,10 +138,11 @@ export const PrintableChecklist = forwardRef<HTMLDivElement, any>((props, ref) =
     setIsSaving(true);
     setSaveSuccess(false);
     try {
+      const firstName = (techName || "Field Tech").trim().split(/\s+/)[0];
       await saveChecklist({
         dateStr: date,
         shift,
-        technician_name: techName,
+        technician_name: firstName,
         technician_id: techId,
         values: checklistValues
       });
@@ -282,8 +283,8 @@ export const PrintableChecklist = forwardRef<HTMLDivElement, any>((props, ref) =
               </tr>
             </thead>
             <tbody>
-              {categories.map((cat, catIdx) => (
-                <React.Fragment key={catIdx}>
+              {categories.map((cat) => (
+                <React.Fragment key={cat.title}>
                   {/* Sub-header row */}
                   <tr className="bg-gray-100 print:bg-gray-100 font-bold">
                     <td colSpan={3} className="border border-black p-2 text-left uppercase tracking-wider text-[11px] font-black">

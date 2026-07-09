@@ -90,12 +90,13 @@ export function IncidentTracker() {
     }
     setIsSubmittingResolution(true);
     try {
+      const firstName = (user?.name || "Field Tech").trim().split(/\s+/)[0];
       const resolved = await resolveIncident(selectedIncident.id, {
         impact: resImpact,
         contractor_engaged: resContractor,
         resolution_details: resDetails,
         resolved_at: new Date(resResolvedAt).toISOString(),
-        resolved_by_name: user?.name || "Field Tech",
+        resolved_by_name: firstName,
         resolved_by_id: user?.id || "EMP-UNKNOWN"
       });
 
@@ -449,7 +450,7 @@ export function IncidentTracker() {
                     {selectedIncident.comments && selectedIncident.comments.length > 0 ? (
                       <div className="relative pl-4 border-l border-gray-100 space-y-4 ml-1.5">
                         {selectedIncident.comments.map((cmt, idx) => (
-                          <div key={idx} className="relative space-y-1.5">
+                          <div key={`${cmt.timestamp}_${cmt.author_id}_${idx}`} className="relative space-y-1.5">
                             {/* Timeline dot */}
                             <div className="absolute -left-[21.5px] top-1 w-2.5 h-2.5 rounded-full bg-gray-300 border-2 border-white" />
                             
