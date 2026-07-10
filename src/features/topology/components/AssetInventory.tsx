@@ -3,6 +3,13 @@ import { supabase } from "@/shared/api/supabaseClient";
 import { useCurrentSite } from "@/shared/context/SiteContext";
 import { TelemetryChart } from "./TelemetryChart";
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/app/components/ui/select";
+import {
   Search,
   Filter,
   Download,
@@ -31,6 +38,7 @@ interface Asset {
   manufacturer: string;
   model: string;
   category: AssetCategory;
+  categoryDb?: string;
   ip: string;
   firmware: string;
   location: string;
@@ -167,21 +175,89 @@ interface AddAssetModalProps {
   onClose: () => void;
   onSaveSuccess: () => void;
   rooms: any[];
+  assets: Asset[];
 }
 
-function AddAssetModal({ isOpen, onClose, onSaveSuccess, rooms }: AddAssetModalProps) {
+function AddAssetModal({ isOpen, onClose, onSaveSuccess, rooms, assets }: AddAssetModalProps) {
   const { currentSite } = useCurrentSite();
   const [name, setName] = useState("");
   const [category, setCategory] = useState("UPS");
   const [assetId, setAssetId] = useState("");
   const [ipAddress, setIpAddress] = useState("");
   const [selectedRoomId, setSelectedRoomId] = useState("");
+  const [manufacturer, setManufacturer] = useState("");
+  const [model, setModel] = useState("");
+  const [firmwareVersion, setFirmwareVersion] = useState("");
+  const [rackLocation, setRackLocation] = useState("");
 
   useEffect(() => {
     if (rooms.length > 0 && !selectedRoomId) {
       setSelectedRoomId(rooms[0].id);
     }
   }, [rooms, selectedRoomId]);
+
+  useEffect(() => {
+    if (!isOpen) return;
+
+    // Generate temporary suffix number for suggestion
+    const categoryCount = assets.filter(a => {
+      const dbCat = category === "AIRCON" ? "COOLING" : category;
+      return a.category.toUpperCase() === dbCat;
+    }).length;
+    const nextNum = String(categoryCount + 1).padStart(3, "0");
+
+    let defaultName = "";
+    let defaultMfg = "Standard";
+    let defaultModel = "Generic Model";
+    let defaultIp = "10.0.4.10";
+    let defaultFw = "v1.0.0";
+    let defaultRack = "";
+
+    if (category === "UPS") {
+      defaultName = `UPS Unit ${nextNum}`;
+      defaultMfg = "Vertiv";
+      defaultModel = "Liebert EXL S1 80kVA";
+      defaultIp = `10.0.4.1${nextNum.charAt(2) || '1'}`;
+      defaultFw = "v4.2.1";
+      defaultRack = `R-${nextNum.substring(1)}`;
+    } else if (category === "GENERATOR") {
+      defaultName = `Diesel Generator ${nextNum === "001" ? "A" : "B"}`;
+      defaultMfg = "Cummins";
+      defaultModel = "C250 D5 250kVA";
+      defaultIp = `10.0.4.2${nextNum.charAt(2) || '1'}`;
+      defaultFw = "v2.8.0";
+      defaultRack = "—";
+    } else if (category === "RECTIFIER") {
+      defaultName = `Rectifier ${nextNum === "001" ? "A – Rm 1" : "B – Rm 2"}`;
+      defaultMfg = "Eltek";
+      defaultModel = "Flatpack2 HE 48V";
+      defaultIp = `10.0.4.3${nextNum.charAt(2) || '1'}`;
+      defaultFw = "v5.3.0";
+      defaultRack = `R-0${4 + parseInt(nextNum)}`;
+    } else if (category === "AIRCON") {
+      defaultName = `CRAC Unit ${nextNum}`;
+      defaultMfg = "Stulz";
+      defaultModel = "CyberAir 3PRO DX";
+      defaultIp = `10.0.5.1${nextNum.charAt(2) || '1'}`;
+      defaultFw = "v3.1.4";
+      defaultRack = "—";
+    } else if (category === "MAINS") {
+      defaultName = "ZESCO Mains Grid";
+      defaultMfg = "ZESCO";
+      defaultModel = "Utility Feed";
+      defaultIp = "10.0.4.50";
+      defaultFw = "v1.0";
+      defaultRack = "—";
+    }
+
+    setName(defaultName);
+    setIpAddress(defaultIp);
+    setManufacturer(defaultMfg);
+    setModel(defaultModel);
+    setFirmwareVersion(defaultFw);
+    setRackLocation(defaultRack);
+    setAssetId(`PWR-${category}-${nextNum}`);
+  }, [category, assets, isOpen]);
 
   if (!isOpen) return null;
 
@@ -198,6 +274,12 @@ function AddAssetModal({ isOpen, onClose, onSaveSuccess, rooms }: AddAssetModalP
           location: selectedRoom?.room_name || "Unknown",
           room_id: selectedRoomId || null,
           site_uuid: currentSite.id,
+          name: name.trim() || null,
+          ip_address: ipAddress.trim() || null,
+          manufacturer: manufacturer.trim() || null,
+          model: model.trim() || null,
+          firmware_version: firmwareVersion.trim() || null,
+          rack_location: rackLocation.trim() || null,
           is_active: true
         }]);
 
@@ -208,6 +290,10 @@ function AddAssetModal({ isOpen, onClose, onSaveSuccess, rooms }: AddAssetModalP
       setName("");
       setAssetId("");
       setIpAddress("");
+      setManufacturer("");
+      setModel("");
+      setFirmwareVersion("");
+      setRackLocation("");
     } catch (err) {
       console.error("Error saving equipment:", err);
       alert("Failed to save equipment to the database.");
@@ -219,7 +305,7 @@ function AddAssetModal({ isOpen, onClose, onSaveSuccess, rooms }: AddAssetModalP
       className="fixed inset-0 z-50 flex items-center justify-center p-4"
       style={{ backgroundColor: "rgba(0,0,0,0.45)", backdropFilter: "blur(4px)" }}
     >
-      <div className="bg-white rounded-3xl shadow-2xl w-full max-w-md overflow-hidden">
+      <div className="bg-white rounded-3xl shadow-2xl w-full max-w-xl overflow-hidden animate-fade-in">
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-5 border-b border-gray-100">
           <div>
@@ -241,70 +327,134 @@ function AddAssetModal({ isOpen, onClose, onSaveSuccess, rooms }: AddAssetModalP
         {/* Form Body */}
         <form onSubmit={handleSubmit}>
           <div className="px-6 py-5 space-y-4 max-h-[70vh] overflow-y-auto">
-            {/* Equipment Name */}
-            <div>
-              <label className="block text-[10px] font-black text-gray-400 uppercase tracking-[0.12em] mb-1.5">
-                Equipment Name (UI Only)
-              </label>
-              <input
-                type="text"
-                required
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                placeholder="e.g. UPS System 3"
-                className="w-full px-4 py-3 rounded-xl bg-gray-50 border border-gray-200 text-[12px] font-semibold text-gray-900 placeholder-gray-400 focus:outline-none focus:border-gray-400 transition-all"
-              />
+            {/* Row 1: Name and Category */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-[10px] font-black text-gray-400 uppercase tracking-[0.12em] mb-1.5">
+                  Equipment Name
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  placeholder="e.g. UPS System 3"
+                  className="w-full px-4 py-3 rounded-xl bg-gray-50 border border-gray-200 text-[12px] font-semibold text-gray-900 placeholder-gray-400 focus:outline-none focus:border-gray-400 transition-all"
+                />
+              </div>
+              <div>
+                <label className="block text-[10px] font-black text-gray-400 uppercase tracking-[0.12em] mb-1.5">
+                  Category
+                </label>
+                <Select value={category} onValueChange={setCategory}>
+                  <SelectTrigger className="w-full h-11 bg-gray-50 border border-gray-200 rounded-xl text-[12px] font-semibold text-gray-900 focus:ring-1 focus:ring-gray-450 focus:border-gray-450">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent className="bg-white border border-gray-100 rounded-xl shadow-lg z-[10000]">
+                    <SelectItem value="UPS" className="text-[12px] font-semibold text-gray-900 cursor-pointer">UPS</SelectItem>
+                    <SelectItem value="GENERATOR" className="text-[12px] font-semibold text-gray-900 cursor-pointer">Generator</SelectItem>
+                    <SelectItem value="MAINS" className="text-[12px] font-semibold text-gray-900 cursor-pointer">Mains Feed</SelectItem>
+                    <SelectItem value="RECTIFIER" className="text-[12px] font-semibold text-gray-900 cursor-pointer">Rectifier</SelectItem>
+                    <SelectItem value="AIRCON" className="text-[12px] font-semibold text-gray-900 cursor-pointer">Air Conditioner (CRAC)</SelectItem>
+                    <SelectItem value="ENVIRONMENT" className="text-[12px] font-semibold text-gray-900 cursor-pointer">Environment Sensor</SelectItem>
+                    <SelectItem value="FIRE_SUPPRESSION" className="text-[12px] font-semibold text-gray-900 cursor-pointer">Fire Suppression</SelectItem>
+                    <SelectItem value="FUEL_LOGISTICS" className="text-[12px] font-semibold text-gray-900 cursor-pointer">Fuel Logistics</SelectItem>
+                    <SelectItem value="LOAD_PANEL" className="text-[12px] font-semibold text-gray-900 cursor-pointer">Load Panel</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
 
-            {/* Category */}
-            <div>
-              <label className="block text-[10px] font-black text-gray-400 uppercase tracking-[0.12em] mb-1.5">
-                Category
-              </label>
-              <select
-                value={category}
-                onChange={(e) => setCategory(e.target.value)}
-                className="w-full px-4 py-3 rounded-xl bg-gray-50 border border-gray-200 text-[12px] font-semibold text-gray-900 focus:outline-none focus:border-gray-400 transition-all"
-              >
-                <option value="UPS">UPS</option>
-                <option value="GENERATOR">Generator</option>
-                <option value="MAINS">Mains Feed</option>
-                <option value="RECTIFIER">Rectifier</option>
-                <option value="AIRCON">Air Conditioner (CRAC)</option>
-              </select>
+            {/* Row 2: Asset ID and IP Address */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-[10px] font-black text-gray-400 uppercase tracking-[0.12em] mb-1.5">
+                  Asset ID
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={assetId}
+                  onChange={(e) => setAssetId(e.target.value)}
+                  placeholder="e.g. PWR-UPS-003"
+                  className="w-full px-4 py-3 rounded-xl bg-gray-50 border border-gray-200 text-[12px] font-semibold text-gray-900 placeholder-gray-400 focus:outline-none focus:border-gray-400 transition-all"
+                />
+              </div>
+              <div>
+                <label className="block text-[10px] font-black text-gray-400 uppercase tracking-[0.12em] mb-1.5">
+                  IP Address
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={ipAddress}
+                  onChange={(e) => setIpAddress(e.target.value)}
+                  placeholder="e.g. 10.0.4.13"
+                  className="w-full px-4 py-3 rounded-xl bg-gray-50 border border-gray-200 text-[12px] font-semibold text-gray-900 placeholder-gray-400 focus:outline-none focus:border-gray-400 transition-all"
+                />
+              </div>
             </div>
 
-            {/* Asset ID */}
-            <div>
-              <label className="block text-[10px] font-black text-gray-400 uppercase tracking-[0.12em] mb-1.5">
-                Asset ID
-              </label>
-              <input
-                type="text"
-                required
-                value={assetId}
-                onChange={(e) => setAssetId(e.target.value)}
-                placeholder="e.g. PWR-UPS-003"
-                className="w-full px-4 py-3 rounded-xl bg-gray-50 border border-gray-200 text-[12px] font-semibold text-gray-900 placeholder-gray-400 focus:outline-none focus:border-gray-400 transition-all"
-              />
+            {/* Row 3: Manufacturer and Model */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-[10px] font-black text-gray-400 uppercase tracking-[0.12em] mb-1.5">
+                  Manufacturer
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={manufacturer}
+                  onChange={(e) => setManufacturer(e.target.value)}
+                  placeholder="e.g. Vertiv"
+                  className="w-full px-4 py-3 rounded-xl bg-gray-50 border border-gray-200 text-[12px] font-semibold text-gray-900 placeholder-gray-400 focus:outline-none focus:border-gray-400 transition-all"
+                />
+              </div>
+              <div>
+                <label className="block text-[10px] font-black text-gray-400 uppercase tracking-[0.12em] mb-1.5">
+                  Model
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={model}
+                  onChange={(e) => setModel(e.target.value)}
+                  placeholder="e.g. Liebert EXL S1"
+                  className="w-full px-4 py-3 rounded-xl bg-gray-50 border border-gray-200 text-[12px] font-semibold text-gray-900 placeholder-gray-400 focus:outline-none focus:border-gray-400 transition-all"
+                />
+              </div>
             </div>
 
-            {/* IP Address */}
-            <div>
-              <label className="block text-[10px] font-black text-gray-400 uppercase tracking-[0.12em] mb-1.5">
-                IP Address (UI Only)
-              </label>
-              <input
-                type="text"
-                required
-                value={ipAddress}
-                onChange={(e) => setIpAddress(e.target.value)}
-                placeholder="e.g. 10.0.4.13"
-                className="w-full px-4 py-3 rounded-xl bg-gray-50 border border-gray-200 text-[12px] font-semibold text-gray-900 placeholder-gray-400 focus:outline-none focus:border-gray-400 transition-all"
-              />
+            {/* Row 4: Firmware and Rack Location */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-[10px] font-black text-gray-400 uppercase tracking-[0.12em] mb-1.5">
+                  Firmware Version
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={firmwareVersion}
+                  onChange={(e) => setFirmwareVersion(e.target.value)}
+                  placeholder="e.g. v1.0.0"
+                  className="w-full px-4 py-3 rounded-xl bg-gray-50 border border-gray-200 text-[12px] font-semibold text-gray-900 placeholder-gray-400 focus:outline-none focus:border-gray-400 transition-all"
+                />
+              </div>
+              <div>
+                <label className="block text-[10px] font-black text-gray-400 uppercase tracking-[0.12em] mb-1.5">
+                  Rack Location
+                </label>
+                <input
+                  type="text"
+                  value={rackLocation}
+                  onChange={(e) => setRackLocation(e.target.value)}
+                  placeholder="e.g. R-01"
+                  className="w-full px-4 py-3 rounded-xl bg-gray-50 border border-gray-200 text-[12px] font-semibold text-gray-900 placeholder-gray-400 focus:outline-none focus:border-gray-400 transition-all"
+                />
+              </div>
             </div>
 
-            {/* Room (Location) */}
+            {/* Row 5: Room */}
             <div>
               <label className="block text-[10px] font-black text-gray-400 uppercase tracking-[0.12em] mb-1.5">
                 Room
@@ -314,17 +464,18 @@ function AddAssetModal({ isOpen, onClose, onSaveSuccess, rooms }: AddAssetModalP
                   No rooms configured. Add a room in the sidebar first.
                 </div>
               ) : (
-                <select
-                  value={selectedRoomId}
-                  onChange={(e) => setSelectedRoomId(e.target.value)}
-                  className="w-full px-4 py-3 rounded-xl bg-gray-50 border border-gray-200 text-[12px] font-semibold text-gray-900 focus:outline-none focus:border-gray-400 transition-all"
-                >
-                  {rooms.map((r) => (
-                    <option key={r.id} value={r.id}>
-                      {r.room_name}
-                    </option>
-                  ))}
-                </select>
+                <Select value={selectedRoomId} onValueChange={setSelectedRoomId}>
+                  <SelectTrigger className="w-full h-11 bg-gray-50 border border-gray-200 rounded-xl text-[12px] font-semibold text-gray-900 focus:ring-1 focus:ring-gray-450 focus:border-gray-450">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent className="bg-white border border-gray-100 rounded-xl shadow-lg z-[10000]">
+                    {rooms.map((r) => (
+                      <SelectItem key={r.id} value={r.id} className="text-[12px] font-semibold text-gray-900 cursor-pointer">
+                        {r.room_name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               )}
             </div>
           </div>
@@ -500,14 +651,26 @@ interface EditAssetModalProps {
 }
 
 function EditAssetModal({ isOpen, onClose, onSaveSuccess, rooms, asset }: EditAssetModalProps) {
+  const [name, setName] = useState("");
   const [category, setCategory] = useState("UPS");
+  const [ipAddress, setIpAddress] = useState("");
   const [selectedRoomId, setSelectedRoomId] = useState("");
+  const [manufacturer, setManufacturer] = useState("");
+  const [model, setModel] = useState("");
+  const [firmwareVersion, setFirmwareVersion] = useState("");
+  const [rackLocation, setRackLocation] = useState("");
   const [isSaving, setIsSaving] = useState(false);
 
   useEffect(() => {
     if (asset) {
-      setCategory(asset.category === "Cooling" ? "AIRCON" : asset.category.toUpperCase());
+      setName(asset.name || "");
+      setCategory(asset.categoryDb || (asset.category === "Cooling" ? "AIRCON" : "UPS"));
+      setIpAddress(asset.ip || "");
       setSelectedRoomId(asset.room_id || "");
+      setManufacturer(asset.manufacturer || "");
+      setModel(asset.model || "");
+      setFirmwareVersion(asset.firmware || "");
+      setRackLocation(asset.rack === "—" ? "" : asset.rack || "");
     }
   }, [asset]);
 
@@ -521,9 +684,15 @@ function EditAssetModal({ isOpen, onClose, onSaveSuccess, rooms, asset }: EditAs
       const { error } = await supabase
         .from("equipment_registry")
         .update({
+          name: name.trim() || null,
           category: category,
+          ip_address: ipAddress.trim() || null,
           room_id: selectedRoomId || null,
-          location: selectedRoom?.room_name || "Unknown"
+          location: selectedRoom?.room_name || "Unknown",
+          manufacturer: manufacturer.trim() || null,
+          model: model.trim() || null,
+          firmware_version: firmwareVersion.trim() || null,
+          rack_location: rackLocation.trim() || null
         })
         .eq("equipment_id", asset.id);
 
@@ -543,7 +712,7 @@ function EditAssetModal({ isOpen, onClose, onSaveSuccess, rooms, asset }: EditAs
       className="fixed inset-0 z-50 flex items-center justify-center p-4"
       style={{ backgroundColor: "rgba(0,0,0,0.45)", backdropFilter: "blur(4px)" }}
     >
-      <div className="bg-white rounded-3xl shadow-2xl w-full max-w-md overflow-hidden animate-fade-in">
+      <div className="bg-white rounded-3xl shadow-2xl w-full max-w-xl overflow-hidden animate-fade-in">
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-5 border-b border-gray-100">
           <div>
@@ -564,26 +733,133 @@ function EditAssetModal({ isOpen, onClose, onSaveSuccess, rooms, asset }: EditAs
 
         {/* Form Body */}
         <form onSubmit={handleSubmit}>
-          <div className="px-6 py-5 space-y-4">
-            {/* Category */}
-            <div>
-              <label className="block text-[10px] font-black text-gray-400 uppercase tracking-[0.12em] mb-1.5">
-                Category
-              </label>
-              <select
-                value={category}
-                onChange={(e) => setCategory(e.target.value)}
-                className="w-full px-4 py-3 rounded-xl bg-gray-50 border border-gray-200 text-[12px] font-semibold text-gray-900 focus:outline-none focus:border-gray-400 transition-all"
-              >
-                <option value="UPS">UPS</option>
-                <option value="GENERATOR">Generator</option>
-                <option value="MAINS">Mains Feed</option>
-                <option value="RECTIFIER">Rectifier</option>
-                <option value="AIRCON">Air Conditioner (CRAC)</option>
-              </select>
+          <div className="px-6 py-5 space-y-4 max-h-[70vh] overflow-y-auto">
+            {/* Row 1: Name and Category */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-[10px] font-black text-gray-400 uppercase tracking-[0.12em] mb-1.5">
+                  Equipment Name
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  placeholder="e.g. UPS System 3"
+                  className="w-full px-4 py-3 rounded-xl bg-gray-50 border border-gray-200 text-[12px] font-semibold text-gray-900 placeholder-gray-400 focus:outline-none focus:border-gray-400 transition-all"
+                />
+              </div>
+              <div>
+                <label className="block text-[10px] font-black text-gray-400 uppercase tracking-[0.12em] mb-1.5">
+                  Category
+                </label>
+                <Select value={category} onValueChange={setCategory}>
+                  <SelectTrigger className="w-full h-11 bg-gray-50 border border-gray-200 rounded-xl text-[12px] font-semibold text-gray-900 focus:ring-1 focus:ring-gray-450 focus:border-gray-450">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent className="bg-white border border-gray-100 rounded-xl shadow-lg z-[10000]">
+                    <SelectItem value="UPS" className="text-[12px] font-semibold text-gray-900 cursor-pointer">UPS</SelectItem>
+                    <SelectItem value="GENERATOR" className="text-[12px] font-semibold text-gray-900 cursor-pointer">Generator</SelectItem>
+                    <SelectItem value="MAINS" className="text-[12px] font-semibold text-gray-900 cursor-pointer">Mains Feed</SelectItem>
+                    <SelectItem value="RECTIFIER" className="text-[12px] font-semibold text-gray-900 cursor-pointer">Rectifier</SelectItem>
+                    <SelectItem value="AIRCON" className="text-[12px] font-semibold text-gray-900 cursor-pointer">Air Conditioner (CRAC)</SelectItem>
+                    <SelectItem value="ENVIRONMENT" className="text-[12px] font-semibold text-gray-900 cursor-pointer">Environment Sensor</SelectItem>
+                    <SelectItem value="FIRE_SUPPRESSION" className="text-[12px] font-semibold text-gray-900 cursor-pointer">Fire Suppression</SelectItem>
+                    <SelectItem value="FUEL_LOGISTICS" className="text-[12px] font-semibold text-gray-900 cursor-pointer">Fuel Logistics</SelectItem>
+                    <SelectItem value="LOAD_PANEL" className="text-[12px] font-semibold text-gray-900 cursor-pointer">Load Panel</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
 
-            {/* Room (Location) */}
+            {/* Row 2: Asset ID and IP Address */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-[10px] font-black text-gray-400 uppercase tracking-[0.12em] mb-1.5">
+                  Asset ID
+                </label>
+                <input
+                  type="text"
+                  disabled
+                  value={asset.id}
+                  className="w-full px-4 py-3 rounded-xl bg-gray-100 border border-gray-200 text-[12px] font-semibold text-gray-400 cursor-not-allowed focus:outline-none"
+                />
+              </div>
+              <div>
+                <label className="block text-[10px] font-black text-gray-400 uppercase tracking-[0.12em] mb-1.5">
+                  IP Address
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={ipAddress}
+                  onChange={(e) => setIpAddress(e.target.value)}
+                  placeholder="e.g. 10.0.4.13"
+                  className="w-full px-4 py-3 rounded-xl bg-gray-50 border border-gray-200 text-[12px] font-semibold text-gray-900 placeholder-gray-400 focus:outline-none focus:border-gray-400 transition-all"
+                />
+              </div>
+            </div>
+
+            {/* Row 3: Manufacturer and Model */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-[10px] font-black text-gray-400 uppercase tracking-[0.12em] mb-1.5">
+                  Manufacturer
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={manufacturer}
+                  onChange={(e) => setManufacturer(e.target.value)}
+                  placeholder="e.g. Vertiv"
+                  className="w-full px-4 py-3 rounded-xl bg-gray-50 border border-gray-200 text-[12px] font-semibold text-gray-900 placeholder-gray-400 focus:outline-none focus:border-gray-400 transition-all"
+                />
+              </div>
+              <div>
+                <label className="block text-[10px] font-black text-gray-400 uppercase tracking-[0.12em] mb-1.5">
+                  Model
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={model}
+                  onChange={(e) => setModel(e.target.value)}
+                  placeholder="e.g. Liebert EXL S1"
+                  className="w-full px-4 py-3 rounded-xl bg-gray-50 border border-gray-200 text-[12px] font-semibold text-gray-900 placeholder-gray-400 focus:outline-none focus:border-gray-400 transition-all"
+                />
+              </div>
+            </div>
+
+            {/* Row 4: Firmware and Rack Location */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-[10px] font-black text-gray-400 uppercase tracking-[0.12em] mb-1.5">
+                  Firmware Version
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={firmwareVersion}
+                  onChange={(e) => setFirmwareVersion(e.target.value)}
+                  placeholder="e.g. v1.0.0"
+                  className="w-full px-4 py-3 rounded-xl bg-gray-50 border border-gray-200 text-[12px] font-semibold text-gray-900 placeholder-gray-400 focus:outline-none focus:border-gray-400 transition-all"
+                />
+              </div>
+              <div>
+                <label className="block text-[10px] font-black text-gray-400 uppercase tracking-[0.12em] mb-1.5">
+                  Rack Location
+                </label>
+                <input
+                  type="text"
+                  value={rackLocation}
+                  onChange={(e) => setRackLocation(e.target.value)}
+                  placeholder="e.g. R-01"
+                  className="w-full px-4 py-3 rounded-xl bg-gray-50 border border-gray-200 text-[12px] font-semibold text-gray-900 placeholder-gray-400 focus:outline-none focus:border-gray-400 transition-all"
+                />
+              </div>
+            </div>
+
+            {/* Row 5: Room */}
             <div>
               <label className="block text-[10px] font-black text-gray-400 uppercase tracking-[0.12em] mb-1.5">
                 Room
@@ -593,17 +869,18 @@ function EditAssetModal({ isOpen, onClose, onSaveSuccess, rooms, asset }: EditAs
                   No rooms configured. Add a room in the sidebar first.
                 </div>
               ) : (
-                <select
-                  value={selectedRoomId}
-                  onChange={(e) => setSelectedRoomId(e.target.value)}
-                  className="w-full px-4 py-3 rounded-xl bg-gray-50 border border-gray-200 text-[12px] font-semibold text-gray-900 focus:outline-none focus:border-gray-400 transition-all"
-                >
-                  {rooms.map((r) => (
-                    <option key={r.id} value={r.id}>
-                      {r.room_name}
-                    </option>
-                  ))}
-                </select>
+                <Select value={selectedRoomId} onValueChange={setSelectedRoomId}>
+                  <SelectTrigger className="w-full h-11 bg-gray-50 border border-gray-200 rounded-xl text-[12px] font-semibold text-gray-900 focus:ring-1 focus:ring-gray-450 focus:border-gray-450">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent className="bg-white border border-gray-100 rounded-xl shadow-lg z-[10000]">
+                    {rooms.map((r) => (
+                      <SelectItem key={r.id} value={r.id} className="text-[12px] font-semibold text-gray-900 cursor-pointer">
+                        {r.room_name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               )}
             </div>
           </div>
@@ -1025,15 +1302,16 @@ function ManageParametersModal({ isOpen, onClose, equipmentId }: ManageParameter
                 <label className="block text-[10px] font-black text-gray-400 uppercase tracking-wider mb-1.5">
                   Data Type
                 </label>
-                <select
-                  value={dataType}
-                  onChange={(e) => setDataType(e.target.value as any)}
-                  className="w-full px-3.5 py-2.5 rounded-xl bg-white border border-gray-200 text-[12px] font-semibold text-gray-900 focus:outline-none focus:border-gray-400 transition-all"
-                >
-                  <option value="number">Number</option>
-                  <option value="string">String</option>
-                  <option value="boolean">Boolean</option>
-                </select>
+                <Select value={dataType} onValueChange={(value) => setDataType(value as any)}>
+                  <SelectTrigger className="w-full h-11 bg-white border border-gray-200 rounded-xl text-[12px] font-semibold text-gray-900 focus:ring-1 focus:ring-gray-450 focus:border-gray-450">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent className="bg-white border border-gray-100 rounded-xl shadow-lg z-[10000]">
+                    <SelectItem value="number" className="text-[12px] font-semibold text-gray-900 cursor-pointer">Number</SelectItem>
+                    <SelectItem value="string" className="text-[12px] font-semibold text-gray-900 cursor-pointer">String</SelectItem>
+                    <SelectItem value="boolean" className="text-[12px] font-semibold text-gray-900 cursor-pointer">Boolean</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
 
               {/* Toggle: Is Constant */}
@@ -1161,6 +1439,38 @@ export function AssetInventory() {
     }
   };
 
+  const handleDeleteRoom = async (roomId: string, roomName: string, assetCount: number) => {
+    if (assetCount > 0) {
+      alert(`Cannot delete room "${roomName}" because it contains ${assetCount} active asset(s). Please move or delete the assets first.`);
+      return;
+    }
+
+    const confirmed = window.confirm(`Are you sure you want to delete the room "${roomName}"? This action cannot be undone.`);
+    if (!confirmed) return;
+
+    try {
+      const { error } = await supabase
+        .from("rooms")
+        .delete()
+        .eq("id", roomId);
+
+      if (error) throw error;
+
+      // Update local state
+      setRooms((prev) => prev.filter((r) => r.id !== roomId));
+      
+      // If the deleted room was active, reset activeRoomId
+      if (activeRoomId === roomId) {
+        setActiveRoomId(null);
+      }
+      
+      alert(`Room "${roomName}" deleted successfully.`);
+    } catch (err: any) {
+      console.error("Error deleting room:", err);
+      alert(`Failed to delete room: ${err.message || "Unknown error"}`);
+    }
+  };
+
   const fetchAssets = async () => {
     if (!currentSite?.id) {
       setAssets([]);
@@ -1191,58 +1501,58 @@ export function AssetInventory() {
           const lastPart = parts[parts.length - 1] || "001";
           const num = lastPart.padStart(3, "0");
           
-          let name = `Equipment ${id}`;
-          let manufacturer = "Standard";
-          let model = "Generic Model";
-          let ip = "10.0.4.10";
-          let firmware = "v1.0.0";
-          let rack = "—";
+          let name = row.name || `Equipment ${id}`;
+          let manufacturer = row.manufacturer || "Standard";
+          let model = row.model || "Generic Model";
+          let ip = row.ip_address || "10.0.4.10";
+          let firmware = row.firmware_version || "v1.0.0";
+          let rack = row.rack_location || "—";
           let liveMetric = "—";
           let metricUnit = "";
           
           if (categoryDb === "UPS") {
-            name = `UPS Unit ${num}`;
-            manufacturer = "Vertiv";
-            model = "Liebert EXL S1 80kVA";
-            ip = `10.0.4.1${num.charAt(2) || '1'}`;
-            firmware = "v4.2.1";
-            rack = `R-${num.substring(1)}`;
+            if (!row.name) name = `UPS Unit ${num}`;
+            if (!row.manufacturer) manufacturer = "Vertiv";
+            if (!row.model) model = "Liebert EXL S1 80kVA";
+            if (!row.ip_address) ip = `10.0.4.1${num.charAt(2) || '1'}`;
+            if (!row.firmware_version) firmware = "v4.2.1";
+            if (!row.rack_location) rack = `R-${num.substring(1)}`;
             liveMetric = num === "002" ? "47.6" : "48.1";
             metricUnit = "V DC";
           } else if (categoryDb === "GENERATOR") {
-            name = `Diesel Generator ${num === "001" ? "A" : "B"}`;
-            manufacturer = "Cummins";
-            model = "C250 D5 250kVA";
-            ip = `10.0.4.2${num.charAt(2) || '1'}`;
-            firmware = "v2.8.0";
-            rack = "—";
+            if (!row.name) name = `Diesel Generator ${num === "001" ? "A" : "B"}`;
+            if (!row.manufacturer) manufacturer = "Cummins";
+            if (!row.model) model = "C250 D5 250kVA";
+            if (!row.ip_address) ip = `10.0.4.2${num.charAt(2) || '1'}`;
+            if (!row.firmware_version) firmware = "v2.8.0";
+            if (!row.rack_location) rack = "—";
             liveMetric = "0";
             metricUnit = "kW";
           } else if (categoryDb === "RECTIFIER") {
-            name = `Rectifier ${num === "001" ? "A – Rm 1" : "B – Rm 2"}`;
-            manufacturer = "Eltek";
-            model = "Flatpack2 HE 48V";
-            ip = `10.0.4.3${num.charAt(2) || '1'}`;
-            firmware = "v5.3.0";
-            rack = `R-0${4 + (parseInt(num) || 1)}`;
+            if (!row.name) name = `Rectifier ${num === "001" ? "A – Rm 1" : "B – Rm 2"}`;
+            if (!row.manufacturer) manufacturer = "Eltek";
+            if (!row.model) model = "Flatpack2 HE 48V";
+            if (!row.ip_address) ip = `10.0.4.3${num.charAt(2) || '1'}`;
+            if (!row.firmware_version) firmware = "v5.3.0";
+            if (!row.rack_location) rack = `R-0${4 + (parseInt(num) || 1)}`;
             liveMetric = num === "002" ? "47.8" : "48.1";
             metricUnit = "V DC";
           } else if (categoryDb === "AIRCON") {
-            name = `CRAC Unit ${num}`;
-            manufacturer = "Stulz";
-            model = "CyberAir 3PRO DX";
-            ip = `10.0.5.1${num.charAt(2) || '1'}`;
-            firmware = "v3.1.4";
-            rack = "—";
+            if (!row.name) name = `CRAC Unit ${num}`;
+            if (!row.manufacturer) manufacturer = "Stulz";
+            if (!row.model) model = "CyberAir 3PRO DX";
+            if (!row.ip_address) ip = `10.0.5.1${num.charAt(2) || '1'}`;
+            if (!row.firmware_version) firmware = "v3.1.4";
+            if (!row.rack_location) rack = "—";
             liveMetric = num === "003" ? "22.4" : "20.7";
             metricUnit = "°C";
           } else if (categoryDb === "MAINS") {
-            name = "ZESCO Mains Grid";
-            manufacturer = "ZESCO";
-            model = "Utility Feed";
-            ip = "10.0.4.50";
-            firmware = "v1.0";
-            rack = "—";
+            if (!row.name) name = "ZESCO Mains Grid";
+            if (!row.manufacturer) manufacturer = "ZESCO";
+            if (!row.model) model = "Utility Feed";
+            if (!row.ip_address) ip = "10.0.4.50";
+            if (!row.firmware_version) firmware = "v1.0";
+            if (!row.rack_location) rack = "—";
             liveMetric = "230";
             metricUnit = "V AC";
           }
@@ -1257,6 +1567,7 @@ export function AssetInventory() {
             manufacturer: manufacturer,
             model:        model,
             category:     categoryUi,
+            categoryDb:   categoryDb,
             ip:           ip,
             firmware:     firmware,
             location:     row.location || "Unknown",
@@ -1343,6 +1654,7 @@ export function AssetInventory() {
         onClose={() => setIsAddModalOpen(false)} 
         onSaveSuccess={fetchAssets} 
         rooms={rooms}
+        assets={assets}
       />
       <AddRoomModal
         isOpen={isAddRoomModalOpen}
@@ -1444,23 +1756,48 @@ export function AssetInventory() {
               </button>
               {rooms.map((room) => {
                 const roomAssetCount = assets.filter(a => a.room_id === room.id).length;
+                const isActive = activeRoomId === room.id;
                 return (
-                  <button
+                  <div
                     key={room.id}
-                    onClick={() => setActiveRoomId(room.id)}
-                    className={`w-full text-left px-3.5 py-2.5 rounded-xl text-xs font-bold transition-all uppercase tracking-wider flex items-center justify-between group ${
-                      activeRoomId === room.id
+                    className={`w-full flex items-center justify-between px-3.5 py-1 rounded-xl transition-all group ${
+                      isActive
                         ? "bg-red-500 text-white shadow-sm shadow-red-500/10"
                         : "text-gray-600 hover:bg-gray-50"
                     }`}
                   >
-                    <span className="truncate pr-2">{room.room_name}</span>
-                    <span className={`text-[9px] px-1.5 py-0.5 rounded font-mono flex-shrink-0 ${
-                      activeRoomId === room.id ? "bg-red-600 text-white" : "bg-gray-100 text-gray-400 group-hover:bg-gray-200"
-                    }`}>
-                      {roomAssetCount}
-                    </span>
-                  </button>
+                    <button
+                      onClick={() => setActiveRoomId(room.id)}
+                      className="flex-1 text-left text-xs font-bold uppercase tracking-wider truncate py-1.5 cursor-pointer text-current"
+                    >
+                      {room.room_name}
+                    </button>
+                    
+                    <div className="flex items-center gap-1.5 flex-shrink-0 ml-2">
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleDeleteRoom(room.id, room.room_name, roomAssetCount);
+                        }}
+                        className={`p-1 rounded-lg transition-all md:opacity-0 group-hover:opacity-100 cursor-pointer ${
+                          isActive 
+                            ? "text-red-200 hover:text-white hover:bg-red-650" 
+                            : "text-gray-400 hover:text-red-500 hover:bg-red-50"
+                        }`}
+                        title="Delete Room"
+                      >
+                        <Trash2 size={12} />
+                      </button>
+
+                      <span className={`text-[9px] px-1.5 py-0.5 rounded font-mono flex-shrink-0 ${
+                        isActive 
+                          ? "bg-red-600 text-white" 
+                          : "bg-gray-100 text-gray-400 group-hover:bg-gray-200"
+                      }`}>
+                        {roomAssetCount}
+                      </span>
+                    </div>
+                  </div>
                 );
               })}
             </div>
@@ -1541,7 +1878,7 @@ export function AssetInventory() {
                 <thead>
                   <tr className="border-b border-gray-100 bg-gray-50/70">
                     <Th>Asset ID</Th>
-                    <Th>Type / Manufacturer</Th>
+                    <Th>Equipment Name</Th>
                     <Th>IP Address</Th>
                     <Th>Location</Th>
                     <Th>Status</Th>
@@ -1591,7 +1928,7 @@ export function AssetInventory() {
                           </div>
                         </td>
 
-                        {/* Type / Manufacturer */}
+                        {/* Equipment Name */}
                         <td className="px-4 py-3.5">
                           <div className="text-[12px] font-bold text-gray-800 leading-tight">
                             {asset.name}

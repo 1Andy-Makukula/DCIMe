@@ -2,6 +2,13 @@ import React, { useState, useEffect } from "react";
 import { createClient } from "@supabase/supabase-js";
 import { useAuth } from "@/shared/context/AuthContext";
 import { supabase } from "@/shared/api/supabaseClient";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/app/components/ui/select";
 import { 
   User, 
   Mail, 
@@ -13,7 +20,8 @@ import {
   UserPlus, 
   ShieldCheck,
   Eye,
-  EyeOff
+  EyeOff,
+  X
 } from "lucide-react";
 
 // Initialize a secondary, non-persistent Supabase client 
@@ -176,13 +184,24 @@ export function RegistrationForm({ onClose, onSaveSuccess }: RegistrationFormPro
     <div className="max-w-xl mx-auto bg-white border border-gray-100 shadow-sm rounded-3xl overflow-hidden">
       
       {/* Header */}
-      <div className="px-6 py-5 border-b border-gray-100 bg-gray-50/50">
-        <div className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-0.5">
-          {isBootstrapMode ? "System Bootstrap · Step 1/1" : "IAM · Identity Access Provisioning"}
+      <div className="px-6 py-5 border-b border-gray-100 bg-gray-50/50 flex items-center justify-between">
+        <div>
+          <div className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-0.5">
+            {isBootstrapMode ? "System Bootstrap · Step 1/1" : "IAM · Identity Access Provisioning"}
+          </div>
+          <h2 className="text-[16px] font-black text-gray-900 leading-none">
+            {isBootstrapMode ? "Create Primary NOC Admin Account" : "Register New Employee"}
+          </h2>
         </div>
-        <h2 className="text-[16px] font-black text-gray-900 leading-none">
-          {isBootstrapMode ? "Create Primary NOC Admin Account" : "Register New Employee"}
-        </h2>
+        {onClose && (
+          <button
+            type="button"
+            onClick={onClose}
+            className="p-2 rounded-xl text-gray-400 hover:text-gray-700 hover:bg-gray-100 transition-all cursor-pointer"
+          >
+            <X size={16} />
+          </button>
+        )}
       </div>
 
       {/* Form */}
@@ -293,19 +312,19 @@ export function RegistrationForm({ onClose, onSaveSuccess }: RegistrationFormPro
               Primary Site Location
             </label>
             <div className="relative">
-              <MapPin size={13} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400" />
-              <select
-                value={site}
-                onChange={(e) => setSite(e.target.value)}
-                className="w-full pl-9 pr-4 py-3 rounded-xl bg-gray-50 border border-gray-200 text-[12px] font-semibold text-gray-900 focus:outline-none focus:border-gray-400 transition-all appearance-none"
-              >
-                <option value="NTC ZM 0874">NTC ZM 0874 (Main Hub)</option>
-                <option value="Generator Room">Generator Room</option>
-                <option value="Power Room 1">Power Room 1</option>
-                <option value="Power Room 2">Power Room 2</option>
-                <option value="Server Room 1">Server Room 1</option>
-              </select>
-              <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none border-[4px] border-transparent border-t-gray-500 w-0 h-0" />
+              <MapPin size={13} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400 z-10" />
+              <Select value={site} onValueChange={setSite}>
+                <SelectTrigger className="w-full h-[46px] pl-9 bg-gray-50 border border-gray-200 rounded-xl text-[12px] font-semibold text-gray-900 focus:ring-1 focus:ring-gray-450 focus:border-gray-450">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent className="bg-white border border-gray-100 rounded-xl shadow-lg z-[10000]">
+                  <SelectItem value="NTC ZM 0874" className="text-[12px] font-semibold text-gray-900 cursor-pointer">NTC ZM 0874 (Main Hub)</SelectItem>
+                  <SelectItem value="Generator Room" className="text-[12px] font-semibold text-gray-900 cursor-pointer">Generator Room</SelectItem>
+                  <SelectItem value="Power Room 1" className="text-[12px] font-semibold text-gray-900 cursor-pointer">Power Room 1</SelectItem>
+                  <SelectItem value="Power Room 2" className="text-[12px] font-semibold text-gray-900 cursor-pointer">Power Room 2</SelectItem>
+                  <SelectItem value="Server Room 1" className="text-[12px] font-semibold text-gray-900 cursor-pointer">Server Room 1</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
           </div>
         </div>
@@ -357,7 +376,16 @@ export function RegistrationForm({ onClose, onSaveSuccess }: RegistrationFormPro
         )}
 
         {/* Submit */}
-        <div className="flex items-center justify-end pt-2 border-t border-gray-100">
+        <div className="flex items-center justify-end gap-2 pt-2 border-t border-gray-100">
+          {onClose && (
+            <button
+              type="button"
+              onClick={onClose}
+              className="px-5 py-3 rounded-xl text-[11px] font-black text-gray-500 hover:bg-gray-100 transition-all uppercase tracking-wider cursor-pointer"
+            >
+              Cancel
+            </button>
+          )}
           <button
             type="submit"
             disabled={isRegistering}

@@ -108,7 +108,7 @@ export const PrintableChecklist = forwardRef<HTMLDivElement, any>((props, ref) =
 
   const { data: propData = {}, readOnly: forceReadOnly = false } = props;
   const techName = propData.technicianName || "Field Tech";
-  
+
   // Local editable/fillable form states
   const [siteName, setSiteName] = useState(propData.siteName || currentSite?.site_name || "");
   const [date, setDate] = useState(() => {
@@ -304,7 +304,8 @@ export const PrintableChecklist = forwardRef<HTMLDivElement, any>((props, ref) =
 
   return (
     <div ref={ref} className="min-h-screen w-full bg-slate-50/50 print:bg-white text-slate-800 print:text-black py-6 print:py-0">
-      <style dangerouslySetInnerHTML={{ __html: `
+      <style dangerouslySetInnerHTML={{
+        __html: `
         @media print {
           body {
             background-color: white !important;
@@ -334,7 +335,7 @@ export const PrintableChecklist = forwardRef<HTMLDivElement, any>((props, ref) =
       `}} />
 
       <div className="max-w-4xl mx-auto px-4 print:px-0">
-        
+
         {/* Banner/Header bar: screen-only */}
         <div className="bg-white border border-slate-100 rounded-3xl p-5 shadow-sm mb-6 flex flex-col md:flex-row items-center justify-between gap-4 print:hidden">
           <div className="flex items-start gap-3.5">
@@ -364,13 +365,13 @@ export const PrintableChecklist = forwardRef<HTMLDivElement, any>((props, ref) =
                 )}
               </h2>
               <p className="text-xs text-slate-400 mt-1 max-w-xl leading-relaxed">
-                {isReadOnly 
+                {isReadOnly
                   ? `Viewing saved checklist report submitted by ${selectedHistory?.technician_name || techName}.`
                   : "Fill out the daily maintenance checks and click Submit & Print to save to the database and generate the PDF."}
               </p>
             </div>
           </div>
-          
+
           <div className="flex items-center gap-2 shrink-0">
             {!isReadOnly && (
               <button
@@ -411,7 +412,7 @@ export const PrintableChecklist = forwardRef<HTMLDivElement, any>((props, ref) =
 
         {/* Printable Area Page Container */}
         <div className="bg-white border border-slate-200 print:border-none shadow-xl print:shadow-none rounded-3xl print:rounded-none p-8 md:p-12 mx-auto w-full transition-all">
-          
+
           {/* Printable Document Header */}
           <div className="pb-4 mb-4">
             <div className="flex justify-between items-start">
@@ -502,13 +503,12 @@ export const PrintableChecklist = forwardRef<HTMLDivElement, any>((props, ref) =
                                 disabled={isReadOnly}
                                 onValueChange={(value) => handleStatusChange(cp.id, value as "OK" | "NOT OK" | "N/A")}
                               >
-                                <SelectTrigger className={`w-[90px] h-7 bg-white border text-[10px] font-black rounded-md focus:ring-1 focus:ring-red-500/20 focus:border-red-500 transition-all ${
-                                  val.status === "OK" 
-                                    ? "border-emerald-300 text-emerald-700" 
-                                    : val.status === "NOT OK" 
-                                    ? "border-red-300 text-red-700" 
-                                    : "border-slate-300 text-slate-500"
-                                }`}>
+                                <SelectTrigger className={`w-[90px] h-7 bg-white border text-[10px] font-black rounded-md focus:ring-1 focus:ring-red-500/20 focus:border-red-500 transition-all ${val.status === "OK"
+                                    ? "border-emerald-300 text-emerald-700"
+                                    : val.status === "NOT OK"
+                                      ? "border-red-300 text-red-700"
+                                      : "border-slate-300 text-slate-500"
+                                  }`}>
                                   <SelectValue />
                                 </SelectTrigger>
                                 <SelectContent className="bg-white border border-slate-200 rounded-lg shadow-lg z-[10000]">
@@ -549,7 +549,7 @@ export const PrintableChecklist = forwardRef<HTMLDivElement, any>((props, ref) =
           {/* Footer Signatures Area */}
           <div className="mt-8 pt-6">
             <div className="grid grid-cols-2 gap-12 font-sans">
-              
+
               {/* MS Partner Column */}
               <div className="space-y-4">
                 <p className="font-bold text-xs text-gray-900 print:text-black uppercase tracking-wider text-center">
@@ -558,9 +558,9 @@ export const PrintableChecklist = forwardRef<HTMLDivElement, any>((props, ref) =
                 <div className="space-y-3 pt-2 text-xs">
                   <div className="flex items-end gap-2">
                     <span className="font-bold text-gray-500 print:text-black w-16">Name:</span>
-                    <input 
-                      type="text" 
-                      value={msName} 
+                    <input
+                      type="text"
+                      value={msName}
                       disabled={isReadOnly}
                       onChange={(e) => setMsName(e.target.value)}
                       className="border-b border-gray-300 focus:border-red-500 focus:outline-none flex-1 pb-0.5 print:hidden font-semibold text-gray-800"
@@ -569,9 +569,9 @@ export const PrintableChecklist = forwardRef<HTMLDivElement, any>((props, ref) =
                   </div>
                   <div className="flex items-end gap-2">
                     <span className="font-bold text-gray-500 print:text-black w-16">Signature:</span>
-                    <input 
-                      type="text" 
-                      value={msSignature} 
+                    <input
+                      type="text"
+                      value={msSignature}
                       disabled={isReadOnly}
                       onChange={(e) => setMsSignature(e.target.value)}
                       className="border-b border-gray-300 focus:border-red-500 focus:outline-none flex-1 pb-0.5 print:hidden font-semibold text-gray-800"
@@ -580,9 +580,9 @@ export const PrintableChecklist = forwardRef<HTMLDivElement, any>((props, ref) =
                   </div>
                   <div className="flex items-end gap-2">
                     <span className="font-bold text-gray-500 print:text-black w-16">Date:</span>
-                    <input 
-                      type="text" 
-                      value={msDate} 
+                    <input
+                      type="text"
+                      value={msDate}
                       disabled={isReadOnly}
                       onChange={(e) => setMsDate(e.target.value)}
                       className="border-b border-gray-300 focus:border-red-500 focus:outline-none flex-1 pb-0.5 print:hidden font-semibold text-gray-800"
@@ -600,9 +600,9 @@ export const PrintableChecklist = forwardRef<HTMLDivElement, any>((props, ref) =
                 <div className="space-y-3 pt-2 text-xs">
                   <div className="flex items-end gap-2">
                     <span className="font-bold text-gray-500 print:text-black w-16">Name:</span>
-                    <input 
-                      type="text" 
-                      value={spocName} 
+                    <input
+                      type="text"
+                      value={spocName}
                       disabled={isReadOnly}
                       onChange={(e) => setSpocName(e.target.value)}
                       className="border-b border-gray-300 focus:border-red-500 focus:outline-none flex-1 pb-0.5 print:hidden font-semibold text-gray-800"
@@ -611,9 +611,9 @@ export const PrintableChecklist = forwardRef<HTMLDivElement, any>((props, ref) =
                   </div>
                   <div className="flex items-end gap-2">
                     <span className="font-bold text-gray-500 print:text-black w-16">Signature:</span>
-                    <input 
-                      type="text" 
-                      value={spocSignature} 
+                    <input
+                      type="text"
+                      value={spocSignature}
                       disabled={isReadOnly}
                       onChange={(e) => setSpocSignature(e.target.value)}
                       className="border-b border-gray-300 focus:border-red-500 focus:outline-none flex-1 pb-0.5 print:hidden font-semibold text-gray-800"
@@ -622,9 +622,9 @@ export const PrintableChecklist = forwardRef<HTMLDivElement, any>((props, ref) =
                   </div>
                   <div className="flex items-end gap-2">
                     <span className="font-bold text-gray-500 print:text-black w-16">Date:</span>
-                    <input 
-                      type="text" 
-                      value={spocDate} 
+                    <input
+                      type="text"
+                      value={spocDate}
                       disabled={isReadOnly}
                       onChange={(e) => setSpocDate(e.target.value)}
                       className="border-b border-gray-300 focus:border-red-500 focus:outline-none flex-1 pb-0.5 print:hidden font-semibold text-gray-800"

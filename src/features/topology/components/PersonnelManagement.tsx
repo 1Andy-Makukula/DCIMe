@@ -2,6 +2,13 @@ import React, { useState, useEffect } from "react";
 import { supabase } from "@/shared/api/supabaseClient";
 import { RegistrationForm } from "@/features/auth/components/RegistrationForm";
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/app/components/ui/select";
+import {
   Users,
   Shield,
   MapPin,
@@ -17,6 +24,8 @@ import {
   Mail,
   Phone,
   CalendarDays,
+  X,
+  Loader2,
 } from "lucide-react";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -103,6 +112,205 @@ function AddPersonnelModal({ onClose, onSaveSuccess }: AddPersonnelModalProps) {
   );
 }
 
+// ── Edit Personnel Modal ──────────────────────────────────────────────────────
+interface EditPersonnelModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  onSaveSuccess: () => void;
+  person: Personnel | null;
+}
+
+function EditPersonnelModal({ isOpen, onClose, onSaveSuccess, person }: EditPersonnelModalProps) {
+  const [fullName, setFullName] = useState("");
+  const [phone, setPhone] = useState("");
+  const [role, setRole] = useState<"ADMIN" | "FIELD_TECH">("FIELD_TECH");
+  const [siteId, setSiteId] = useState("NTC ZM 0874");
+  const [isSaving, setIsSaving] = useState(false);
+
+  useEffect(() => {
+    if (person) {
+      setFullName(person.name || "");
+      setPhone(person.phone || "");
+      setRole(person.role === "NOC Admin" ? "ADMIN" : "FIELD_TECH");
+      setSiteId(person.zone || "NTC ZM 0874");
+    }
+  }, [person]);
+
+  if (!isOpen || !person) return null;
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsSaving(true);
+    try {
+      const { error } = await supabase
+        .from("employees")
+        .update({
+          full_name: fullName.trim(),
+          phone_number: phone.trim(),
+          role: role,
+          site_id: siteId
+        })
+        .eq("id", person.id);
+
+      if (error) throw error;
+      onSaveSuccess();
+      onClose();
+    } catch (err) {
+      console.error("Error updating employee profile:", err);
+      alert("Failed to update personnel profile.");
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center p-4"
+      style={{ backgroundColor: "rgba(0,0,0,0.45)", backdropFilter: "blur(4px)" }}
+    >
+      <div className="bg-white rounded-3xl shadow-2xl w-full max-w-md overflow-hidden animate-fade-in">
+        {/* Header */}
+        <div className="flex items-center justify-between px-6 py-5 border-b border-gray-100">
+          <div>
+            <div className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-0.5">
+              IAM · Edit Profile
+            </div>
+            <h2 className="text-[16px] font-black text-gray-900 leading-none">
+              Edit {person.name}
+            </h2>
+          </div>
+          <button
+            onClick={onClose}
+            className="p-2 rounded-xl text-gray-400 hover:text-gray-700 hover:bg-gray-100 transition-all cursor-pointer"
+          >
+            <X size={16} />
+          </button>
+        </div>
+
+        {/* Form Body */}
+        <form onSubmit={handleSubmit}>
+          <div className="px-6 py-5 space-y-4">
+            {/* Full Name */}
+            <div>
+              <label className="block text-[10px] font-black text-gray-400 uppercase tracking-[0.12em] mb-1.5">
+                Full Name
+              </label>
+              <input
+                type="text"
+                required
+                value={fullName}
+                onChange={(e) => setFullName(e.target.value)}
+                placeholder="e.g. John Doe"
+                className="w-full px-4 py-3 rounded-xl bg-gray-50 border border-gray-200 text-[12px] font-semibold text-gray-900 placeholder-gray-400 focus:outline-none focus:border-gray-400 transition-all"
+              />
+            </div>
+
+            {/* Email (Read Only) */}
+            <div>
+              <label className="block text-[10px] font-black text-gray-400 uppercase tracking-[0.12em] mb-1.5">
+                Email Address (Read-Only)
+              </label>
+              <input
+                type="email"
+                disabled
+                value={person.email}
+                className="w-full px-4 py-3 rounded-xl bg-gray-100 border border-gray-200 text-[12px] font-semibold text-gray-400 cursor-not-allowed focus:outline-none"
+              />
+              <span className="text-[9px] text-gray-400 font-semibold mt-1 block">
+                To prevent credentials mismatch, login emails cannot be updated here.
+              </span>
+            </div>
+
+            {/* Phone Number */}
+            <div>
+              <label className="block text-[10px] font-black text-gray-400 uppercase tracking-[0.12em] mb-1.5">
+                Phone Number
+              </label>
+              <input
+                type="text"
+                required
+                value={phone}
+                onChange={(e) => setPhone(e.target.value)}
+                placeholder="e.g. +260 97 123 4567"
+                className="w-full px-4 py-3 rounded-xl bg-gray-50 border border-gray-200 text-[12px] font-semibold text-gray-900 placeholder-gray-400 focus:outline-none focus:border-gray-400 transition-all"
+              />
+            </div>
+
+            {/* Primary Site Location */}
+            <div>
+              <label className="block text-[10px] font-black text-gray-400 uppercase tracking-[0.12em] mb-1.5">
+                Primary Site Location
+              </label>
+              <Select value={siteId} onValueChange={setSiteId}>
+                <SelectTrigger className="w-full h-11 bg-gray-50 border border-gray-200 rounded-xl text-[12px] font-semibold text-gray-900 focus:ring-1 focus:ring-gray-450 focus:border-gray-450">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent className="bg-white border border-gray-100 rounded-xl shadow-lg z-[10000]">
+                  <SelectItem value="NTC ZM 0874" className="text-[12px] font-semibold text-gray-900 cursor-pointer">NTC ZM 0874 (Main Hub)</SelectItem>
+                  <SelectItem value="Generator Room" className="text-[12px] font-semibold text-gray-900 cursor-pointer">Generator Room</SelectItem>
+                  <SelectItem value="Power Room 1" className="text-[12px] font-semibold text-gray-900 cursor-pointer">Power Room 1</SelectItem>
+                  <SelectItem value="Power Room 2" className="text-[12px] font-semibold text-gray-900 cursor-pointer">Power Room 2</SelectItem>
+                  <SelectItem value="Server Room 1" className="text-[12px] font-semibold text-gray-900 cursor-pointer">Server Room 1</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* System Authorization Role */}
+            <div>
+              <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5">
+                System Authorization Role
+              </label>
+              <div className="grid grid-cols-2 gap-4">
+                <button
+                  type="button"
+                  onClick={() => setRole("FIELD_TECH")}
+                  className={`py-3 rounded-xl text-center text-xs font-black uppercase tracking-wider transition-all border cursor-pointer ${
+                    role === "FIELD_TECH"
+                      ? "bg-red-50 border-red-500 text-red-700"
+                      : "bg-gray-50 border-gray-200 text-gray-500 hover:bg-gray-100"
+                  }`}
+                >
+                  Field Tech
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setRole("ADMIN")}
+                  className={`py-3 rounded-xl text-center text-xs font-black uppercase tracking-wider transition-all border cursor-pointer ${
+                    role === "ADMIN"
+                      ? "bg-purple-50 border-purple-500 text-purple-700"
+                      : "bg-gray-50 border-gray-200 text-gray-500 hover:bg-gray-100"
+                  }`}
+                >
+                  NOC Admin (L5)
+                </button>
+              </div>
+            </div>
+          </div>
+
+          {/* Footer */}
+          <div className="flex items-center justify-end gap-2 px-6 py-4 border-t border-gray-100 bg-gray-50/50">
+            <button
+              type="button"
+              onClick={onClose}
+              className="px-4 py-2.5 rounded-xl text-[11px] font-black text-gray-500 hover:bg-gray-100 transition-all uppercase tracking-wider cursor-pointer"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              disabled={isSaving}
+              className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-gray-900 text-white text-[11px] font-black uppercase tracking-wider hover:bg-gray-700 active:scale-[0.98] transition-all cursor-pointer disabled:opacity-50"
+            >
+              {isSaving && <Loader2 size={12} className="animate-spin" />}
+              <span>Save Changes</span>
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
 // ── Confirm dialog ────────────────────────────────────────────────────────────
 function ConfirmDialog({
   person,
@@ -169,6 +377,8 @@ export function PersonnelManagement() {
   const [rawEmployees, setRawEmployees] = useState<any[]>([]);
   const [isLoading,    setIsLoading]    = useState(true);
   const [showAddModal, setShowAddModal] = useState(false);
+  const [editingPerson, setEditingPerson] = useState<Personnel | null>(null);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [confirm,      setConfirm]      = useState<{ person: Personnel; action: "revoke" | "reinstate" } | null>(null);
   const [expandedRow,  setExpandedRow]  = useState<string | null>(null);
 
@@ -353,6 +563,15 @@ export function PersonnelManagement() {
           onSaveSuccess={fetchRoster}
         />
       )}
+      <EditPersonnelModal
+        isOpen={isEditModalOpen}
+        onClose={() => {
+          setIsEditModalOpen(false);
+          setEditingPerson(null);
+        }}
+        onSaveSuccess={fetchRoster}
+        person={editingPerson}
+      />
       {confirm && (
         <ConfirmDialog
           person={confirm.person}
@@ -474,7 +693,8 @@ export function PersonnelManagement() {
                     <React.Fragment key={person.id}>
                       {/* Main row */}
                       <tr
-                        className={`group transition-colors duration-100 ${
+                        onClick={() => setExpandedRow(isExpanded ? null : person.id)}
+                        className={`group transition-colors duration-100 cursor-pointer ${
                           isRevoked
                             ? "opacity-50 bg-gray-50/30"
                             : "hover:bg-gray-50/50"
@@ -556,17 +776,20 @@ export function PersonnelManagement() {
                         </td>
 
                         {/* Security Controls */}
-                        <td className="px-5 py-4">
+                        <td className="px-5 py-4" onClick={(e) => e.stopPropagation()}>
                           <div className="flex items-center justify-end gap-2">
 
-                            {/* Expand for details */}
+                            {/* Edit Profile */}
                             <button
-                              onClick={() => setExpandedRow(isExpanded ? null : person.id)}
-                              title="View profile"
+                              onClick={() => {
+                                setEditingPerson(person);
+                                setIsEditModalOpen(true);
+                              }}
+                              title="Edit profile"
                               className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg border border-gray-200 text-gray-500 hover:border-gray-300 hover:bg-gray-50 text-[10px] font-black uppercase tracking-wider transition-all cursor-pointer"
                             >
                               <Pencil size={11} />
-                              View Profile
+                              Edit Profile
                             </button>
 
                             {/* Revoke / Reinstate */}

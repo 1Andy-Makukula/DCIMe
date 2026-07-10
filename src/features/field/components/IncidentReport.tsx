@@ -2,7 +2,6 @@ import React, { useState, useRef } from "react";
 import { useNavigate, useOutletContext } from "react-router";
 import { 
   Camera, 
-  ChevronDown, 
   CheckCircle2, 
   X, 
   AlertOctagon, 
@@ -15,6 +14,13 @@ import {
 import { useIncidents } from "../hooks/useIncidents";
 import { TechUser } from "./TechLayout";
 import { useCurrentSite } from "@/shared/context/SiteContext";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/app/components/ui/select";
 
 
 // Utility to compress image and convert to WebP base64 in-browser
@@ -313,22 +319,18 @@ export function IncidentReport() {
               <label className="text-xs font-black text-gray-400 uppercase tracking-widest block">
                 Affected Asset
               </label>
-              <div className="relative">
-                <select
-                  value={asset}
-                  onChange={(e) => setAsset(e.target.value)}
-                  className="w-full p-4 pr-10 rounded-2xl bg-gray-50 border border-gray-200 text-sm font-semibold text-gray-800 focus:outline-none focus:border-red-500 focus:ring-1 focus:ring-red-500 appearance-none transition-colors"
-                >
+              <Select value={asset} onValueChange={setAsset}>
+                <SelectTrigger className="w-full h-12 bg-gray-50 border border-gray-200 rounded-2xl text-sm font-semibold text-gray-800 focus:ring-1 focus:ring-red-500/20 focus:border-red-500">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent className="bg-white border border-gray-100 rounded-2xl shadow-lg z-[10000]">
                   {mockAssets.map((a) => (
-                    <option key={a.value} value={a.value}>
+                    <SelectItem key={a.value} value={a.value} className="text-xs font-semibold text-gray-800 cursor-pointer">
                       {a.label}
-                    </option>
+                    </SelectItem>
                   ))}
-                </select>
-                <div className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none">
-                  <ChevronDown size={18} />
-                </div>
-              </div>
+                </SelectContent>
+              </Select>
             </div>
 
             {/* Field 2: Severity Toggle */}
