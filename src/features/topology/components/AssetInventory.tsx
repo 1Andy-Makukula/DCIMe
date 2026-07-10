@@ -1137,7 +1137,7 @@ export function AssetInventory() {
   const [filterCategory, setFilterCategory] = useState("");
   const [filterStatus,   setFilterStatus]   = useState("");
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
-  const [isRoomModalOpen, setIsRoomModalOpen] = useState(false);
+  const [isAddRoomModalOpen, setIsAddRoomModalOpen] = useState(false);
   const [selectedAssetId, setSelectedAssetId] = useState<string | null>(null);
   const [isParamsModalOpen, setIsParamsModalOpen] = useState(false);
   const [editingAsset, setEditingAsset] = useState<Asset | null>(null);
@@ -1345,8 +1345,8 @@ export function AssetInventory() {
         rooms={rooms}
       />
       <AddRoomModal
-        isOpen={isRoomModalOpen}
-        onClose={() => setIsRoomModalOpen(false)}
+        isOpen={isAddRoomModalOpen}
+        onClose={() => setIsAddRoomModalOpen(false)}
         onSaveSuccess={fetchRooms}
         setRooms={setRooms}
       />
@@ -1418,7 +1418,7 @@ export function AssetInventory() {
                 Physical Rooms
               </h3>
               <button
-                onClick={() => setIsRoomModalOpen(true)}
+                onClick={() => setIsAddRoomModalOpen(true)}
                 className="p-1.5 rounded-lg bg-gray-50 border border-gray-200 text-gray-400 hover:text-gray-900 hover:bg-gray-100 transition-all cursor-pointer flex items-center justify-center"
                 title="Create New Room"
               >

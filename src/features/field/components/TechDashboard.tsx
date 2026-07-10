@@ -13,7 +13,7 @@ import {
 } from "lucide-react";
 import { ShiftTimeline } from "./ShiftTimeline";
 import { RoutineTasksDashboard } from "./RoutineTasksDashboard";
-import { PrintableChecklist } from "./PrintableChecklist";
+import { DailyChecklist } from "./DailyChecklist";
 import { supabase } from "@/shared/api/supabaseClient";
 import { useShiftReports } from "../hooks/useShiftReports";
 import { TechUser } from "./TechLayout";
@@ -33,7 +33,6 @@ export function TechDashboard() {
 
   const hour = currentTime.getHours();
   const isDayShift = hour >= 8 && hour < 18;
-  const currentShiftLabel = isDayShift ? "DAY SHIFT (08:00 - 18:00)" : "NIGHT SHIFT (18:00 - 08:00)";
   const currentShiftHours = isDayShift ? "08:00 - 18:00" : "18:00 - 08:00";
 
   useEffect(() => {
@@ -147,6 +146,7 @@ export function TechDashboard() {
         </div>
       </div>
 
+
       {/* Segmented Tab Controls */}
       <div className="bg-white border border-gray-100 rounded-2xl p-1.5 flex shadow-sm print:hidden max-w-md mx-auto">
         <button
@@ -170,7 +170,7 @@ export function TechDashboard() {
           }`}
         >
           <FileText size={14} />
-          <span className="hidden sm:inline">Daily PDF</span> Checklist
+          <span className="hidden sm:inline">Daily</span> Checklist
         </button>
 
         <button
@@ -222,18 +222,10 @@ export function TechDashboard() {
         </div>
       )}
 
-      {/* Tab Content 2: Daily PDF Checklist */}
+      {/* Tab Content 2: Daily Checklist */}
       {activeTab === "maintenance" && (
         <div className="w-full">
-          <PrintableChecklist 
-            data={{
-              siteName: "NTC ZM-0874",
-              date: new Date().toISOString().split("T")[0],
-              shift: currentShiftLabel,
-              technicianName: user?.name || "Field Tech",
-              technicianId: user?.id || "EMP-TECH"
-            }}
-          />
+          <DailyChecklist />
         </div>
       )}
 

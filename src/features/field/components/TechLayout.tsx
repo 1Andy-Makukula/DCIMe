@@ -52,7 +52,7 @@ export function TechLayout() {
   };
 
   return (
-    <div className="h-screen w-full flex flex-col bg-gray-50 overflow-hidden relative">
+    <div className="h-screen w-full flex flex-col bg-gray-50 overflow-hidden relative print:h-auto print:overflow-visible print:bg-white print:static">
       {/* Top Header */}
       <header className="h-14 bg-white border-b border-gray-100 px-4 flex items-center justify-between shrink-0 z-10 print:hidden">
         <div className="flex items-center gap-2.5">
@@ -92,7 +92,7 @@ export function TechLayout() {
       </header>
 
       {/* Viewport */}
-      <main className="flex-1 overflow-y-auto p-4 pb-20">
+      <main className="flex-1 overflow-y-auto p-4 pb-20 print:p-0 print:overflow-visible print:static">
         <Outlet context={{ user }} />
       </main>
 

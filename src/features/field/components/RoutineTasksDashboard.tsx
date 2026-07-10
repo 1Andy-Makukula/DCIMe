@@ -1,11 +1,10 @@
 import { useState, useMemo, useEffect } from 'react';
-import { Lock, Save, CheckCircle2, Loader2, Zap, AlertTriangle, ArrowLeft, Play } from 'lucide-react';
+import { Lock, Save, CheckCircle2, Loader2, Zap, AlertTriangle, ArrowLeft } from 'lucide-react';
 import { MASTER_ASSET_DICTIONARY } from '../constants/telemetrySchema';
 import { useTelemetryData } from '../hooks/useTelemetryData';
 import { useSiteEquipment } from '../hooks/useSiteEquipment';
 import { useTelemetryMutation } from '../hooks/useTelemetryMutation';
 import { toast } from 'sonner';
-import { supabase } from "@/shared/api/supabaseClient";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Types & Props
@@ -54,60 +53,14 @@ export const RoutineTasksDashboard = ({
   onBack,
   onSubmitSuccess 
 }: RoutineTasksDashboardProps) => {
-  // Helper to calculate the closest shift hour
-  const getClosestShiftHour = () => {
-    const currentHour = new Date().getHours();
-    return `${String(currentHour).padStart(2, '0')}:00`;
-  };
+  const targetHour = `${String(propTargetHour).padStart(2, '0')}:00`;
 
-  // State: targetHour (format: 'HH:00')
-  const [targetHour, setTargetHour] = useState<string>(() => {
-    if (propTargetHour !== undefined && propTargetHour !== null) {
-      return `${String(propTargetHour).padStart(2, '0')}:00`;
-    }
-    return getClosestShiftHour();
-  });
-
-  const [isChecklistStarted, setIsChecklistStarted] = useState(false);
   const [currentTime, setCurrentTime] = useState(new Date());
-  const [completedHours, setCompletedHours] = useState<number[]>([]);
 
   // Clock tick for actual time
   useEffect(() => {
     const timer = setInterval(() => setCurrentTime(new Date()), 1000);
     return () => clearInterval(timer);
-  }, []);
-
-  // Fetch completed slots for today on mount to show correct checklist status indicators
-  useEffect(() => {
-    const fetchCompletedHours = async () => {
-      try {
-        const startOfDay = new Date();
-        startOfDay.setHours(0, 0, 0, 0);
-        const endOfDay = new Date();
-        endOfDay.setHours(23, 59, 59, 999);
-
-        const { data, error } = await supabase
-          .from("telemetry_logs")
-          .select("target_hour")
-          .gte("target_hour", startOfDay.toISOString())
-          .lte("target_hour", endOfDay.toISOString());
-
-        if (error) throw error;
-
-        if (data) {
-          const hours = data.map((row: any) => {
-            return new Date(row.target_hour).getHours();
-          });
-          const uniqueHours = Array.from(new Set(hours)) as number[];
-          setCompletedHours(uniqueHours);
-        }
-      } catch (err) {
-        console.error("Error fetching completed hours from Supabase:", err);
-      }
-    };
-
-    fetchCompletedHours();
   }, []);
 
   // ── Consume the Telemetry Hook ─────────────────────────────────────────────
@@ -247,7 +200,7 @@ export const RoutineTasksDashboard = ({
   }, [visibleCategories, currentRoomIndex]);
 
   // ── Loading skeleton ───────────────────────────────────────────────────────
-  if (isChecklistStarted && isLoading) {
+  if (isLoading) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[50vh] gap-3 text-gray-400">
         <Loader2 size={32} className="text-red-500 animate-spin" />
@@ -257,111 +210,6 @@ export const RoutineTasksDashboard = ({
   }
 
   // ── Render ─────────────────────────────────────────────────────────────────
-  if (!isChecklistStarted) {
-    const shiftSlots = Array.from({ length: 24 }, (_, i) => `${String(i).padStart(2, "0")}:00`);
-    const currentHour = new Date().getHours();
-
-    return (
-      <div className="max-w-md mx-auto space-y-6 pb-24">
-        {/* Back Button */}
-        {handleBack && (
-          <div className="px-1">
-            <button
-              type="button"
-              onClick={handleBack}
-              className="inline-flex items-center gap-2 py-3 px-4 rounded-xl bg-white border border-gray-200 text-xs font-bold text-gray-600 hover:text-red-600 active:scale-[0.98] transition-all cursor-pointer shadow-sm"
-            >
-              <ArrowLeft size={14} />
-              <span>← Back</span>
-            </button>
-          </div>
-        )}
-
-        <div className="backdrop-blur-md bg-white border border-gray-200/50 rounded-3xl p-5 shadow-sm space-y-5 animate-fade-in">
-          <div>
-            <h2 className="text-xs font-black text-gray-400 uppercase tracking-widest">
-              Select Shift Target Hour
-            </h2>
-            <p className="text-xs text-gray-500 mt-1">
-              Select a slot to start logging telemetry. Highlighted slot is the closest current hour.
-            </p>
-          </div>
-
-          {/* Button Grid matching old ShiftTimeline style */}
-          <div className="grid grid-cols-4 gap-2">
-            {shiftSlots.map((slot, hour) => {
-              const isCompleted = completedHours.includes(hour);
-              const isActive = hour === currentHour;
-              const isOverdue = hour < currentHour && !isCompleted;
-
-              let status: "completed" | "active" | "overdue" | "future" = "future";
-              if (isCompleted) status = "completed";
-              else if (isActive) status = "active";
-              else if (isOverdue) status = "overdue";
-
-              let btnClass = "";
-              let icon = null;
-
-              switch (status) {
-                case "completed":
-                  btnClass = "bg-green-50 border-green-200 text-green-700 hover:bg-green-100/50 hover:border-green-300";
-                  icon = <CheckCircle2 size={12} className="text-green-600" />;
-                  break;
-                case "active":
-                  btnClass = "bg-blue-50 border-blue-400 text-blue-800 ring-2 ring-blue-400/50 hover:bg-blue-100/80 animate-pulse";
-                  icon = <Play size={8} fill="currentColor" className="text-blue-600" />;
-                  break;
-                case "overdue":
-                  btnClass = "bg-red-50 border-red-200 text-red-700 hover:bg-red-100/50 hover:border-red-300";
-                  icon = <AlertTriangle size={12} className="text-red-600" />;
-                  break;
-                case "future":
-                  btnClass = "bg-gray-50 border-gray-100 text-gray-400 opacity-60 cursor-not-allowed";
-                  icon = <Lock size={10} className="text-gray-300" />;
-                  break;
-              }
-
-              // Selected state override
-              const isSelected = targetHour === slot;
-              if (isSelected) {
-                btnClass = "bg-slate-900 border-transparent text-white ring-4 ring-slate-900/25";
-                icon = <CheckCircle2 size={12} className="text-white" />;
-              }
-
-              return (
-                <button
-                  key={slot}
-                  type="button"
-                  disabled={status === "future" && !isSelected}
-                  onClick={() => setTargetHour(slot)}
-                  className={`flex flex-col items-center justify-between p-2.5 rounded-2xl border text-center font-bold transition-all duration-200 active:scale-95 shadow-sm min-h-[64px] cursor-pointer ${btnClass}`}
-                >
-                  <span className="text-[10px] font-mono leading-none">{slot}</span>
-                  <div className="flex items-center justify-center h-4 mt-1">
-                    {icon}
-                  </div>
-                </button>
-              );
-            })}
-          </div>
-
-          {/* Start Checklist Button */}
-          <button
-            type="button"
-            disabled={!targetHour}
-            onClick={() => setIsChecklistStarted(true)}
-            className={`w-full py-4 rounded-2xl font-black text-xs tracking-widest uppercase transition-all shadow-md flex items-center justify-center gap-2 ${
-              targetHour
-                ? "bg-red-600 hover:bg-red-700 text-white cursor-pointer active:scale-[0.98]"
-                : "bg-gray-200 text-gray-400 cursor-not-allowed shadow-none"
-            }`}
-          >
-            Start Checklist
-          </button>
-        </div>
-      </div>
-    );
-  }
 
   return (
     <div className="max-w-md mx-auto space-y-6 pb-24">
