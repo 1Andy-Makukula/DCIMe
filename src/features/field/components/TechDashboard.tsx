@@ -9,11 +9,13 @@ import {
   MessageSquare,
   AlertOctagon,
   Loader2,
-  FileText
+  FileText,
+  Printer
 } from "lucide-react";
 import { ShiftTimeline } from "./ShiftTimeline";
 import { RoutineTasksDashboard } from "./RoutineTasksDashboard";
 import { DailyChecklist } from "./DailyChecklist";
+import { DGLogbook } from "./DGLogbook";
 import { supabase } from "@/shared/api/supabaseClient";
 import { useShiftReports } from "../hooks/useShiftReports";
 import { TechUser } from "./TechLayout";
@@ -26,8 +28,8 @@ export function TechDashboard() {
   const [completedHours, setCompletedHours] = useState<number[]>([]);
   const [currentTime, setCurrentTime] = useState(new Date());
   
-  // Tab state: "checklist", "handover", or "maintenance"
-  const [activeTab, setActiveTab] = useState<"checklist" | "handover" | "maintenance">("checklist");
+  // Tab state: "checklist", "handover", "maintenance", or "dg_logbook"
+  const [activeTab, setActiveTab] = useState<"checklist" | "handover" | "maintenance" | "dg_logbook">("checklist");
 
   const { shiftReports, isLoading: isHandoversLoading, error: handoversError, refresh: refreshHandovers } = useShiftReports();
 
@@ -151,40 +153,52 @@ export function TechDashboard() {
       <div className="bg-white border border-gray-100 rounded-2xl p-1.5 flex shadow-sm print:hidden max-w-md mx-auto">
         <button
           onClick={() => setActiveTab("checklist")}
-          className={`flex-1 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider transition-all flex items-center justify-center gap-2 ${
+          className={`flex-1 py-2 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all flex flex-col items-center justify-center gap-1 text-center ${
             activeTab === "checklist"
               ? "bg-red-500 text-white shadow-sm shadow-red-500/10"
               : "text-gray-400 hover:text-gray-600"
           }`}
         >
-          <CheckCircle size={14} />
-          <span className="hidden sm:inline">Routine</span> Checklist
+          <CheckCircle size={16} />
+          <span className="leading-tight block">Routine<br />Checklist</span>
         </button>
         
         <button
           onClick={() => setActiveTab("maintenance")}
-          className={`flex-1 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider transition-all flex items-center justify-center gap-2 ${
+          className={`flex-1 py-2 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all flex flex-col items-center justify-center gap-1 text-center ${
             activeTab === "maintenance"
               ? "bg-red-500 text-white shadow-sm shadow-red-500/10"
               : "text-gray-400 hover:text-gray-600"
           }`}
         >
-          <FileText size={14} />
-          <span className="hidden sm:inline">Daily</span> Checklist
+          <FileText size={16} />
+          <span className="leading-tight block">Daily<br />Checklist</span>
+        </button>
+
+        <button
+          onClick={() => setActiveTab("dg_logbook")}
+          className={`flex-1 py-2 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all flex flex-col items-center justify-center gap-1 text-center ${
+            activeTab === "dg_logbook"
+              ? "bg-red-500 text-white shadow-sm shadow-red-500/10"
+              : "text-gray-400 hover:text-gray-600"
+          }`}
+        >
+          <Printer size={16} />
+          <span className="leading-tight block">DG<br />Logbook</span>
         </button>
 
         <button
           onClick={() => { setActiveTab("handover"); refreshHandovers(); }}
-          className={`flex-1 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider transition-all flex items-center justify-center gap-2 relative ${
+          className={`flex-1 py-2 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all flex flex-col items-center justify-center gap-1 text-center relative ${
             activeTab === "handover"
               ? "bg-red-500 text-white shadow-sm shadow-red-500/10"
               : "text-gray-400 hover:text-gray-600"
           }`}
         >
-          <MessageSquare size={14} />
-          <span>Pass-down</span>
+          <MessageSquare size={16} />
+          <span className="leading-tight block">Pass-<br />down</span>
           {shiftReports.length > 0 && activeTab !== "handover" && (
-            <span className="absolute -top-1.5 -right-1.5 w-5 h-5 bg-red-600 border-2 border-white text-[9px] font-black text-white rounded-full flex items-center justify-center">
+            <span className="absolute top-1 right-2 w-4 h-4 bg-red-600 border-2 border-white text-[8px] font-black text-white rounded-full flex items-center justify-center">
               {shiftReports.length}
             </span>
           )}
@@ -226,6 +240,13 @@ export function TechDashboard() {
       {activeTab === "maintenance" && (
         <div className="w-full">
           <DailyChecklist />
+        </div>
+      )}
+
+      {/* Tab Content: DG Logbook */}
+      {activeTab === "dg_logbook" && (
+        <div className="w-full">
+          <DGLogbook />
         </div>
       )}
 

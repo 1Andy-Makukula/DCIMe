@@ -1,5 +1,6 @@
 import { useState, useMemo, useEffect } from 'react';
 import { Lock, Save, CheckCircle2, Loader2, Zap, AlertTriangle, ArrowLeft } from 'lucide-react';
+import { supabase } from '@/shared/api/supabaseClient';
 import { MASTER_ASSET_DICTIONARY } from '../constants/telemetrySchema';
 import { useTelemetryData } from '../hooks/useTelemetryData';
 import { useSiteEquipment } from '../hooks/useSiteEquipment';
@@ -72,7 +73,8 @@ export const RoutineTasksDashboard = ({
     isEditMode, 
     handleInputChange, 
     handleSubmit, 
-    isGridOff,
+    activePowerSource,
+    setActivePowerSource,
     isSuccess,
     submitError,
   } = useTelemetryData(targetHour, onComplete, onSubmitSuccess);
@@ -117,7 +119,7 @@ export const RoutineTasksDashboard = ({
         return;
       }
     }
-    handleSubmit();
+    handleSubmit(activeGenerators);
   };
   const activeSiteGenerators = allEquipment
     .filter((eq) => eq.category === "GENERATOR")
@@ -126,31 +128,68 @@ export const RoutineTasksDashboard = ({
   // Fallback to dg_hq if no generators are registered
   const generatorIds = activeSiteGenerators.length > 0 ? activeSiteGenerators : ['dg_hq'];
 
-  // Derive active generators directly from the parent form state (formData)
-  const activeDgs = new Set<string>();
-  const hasAnyActiveDg = generatorIds.some(
-    (dgId) => formData[`active_${dgId}`] === true
-  );
+  const [activeGenerators, setActiveGenerators] = useState<string[]>(['dg_1', 'dg_2', 'dg_3', 'dg_4', 'dg_hq']);
 
-  generatorIds.forEach((dgId) => {
-    if (formData[`active_${dgId}`] === true) {
-      activeDgs.add(dgId);
-    } else {
-      // Fallback: if data is already entered, treat it as active
-      const hasValue = Object.keys(formData).some(
-        (key) => key.startsWith(dgId + '_') && formData[key] !== undefined && formData[key] !== null && formData[key] !== '' && key !== `active_${dgId}`
-      );
-      if (hasValue) {
-        activeDgs.add(dgId);
-      }
+  // Sync activeGenerators from formData on load / change
+  useEffect(() => {
+    if (formData && Object.keys(formData).length > 0) {
+      const activeFromForm: string[] = [];
+      generatorIds.forEach((dgId) => {
+        const key = `active_${dgId}`;
+        if (formData[key] === true) {
+          activeFromForm.push(dgId);
+        } else if (formData[key] === undefined) {
+          activeFromForm.push(dgId); // Default to active if not initialized
+        }
+      });
+      setActiveGenerators((prev) => {
+        const sortedPrev = [...prev].sort().join(',');
+        const sortedNext = [...activeFromForm].sort().join(',');
+        if (sortedPrev !== sortedNext) {
+          return activeFromForm;
+        }
+        return prev;
+      });
     }
-  });
+  }, [formData]);
 
-  if (isGridOff && activeDgs.size === 0 && !hasAnyActiveDg) {
-    if (generatorIds.length > 0) {
-      activeDgs.add(generatorIds[generatorIds.length - 1]);
+  const toggleGenerator = (dgId: string) => {
+    setActiveGenerators((prev) => {
+      const next = prev.includes(dgId)
+        ? prev.filter((id) => id !== dgId)
+        : [...prev, dgId];
+      
+      // Synchronize in-memory (no database network calls onChange)
+      setFormData((prevForm: any) => {
+        const updated = {
+          ...prevForm,
+          [`active_${dgId}`]: next.includes(dgId)
+        };
+        const cacheKey = `telemetry_cache_${targetHour}`;
+        localStorage.setItem(cacheKey, JSON.stringify(updated));
+        return updated;
+      });
+
+      return next;
+    });
+  };
+
+  // Fallback: If in generator mode and no generators are selected, default to the last generator as active
+  useEffect(() => {
+    if (activePowerSource === 'GENERATOR' && activeGenerators.length === 0 && generatorIds.length > 0) {
+      const defaultDg = generatorIds[generatorIds.length - 1];
+      setActiveGenerators([defaultDg]);
+      setFormData((prevForm: any) => {
+        const updated = {
+          ...prevForm,
+          [`active_${defaultDg}`]: true
+        };
+        const cacheKey = `telemetry_cache_${targetHour}`;
+        localStorage.setItem(cacheKey, JSON.stringify(updated));
+        return updated;
+      });
     }
-  }
+  }, [activePowerSource, activeGenerators, generatorIds]);
 
   // ── Frequency accordion math (for header display and filtering) ────────────
   // Parse hour as number for compatibility with modulo operations
@@ -165,7 +204,10 @@ export const RoutineTasksDashboard = ({
       // Exclude grid_status since it is now controlled by the Master Power Toggle at the top
       if (metric.id === 'grid_status') return false;
 
-      if (assetId.includes('dg_') && isGridOff) return true;
+      // Generator metrics are shown based solely on whether the generator is inside activeGenerators
+      if (assetId.includes('dg_')) {
+        return activeGenerators.includes(assetId);
+      }
 
       switch (metric.frequency) {
         case 'hourly':  return true;
@@ -183,15 +225,131 @@ export const RoutineTasksDashboard = ({
   // ── Room Pagination / Focus Mode ───────────────────────────────────────────
   const [currentRoomIndex, setCurrentRoomIndex] = useState(0);
 
+  const [autoFilledFields, setAutoFilledFields] = useState<Set<string>>(new Set());
+  const [attemptedFetches, setAttemptedFetches] = useState<Set<string>>(new Set());
+
+  // Helper to fetch last stop values of a specific generator
+  const fetchLastDgMetrics = async (dgId: string) => {
+    try {
+      const { data, error } = await supabase
+        .from('telemetry_logs')
+        .select('metrics')
+        .not('metrics', 'is', null)
+        .order('target_hour', { ascending: false });
+
+      if (error) throw error;
+      
+      if (data) {
+        // Find the most recent log where the generator stopped running
+        const lastLogWithDg = data.find((row: any) => {
+          const m = row.metrics || {};
+          return m[`${dgId}_hr_meter_stop`] !== undefined && m[`${dgId}_hr_meter_stop`] !== null && m[`${dgId}_hr_meter_stop`] !== "";
+        });
+
+        if (lastLogWithDg) {
+          const m = lastLogWithDg.metrics;
+          return {
+            hr_meter_stop: m[`${dgId}_hr_meter_stop`],
+            cumulative_hrs: m[`${dgId}_cumulative_hrs`],
+            kwh_meter: m[`${dgId}_kwh_meter`]
+          };
+        }
+      }
+    } catch (err) {
+      console.error(`[DCIMe] Failed to fetch run hours memory for ${dgId}:`, err);
+    }
+    return null;
+  };
+
+  // Reset fetches on slot/hour change
+  useEffect(() => {
+    setAttemptedFetches(new Set());
+    setAutoFilledFields(new Set());
+  }, [targetHour]);
+
+  // Effect to trigger fetching of last run metrics when a generator is ONLINE or DEGRADED
+  useEffect(() => {
+    generatorIds.forEach(async (dgId) => {
+      const status = formData[`status_${dgId}`] || "ONLINE";
+      if (status !== "OFFLINE" && !attemptedFetches.has(dgId)) {
+        setAttemptedFetches((prev) => {
+          const next = new Set(prev);
+          next.add(dgId);
+          return next;
+        });
+
+        const lastMetrics = await fetchLastDgMetrics(dgId);
+        if (lastMetrics) {
+          setFormData((prev: any) => {
+            const updated = { ...prev };
+            const startKey = `${dgId}_hr_meter_start`;
+            const cumKey = `${dgId}_cumulative_hrs`;
+            const kwhKey = `${dgId}_kwh_meter`;
+            
+            let changed = false;
+
+            if (lastMetrics.hr_meter_stop !== undefined && lastMetrics.hr_meter_stop !== null && lastMetrics.hr_meter_stop !== "" && (updated[startKey] === undefined || updated[startKey] === "")) {
+              updated[startKey] = lastMetrics.hr_meter_stop;
+              setAutoFilledFields((f) => {
+                const s = new Set(f);
+                s.add(startKey);
+                return s;
+              });
+              changed = true;
+            }
+
+            if (lastMetrics.cumulative_hrs !== undefined && lastMetrics.cumulative_hrs !== null && lastMetrics.cumulative_hrs !== "" && (updated[cumKey] === undefined || updated[cumKey] === "")) {
+              updated[cumKey] = lastMetrics.cumulative_hrs;
+              setAutoFilledFields((f) => {
+                const s = new Set(f);
+                s.add(cumKey);
+                return s;
+              });
+              changed = true;
+            }
+
+            if (lastMetrics.kwh_meter !== undefined && lastMetrics.kwh_meter !== null && lastMetrics.kwh_meter !== "" && (updated[kwhKey] === undefined || updated[kwhKey] === "")) {
+              updated[kwhKey] = lastMetrics.kwh_meter;
+              setAutoFilledFields((f) => {
+                const s = new Set(f);
+                s.add(kwhKey);
+                return s;
+              });
+              changed = true;
+            }
+
+            if (changed) {
+              const cacheKey = `telemetry_cache_${targetHour}`;
+              localStorage.setItem(cacheKey, JSON.stringify(updated));
+            }
+            return updated;
+          });
+        }
+      }
+    });
+  }, [formData, attemptedFetches]);
+
+  const handleUserInputChange = (id: string, value: any) => {
+    handleInputChange(id, value);
+    setAutoFilledFields((prev) => {
+      if (prev.has(id)) {
+        const next = new Set(prev);
+        next.delete(id);
+        return next;
+      }
+      return prev;
+    });
+  };
+
   const visibleCategories = useMemo(() => {
     return MASTER_ASSET_DICTIONARY.filter((category) => {
       return category.assets.some((asset) => {
         const isDg = asset.id.startsWith('dg_');
-        if (isDg && !activeDgs.has(asset.id)) return false;
+        if (isDg && !activeGenerators.includes(asset.id)) return false;
         return getVisibleMetrics(asset.id, asset.metrics).length > 0;
       });
     });
-  }, [activeDgs, isGridOff, targetHour]);
+  }, [activeGenerators, activePowerSource, targetHour]);
 
   useEffect(() => {
     if (currentRoomIndex >= visibleCategories.length && visibleCategories.length > 0) {
@@ -247,7 +405,7 @@ export const RoutineTasksDashboard = ({
               ✏️ Editing
             </span>
           )}
-          {isGridOff && (
+          {activePowerSource === 'GENERATOR' && (
             <span className="bg-red-50 text-red-800 text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full border border-red-200">
               ⚡ Outage Mode
             </span>
@@ -255,18 +413,19 @@ export const RoutineTasksDashboard = ({
         </p>
       </div>
 
-      {/* Blackout Protocol Master Switch & Active Fleet Selector */}
+      {/* Active Site Power Toggle (Local UI State Only) */}
       <div className="backdrop-blur-md bg-white/75 border border-gray-200/50 rounded-3xl p-5 shadow-sm space-y-4">
         <div className="flex items-center justify-between">
-          <span className="text-xs font-black text-gray-700 uppercase tracking-wider">Power Source</span>
+          <div>
+            <span className="text-xs font-black text-gray-700 uppercase tracking-wider block">Active Site Power</span>
+            <span className="text-[10px] text-gray-400 font-semibold mt-0.5 block">Select primary energy feed</span>
+          </div>
           <div className="flex bg-slate-100 rounded-xl p-1 border border-slate-200/50">
             <button
               type="button"
-              onClick={() => {
-                handleToggleChange('grid_status', 'ON');
-              }}
+              onClick={() => setActivePowerSource('MAINS')}
               className={`px-4.5 py-2 rounded-lg text-xs font-black uppercase tracking-wider transition-all cursor-pointer ${
-                !isGridOff
+                activePowerSource === 'MAINS'
                   ? "bg-white text-green-600 shadow-sm border border-slate-200/30"
                   : "text-slate-500 hover:text-slate-700"
               }`}
@@ -275,11 +434,9 @@ export const RoutineTasksDashboard = ({
             </button>
             <button
               type="button"
-              onClick={() => {
-                handleToggleChange('grid_status', 'OFF', { active_dg_hq: true });
-              }}
+              onClick={() => setActivePowerSource('GENERATOR')}
               className={`px-4.5 py-2 rounded-lg text-xs font-black uppercase tracking-wider transition-all cursor-pointer ${
-                isGridOff
+                activePowerSource === 'GENERATOR'
                   ? "bg-red-500 text-white shadow-sm"
                   : "text-slate-500 hover:text-slate-700"
               }`}
@@ -289,36 +446,31 @@ export const RoutineTasksDashboard = ({
           </div>
         </div>
 
-        {isGridOff && (
-          <div className="space-y-2 border-t border-slate-100 pt-3">
-            <label className="block text-[10px] font-black text-slate-400 uppercase tracking-wider">
-              Active Generator Fleet (Tap to toggle)
-            </label>
-            <div className="flex flex-wrap gap-2">
-              {generatorIds.map((dgId) => {
-                const label = dgId === 'dg_hq' ? 'DG-HQ' : `DG-${dgId.replace('dg_', '').toUpperCase()}`;
-                const isActive = activeDgs.has(dgId);
-                return (
-                  <button
-                    key={dgId}
-                    type="button"
-                    onClick={() => {
-                      const isCurrentlyActive = activeDgs.has(dgId);
-                      handleToggleChange(`active_${dgId}`, !isCurrentlyActive);
-                    }}
-                    className={`px-3.5 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider transition-all cursor-pointer border ${
-                      isActive
-                        ? "bg-green-500 text-white border-green-600 shadow-sm"
-                        : "bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100"
-                    }`}
-                  >
-                    {label}
-                  </button>
-                );
-              })}
-            </div>
+        <div className="space-y-2 border-t border-slate-100 pt-3">
+          <label className="block text-[10px] font-black text-slate-400 uppercase tracking-wider">
+            Active Generator Fleet (Tap to toggle)
+          </label>
+          <div className="flex flex-wrap gap-2">
+            {generatorIds.map((dgId) => {
+              const label = dgId === 'dg_hq' ? 'DG-HQ' : `DG-${dgId.replace('dg_', '').toUpperCase()}`;
+              const isActive = activeGenerators.includes(dgId);
+              return (
+                <button
+                  key={dgId}
+                  type="button"
+                  onClick={() => toggleGenerator(dgId)}
+                  className={`px-3.5 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider transition-all cursor-pointer border ${
+                    isActive
+                      ? "bg-green-500 text-white border-green-600 shadow-sm"
+                      : "bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100"
+                  }`}
+                >
+                  {label}
+                </button>
+              );
+            })}
           </div>
-        )}
+        </div>
       </div>
 
       {/* Progress Indicator */}
@@ -362,7 +514,7 @@ export const RoutineTasksDashboard = ({
                 <div className="p-4 bg-gray-50/50 space-y-4">
                   {category.assets.map((asset) => {
                     const isDg = asset.id.startsWith('dg_');
-                    if (isDg && !activeDgs.has(asset.id)) return null;
+                    if (isDg && !activeGenerators.includes(asset.id)) return null;
 
                     const visibleMetrics = getVisibleMetrics(asset.id, asset.metrics);
                     if (visibleMetrics.length === 0) return null;
@@ -372,8 +524,10 @@ export const RoutineTasksDashboard = ({
                     );
                     const dbParams = dbEquipment?.equipment_parameters || [];
 
+                    const isGridLocked = asset.id === 'grid_main' && activePowerSource === 'GENERATOR';
+
                     return (
-                      <div key={asset.id} className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+                      <div key={asset.id} className={`bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden transition-all ${isGridLocked ? "opacity-45 bg-gray-50/50 pointer-events-none" : ""}`}>
                         {/* ── Card Header: Name  ·  Status Toggle ── */}
                         {(() => {
                           const statusKey  = `status_${asset.id}`;
@@ -382,6 +536,8 @@ export const RoutineTasksDashboard = ({
                           const currentComment = formData[commentKey] || "";
                           const isOffline  = currentStatus === "OFFLINE";
                           const isDegraded = currentStatus === "DEGRADED";
+                          const isDg = asset.id.startsWith('dg_');
+                          const hideBody = isDg && isOffline;
 
                           const colorStyles: Record<string, string> = {
                             ONLINE:   "bg-green-600  text-white shadow-sm",
@@ -410,6 +566,7 @@ export const RoutineTasksDashboard = ({
                                       <button
                                         key={st}
                                         type="button"
+                                        disabled={isGridLocked}
                                         onClick={() => {
                                           const extra: Record<string, any> = {};
                                           if (st === "OFFLINE") {
@@ -433,11 +590,13 @@ export const RoutineTasksDashboard = ({
                               </div>
 
                               {/* ── Body: Inputs (full-width, normal) ── */}
-                              <div className={`p-4 space-y-3 transition-opacity ${isOffline ? "opacity-40 pointer-events-none" : ""}`}>
+                              {!hideBody && (
+                                <div className={`p-4 space-y-3 transition-opacity ${(isOffline || isGridLocked) ? "opacity-40 pointer-events-none" : ""}`}>
                                 <div className="grid grid-cols-2 gap-3">
-                                  {/* Static schema metrics */}
                                   {visibleMetrics.map((metric) => {
                                     const isConst = metric.isConstant === true;
+                                    const isAutoFilled = autoFilledFields.has(metric.id);
+
                                     return (
                                       <div key={metric.id} className="space-y-1">
                                         <label htmlFor={metric.id} className="flex items-center gap-1 text-[10px] font-bold text-gray-400 uppercase tracking-wider">
@@ -448,20 +607,30 @@ export const RoutineTasksDashboard = ({
                                             </span>
                                           )}
                                         </label>
-                                        <input
-                                          id={metric.id}
-                                          type={metric.type === "number" ? "number" : "text"}
-                                          inputMode={metric.type === "number" ? "decimal" : "text"}
-                                          disabled={isOffline}
-                                          value={isOffline ? "" : (formData[metric.id] ?? "")}
-                                          onChange={(e) => handleInputChange(metric.id, e.target.value)}
-                                          placeholder={isConst ? String(metric.defaultValue ?? "") : "—"}
-                                          className={`w-full px-3 py-2 rounded-lg border text-xs font-semibold text-gray-800 focus:outline-none focus:border-red-400 focus:ring-1 focus:ring-red-400 transition-all ${
-                                            isConst
-                                              ? "bg-slate-50 border-slate-200 text-slate-400 border-dashed"
-                                              : "bg-white border-gray-200"
-                                          }`}
-                                        />
+                                        <div className="relative">
+                                          <input
+                                            id={metric.id}
+                                            type={metric.type === "number" ? "number" : "text"}
+                                            inputMode={metric.type === "number" ? "decimal" : "text"}
+                                            disabled={isOffline || isGridLocked}
+                                            value={(isOffline || isGridLocked) ? "" : (formData[metric.id] ?? "")}
+                                            onChange={(e) => handleUserInputChange(metric.id, e.target.value)}
+                                            placeholder={isConst ? String(metric.defaultValue ?? "") : "—"}
+                                            className={`w-full px-3 py-2 rounded-lg border text-xs font-semibold focus:outline-none focus:ring-1 transition-all ${
+                                              isConst
+                                                ? "bg-slate-50 border-slate-200 text-slate-400 border-dashed"
+                                                : isAutoFilled
+                                                ? "bg-emerald-50/10 border-emerald-200 text-emerald-700 focus:border-emerald-500 focus:ring-emerald-500/20"
+                                                : "bg-white border-gray-200 text-gray-800 focus:border-red-400 focus:ring-red-400"
+                                            }`}
+                                          />
+                                          {isAutoFilled && (
+                                            <span className="absolute right-2.5 top-1/2 -translate-y-1/2 flex items-center gap-1 text-[9px] font-bold text-emerald-600 bg-emerald-50 px-1 py-0.5 rounded border border-emerald-100/50 animate-fade-in" title="Auto-filled from previous log">
+                                              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                                              Sync
+                                            </span>
+                                          )}
+                                        </div>
                                       </div>
                                     );
                                   })}
@@ -494,8 +663,8 @@ export const RoutineTasksDashboard = ({
                                             <input
                                               id={inputKey}
                                               type="checkbox"
-                                              disabled={isOffline}
-                                              checked={!isOffline && (formData[inputKey] === "true" || formData[inputKey] === true)}
+                                              disabled={isOffline || isGridLocked}
+                                              checked={!(isOffline || isGridLocked) && (formData[inputKey] === "true" || formData[inputKey] === true)}
                                               onChange={(e) => handleToggleChange(inputKey, e.target.checked ? "true" : "false")}
                                               className="w-4 h-4 rounded text-red-600 focus:ring-red-500 border-gray-300"
                                             />
@@ -506,9 +675,9 @@ export const RoutineTasksDashboard = ({
                                               id={inputKey}
                                               type={param.data_type === "number" ? "number" : "text"}
                                               inputMode={param.data_type === "number" ? "decimal" : "text"}
-                                              disabled={isOffline}
-                                              value={isOffline ? "" : (formData[inputKey] ?? "")}
-                                              onChange={(e) => handleInputChange(inputKey, e.target.value)}
+                                              disabled={isOffline || isGridLocked}
+                                              value={(isOffline || isGridLocked) ? "" : (formData[inputKey] ?? "")}
+                                              onChange={(e) => handleUserInputChange(inputKey, e.target.value)}
                                               placeholder={param.unit ? `[${param.unit}]` : "—"}
                                               className="w-full px-3 py-2 rounded-lg border border-gray-200 bg-white text-xs font-semibold text-gray-800 focus:outline-none focus:border-red-400 focus:ring-1 focus:ring-red-400 transition-all"
                                             />
@@ -524,6 +693,7 @@ export const RoutineTasksDashboard = ({
                                   })}
                                 </div>
                               </div>
+                            )}
 
                               {/* ── Comment — shown when DEGRADED or OFFLINE ── */}
                               {(isDegraded || isOffline) && (
@@ -598,7 +768,7 @@ export const RoutineTasksDashboard = ({
                   ? "bg-gray-400 shadow-none cursor-not-allowed text-gray-100"
                   : isSuccess
                   ? "bg-green-600 shadow-green-600/10 active:scale-[0.98]"
-                  : isGridOff
+                  : activePowerSource === 'GENERATOR'
                   ? "bg-amber-600 hover:bg-amber-700 shadow-amber-600/10 active:scale-[0.98]"
                   : "bg-red-600 hover:bg-red-700 shadow-red-600/10 active:scale-[0.98]"
               }`}
@@ -615,7 +785,7 @@ export const RoutineTasksDashboard = ({
                 </>
               ) : (
                 <>
-                  {isGridOff ? <Zap size={16} /> : <Save size={16} />}
+                  {activePowerSource === 'GENERATOR' ? <Zap size={16} /> : <Save size={16} />}
                   <span>{isEditMode ? 'Update Log' : 'Submit Log'}</span>
                 </>
               )}

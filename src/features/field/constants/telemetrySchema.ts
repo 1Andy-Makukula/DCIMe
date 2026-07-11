@@ -315,36 +315,27 @@ export const MASTER_ASSET_DICTIONARY: AssetCategory[] = [
         id: 'grid_main',
         name: 'ZESCO Grid',
         metrics: [
-          // Voltages
-          { id: 'grid_voltage_r', label: 'Voltage (R)', type: 'number', frequency: 'hourly', destinations: [{ workbook: 'daily_canvas', sheetName: 'DYNAMIC_DAY', excelColumnIndex: 4 }, { workbook: 'commercial_logbook', sheetName: 'Commercial Power Log', excelColumnIndex: 2 }] },
-          { id: 'grid_voltage_y', label: 'Voltage (Y)', type: 'number', frequency: 'hourly', destinations: [] },
-          { id: 'grid_voltage_b', label: 'Voltage (B)', type: 'number', frequency: 'hourly', destinations: [] },
+          // ZESCO Grid Telemetry
+          { id: 'grid_voltage_r', label: 'Voltage R (V)', type: 'number', frequency: 'hourly', destinations: [] },
+          { id: 'grid_voltage_y', label: 'Voltage Y (V)', type: 'number', frequency: 'hourly', destinations: [] },
+          { id: 'grid_voltage_b', label: 'Voltage B (V)', type: 'number', frequency: 'hourly', destinations: [] },
+          { id: 'grid_voltage_rs', label: 'Voltage RS (V)', type: 'number', frequency: 'hourly', destinations: [] },
+          { id: 'grid_voltage_st', label: 'Voltage ST (V)', type: 'number', frequency: 'hourly', destinations: [] },
+          { id: 'grid_voltage_tr', label: 'Voltage TR (V)', type: 'number', frequency: 'hourly', destinations: [] },
+          { id: 'grid_frequency', label: 'Frequency (Hz)', type: 'number', frequency: 'hourly', destinations: [] },
+          { id: 'grid_status', label: 'Grid Status', type: 'text', frequency: 'hourly', isConstant: true, defaultValue: 'ONLINE', destinations: [] },
+          { id: 'grid_total_site_load', label: 'Total Site Load (kW)', type: 'number', frequency: 'hourly', destinations: [] },
           
-          // Amps
-          { id: 'grid_amps_r', label: 'Amps (R)', type: 'number', frequency: 'hourly', destinations: [] },
-          { id: 'grid_amps_y', label: 'Amps (Y)', type: 'number', frequency: 'hourly', destinations: [] },
-          { id: 'grid_amps_b', label: 'Amps (B)', type: 'number', frequency: 'hourly', destinations: [] },
+          // Site Load Metrics (MDB Panel)
+          { id: 'phase_current_r', label: 'Phase Current R (A)', type: 'number', frequency: 'hourly', destinations: [] },
+          { id: 'phase_current_s', label: 'Phase Current S (A)', type: 'number', frequency: 'hourly', destinations: [] },
+          { id: 'phase_current_t', label: 'Phase Current T (A)', type: 'number', frequency: 'hourly', destinations: [] },
+          { id: 'total_active_power_kw', label: 'Total Active Power (kW)', type: 'number', frequency: 'hourly', destinations: [] },
+          { id: 'power_factor', label: 'Power Factor', type: 'number', frequency: 'hourly', destinations: [] },
           
-          { id: 'grid_frequency', label: 'Frequency (Hz)', type: 'number', frequency: 'hourly', destinations: [{ workbook: 'daily_canvas', sheetName: 'DYNAMIC_DAY', excelColumnIndex: 7 }] },
-          
-          // Status & Durations (With Constants)
-          { id: 'grid_status', label: 'Status', type: 'text', frequency: 'hourly', isConstant: true, defaultValue: 'ON', destinations: [{ workbook: 'daily_canvas', sheetName: 'DYNAMIC_DAY', excelColumnIndex: 8 }] },
-          { id: 'grid_off_time', label: 'Off Time', type: 'text', frequency: 'hourly', isConstant: true, defaultValue: '0:00', destinations: [{ workbook: 'daily_canvas', sheetName: 'DYNAMIC_DAY', excelColumnIndex: 9 }] },
-          { id: 'grid_restored_time', label: 'Restored Time', type: 'text', frequency: 'hourly', isConstant: true, defaultValue: '0:00', destinations: [] },
-          { id: 'grid_off_duration', label: 'Off Duration', type: 'text', frequency: 'hourly', isConstant: true, defaultValue: '0:00', destinations: [] },
-          
-          { id: 'grid_total_site_load', label: 'Total Site Load (kW)', type: 'number', frequency: 'hourly', destinations: [{ workbook: 'daily_canvas', sheetName: 'DYNAMIC_DAY', excelColumnIndex: 12 }, { workbook: 'commercial_logbook', sheetName: 'Commercial Power Log', excelColumnIndex: 14 }] },
-
-          // Commercial Power (4-Hour) Metrics
-          { id: 'grid_phase_voltage_rn', label: 'Phase Voltage (RN)', type: 'number', frequency: '4-hour', destinations: [] },
-          { id: 'grid_phase_voltage_yn', label: 'Phase Voltage (YN)', type: 'number', frequency: '4-hour', destinations: [] },
-          { id: 'grid_phase_voltage_bn', label: 'Phase Voltage (BN)', type: 'number', frequency: '4-hour', destinations: [] },
-          { id: 'grid_transformer_temp', label: 'Transformer Temp (°C)', type: 'text', frequency: '4-hour', isConstant: true, defaultValue: 'NA', destinations: [] },
-          { id: 'grid_power_factor', label: 'Power Factor', type: 'number', frequency: '4-hour', destinations: [] },
-          { id: 'grid_energy_meter_1', label: 'Energy Meter (Sw 1)', type: 'number', frequency: '4-hour', destinations: [] },
-          { id: 'grid_energy_meter_2', label: 'Energy Meter (Sw 2)', type: 'number', frequency: '4-hour', destinations: [] },
-          { id: 'grid_commercial_remarks', label: 'Remarks', type: 'text', frequency: '4-hour', isConstant: true, defaultValue: 'WEATHER ON MAINS/DG', destinations: [] },
-          { id: 'facility_load_on', label: 'Load On (MAINS/DG)', type: 'text', frequency: 'hourly', isConstant: true, defaultValue: 'MAINS', destinations: [] },
+          // Efficiency Metrics
+          { id: 'total_facility_power_kw', label: 'Total Facility Power (kW)', type: 'number', frequency: 'hourly', destinations: [] },
+          { id: 'total_it_load_kw', label: 'Total IT Load (kW)', type: 'number', frequency: 'hourly', destinations: [] },
         ],
       },
       // MISSING ASSET ADDED: Aggregate DG Load
@@ -576,3 +567,44 @@ export const HOURLY_TELEMETRY_SCHEMA: TelemetryField[] = (() => {
   });
   return fields;
 })();
+
+// ── STRICT ANALYTICS TYPES ───────────────────────────────────────────────────
+export interface GeneratorsFuelAnalyticsType {
+  run_hrs: number;
+  fuel_consumed: number;
+  batt_voltage: number;
+  oil_pressure: number;
+  water_temp: number;
+  dg_id: 'DG-1' | 'DG-2' | 'DG-3' | 'DG-4' | 'DG-HQ';
+}
+
+export interface UpsRectifiersAnalyticsType {
+  ups_status: 'ONLINE' | 'OFFLINE' | 'DEGRADED';
+  rectifier_status: 'ONLINE' | 'OFFLINE' | 'DEGRADED';
+  output_load_kw: number;
+  load_amps_a: number;
+  load_amps_b: number;
+  load_amps_c: number;
+  rectifier_dc_voltage: number;
+  battery_charge: number;
+}
+
+export interface ThermalHvacAnalyticsType {
+  server_ambient_temp: number;
+  return_temp_actual: number;
+  supply_temp_set: number;
+  humidity_percent: number;
+  pac_id: string;
+  room_zone: string;
+  abnormality_flag: boolean;
+}
+
+export interface IncidentsAnalyticsType {
+  resolution_time_hrs: number;
+  incident_count: number;
+  incident_id: string;
+  severity: 'low' | 'medium' | 'high' | 'critical';
+  status: 'OPEN' | 'RESOLVED';
+  technician_id: string;
+  resolution_notes: string;
+}

@@ -3,6 +3,7 @@ import { supabase } from '@/shared/api/supabaseClient';
 import { MASTER_ASSET_DICTIONARY } from '../constants/telemetrySchema';
 import { useAuth } from '@/shared/context/AuthContext';
 import { PAC_CONSTANTS } from '../constants/pacConstants';
+import { toast } from 'sonner';
 
 export function useTelemetryData(
   targetHourProp: number | string,
@@ -16,6 +17,7 @@ export function useTelemetryData(
   const { employee } = useAuth();
   // 2. Exhaustive State Initialization
   const [formData, setFormData] = useState<Record<string, any>>({});
+  const [activePowerSource, setActivePowerSource] = useState<'MAINS' | 'GENERATOR'>('MAINS');
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
   const [isEditMode, setIsEditMode] = useState<boolean>(false);
@@ -43,6 +45,7 @@ export function useTelemetryData(
         setFormData(parsed);
         setIsLoading(false);
         hasCache = true;
+        setActivePowerSource(parsed['grid_status'] === 'OFF' ? 'GENERATOR' : 'MAINS');
       } catch (e) {
         console.warn('[DCIMe] Failed to parse telemetry cache:', e);
       }
@@ -83,6 +86,7 @@ export function useTelemetryData(
           setFormData(metrics);
           localStorage.setItem(cacheKey, JSON.stringify(metrics));
           setIsLoading(false);
+          setActivePowerSource(metrics['grid_status'] === 'OFF' ? 'GENERATOR' : 'MAINS');
           return;
         }
 
@@ -142,6 +146,7 @@ export function useTelemetryData(
         setFormData(newFormState);
         localStorage.setItem(cacheKey, JSON.stringify(newFormState));
         setIsLoading(false);
+        setActivePowerSource(newFormState['grid_status'] === 'OFF' ? 'GENERATOR' : 'MAINS');
       } catch (err: any) {
         console.error('[DCIMe] Fetch telemetry error:', err);
         if (active) {
@@ -170,10 +175,38 @@ export function useTelemetryData(
   };
 
   // 5. Exhaustive Ambient Average Math & Submission
-  const handleSubmit = async () => {
+  const handleSubmit = async (activeGenerators: string[] = []) => {
     setIsSubmitting(true);
     setSubmitError(null);
     setIsSuccess(false);
+
+    // Validate run hours for active generators
+    for (const dgId of activeGenerators) {
+      const startVal = parseFloat(formData[`${dgId}_hr_meter_start`]);
+      const stopVal = parseFloat(formData[`${dgId}_hr_meter_stop`]);
+      if (!isNaN(startVal) && !isNaN(stopVal)) {
+        const runHours = stopVal - startVal;
+        if (runHours < 0) {
+          toast.error('Invalid Run Hours: Stop meter cannot be lower than Start meter');
+          setIsSubmitting(false);
+          return;
+        }
+      }
+    }
+
+    // Calculate theoretical fuel burn for active generators (Dual-Tier Day Tank Math)
+    const fuelBurnUpdates: Record<string, any> = {};
+    activeGenerators.forEach((dgId) => {
+      const startVal = parseFloat(formData[`${dgId}_hr_meter_start`]);
+      const stopVal = parseFloat(formData[`${dgId}_hr_meter_stop`]);
+      if (!isNaN(startVal) && !isNaN(stopVal)) {
+        const runHours = stopVal - startVal;
+        if (runHours >= 0) {
+          const theoreticalBurn = runHours * 150;
+          fuelBurnUpdates[`${dgId}_calculated_fuel_burn`] = parseFloat(theoreticalBurn.toFixed(2));
+        }
+      }
+    });
 
     // The Math: Calculate the ambient_avg_temp.
     // You MUST exclusively average these specific exact IDs:
@@ -205,12 +238,29 @@ export function useTelemetryData(
       ambient_avg_temp = parseFloat((sum / tempValues.length).toFixed(1));
     }
 
-    // Append ambient_avg_temp to the formData payload
-    const payload = {
+    // Append ambient_avg_temp and day-tank fuel burn to the formData payload
+    const payload: Record<string, any> = {
       ...formData,
+      ...fuelBurnUpdates,
+      grid_status: activePowerSource === 'GENERATOR' ? 'OFF' : 'ON'
     };
     if (ambient_avg_temp !== null) {
       payload['ambient_avg_temp'] = ambient_avg_temp;
+    }
+
+    if (activePowerSource === 'GENERATOR') {
+      payload['active_dg_hq'] = true;
+      
+      // Force all Zesco/Grid metrics (grid_main) to null
+      const gridAsset = MASTER_ASSET_DICTIONARY
+        .find((cat) => cat.categoryName.includes('Outside / Main Grid'))
+        ?.assets.find((ast) => ast.id === 'grid_main');
+
+      if (gridAsset) {
+        gridAsset.metrics.forEach((metric) => {
+          payload[metric.id] = null;
+        });
+      }
     }
 
     try {
@@ -250,6 +300,9 @@ export function useTelemetryData(
           if (offlineAssetIds.has(normalizedAssetId)) {
             delete payload[`param_${param.id}`];
           }
+          if (param.equipment_id === 'grid_main' && activePowerSource === 'GENERATOR') {
+            payload[`param_${param.id}`] = null;
+          }
         });
       }
       // Instantly get the cached user session (Zero Network Delay)
@@ -282,6 +335,36 @@ export function useTelemetryData(
         throw error;
       }
 
+      // Update active_power_source in public.shift_reports for the current shift
+      let targetShiftLogId: string | null = null;
+      if (employee?.id) {
+        const { data } = await supabase
+          .from('shift_reports')
+          .select('log_id')
+          .eq('logged_by', employee.id)
+          .order('timestamp', { ascending: false })
+          .limit(1)
+          .maybeSingle();
+        if (data) targetShiftLogId = data.log_id;
+      }
+      
+      if (!targetShiftLogId) {
+        const { data } = await supabase
+          .from('shift_reports')
+          .select('log_id')
+          .order('timestamp', { ascending: false })
+          .limit(1)
+          .maybeSingle();
+        if (data) targetShiftLogId = data.log_id;
+      }
+
+      if (targetShiftLogId) {
+        await supabase
+          .from('shift_reports')
+          .update({ active_power_source: activePowerSource })
+          .eq('log_id', targetShiftLogId);
+      }
+ 
       // Cleanup: On success, localStorage.removeItem(cacheKey), set isSubmitting(false), call onComplete?.() and onSubmitSuccess?.().
       const cacheKey = `telemetry_cache_${targetHour}`;
       localStorage.removeItem(cacheKey);
@@ -332,6 +415,8 @@ export function useTelemetryData(
     handleInputChange,
     handleSubmit,
     isGridOff,
+    activePowerSource,
+    setActivePowerSource,
 
     // Compatibility exports for existing TechDashboard / RoutineTasksDashboard
     handleChange: handleInputChange,
