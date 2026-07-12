@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/app/components/ui/card";
 import { Badge } from "@/app/components/ui/badge";
 import { Skeleton } from "@/app/components/ui/skeleton";
-import { Cpu, Activity, BatteryCharging, ShieldCheck } from 'lucide-react';
+import { Cpu, Activity, BatteryCharging, ShieldCheck, AlertCircle } from 'lucide-react';
 import { useDashboardData } from '../hooks/useDashboardData';
 import {
   AreaChart,
@@ -20,7 +20,7 @@ import {
 
 export function UpsAnalytics() {
   const [timePeriod] = useState("Today");
-  const { isLoading, upsChartData, phaseDistributionData, kpis } = useDashboardData();
+  const { isLoading, isUsingMockData, upsChartData, phaseDistributionData, kpis } = useDashboardData();
 
   if (isLoading) {
     return (
@@ -61,6 +61,22 @@ export function UpsAnalytics() {
     );
   }
 
+  // Calculate unbalance for both UPS units and find the maximum unbalance
+  const ups1 = phaseDistributionData[0] || { Phase_A: 152, Phase_B: 148, Phase_C: 150 };
+  const ups2 = phaseDistributionData[1] || { Phase_A: 168, Phase_B: 162, Phase_C: 165 };
+
+  const calcUnbalance = (u: any) => {
+    const max = Math.max(u.Phase_A, u.Phase_B, u.Phase_C);
+    const min = Math.min(u.Phase_A, u.Phase_B, u.Phase_C);
+    const avg = (u.Phase_A + u.Phase_B + u.Phase_C) / 3;
+    return avg > 0 ? ((max - min) / avg) * 100 : 0;
+  };
+
+  const unbalance1 = calcUnbalance(ups1);
+  const unbalance2 = calcUnbalance(ups2);
+  const maxUnbalance = Math.max(unbalance1, unbalance2);
+  const isBalanced = maxUnbalance < 3.0;
+
   return (
     <div className="p-6 space-y-6 bg-slate-50/50 min-h-screen text-slate-800">
       {/* Header Panel */}
@@ -75,6 +91,13 @@ export function UpsAnalytics() {
           </Badge>
         </div>
       </div>
+
+      {isUsingMockData && (
+        <div className="flex items-center gap-3 bg-amber-50 border border-amber-100/60 text-amber-800 p-4 rounded-3xl text-xs font-semibold">
+          <AlertCircle className="w-4.5 h-4.5 text-amber-600 shrink-0" />
+          <span>Operational Notice: Telemetry database table contains no records. Displaying baseline simulated data for dashboard verification.</span>
+        </div>
+      )}
 
       {/* KPI Cards */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -176,9 +199,22 @@ export function UpsAnalytics() {
             </div>
 
             {/* Check info */}
-            <div className="flex items-center gap-1.5 text-[9px] font-black text-emerald-700 bg-emerald-50 px-2.5 py-2 rounded-2xl border border-emerald-100 mt-4 justify-center">
-              <ShieldCheck className="w-4 h-4 shrink-0" />
-              <span>Phases are optimally balanced (Unbalance &lt; 3.0%).</span>
+            <div className={`flex items-center gap-1.5 text-[9px] font-black px-2.5 py-2 rounded-2xl border mt-4 justify-center ${
+              isBalanced
+                ? "text-emerald-700 bg-emerald-50 border-emerald-100"
+                : "text-amber-700 bg-amber-50 border-amber-100"
+            }`}>
+              {isBalanced ? (
+                <>
+                  <ShieldCheck className="w-4 h-4 shrink-0 text-emerald-600" />
+                  <span>Phases are optimally balanced (Unbalance &lt; 3.0%).</span>
+                </>
+              ) : (
+                <>
+                  <Activity className="w-4 h-4 shrink-0 animate-pulse text-amber-600" />
+                  <span>Phase unbalance warning (Unbalance of {maxUnbalance.toFixed(1)}% detected).</span>
+                </>
+              )}
             </div>
           </CardContent>
         </Card>

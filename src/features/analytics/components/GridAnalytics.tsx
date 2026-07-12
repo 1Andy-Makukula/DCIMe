@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/app/components/ui/card";
 import { Badge } from "@/app/components/ui/badge";
 import { Skeleton } from "@/app/components/ui/skeleton";
-import { Zap, Clock, ShieldCheck } from 'lucide-react';
+import { Zap, Clock, ShieldCheck, AlertCircle } from 'lucide-react';
 import { useDashboardData } from '../hooks/useDashboardData';
 import {
   ComposedChart,
@@ -18,7 +18,7 @@ import {
 
 export function GridAnalytics() {
   const [timePeriod] = useState("Today");
-  const { isLoading, gridChartData, heatmapData, kpis } = useDashboardData();
+  const { isLoading, isUsingMockData, latestGridStatus, gridChartData, heatmapData, kpis } = useDashboardData();
 
   if (isLoading) {
     return (
@@ -59,7 +59,7 @@ export function GridAnalytics() {
     );
   }
 
-  const isOnline = kpis.grid.uptimePercentage !== "0.0";
+  const isOnline = latestGridStatus === 'ONLINE' || latestGridStatus === 'ON';
 
   return (
     <div className="p-6 space-y-6 bg-slate-50/50 min-h-screen text-slate-800">
@@ -85,6 +85,13 @@ export function GridAnalytics() {
           </Badge>
         </div>
       </div>
+
+      {isUsingMockData && (
+        <div className="flex items-center gap-3 bg-amber-50 border border-amber-100/60 text-amber-800 p-4 rounded-3xl text-xs font-semibold">
+          <AlertCircle className="w-4.5 h-4.5 text-amber-600 shrink-0" />
+          <span>Operational Notice: Telemetry database table contains no records. Displaying baseline simulated data for dashboard verification.</span>
+        </div>
+      )}
 
       {/* KPI Cards */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">

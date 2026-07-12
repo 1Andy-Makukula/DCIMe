@@ -14,7 +14,7 @@ import {
 } from "lucide-react";
 import { ShiftTimeline } from "./ShiftTimeline";
 import { RoutineTasksDashboard } from "./RoutineTasksDashboard";
-import { DailyChecklist } from "./DailyChecklist";
+import { PrintableChecklist } from "./PrintableChecklist";
 import { DGLogbook } from "./DGLogbook";
 import { supabase } from "@/shared/api/supabaseClient";
 import { useShiftReports } from "../hooks/useShiftReports";
@@ -148,6 +148,15 @@ export function TechDashboard() {
         </div>
       </div>
 
+      {/* View Topology Button */}
+      <div className="max-w-md mx-auto">
+        <button
+          onClick={() => window.open("/topology_engine/renderer/index.html?role=FIELD_TECH", "_blank")}
+          className="w-full bg-white border border-gray-200 hover:border-red-200 rounded-3xl py-3.5 text-[10px] font-black uppercase tracking-wider text-slate-700 hover:text-red-500 hover:bg-red-50/10 active:scale-[0.98] transition-all shadow-sm flex items-center justify-center gap-2 cursor-pointer"
+        >
+          📊 View Visual Topology Map
+        </button>
+      </div>
 
       {/* Segmented Tab Controls */}
       <div className="bg-white border border-gray-100 rounded-2xl p-1.5 flex shadow-sm print:hidden max-w-md mx-auto">
@@ -239,7 +248,7 @@ export function TechDashboard() {
       {/* Tab Content 2: Daily Checklist */}
       {activeTab === "maintenance" && (
         <div className="w-full">
-          <DailyChecklist />
+          <PrintableChecklist />
         </div>
       )}
 

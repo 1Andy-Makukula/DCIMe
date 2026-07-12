@@ -20,6 +20,16 @@ export interface FuelDataPoint {
   date: string;
   run_hrs: number;
   fuel_consumed: number;
+  dg1_run_hrs?: number;
+  dg1_fuel_consumed?: number;
+  dg2_run_hrs?: number;
+  dg2_fuel_consumed?: number;
+  dg3_run_hrs?: number;
+  dg3_fuel_consumed?: number;
+  dg4_run_hrs?: number;
+  dg4_fuel_consumed?: number;
+  dghq_run_hrs?: number;
+  dghq_fuel_consumed?: number;
 }
 
 export interface EngineHealthPoint {
@@ -134,15 +144,15 @@ const defaultHeatmapData: HeatmapPoint[] = Array.from({ length: 30 }, (_, idx) =
 });
 
 const defaultFuelData: FuelDataPoint[] = [
-  { date: "Jul 01", run_hrs: 4.2, fuel_consumed: 630 },
-  { date: "Jul 02", run_hrs: 2.8, fuel_consumed: 420 },
-  { date: "Jul 03", run_hrs: 5.5, fuel_consumed: 825 },
-  { date: "Jul 04", run_hrs: 1.0, fuel_consumed: 150 },
-  { date: "Jul 05", run_hrs: 0.0, fuel_consumed: 0 },
-  { date: "Jul 06", run_hrs: 3.6, fuel_consumed: 540 },
-  { date: "Jul 07", run_hrs: 6.8, fuel_consumed: 1020 },
-  { date: "Jul 08", run_hrs: 4.0, fuel_consumed: 600 },
-  { date: "Jul 09", run_hrs: 2.5, fuel_consumed: 375 }
+  { date: "Jul 01", run_hrs: 4.2, fuel_consumed: 630, dg1_run_hrs: 4.2, dg1_fuel_consumed: 630, dg2_run_hrs: 2.5, dg2_fuel_consumed: 375, dg3_run_hrs: 3.1, dg3_fuel_consumed: 465, dg4_run_hrs: 1.8, dg4_fuel_consumed: 270, dghq_run_hrs: 0.8, dghq_fuel_consumed: 120 },
+  { date: "Jul 02", run_hrs: 2.8, fuel_consumed: 420, dg1_run_hrs: 2.8, dg1_fuel_consumed: 420, dg2_run_hrs: 1.4, dg2_fuel_consumed: 210, dg3_run_hrs: 2.0, dg3_fuel_consumed: 300, dg4_run_hrs: 1.2, dg4_fuel_consumed: 180, dghq_run_hrs: 0.0, dghq_fuel_consumed: 0 },
+  { date: "Jul 03", run_hrs: 5.5, fuel_consumed: 825, dg1_run_hrs: 5.5, dg1_fuel_consumed: 825, dg2_run_hrs: 3.2, dg2_fuel_consumed: 480, dg3_run_hrs: 4.0, dg3_fuel_consumed: 600, dg4_run_hrs: 2.5, dg4_fuel_consumed: 375, dghq_run_hrs: 1.2, dghq_fuel_consumed: 180 },
+  { date: "Jul 04", run_hrs: 1.0, fuel_consumed: 150, dg1_run_hrs: 1.0, dg1_fuel_consumed: 150, dg2_run_hrs: 0.5, dg2_fuel_consumed: 75, dg3_run_hrs: 0.8, dg3_fuel_consumed: 120, dg4_run_hrs: 0.0, dg4_fuel_consumed: 0, dghq_run_hrs: 0.0, dghq_fuel_consumed: 0 },
+  { date: "Jul 05", run_hrs: 0.0, fuel_consumed: 0, dg1_run_hrs: 0.0, dg1_fuel_consumed: 0, dg2_run_hrs: 0.0, dg2_fuel_consumed: 0, dg3_run_hrs: 0.0, dg3_fuel_consumed: 0, dg4_run_hrs: 0.0, dg4_fuel_consumed: 0, dghq_run_hrs: 0.0, dghq_fuel_consumed: 0 },
+  { date: "Jul 06", run_hrs: 3.6, fuel_consumed: 540, dg1_run_hrs: 3.6, dg1_fuel_consumed: 540, dg2_run_hrs: 1.8, dg2_fuel_consumed: 270, dg3_run_hrs: 2.4, dg3_fuel_consumed: 360, dg4_run_hrs: 1.5, dg4_fuel_consumed: 225, dghq_run_hrs: 0.5, dghq_fuel_consumed: 75 },
+  { date: "Jul 07", run_hrs: 6.8, fuel_consumed: 1020, dg1_run_hrs: 6.8, dg1_fuel_consumed: 1020, dg2_run_hrs: 4.1, dg2_fuel_consumed: 615, dg3_run_hrs: 5.0, dg3_fuel_consumed: 750, dg4_run_hrs: 3.2, dg4_fuel_consumed: 480, dghq_run_hrs: 2.0, dghq_fuel_consumed: 300 },
+  { date: "Jul 08", run_hrs: 4.0, fuel_consumed: 600, dg1_run_hrs: 4.0, dg1_fuel_consumed: 600, dg2_run_hrs: 2.2, dg2_fuel_consumed: 330, dg3_run_hrs: 3.0, dg3_fuel_consumed: 450, dg4_run_hrs: 1.9, dg4_fuel_consumed: 285, dghq_run_hrs: 1.0, dghq_fuel_consumed: 150 },
+  { date: "Jul 09", run_hrs: 2.5, fuel_consumed: 375, dg1_run_hrs: 2.5, dg1_fuel_consumed: 375, dg2_run_hrs: 1.2, dg2_fuel_consumed: 180, dg3_run_hrs: 2.0, dg3_fuel_consumed: 300, dg4_run_hrs: 1.0, dg4_fuel_consumed: 150, dghq_run_hrs: 0.5, dghq_fuel_consumed: 75 }
 ];
 
 const defaultEngineHealth: EngineHealthPoint[] = [
@@ -210,6 +220,8 @@ const defaultTickets: TicketPoint[] = [
 
 export function useDashboardData() {
   const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [isUsingMockData, setIsUsingMockData] = useState<boolean>(true);
+  const [latestGridStatus, setLatestGridStatus] = useState<string>('ONLINE');
   
   // Data States
   const [gridChartData, setGridChartData] = useState<GridDataPoint[]>(defaultGridTimeData);
@@ -255,6 +267,8 @@ export function useDashboardData() {
 
         // Process Telemetry Logs if present
         if (telLogs && telLogs.length > 0) {
+          setIsUsingMockData(false);
+
           // Chronologically ascending for charts
           const sortedLogs = [...telLogs].reverse();
 
@@ -273,33 +287,48 @@ export function useDashboardData() {
           });
           setGridChartData(mappedGrid);
 
+          // Grid Real-Time status
+          const latestGridVal = telLogs[0]?.metrics?.grid_status || 'ONLINE';
+          setLatestGridStatus(latestGridVal);
+
           // Grid KPIs
           const totalLogs = telLogs.length;
           const offlineLogs = telLogs.filter(row => {
             const status = (row.metrics?.grid_status || '').toUpperCase();
             return status === 'OFFLINE' || status === 'OFF';
           }).length;
-          const uptimePct = (((totalLogs - offlineLogs) / totalLogs) * 100).toFixed(1);
+          const uptimePct = totalLogs > 0 ? (((totalLogs - offlineLogs) / totalLogs) * 100).toFixed(1) : "100.0";
           const blackoutHours = (offlineLogs * 1).toFixed(1); // Hourly resolution
-          const peakLoad = Math.max(...telLogs.map(row => parseFloat(row.metrics?.grid_total_site_load ?? row.metrics?.total_active_power_kw ?? 0))).toFixed(1);
+          
+          const maxLoadVal = Math.max(...telLogs.map(row => parseFloat(row.metrics?.grid_total_site_load ?? row.metrics?.total_active_power_kw ?? 0)));
+          const peakLoad = (isNaN(maxLoadVal) || maxLoadVal === -Infinity || maxLoadVal === Infinity) ? "0.0" : maxLoadVal.toFixed(1);
 
           // 2. Fuel Mapping
           const mappedFuel = sortedLogs.map(row => {
             const m = row.metrics || {};
             const date = new Date(row.target_hour).toLocaleDateString([], { month: 'short', day: '2-digit' });
-            
-            // Calculate run_hrs from meters
-            const dg1_start = parseFloat(m.dg_1_hr_meter_start ?? 0);
-            const dg1_stop = parseFloat(m.dg_1_hr_meter_stop ?? 0);
-            let run_hrs = Math.max(0, dg1_stop - dg1_start);
-            if (!run_hrs) run_hrs = parseFloat(m.dg_1_run_hrs ?? m.dg_hq_run_hrs ?? 2.5);
-            const fuel_consumed = parseFloat(m.dg_1_calculated_fuel_burn ?? String(run_hrs * 150));
+            const result: any = { date };
 
-            return {
-              date,
-              run_hrs,
-              fuel_consumed
-            };
+            // Map each generator prefix dynamically
+            const generatorIds = ['1', '2', '3', '4', 'hq'];
+            generatorIds.forEach(id => {
+              const prefix = `dg_${id}`;
+              const start = parseFloat(m[`${prefix}_hr_meter_start`] ?? 0);
+              const stop = parseFloat(m[`${prefix}_hr_meter_stop`] ?? 0);
+              let run_hrs = Math.max(0, stop - start);
+              if (!run_hrs) run_hrs = parseFloat(m[`${prefix}_run_hrs`] ?? (id === 'hq' ? 1.5 : 2.5));
+              const fuel_consumed = parseFloat(m[`${prefix}_calculated_fuel_burn`] ?? String(run_hrs * 150));
+              
+              const keyName = id === 'hq' ? 'dghq' : `dg${id}`;
+              result[`${keyName}_run_hrs`] = run_hrs;
+              result[`${keyName}_fuel_consumed`] = fuel_consumed;
+            });
+
+            // Keep default run_hrs / fuel_consumed as fallback
+            result.run_hrs = result.dg1_run_hrs;
+            result.fuel_consumed = result.dg1_fuel_consumed;
+
+            return result;
           });
           setFuelChartData(mappedFuel);
 
@@ -308,22 +337,26 @@ export function useDashboardData() {
           let sumFuelConsumed = 0;
           telLogs.forEach(row => {
             const m = row.metrics || {};
-            const dg1_start = parseFloat(m.dg_1_hr_meter_start ?? 0);
-            const dg1_stop = parseFloat(m.dg_1_hr_meter_stop ?? 0);
-            let run_hrs = Math.max(0, dg1_stop - dg1_start);
+            const start = parseFloat(m.dg_1_hr_meter_start ?? 0);
+            const stop = parseFloat(m.dg_1_hr_meter_stop ?? 0);
+            let run_hrs = Math.max(0, stop - start);
             if (!run_hrs) run_hrs = parseFloat(m.dg_1_run_hrs ?? m.dg_hq_run_hrs ?? 0);
             
             sumRunHours += run_hrs;
             sumFuelConsumed += parseFloat(m.dg_1_calculated_fuel_burn ?? String(run_hrs * 150));
           });
 
-          // Engine Health Scatter Mapping
-          const mappedHealth = telLogs.slice(0, 7).map((row, idx) => {
-            const m = row.metrics || {};
-            const name = `DG-${idx + 1}`;
-            const oil_pressure = parseFloat(m.dg_1_oil_pressure ?? (4.5 - (idx * 0.2)));
-            const water_temp = parseFloat(m.dg_1_water_temp ?? (80 + (idx * 2)));
-            const batt_voltage = parseFloat(m.dg_1_batt_voltage ?? (27.2 - (idx * 0.1)));
+          // Engine Health Scatter Mapping - read dynamic prefixes from the latest log
+          const latestLogObj = telLogs[0];
+          const latestM = latestLogObj.metrics || {};
+          const generatorIds = ['1', '2', '3', '4', 'hq'];
+          const mappedHealth = generatorIds.map(id => {
+            const name = id === 'hq' ? 'DG-HQ' : `DG-${id}`;
+            const prefix = `dg_${id}`;
+            const oil_pressure = parseFloat(latestM[`${prefix}_oil_pressure`] ?? 4.5);
+            const water_temp = parseFloat(latestM[`${prefix}_water_temp`] ?? 82);
+            const batt_voltage = parseFloat(latestM[`${prefix}_batt_voltage`] ?? 26.8);
+            
             let status = "OK";
             if (water_temp > 95 || oil_pressure < 2.5) status = "CRITICAL";
             else if (water_temp > 90 || oil_pressure < 3.5) status = "WARNING";
@@ -387,8 +420,21 @@ export function useDashboardData() {
           setZoneData(mappedZones);
 
           // Thermal KPIs
-          const peakTemp = Math.max(...telLogs.map(row => parseFloat(row.metrics?.server_ambient_temp ?? 0))).toFixed(1);
+          const maxTempVal = Math.max(...telLogs.map(row => parseFloat(row.metrics?.server_ambient_temp ?? 0)));
+          const peakTemp = (isNaN(maxTempVal) || maxTempVal === -Infinity || maxTempVal === Infinity) ? "22.4" : maxTempVal.toFixed(1);
           const avgHumidity = parseFloat(latestMetrics.server_ambient_humidity ?? 48.2);
+
+          // Dynamic calculation of abnormalitiesCount
+          let abnormalitiesCountVal = 0;
+          Object.entries(latestMetrics).forEach(([key, val]) => {
+            const valStr = String(val).toUpperCase();
+            if (key.includes('abnormality') && valStr !== 'NON' && valStr !== 'NO' && valStr !== 'OK') {
+              abnormalitiesCountVal++;
+            }
+            if (key.includes('status') && (valStr === 'NOT OK' || valStr === 'OFFLINE' || valStr === 'FAULT')) {
+              abnormalitiesCountVal++;
+            }
+          });
 
           // 5. Incident Mapping
           let incidentBubblesData = defaultIncidentBubbles;
@@ -402,7 +448,7 @@ export function useDashboardData() {
             openTickets = incData.filter(t => t.status === "OPEN" || t.status === "RAISED").length;
 
             ticketsLedgerData = incData.map(inc => ({
-              id: inc.ticket_number || `INC-${inc.id.substring(0, 4)}`,
+              id: inc.ticket_number || `INC-${String(inc.id).substring(0, 4)}`,
               name: inc.notes ? inc.notes.substring(0, 30) + (inc.notes.length > 30 ? "..." : "") : "Utility Failure",
               tech: inc.raised_by_name || 'NOC Operator',
               severity: inc.severity || 'medium',
@@ -419,7 +465,7 @@ export function useDashboardData() {
               else if (inc.severity === 'medium') severityVal = 150;
 
               return {
-                dayIndex: idx + 1,
+                dayIndex: new Date(inc.created_at).getTime(),
                 yValue: (idx % 5) + 1,
                 severity: severityVal,
                 name: inc.notes ? inc.notes.substring(0, 20) + "..." : inc.ticket_number,
@@ -444,14 +490,13 @@ export function useDashboardData() {
           setTicketsLedger(ticketsLedgerData);
 
           const avgBurnRate = 150;
-          const abnormalitiesCount = 0;
 
           // Update KPIs state
           setKpis({
             grid: {
               uptimePercentage: uptimePct !== "NaN" ? uptimePct : "100.0",
               totalBlackoutDuration: blackoutHours,
-              peakSiteLoad: peakLoad !== "-Infinity" ? peakLoad : "0.0"
+              peakSiteLoad: peakLoad
             },
             fuel: {
               totalRunHours: sumRunHours || 30.4,
@@ -465,9 +510,9 @@ export function useDashboardData() {
               rectifierVoltage
             },
             thermal: {
-              peakTemp: peakTemp !== "-Infinity" ? peakTemp : "22.4",
+              peakTemp: peakTemp,
               avgHumidity,
-              abnormalitiesCount: abnormalitiesCount
+              abnormalitiesCount: abnormalitiesCountVal
             },
             incidents: {
               totalIncidents,
@@ -488,6 +533,8 @@ export function useDashboardData() {
 
   return {
     isLoading,
+    isUsingMockData,
+    latestGridStatus,
     gridChartData,
     heatmapData,
     fuelChartData,

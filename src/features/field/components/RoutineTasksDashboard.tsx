@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect } from 'react';
-import { Lock, Save, CheckCircle2, Loader2, Zap, AlertTriangle, ArrowLeft } from 'lucide-react';
+import { Lock, Save, CheckCircle2, Loader2, Zap, AlertTriangle, ArrowLeft, Plug, Edit2, Server, Battery, Network, Building2, Radio, Flame, ClipboardList } from 'lucide-react';
 import { supabase } from '@/shared/api/supabaseClient';
 import { MASTER_ASSET_DICTIONARY } from '../constants/telemetrySchema';
 import { useTelemetryData } from '../hooks/useTelemetryData';
@@ -22,17 +22,18 @@ interface RoutineTasksDashboardProps {
 // Helpers
 // ─────────────────────────────────────────────────────────────────────────────
 
-/** Returns the category icon character for a category name */
-function categoryEmoji(name: string): string {
+/** Returns the category icon element for a category name */
+function categoryIcon(name: string): React.ReactNode {
   const n = name.toLowerCase();
-  if (n.includes('server')) return '🖥️';
-  if (n.includes('power room 1')) return '⚡';
-  if (n.includes('power room 2')) return '🔋';
-  if (n.includes('grid') || n.includes('outside')) return '🏗️';
-  if (n.includes('hq')) return '🏢';
-  if (n.includes('it room')) return '📡';
-  if (n.includes('fuel')) return '⛽';
-  return '📋';
+  const size = 14;
+  if (n.includes('server')) return <Server size={size} />;
+  if (n.includes('power room 1')) return <Zap size={size} />;
+  if (n.includes('power room 2')) return <Battery size={size} />;
+  if (n.includes('grid') || n.includes('outside')) return <Network size={size} />;
+  if (n.includes('hq')) return <Building2 size={size} />;
+  if (n.includes('it room')) return <Radio size={size} />;
+  if (n.includes('fuel')) return <Flame size={size} />;
+  return <ClipboardList size={size} />;
 }
 
 /** Derives a human-readable frequency label for the active checks */
@@ -401,13 +402,13 @@ export const RoutineTasksDashboard = ({
             {activeChecksLabel(isTwoHour, isFourHour, isDaily)}
           </span>
           {isEditMode && (
-            <span className="bg-amber-50 text-amber-800 text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full border border-amber-200">
-              ✏️ Editing
+            <span className="bg-amber-50 text-amber-800 text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full border border-amber-200 flex items-center gap-1">
+              <Edit2 size={10} /> Editing
             </span>
           )}
           {activePowerSource === 'GENERATOR' && (
-            <span className="bg-red-50 text-red-800 text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full border border-red-200">
-              ⚡ Outage Mode
+            <span className="bg-red-50 text-red-800 text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full border border-red-200 flex items-center gap-1">
+              <Zap size={10} /> Outage Mode
             </span>
           )}
         </p>
@@ -424,24 +425,24 @@ export const RoutineTasksDashboard = ({
             <button
               type="button"
               onClick={() => setActivePowerSource('MAINS')}
-              className={`px-4.5 py-2 rounded-lg text-xs font-black uppercase tracking-wider transition-all cursor-pointer ${
+              className={`px-4.5 py-2 rounded-lg text-xs font-black uppercase tracking-wider transition-all cursor-pointer flex items-center gap-1.5 ${
                 activePowerSource === 'MAINS'
                   ? "bg-white text-green-600 shadow-sm border border-slate-200/30"
                   : "text-slate-500 hover:text-slate-700"
               }`}
             >
-              🔌 MAINS
+              <Plug size={12} /> MAINS
             </button>
             <button
               type="button"
               onClick={() => setActivePowerSource('GENERATOR')}
-              className={`px-4.5 py-2 rounded-lg text-xs font-black uppercase tracking-wider transition-all cursor-pointer ${
+              className={`px-4.5 py-2 rounded-lg text-xs font-black uppercase tracking-wider transition-all cursor-pointer flex items-center gap-1.5 ${
                 activePowerSource === 'GENERATOR'
                   ? "bg-red-500 text-white shadow-sm"
                   : "text-slate-500 hover:text-slate-700"
               }`}
             >
-              ⚡ GENERATOR
+              <Zap size={12} /> GENERATOR
             </button>
           </div>
         </div>
@@ -504,7 +505,7 @@ export const RoutineTasksDashboard = ({
                     <div
                       className="w-8 h-8 rounded-xl flex items-center justify-center flex-shrink-0 bg-slate-900 text-white"
                     >
-                      <span className="text-sm">{categoryEmoji(category.categoryName)}</span>
+                      <span className="text-sm">{categoryIcon(category.categoryName)}</span>
                     </div>
                     <span className="font-black text-xs text-gray-800 uppercase tracking-wider">{category.categoryName}</span>
                   </div>
@@ -544,10 +545,10 @@ export const RoutineTasksDashboard = ({
                             DEGRADED: "bg-amber-500  text-white shadow-sm",
                             OFFLINE:  "bg-red-600    text-white shadow-sm",
                           };
-                          const dot: Record<string, string> = {
-                            ONLINE:   "🟢",
-                            DEGRADED: "🟡",
-                            OFFLINE:  "🔴",
+                          const dotColor: Record<string, string> = {
+                            ONLINE:   "bg-green-500",
+                            DEGRADED: "bg-amber-500",
+                            OFFLINE:  "bg-red-500",
                           };
 
                           return (
@@ -581,7 +582,7 @@ export const RoutineTasksDashboard = ({
                                             : "bg-white text-slate-500 border border-slate-200 hover:text-slate-700"
                                         }`}
                                       >
-                                        <span>{dot[st]}</span>
+                                        <span className={`w-1.5 h-1.5 rounded-full inline-block flex-shrink-0 ${isActive ? 'bg-white' : dotColor[st]}`} />
                                         <span className="hidden sm:inline">{st}</span>
                                       </button>
                                     );

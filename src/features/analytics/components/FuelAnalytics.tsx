@@ -4,7 +4,7 @@ import { Badge } from "@/app/components/ui/badge";
 import { Skeleton } from "@/app/components/ui/skeleton";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/app/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/app/components/ui/table";
-import { Fuel, Clock, Activity, ShieldAlert } from 'lucide-react';
+import { Fuel, Clock, Activity, ShieldAlert, AlertCircle } from 'lucide-react';
 import { useDashboardData } from '../hooks/useDashboardData';
 import {
   ComposedChart,
@@ -23,7 +23,7 @@ import {
 
 export function FuelAnalytics() {
   const [selectedGenerator, setSelectedGenerator] = useState("DG-1");
-  const { isLoading, fuelChartData, engineHealthData, kpis } = useDashboardData();
+  const { isLoading, isUsingMockData, fuelChartData, engineHealthData, kpis } = useDashboardData();
 
   if (isLoading) {
     return (
@@ -64,6 +64,8 @@ export function FuelAnalytics() {
     );
   }
 
+  const chartPrefix = selectedGenerator.toLowerCase().replace('-', '');
+
   return (
     <div className="p-6 space-y-6 bg-slate-50/50 min-h-screen text-slate-800">
       {/* Header Panel */}
@@ -87,6 +89,13 @@ export function FuelAnalytics() {
           </Select>
         </div>
       </div>
+
+      {isUsingMockData && (
+        <div className="flex items-center gap-3 bg-amber-50 border border-amber-100/60 text-amber-800 p-4 rounded-3xl text-xs font-semibold">
+          <AlertCircle className="w-4.5 h-4.5 text-amber-600 shrink-0" />
+          <span>Operational Notice: Telemetry database table contains no records. Displaying baseline simulated data for dashboard verification.</span>
+        </div>
+      )}
 
       {/* KPI Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -173,8 +182,8 @@ export function FuelAnalytics() {
                   <YAxis yAxisId="right" orientation="right" stroke="#94A3B8" fontSize={9} fontWeight="bold" tickLine={false} axisLine={false} domain={[0, 1500]} label={{ value: "Fuel (L)", angle: 90, position: "insideRight", offset: 10, fill: "#94A3B8", fontSize: 9, fontWeight: "black" }} />
                   <Tooltip contentStyle={{ background: '#fff', borderRadius: '12px', border: '1px solid #F1F5F9', fontSize: '11px', fontWeight: 'bold' }} />
                   <Legend verticalAlign="top" height={36} iconSize={8} wrapperStyle={{ fontSize: '9px', fontWeight: 'black', textTransform: 'uppercase' }} />
-                  <Bar yAxisId="left" dataKey="run_hrs" name="Run Hours" fill="#E2E8F0" radius={[4, 4, 0, 0]} barSize={25} />
-                  <Line yAxisId="right" type="monotone" dataKey="fuel_consumed" name="Fuel Burned" stroke="#EF4444" strokeWidth={2} dot={{ r: 4 }} />
+                  <Bar yAxisId="left" dataKey={`${chartPrefix}_run_hrs`} name="Run Hours" fill="#E2E8F0" radius={[4, 4, 0, 0]} barSize={25} />
+                  <Line yAxisId="right" type="monotone" dataKey={`${chartPrefix}_fuel_consumed`} name="Fuel Burned" stroke="#EF4444" strokeWidth={2} dot={{ r: 4 }} />
                 </ComposedChart>
               </ResponsiveContainer>
             </div>

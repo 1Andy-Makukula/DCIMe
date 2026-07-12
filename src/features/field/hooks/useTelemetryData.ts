@@ -30,12 +30,46 @@ export function useTelemetryData(
   // 6. The Grid Override Boolean
   const isGridOff = formData['grid_status'] === 'OFF';
 
+  const dateStr = new Date().toISOString().slice(0, 10);
+  const getCacheKey = (hour: number) => `telemetry_cache_${dateStr}_${hour}`;
+
+  // Purge cached telemetry forms older than 48 hours to prevent localStorage bloat
+  useEffect(() => {
+    try {
+      const now = Date.now();
+      const prefix = 'telemetry_cache_';
+      const keysToRemove: string[] = [];
+      for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i);
+        if (key && key.startsWith(prefix)) {
+          const parts = key.split('_');
+          if (parts.length >= 3) {
+            const datePart = parts[2];
+            const cachedDate = new Date(datePart);
+            if (!isNaN(cachedDate.getTime())) {
+              const diffMs = now - cachedDate.getTime();
+              const diffHours = diffMs / (1000 * 60 * 60);
+              if (diffHours > 48) {
+                keysToRemove.push(key);
+              }
+            }
+          } else {
+            keysToRemove.push(key);
+          }
+        }
+      }
+      keysToRemove.forEach(k => localStorage.removeItem(k));
+    } catch (e) {
+      console.warn('[DCIMe] Failed to run cache garbage collection:', e);
+    }
+  }, []);
+
   // 3. Zero-Delay Local Cache & Supabase Fetch Engine
   useEffect(() => {
     let active = true;
 
     // Step A (Instant Load)
-    const cacheKey = `telemetry_cache_${targetHour}`;
+    const cacheKey = getCacheKey(targetHour);
     const cached = localStorage.getItem(cacheKey);
     let hasCache = false;
 
@@ -167,7 +201,7 @@ export function useTelemetryData(
   const handleInputChange = (id: string, value: any) => {
     setFormData((prev) => {
       const updated = { ...prev, [id]: value };
-      const cacheKey = `telemetry_cache_${targetHour}`;
+      const cacheKey = getCacheKey(targetHour);
       localStorage.setItem(cacheKey, JSON.stringify(updated));
       return updated;
     });
@@ -366,7 +400,7 @@ export function useTelemetryData(
       }
  
       // Cleanup: On success, localStorage.removeItem(cacheKey), set isSubmitting(false), call onComplete?.() and onSubmitSuccess?.().
-      const cacheKey = `telemetry_cache_${targetHour}`;
+      const cacheKey = getCacheKey(targetHour);
       localStorage.removeItem(cacheKey);
       
       setIsSuccess(true);

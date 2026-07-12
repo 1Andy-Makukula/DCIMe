@@ -1,7 +1,7 @@
-﻿// ─────────────────────────────────────────────────────────────────────────────
-// DCIMe Engine — Relational Asset Dictionary
+﻿// ÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇ
+// DCIMe Engine ÔÇö Relational Asset Dictionary
 // Single source of truth for the mobile app and Excel export engine.
-// ─────────────────────────────────────────────────────────────────────────────
+// ÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇ
 
 export type CheckFrequency = 'hourly' | '2-hour' | '4-hour' | 'daily';
 export type TargetWorkbook = 'daily_canvas' | 'commercial_logbook';
@@ -34,9 +34,9 @@ export interface AssetCategory {
   assets: Asset[];
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Shared metric blueprints — avoids repeating the same fields
-// ─────────────────────────────────────────────────────────────────────────────
+// ÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇ
+// Shared metric blueprints ÔÇö avoids repeating the same fields
+// ÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇ
 
 function buildPacMetrics(prefix: string): AssetMetric[] {
   return [
@@ -143,20 +143,20 @@ function buildDgMetrics(prefix: string, dgNumber: number, isHq: boolean = false,
     { id: `${prefix}_kwh_meter`,      label: 'KWH Meter',          type: 'number', frequency: 'daily', carryForward: true, destinations: [] },
     { id: `${prefix}_engine_rpm`,     label: 'Engine Speed (RPM)', type: 'number', frequency: 'daily', isConstant: true, defaultValue: 0, destinations: [] },
     { id: `${prefix}_oil_pressure`,   label: 'Oil Pressure (Bar)', type: 'number', frequency: 'daily', isConstant: true, defaultValue: 0, destinations: [] },
-    { id: `${prefix}_water_temp`,     label: 'Water Temp (°C)',    type: 'number', frequency: 'daily', isConstant: true, defaultValue: 0, destinations: [] },
+    { id: `${prefix}_water_temp`,     label: 'Water Temp (┬░C)',    type: 'number', frequency: 'daily', isConstant: true, defaultValue: 0, destinations: [] },
     { id: `${prefix}_daily_remarks`,  label: 'Daily Remarks',      type: 'text',   frequency: 'daily', isConstant: true, defaultValue: 'OK', destinations: [] },
   ];
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
+// ÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇ
 // MASTER ASSET DICTIONARY
 // Sequence is strict: matches the physical walk-around order technicians use.
-// ─────────────────────────────────────────────────────────────────────────────
+// ÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇ
 
 export const MASTER_ASSET_DICTIONARY: AssetCategory[] = [
-  // ══════════════════════════════════════════════════════════════════════════
-  // CATEGORY 1 — The Server Room
-  // ══════════════════════════════════════════════════════════════════════════
+  // ÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉ
+  // CATEGORY 1 ÔÇö The Server Room
+  // ÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉ
   {
     categoryName: 'The Server Room',
     assets: [
@@ -166,7 +166,7 @@ export const MASTER_ASSET_DICTIONARY: AssetCategory[] = [
         metrics: [
           { 
             id: 'server_ambient_temp',     
-            label: 'Temperature (°C)', 
+            label: 'Temperature (┬░C)', 
             type: 'number', 
             frequency: 'hourly', 
             destinations: [
@@ -200,9 +200,9 @@ export const MASTER_ASSET_DICTIONARY: AssetCategory[] = [
       { id: 'pac_server_dragor', name: 'Dragor', metrics: buildPacMetrics('pac_server_dragor') },
     ],
   },
-  // ══════════════════════════════════════════════════════════════════════════
-  // CATEGORY — Media Room & Work Station
-  // ══════════════════════════════════════════════════════════════════════════
+  // ÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉ
+  // CATEGORY ÔÇö Media Room & Work Station
+  // ÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉ
   {
     categoryName: 'Media Room & General',
     assets: [
@@ -210,7 +210,7 @@ export const MASTER_ASSET_DICTIONARY: AssetCategory[] = [
         id: 'room_media_ambient',
         name: 'Media Room Ambient',
         metrics: [
-          { id: 'media_ambient_temp', label: 'Temperature (°C)', type: 'number', frequency: 'hourly', destinations: [{ workbook: 'daily_canvas', sheetName: 'DYNAMIC_DAY', excelColumnIndex: 54 }] },
+          { id: 'media_ambient_temp', label: 'Temperature (┬░C)', type: 'number', frequency: 'hourly', destinations: [{ workbook: 'daily_canvas', sheetName: 'DYNAMIC_DAY', excelColumnIndex: 54 }] },
           { id: 'media_ambient_humidity', label: 'Humidity (%)', type: 'text', frequency: 'hourly', isConstant: true, defaultValue: 'NA', destinations: [] },
         ],
       },
@@ -224,9 +224,9 @@ export const MASTER_ASSET_DICTIONARY: AssetCategory[] = [
     ]
   },
 
-  // ══════════════════════════════════════════════════════════════════════════
-  // CATEGORY 2 — Power Room 1
-  // ══════════════════════════════════════════════════════════════════════════
+  // ÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉ
+  // CATEGORY 2 ÔÇö Power Room 1
+  // ÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉ
   {
     categoryName: 'Power Room 1',
     assets: [
@@ -236,7 +236,7 @@ export const MASTER_ASSET_DICTIONARY: AssetCategory[] = [
         metrics: [
           { 
             id: 'pr1_ambient_temp',     
-            label: 'Temperature (°C)', 
+            label: 'Temperature (┬░C)', 
             type: 'number', 
             frequency: 'hourly', 
             destinations: [
@@ -265,9 +265,9 @@ export const MASTER_ASSET_DICTIONARY: AssetCategory[] = [
     ],
   },
 
-  // ══════════════════════════════════════════════════════════════════════════
-  // CATEGORY 3 — Power Room 2
-  // ══════════════════════════════════════════════════════════════════════════
+  // ÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉ
+  // CATEGORY 3 ÔÇö Power Room 2
+  // ÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉ
   {
     categoryName: 'Power Room 2',
     assets: [
@@ -277,7 +277,7 @@ export const MASTER_ASSET_DICTIONARY: AssetCategory[] = [
         metrics: [
           { 
             id: 'pr2_ambient_temp',     
-            label: 'Temperature (°C)', 
+            label: 'Temperature (┬░C)', 
             type: 'number', 
             frequency: 'hourly', 
             destinations: [
@@ -305,9 +305,9 @@ export const MASTER_ASSET_DICTIONARY: AssetCategory[] = [
     ],
   },
 
-  // ══════════════════════════════════════════════════════════════════════════
-  // CATEGORY 4 — Outside / Main Grid
-  // ══════════════════════════════════════════════════════════════════════════
+  // ÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉ
+  // CATEGORY 4 ÔÇö Outside / Main Grid
+  // ÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉ
   {
     categoryName: 'Outside / Main Grid',
     assets: [
@@ -339,7 +339,7 @@ export const MASTER_ASSET_DICTIONARY: AssetCategory[] = [
           { id: 'grid_phase_voltage_rn', label: 'Phase Voltage (RN)', type: 'number', frequency: '4-hour', destinations: [] },
           { id: 'grid_phase_voltage_yn', label: 'Phase Voltage (YN)', type: 'number', frequency: '4-hour', destinations: [] },
           { id: 'grid_phase_voltage_bn', label: 'Phase Voltage (BN)', type: 'number', frequency: '4-hour', destinations: [] },
-          { id: 'grid_transformer_temp', label: 'Transformer Temp (°C)', type: 'text', frequency: '4-hour', isConstant: true, defaultValue: 'NA', destinations: [] },
+          { id: 'grid_transformer_temp', label: 'Transformer Temp (┬░C)', type: 'text', frequency: '4-hour', isConstant: true, defaultValue: 'NA', destinations: [] },
           { id: 'grid_power_factor', label: 'Power Factor', type: 'number', frequency: '4-hour', destinations: [] },
           { id: 'grid_energy_meter_1', label: 'Energy Meter (Sw 1)', type: 'number', frequency: '4-hour', destinations: [] },
           { id: 'grid_energy_meter_2', label: 'Energy Meter (Sw 2)', type: 'number', frequency: '4-hour', destinations: [] },
@@ -382,9 +382,9 @@ export const MASTER_ASSET_DICTIONARY: AssetCategory[] = [
     ],
   },
 
-  // ══════════════════════════════════════════════════════════════════════════
-  // CATEGORY 5 — HQ Zone
-  // ══════════════════════════════════════════════════════════════════════════
+  // ÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉ
+  // CATEGORY 5 ÔÇö HQ Zone
+  // ÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉ
   {
     categoryName: 'HQ Zone',
     assets: [
@@ -394,7 +394,7 @@ export const MASTER_ASSET_DICTIONARY: AssetCategory[] = [
         metrics: [
           { 
             id: 'hq_ambient_temp',     
-            label: 'Temperature (°C)', 
+            label: 'Temperature (┬░C)', 
             type: 'number', 
             frequency: '4-hour', 
             destinations: [
@@ -418,9 +418,9 @@ export const MASTER_ASSET_DICTIONARY: AssetCategory[] = [
     ],
   },
 
-  // ══════════════════════════════════════════════════════════════════════════
-  // CATEGORY 6 — IT Room 2
-  // ══════════════════════════════════════════════════════════════════════════
+  // ÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉ
+  // CATEGORY 6 ÔÇö IT Room 2
+  // ÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉ
   {
     categoryName: 'IT Room 2',
     assets: [
@@ -430,7 +430,7 @@ export const MASTER_ASSET_DICTIONARY: AssetCategory[] = [
         metrics: [
           { 
             id: 'it2_ambient_temp',     
-            label: 'Temperature (°C)', 
+            label: 'Temperature (┬░C)', 
             type: 'number', 
             frequency: '4-hour', 
             destinations: [
@@ -456,9 +456,9 @@ export const MASTER_ASSET_DICTIONARY: AssetCategory[] = [
     ],
   },
 
-  // ══════════════════════════════════════════════════════════════════════════
-  // CATEGORY 7 — IT Room 1
-  // ══════════════════════════════════════════════════════════════════════════
+  // ÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉ
+  // CATEGORY 7 ÔÇö IT Room 1
+  // ÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉ
   {
     categoryName: 'IT Room 1',
     assets: [
@@ -468,7 +468,7 @@ export const MASTER_ASSET_DICTIONARY: AssetCategory[] = [
         metrics: [
           { 
             id: 'it1_ambient_temp',     
-            label: 'Temperature (°C)', 
+            label: 'Temperature (┬░C)', 
             type: 'number', 
             frequency: '4-hour', 
             destinations: [
@@ -494,9 +494,9 @@ export const MASTER_ASSET_DICTIONARY: AssetCategory[] = [
     ],
   },
 
-  // ══════════════════════════════════════════════════════════════════════════
-  // CATEGORY 8 — Fuel Logistics
-  // ══════════════════════════════════════════════════════════════════════════
+  // ÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉ
+  // CATEGORY 8 ÔÇö Fuel Logistics
+  // ÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉ
   {
     categoryName: 'Fuel Logistics',
     assets: [
@@ -543,7 +543,7 @@ export const MASTER_ASSET_DICTIONARY: AssetCategory[] = [
   },
 ];
 
-// ── BACKWARDS COMPATIBILITY LAYER ─────────────────────────────────────────────
+// ÔöÇÔöÇ BACKWARDS COMPATIBILITY LAYER ÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇ
 // Reconstructs the flat HOURLY_TELEMETRY_SCHEMA and TelemetryField objects so
 // layout builders, form managers, and export engines continue to compile clean.
 export interface TelemetryField {
@@ -576,44 +576,3 @@ export const HOURLY_TELEMETRY_SCHEMA: TelemetryField[] = (() => {
   });
   return fields;
 })();
-
-// ── STRICT ANALYTICS TYPES ───────────────────────────────────────────────────
-export interface GeneratorsFuelAnalyticsType {
-  run_hrs: number;
-  fuel_consumed: number;
-  batt_voltage: number;
-  oil_pressure: number;
-  water_temp: number;
-  dg_id: 'DG-1' | 'DG-2' | 'DG-3' | 'DG-4' | 'DG-HQ';
-}
-
-export interface UpsRectifiersAnalyticsType {
-  ups_status: 'ONLINE' | 'OFFLINE' | 'DEGRADED';
-  rectifier_status: 'ONLINE' | 'OFFLINE' | 'DEGRADED';
-  output_load_kw: number;
-  load_amps_a: number;
-  load_amps_b: number;
-  load_amps_c: number;
-  rectifier_dc_voltage: number;
-  battery_charge: number;
-}
-
-export interface ThermalHvacAnalyticsType {
-  server_ambient_temp: number;
-  return_temp_actual: number;
-  supply_temp_set: number;
-  humidity_percent: number;
-  pac_id: string;
-  room_zone: string;
-  abnormality_flag: boolean;
-}
-
-export interface IncidentsAnalyticsType {
-  resolution_time_hrs: number;
-  incident_count: number;
-  incident_id: string;
-  severity: 'low' | 'medium' | 'high' | 'critical';
-  status: 'OPEN' | 'RESOLVED';
-  technician_id: string;
-  resolution_notes: string;
-}

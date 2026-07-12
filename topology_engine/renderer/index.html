@@ -1,0 +1,769 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DCIMe Sandboxed Topology Engine</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div id="app-container">
+        <!-- Sidebar Controls -->
+        <aside id="controls-sidebar">
+            <header>
+                <h1>DCIMe Engine</h1>
+                <p>Isometric 2.5D Canvas</p>
+            </header>
+
+            <a id="btn-back-dashboard" href="/" class="sim-btn sim-reset" style="display: block; text-align: center; text-decoration: none; margin: 15px 0; font-weight: 800; border-radius: 10px; border-color: rgba(16, 185, 129, 0.4);">🏠 Back to Dashboard</a>
+
+            <section class="control-group">
+                <h2>Active Grid Mode</h2>
+                <div class="mode-indicator">
+                    <span id="grid-status-pill" class="status-pill status-mains">Mains Power Active</span>
+                </div>
+            </section>
+
+            <section class="control-group">
+                <h2>Legend & Telemetry</h2>
+                <ul class="legend-list">
+                    <li><span class="legend-dot" style="background-color: #ffd600;"></span> Grid (Yellow)</li>
+                    <li><span class="legend-dot" style="background-color: #d946ef;"></span> TCO Switch (Magenta)</li>
+                    <li><span class="legend-dot" style="background-color: #00e5ff;"></span> UPS System (Cyan)</li>
+                    <li><span class="legend-dot" style="background-color: #00e676;"></span> Rectifier (Green)</li>
+                    <li><span class="legend-dot" style="background-color: #ff6d00;"></span> Standby Gen (Orange)</li>
+                    <li><span class="legend-dot" style="background-color: #38bdf8;"></span> Cooling Unit (Blue)</li>
+                    <li><span class="legend-dot" style="background-color: #94a3b8;"></span> DB Panel (Grey)</li>
+                    <li><span class="legend-dot" style="background-color: #8b5cf6;"></span> Server Cabinet (Purple)</li>
+                </ul>
+            </section>
+
+            <section class="control-group">
+                <h2>C++ Wasm Status</h2>
+                <div class="wasm-info-box">
+                    <div id="wasm-indicator" class="wasm-pill">Engine Standby</div>
+                </div>
+            </section>
+
+            <section class="control-group">
+                <h2>Live Telemetry</h2>
+                <div class="telemetry-panel">
+                    <div class="tel-row"><span>Grid Feed:</span> <span id="tel-grid-status" class="tel-val font-bold">ONLINE</span></div>
+                    <div class="tel-row"><span>Gen Status:</span> <span id="tel-gen-status" class="tel-val font-bold text-muted">STANDBY</span></div>
+                    <div class="tel-row" style="border-top: 1px solid rgba(255,109,0,0.2); padding-top:6px; margin-top:4px;">
+                        <span style="color:#ff6d00; font-weight:700;">Active DG Pair:</span>
+                        <span id="tel-dg-pair" class="tel-val font-bold" style="color:#ff6d00;">—</span>
+                    </div>
+                    <div class="tel-row" style="font-size:0.72rem;">
+                        <span>DG1&DG3 hrs:</span>
+                        <span id="tel-dg-pair-a-hrs" class="tel-val" style="color:#ffd600;">0.00h</span>
+                    </div>
+                    <div class="tel-row" style="font-size:0.72rem;">
+                        <span>DG2&DG4 hrs:</span>
+                        <span id="tel-dg-pair-b-hrs" class="tel-val" style="color:#ffd600;">0.00h</span>
+                    </div>
+                    <div class="tel-row" style="font-size:0.72rem;">
+                        <span>Shift Progress:</span>
+                        <div style="flex:1; background:rgba(255,255,255,0.08); border-radius:4px; height:6px; margin-left:6px; overflow:hidden;">
+                            <div id="tel-shift-bar" style="height:100%; width:0%; background:#ff6d00; border-radius:4px; transition: width 1s linear;"></div>
+                        </div>
+                    </div>
+                    <div class="tel-row" style="border-top: 1px solid rgba(255,255,255,0.1); padding-top:6px; margin-top:4px;">
+                        <span>Fuel Tank:</span> <span id="tel-fuel" class="tel-val font-bold">1000.0 L (100%)</span>
+                    </div>
+                    <div class="tel-row"><span>UPS Bank:</span> <span id="tel-battery" class="tel-val font-bold">100% (1440m)</span></div>
+                    <div class="tel-row"><span>Room Temp:</span> <span id="tel-temp" class="tel-val font-bold text-green">21.0°C</span></div>
+                    <div class="tel-row"><span>Fire Interlock:</span> <span id="tel-fire" class="tel-val font-bold text-green">SAFE</span></div>
+                </div>
+            </section>
+
+            <section class="control-group">
+                <h2>Fault Simulation Panel</h2>
+                <button id="sim-kill-grid" class="sim-btn">⚡ Kill ZESCO Grid</button>
+                <button id="sim-kill-ups-1" class="sim-btn">🔋 Isolate UPS 1</button>
+                <button id="sim-kill-ups-2" class="sim-btn">🔋 Isolate UPS 2</button>
+                <button id="sim-kill-rect-1" class="sim-btn">🔌 Isolate Rectifier 1</button>
+                <button id="sim-kill-rect-2" class="sim-btn">🔌 Isolate Rectifier 2</button>
+                <button id="sim-fail-cooling" class="sim-btn">❄️ Fail Cooling Loop</button>
+                <button id="sim-fire-alarm" class="sim-btn" style="background: rgba(239, 68, 68, 0.1); border-color: rgba(239, 68, 68, 0.3); color: #ef4444;">🚨 Trigger Fire Alarm</button>
+                <button id="sim-reset" class="sim-btn sim-reset">🔄 Reset All Systems</button>
+            </section>
+        </aside>
+
+
+        <!-- Main Drawing Area -->
+        <main id="viewport-container">
+            <svg id="svg-canvas" viewBox="0 0 7400 4000" preserveAspectRatio="xMidYMid meet">
+                <!-- Definition Gradients & Filters -->
+                <defs>
+                    <!-- Background grid pattern -->
+                    <pattern id="grid-pattern" width="60" height="60" patternUnits="userSpaceOnUse">
+                        <path d="M 60 0 L 0 0 0 60" fill="none" stroke="rgba(255,255,255,0.06)" stroke-width="1.5"/>
+                    </pattern>
+
+                    <!-- Glow effect filters -->
+                    <filter id="glow-cyan" x="-20%" y="-20%" width="140%" height="140%">
+                        <feGaussianBlur stdDeviation="8" result="blur" />
+                        <feComposite in="SourceGraphic" in2="blur" operator="over" />
+                    </filter>
+                    <filter id="glow-green" x="-20%" y="-20%" width="140%" height="140%">
+                        <feGaussianBlur stdDeviation="8" result="blur" />
+                        <feComposite in="SourceGraphic" in2="blur" operator="over" />
+                    </filter>
+                    <filter id="glow-amber" x="-20%" y="-20%" width="140%" height="140%">
+                        <feGaussianBlur stdDeviation="8" result="blur" />
+                        <feComposite in="SourceGraphic" in2="blur" operator="over" />
+                    </filter>
+                </defs>
+
+                <!-- Grid Background -->
+                <rect width="100%" height="100%" fill="url(#grid-pattern)" />
+
+                <!-- ==================== ISOMETRIC PROJECTION GROUP ==================== -->
+                <g id="isometric-scene" transform="translate(4200, 200) scale(1, 0.5) rotate(45)">
+                    
+                    <!-- ==================== SPATIAL ZONING (ROOM MATS) ==================== -->
+                    <g id="spatial-zones">
+                        <!-- Exterior Yard (Row 1, Col 1: [100, 2000] x [100, 1100]) -->
+                        <rect x="100" y="100" width="1900" height="1000" 
+                              fill="rgba(255, 255, 255, 0.01)" 
+                              stroke="rgba(255, 255, 255, 0.1)" 
+                              stroke-width="2.5" 
+                              stroke-dasharray="10, 10" />
+                        <text x="130" y="160" fill="#64748b" font-size="28px" font-weight="900" letter-spacing="0.1em" opacity="0.8">EXTERIOR YARD</text>
+
+                        <!-- Power Room 1 (Row 1, Col 2: [2200, 4100] x [100, 1350]) -->
+                        <rect x="2200" y="100" width="1900" height="1250" 
+                              fill="rgba(16, 185, 129, 0.01)" 
+                              stroke="rgba(16, 185, 129, 0.15)" 
+                              stroke-width="2.5" 
+                              stroke-dasharray="10, 10" />
+                        <text x="2230" y="160" fill="#10b981" font-size="28px" font-weight="900" letter-spacing="0.1em" opacity="0.8">POWER ROOM 1</text>
+
+                        <!-- Power Room 2 (Row 2, Col 1: [100, 2000] x [1400, 2500]) -->
+                        <rect x="100" y="1400" width="1900" height="1100" 
+                              fill="rgba(0, 240, 255, 0.01)" 
+                              stroke="rgba(0, 240, 255, 0.15)" 
+                              stroke-width="2.5" 
+                              stroke-dasharray="10, 10" />
+                        <text x="130" y="1460" fill="#00f0ff" font-size="28px" font-weight="900" letter-spacing="0.1em" opacity="0.8">POWER ROOM 2</text>
+
+                        <!-- IT Room 1 (Row 2, Col 2: [2200, 3100] x [1400, 2200]) -->
+                        <rect x="2200" y="1400" width="900" height="800" 
+                              fill="rgba(255, 255, 255, 0.01)" 
+                              stroke="rgba(255, 255, 255, 0.1)" 
+                              stroke-width="2" 
+                              stroke-dasharray="8, 8" />
+                        <text x="2220" y="1450" fill="#64748b" font-size="20px" font-weight="900" letter-spacing="0.08em" opacity="0.75">IT ROOM 1</text>
+
+                        <!-- IT Room 2 (Row 2, Col 3: [3200, 4200] x [1400, 2200]) -->
+                        <rect x="3200" y="1400" width="1000" height="800" 
+                              fill="rgba(255, 255, 255, 0.01)" 
+                              stroke="rgba(255, 255, 255, 0.1)" 
+                              stroke-width="2" 
+                              stroke-dasharray="8, 8" />
+                        <text x="3220" y="1450" fill="#64748b" font-size="20px" font-weight="900" letter-spacing="0.08em" opacity="0.75">IT ROOM 2</text>
+
+                        <!-- The Server Room (Row 3, Col 1: [100, 3000] x [2800, 5800]) -->
+                        <rect x="100" y="2800" width="2900" height="3000" 
+                              fill="rgba(255, 255, 255, 0.015)" 
+                              stroke="rgba(255, 255, 255, 0.2)" 
+                              stroke-width="3.5" 
+                              stroke-dasharray="14, 14" />
+                        <text x="150" y="2870" fill="#f8fafc" font-size="36px" font-weight="900" letter-spacing="0.12em" opacity="0.9">THE SERVER ROOM</text>
+
+                        <!-- The Data Room (Row 3, Col 2: [3200, 4300] x [2800, 4000]) -->
+                        <rect x="3200" y="2800" width="1100" height="1200" 
+                              fill="rgba(255, 255, 255, 0.01)" 
+                              stroke="rgba(255, 255, 255, 0.1)" 
+                              stroke-width="2.5" 
+                              stroke-dasharray="10, 10" />
+                        <text x="3230" y="2850" fill="#64748b" font-size="24px" font-weight="900" letter-spacing="0.08em" opacity="0.75">THE DATA ROOM</text>
+                    </g>
+                    
+                    <!-- ==================== POWER ROUTING FLOW PATHS ==================== -->
+                    <g id="power-routing-paths">
+                        <!-- === STANDBY PATHS (DGs to TCOs - INACTIVE DASHED) === -->
+                        <!-- Collector Bus from DGs -->
+                        <path data-path-id="dg-collector" d="M 300 300 L 300 150 M 650 300 L 650 150 M 1000 300 L 1000 150 M 1350 300 L 1350 150 M 1700 300 L 1700 150" class="power-line line-backup" />
+                        <!-- Collector line -->
+                        <path data-path-id="dg-bus" d="M 300 150 L 1700 150" class="power-line line-backup" />
+                        <!-- Feed to TCO 1 -->
+                        <path data-path-id="dg-to-tco1" d="M 300 150 L 150 150 L 150 2000 L 200 2000" class="power-line line-backup" />
+                        <!-- Feed to TCO 2 -->
+                        <path data-path-id="dg-to-tco2" d="M 1700 150 L 2250 150 L 2250 1000 L 2300 1000" class="power-line line-backup" />
+
+                        <!-- === PRIMARY ACTIVE PATH A (Grid -> TCO 1 -> MAIN DB 2) === -->
+                        <!-- ZESCO Grid to MAIN MAIN DB -->
+                        <path data-path-id="grid-to-main" d="M 300 900 L 700 900" class="power-line line-grid animated-flow" />
+                        <!-- MAIN MAIN DB to TCO 1 -->
+                        <path data-path-id="main-to-tco1" d="M 700 900 L 700 1300 L 200 1300 L 200 2000" class="power-line line-active-a animated-flow" />
+                        <!-- TCO 1 to MAIN DB 2 -->
+                        <path data-path-id="tco1-to-maindb2" d="M 200 2000 L 600 2000" class="power-line line-active-a animated-flow" />
+                        <!-- MAIN DB 2 to AC UPS DB A -->
+                        <path data-path-id="maindb2-to-upsdba" d="M 600 2000 L 800 2000 L 800 1750 L 1000 1750" class="power-line line-active-a animated-flow" />
+                        <!-- MAIN DB 2 to DC RECTIFIER DB A -->
+                        <path data-path-id="maindb2-to-rectdba" d="M 600 2000 L 1000 2000" class="power-line line-active-a animated-flow" />
+                        <!-- MAIN DB 2 to AIRCON UNITS DB A -->
+                        <path data-path-id="maindb2-to-acdba" d="M 600 2000 L 800 2000 L 800 2250 L 1000 2250" class="power-line line-active-a animated-flow" />
+
+                        <!-- sub-DBs to UPS 2 & Rectifier 2 -->
+                        <path data-path-id="upsdba-to-ups2" d="M 1000 1750 L 1400 1750" class="power-line line-active-a animated-flow" />
+                        <path data-path-id="rectdba-to-rect2" d="M 1000 2000 L 1400 2000" class="power-line line-active-a animated-flow" />
+
+                        <!-- UPS 2 to AC Server DB -->
+                        <path data-path-id="ups2-to-acserverdb" d="M 1400 1750 L 1600 1750 L 1600 2650 L 1100 2650 L 1100 4800" class="power-line line-active-a animated-flow" />
+                        <!-- Rectifier 2 to DC Server DB -->
+                        <path data-path-id="rect2-to-dcserverdb" d="M 1400 2000 L 1650 2000 L 1650 2700 L 1900 2700 L 1900 4000" class="power-line line-active-a animated-flow" />
+
+                        <!-- AIRCON UNITS DB A to Emerson Aircons 1, 2, 6, 7 -->
+                        <path data-path-id="acdba-to-ac1" d="M 1000 2250 L 1000 2550 L 1000 2950 L 300 2950 L 300 3100" class="power-line line-active-a animated-flow" />
+                        <path data-path-id="acdba-to-ac2" d="M 1000 2950 L 700 2950 L 700 3100" class="power-line line-active-a animated-flow" />
+                        <path data-path-id="acdba-to-ac6" d="M 1000 2950 L 2300 2950 L 2300 3100" class="power-line line-active-a animated-flow" />
+                        <path data-path-id="acdba-to-ac7" d="M 1000 2950 L 2700 2950 L 2700 3100" class="power-line line-active-a animated-flow" />
+
+                        <!-- === PRIMARY ACTIVE PATH B (Grid -> TCO 2 -> MAIN DB 1) === -->
+                        <!-- MAIN MAIN DB to TCO 2 -->
+                        <path data-path-id="main-to-tco2" d="M 700 900 L 1200 900 L 1200 1100 L 2300 1100 L 2300 1000" class="power-line line-active-b animated-flow" />
+                        <!-- TCO 2 to MAIN DB 1 -->
+                        <path data-path-id="tco2-to-maindb1" d="M 2300 1000 L 2700 1000" class="power-line line-active-b animated-flow" />
+                        <!-- MAIN DB 1 to sub-DBs -->
+                        <path data-path-id="maindb1-to-upsdbb" d="M 2700 1000 L 2900 1000 L 2900 750 L 3100 750" class="power-line line-active-b animated-flow" />
+                        <path data-path-id="maindb1-to-rectdbb" d="M 2700 1000 L 3100 1000" class="power-line line-active-b animated-flow" />
+                        <path data-path-id="maindb1-to-acdbb" d="M 2700 1000 L 2900 1000 L 2900 1250 L 3100 1250" class="power-line line-active-b animated-flow" />
+
+                        <!-- sub-DBs to UPS 1 & Rectifier 1 -->
+                        <path data-path-id="upsdbb-to-ups1" d="M 3100 750 L 3500 750" class="power-line line-active-b animated-flow" />
+                        <path data-path-id="rectdbb-to-rect1" d="M 3100 1000 L 3500 1000" class="power-line line-active-b animated-flow" />
+
+                        <!-- UPS 1 to AC Server DB -->
+                        <path data-path-id="ups1-to-acserverdb" d="M 3500 750 L 3600 750 L 3600 2600 L 1100 2600 L 1100 4800" class="power-line line-active-b animated-flow" />
+                        <!-- Rectifier 1 to DC Server DB -->
+                        <path data-path-id="rect1-to-dcserverdb" d="M 3500 1000 L 3650 1000 L 3650 2700 L 1900 2700 L 1900 4000" class="power-line line-active-b animated-flow" />
+
+                        <!-- AIRCON UNITS DB B to Emerson 3, 4, 5 (Server Room) -->
+                        <path data-path-id="acdbb-to-ac5" d="M 3100 1250 L 3100 2950 L 1900 2950 L 1900 3100" class="power-line line-active-b animated-flow" />
+                        <path data-path-id="acdbb-to-ac4" d="M 1900 2950 L 1500 2950 L 1500 3100" class="power-line line-active-b animated-flow" />
+                        <path data-path-id="acdbb-to-ac3" d="M 1900 2950 L 1100 2950 L 1100 3100" class="power-line line-active-b animated-flow" />
+
+                        <!-- AIRCON UNITS DB B to Power Room 1 ACs -->
+                        <path data-path-id="acdbb-to-pr1ac1" d="M 3100 1250 L 3700 1250 L 3700 600 L 3900 600" class="power-line line-active-b animated-flow" />
+                        <path data-path-id="acdbb-to-pr1ac2" d="M 3700 1250 L 3700 900 L 3900 900" class="power-line line-active-b animated-flow" />
+                        <path data-path-id="acdbb-to-pr1ac3" d="M 3700 1250 L 3900 1200" class="power-line line-active-b animated-flow" />
+
+                        <!-- AIRCON UNITS DB B to Power Room 2 ACs -->
+                        <path data-path-id="acdbb-to-pr2ac1" d="M 3100 1250 L 2100 1250 L 2100 1600 L 1800 1600" class="power-line line-active-b animated-flow" />
+                        <path data-path-id="acdbb-to-pr2ac2" d="M 2100 1600 L 2100 2200 L 1800 2200" class="power-line line-active-b animated-flow" />
+
+                        <!-- AIRCON UNITS DB B to IT Room 1 ACs -->
+                        <path data-path-id="acdbb-to-it1ac1" d="M 3100 1250 L 2450 1250 L 2450 1600" class="power-line line-active-b animated-flow" />
+                        <path data-path-id="acdbb-to-it1ac2" d="M 2450 1250 L 2750 1250 L 2750 2000" class="power-line line-active-b animated-flow" />
+
+                        <!-- AIRCON UNITS DB B to IT Room 2 ACs -->
+                        <path data-path-id="acdbb-to-it2ac1" d="M 3100 1250 L 3450 1250 L 3450 1600" class="power-line line-active-b animated-flow" />
+                        <path data-path-id="acdbb-to-it2ac2" d="M 3450 1250 L 3750 1250 L 3750 2000" class="power-line line-active-b animated-flow" />
+
+                        <!-- AIRCON UNITS DB B to Data Room ACs -->
+                        <path data-path-id="acdbb-to-drac1" d="M 3100 1250 L 3300 1250 L 3300 2900 L 3450 2900 L 3450 3000" class="power-line line-active-b animated-flow" />
+                        <path data-path-id="acdbb-to-drac2" d="M 3450 2900 L 4050 2900 L 4050 3000" class="power-line line-active-b animated-flow" />
+
+                        <!-- === SERVER SIDE DISTRIBUTION TO RACKS === -->
+                        <!-- AC Server DB to Vertiv 1 & 2 -->
+                        <path data-path-id="acserverdb-to-vertiv1" d="M 1100 4800 L 500 4800 L 500 3600 L 300 3600" class="power-line line-active-a animated-flow" />
+                        <path data-path-id="acserverdb-to-vertiv2" d="M 500 4800 L 500 4000 L 300 4000" class="power-line line-active-a animated-flow" />
+
+                        <!-- DC Server DB to Vertiv 3, 4, 5 -->
+                        <path data-path-id="dcserverdb-to-vertiv3" d="M 1900 4000 L 600 4000 L 600 4400 L 300 4400" class="power-line line-active-b animated-flow" />
+                        <path data-path-id="dcserverdb-to-vertiv4" d="M 600 4000 L 600 4800 L 300 4800" class="power-line line-active-b animated-flow" />
+                        <path data-path-id="dcserverdb-to-vertiv5" d="M 600 4000 L 600 5200 L 300 5200" class="power-line line-active-b animated-flow" />
+
+                        <!-- DC Server DB to Data Room Vertiv 6 -->
+                        <path data-path-id="dcserverdb-to-vertiv6" d="M 1900 4000 L 3750 4000 L 3750 3700" class="power-line line-active-b animated-flow" />
+
+                        <!-- TCO 2 directly to Dragor (Specialty Security Node) -->
+                        <path data-path-id="tco2-to-dragor" d="M 2300 1000 L 2150 1000 L 2150 2600 L 1500 2600 L 1500 4400" class="power-line line-active-b animated-flow" />
+                    </g>
+                    
+                    <!-- ==================== NODES (3D ISOMETRIC CUBES) ==================== -->
+                    
+                    <!-- === EXTERIOR YARD EQUIPMENT === -->
+                    <!-- ZESCO Main Grid (Transformer Gold: x=300, y=900) -->
+                    <g id="node-grid-tx" class="node-group parent-node" transform="translate(300, 900)">
+                        <polygon points="0,160  160,160  80,80  -80,80" class="cube-face face-left face-transformer" />
+                        <polygon points="160,0  160,160  80,80  80,-80" class="cube-face face-right face-transformer" />
+                        <!-- Cooling Fins -->
+                        <line x1="30" y1="160" x2="-50" y2="80" class="cooling-fin" />
+                        <line x1="65" y1="160" x2="-15" y2="80" class="cooling-fin" />
+                        <line x1="100" y1="160" x2="20" y2="80" class="cooling-fin" />
+                        <line x1="130" y1="160" x2="50" y2="80" class="cooling-fin" />
+                        <rect x="-80" y="-80" width="160" height="160" class="cube-face face-top face-transformer" />
+                        <text class="node-label font-bold" x="0" y="5">ZESCO Grid</text>
+                        <text class="node-status text-cyan" x="0" y="28">ONLINE</text>
+                    </g>
+
+                    <!-- MAIN MAIN DB (Neutral DB grey: x=700, y=900) -->
+                    <g id="node-main-main-db" class="node-group" transform="translate(700, 900)">
+                        <polygon points="0,160  160,160  80,80  -80,80" class="cube-face face-left face-db" />
+                        <polygon points="160,0  160,160  80,80  80,-80" class="cube-face face-right face-db" />
+                        <rect x="-80" y="-80" width="160" height="160" class="cube-face face-top face-db" />
+                        <text class="node-label font-bold" x="0" y="5">MAIN MAIN DB</text>
+                        <text class="node-status text-cyan" x="0" y="28">415V AC</text>
+                    </g>
+
+                    <!-- FM 200 Panel (Red safety: x=1100, y=900) -->
+                    <g id="node-fm-200" class="node-group" transform="translate(1100, 900)">
+                        <polygon points="0,160  160,160  80,80  -80,80" class="cube-face face-left face-inactive" />
+                        <polygon points="160,0  160,160  80,80  80,-80" class="cube-face face-right face-inactive" />
+                        <rect x="-80" y="-80" width="160" height="160" class="cube-face face-top face-inactive" />
+                        <text class="node-label font-bold" x="0" y="5">FM 200</text>
+                        <text class="node-status text-muted" x="0" y="28" style="fill: #ef4444;">ARMED</text>
+                    </g>
+
+                    <!-- Standby Generators Row (Orange/Red face-generator: y=300, spaced by 350) -->
+                    <!-- DG-1 (x=300, y=300) -->
+                    <g id="node-dg-1" class="node-group" transform="translate(300, 300)">
+                        <polygon points="0,160  280,160  200,80  -80,80" class="cube-face face-left face-generator" />
+                        <polygon points="280,0  280,160  200,80  200,-80" class="cube-face face-right face-generator" />
+                        <rect x="-80" y="-80" width="280" height="160" class="cube-face face-top face-generator" />
+                        <text class="node-label font-bold" x="60" y="5">DG-1</text>
+                        <text class="node-status text-muted" x="60" y="28">STANDBY</text>
+                    </g>
+                    <!-- DG-2 (x=650, y=300) -->
+                    <g id="node-dg-2" class="node-group" transform="translate(650, 300)">
+                        <polygon points="0,160  280,160  200,80  -80,80" class="cube-face face-left face-generator" />
+                        <polygon points="280,0  280,160  200,80  200,-80" class="cube-face face-right face-generator" />
+                        <rect x="-80" y="-80" width="280" height="160" class="cube-face face-top face-generator" />
+                        <text class="node-label font-bold" x="60" y="5">DG-2</text>
+                        <text class="node-status text-muted" x="60" y="28">STANDBY</text>
+                    </g>
+                    <!-- DG-3 (x=1000, y=300) -->
+                    <g id="node-dg-3" class="node-group" transform="translate(1000, 300)">
+                        <polygon points="0,160  280,160  200,80  -80,80" class="cube-face face-left face-generator" />
+                        <polygon points="280,0  280,160  200,80  200,-80" class="cube-face face-right face-generator" />
+                        <rect x="-80" y="-80" width="280" height="160" class="cube-face face-top face-generator" />
+                        <text class="node-label font-bold" x="60" y="5">DG-3</text>
+                        <text class="node-status text-muted" x="60" y="28">STANDBY</text>
+                    </g>
+                    <!-- DG-4 (x=1350, y=300) -->
+                    <g id="node-dg-4" class="node-group" transform="translate(1350, 300)">
+                        <polygon points="0,160  280,160  200,80  -80,80" class="cube-face face-left face-generator" />
+                        <polygon points="280,0  280,160  200,80  200,-80" class="cube-face face-right face-generator" />
+                        <rect x="-80" y="-80" width="280" height="160" class="cube-face face-top face-generator" />
+                        <text class="node-label font-bold" x="60" y="5">DG-4</text>
+                        <text class="node-status text-muted" x="60" y="28">STANDBY</text>
+                    </g>
+                    <!-- DG-HQ (x=1700, y=300) -->
+                    <g id="node-dg-hq" class="node-group" transform="translate(1700, 300)">
+                        <polygon points="0,160  280,160  200,80  -80,80" class="cube-face face-left face-generator" />
+                        <polygon points="280,0  280,160  200,80  200,-80" class="cube-face face-right face-generator" />
+                        <rect x="-80" y="-80" width="280" height="160" class="cube-face face-top face-generator" />
+                        <text class="node-label font-bold" x="60" y="5">DG-HQ</text>
+                        <text class="node-status text-muted" x="60" y="28">STANDBY</text>
+                    </g>
+
+
+                    <!-- === POWER ROOM 2 EQUIPMENT (Path A Room) === -->
+                    <!-- TCO 1 (Magenta TCO: x=200, y=2000) -->
+                    <g id="node-tco-1" class="node-group" transform="translate(200, 2000)">
+                        <polygon points="0,160  160,160  80,80  -80,80" class="cube-face face-left face-tco" />
+                        <polygon points="160,0  160,160  80,80  80,-80" class="cube-face face-right face-tco" />
+                        <rect x="-80" y="-80" width="160" height="160" class="cube-face face-top face-tco" />
+                        <text class="node-label font-bold" x="0" y="5">TCO 1</text>
+                        <text class="node-status text-cyan" x="0" y="28">ACTIVE</text>
+                    </g>
+
+                    <!-- MAIN DB 2 (Neutral DB grey: x=600, y=2000) -->
+                    <g id="node-maindb-2" class="node-group" transform="translate(600, 2000)">
+                        <polygon points="0,160  160,160  80,80  -80,80" class="cube-face face-left face-db" />
+                        <polygon points="160,0  160,160  80,80  80,-80" class="cube-face face-right face-db" />
+                        <rect x="-80" y="-80" width="160" height="160" class="cube-face face-top face-db" />
+                        <text class="node-label font-bold" x="0" y="5">MAIN DB 2</text>
+                        <text class="node-status text-cyan" x="0" y="28">415V AC</text>
+                    </g>
+
+                    <!-- AC UPS DB A (Sub-DB: x=1000, y=1750) -->
+                    <g id="node-ac-ups-db-a" class="node-group" transform="translate(1000, 1750)">
+                        <polygon points="0,160  160,160  80,80  -80,80" class="cube-face face-left face-db" />
+                        <polygon points="160,0  160,160  80,80  80,-80" class="cube-face face-right face-db" />
+                        <rect x="-80" y="-80" width="160" height="160" class="cube-face face-top face-db" />
+                        <text class="node-label font-bold" x="0" y="5">AC UPS DB A</text>
+                        <text class="node-status text-cyan" x="0" y="28">ONLINE</text>
+                    </g>
+
+                    <!-- DC RECTIFIER DB A (Sub-DB: x=1000, y=2000) -->
+                    <g id="node-dc-rect-db-a" class="node-group" transform="translate(1000, 2000)">
+                        <polygon points="0,160  160,160  80,80  -80,80" class="cube-face face-left face-db" />
+                        <polygon points="160,0  160,160  80,80  80,-80" class="cube-face face-right face-db" />
+                        <rect x="-80" y="-80" width="160" height="160" class="cube-face face-top face-db" />
+                        <text class="node-label font-bold" x="0" y="5">REC DB A</text>
+                        <text class="node-status text-cyan" x="0" y="28">ONLINE</text>
+                    </g>
+
+                    <!-- AIRCON UNITS DB A (Sub-DB: x=1000, y=2250) -->
+                    <g id="node-aircon-db-a" class="node-group" transform="translate(1000, 2250)">
+                        <polygon points="0,160  160,160  80,80  -80,80" class="cube-face face-left face-db" />
+                        <polygon points="160,0  160,160  80,80  80,-80" class="cube-face face-right face-db" />
+                        <rect x="-80" y="-80" width="160" height="160" class="cube-face face-top face-db" />
+                        <text class="node-label font-bold" x="0" y="5">AC DB A</text>
+                        <text class="node-status text-cyan" x="0" y="28">ONLINE</text>
+                    </g>
+
+                    <!-- UPS 2 (Cyan UPS: x=1400, y=1750) -->
+                    <g id="node-ups-2" class="node-group" transform="translate(1400, 1750)">
+                        <polygon points="0,160  160,160  80,80  -80,80" class="cube-face face-left face-ups" />
+                        <polygon points="160,0  160,160  80,80  80,-80" class="cube-face face-right face-ups" />
+                        <rect x="-80" y="-80" width="160" height="160" class="cube-face face-top face-ups" />
+                        <text class="node-label font-bold" x="0" y="5">UPS 2</text>
+                        <text class="node-status text-cyan" x="0" y="28">ONLINE</text>
+                    </g>
+
+                    <!-- Rectifier 2 (Green Rectifier: x=1400, y=2000) -->
+                    <g id="node-rectifier-2" class="node-group" transform="translate(1400, 2000)">
+                        <polygon points="0,160  160,160  80,80  -80,80" class="cube-face face-left face-rectifier" />
+                        <polygon points="160,0  160,160  80,80  80,-80" class="cube-face face-right face-rectifier" />
+                        <rect x="-80" y="-80" width="160" height="160" class="cube-face face-top face-rectifier" />
+                        <text class="node-label font-bold" x="0" y="5">Rectifier 2</text>
+                        <text class="node-status text-cyan" x="0" y="28">ONLINE</text>
+                    </g>
+
+                    <!-- Emerson Aircon 1 (PR2 Perimeter: x=1800, y=1600) -->
+                    <g id="node-pr2-ac-1" class="node-group" transform="translate(1800, 1600)">
+                        <polygon points="0,160  160,160  80,80  -80,80" class="cube-face face-left face-aircon" />
+                        <polygon points="160,0  160,160  80,80  80,-80" class="cube-face face-right face-aircon" />
+                        <rect x="-80" y="-80" width="160" height="160" class="cube-face face-top face-aircon" />
+                        <circle cx="0" cy="0" r="48" class="cooling-fan" />
+                        <text class="node-label font-bold" x="0" y="-2">Emerson 1</text>
+                        <text class="node-status text-amber" x="0" y="20">RUNNING</text>
+                    </g>
+                    <!-- Emerson Aircon 2 (PR2 Perimeter: x=1800, y=2200) -->
+                    <g id="node-pr2-ac-2" class="node-group" transform="translate(1800, 2200)">
+                        <polygon points="0,160  160,160  80,80  -80,80" class="cube-face face-left face-aircon" />
+                        <polygon points="160,0  160,160  80,80  80,-80" class="cube-face face-right face-aircon" />
+                        <rect x="-80" y="-80" width="160" height="160" class="cube-face face-top face-aircon" />
+                        <circle cx="0" cy="0" r="48" class="cooling-fan" />
+                        <text class="node-label font-bold" x="0" y="-2">Emerson 2</text>
+                        <text class="node-status text-amber" x="0" y="20">RUNNING</text>
+                    </g>
+
+
+                    <!-- === POWER ROOM 1 EQUIPMENT (Path B Room) === -->
+                    <!-- TCO 2 (Magenta TCO: x=2300, y=1000) -->
+                    <g id="node-tco-2" class="node-group" transform="translate(2300, 1000)">
+                        <polygon points="0,160  160,160  80,80  -80,80" class="cube-face face-left face-tco" />
+                        <polygon points="160,0  160,160  80,80  80,-80" class="cube-face face-right face-tco" />
+                        <rect x="-80" y="-80" width="160" height="160" class="cube-face face-top face-tco" />
+                        <text class="node-label font-bold" x="0" y="5">TCO 2</text>
+                        <text class="node-status text-green" x="0" y="28">ACTIVE</text>
+                    </g>
+
+                    <!-- MAIN DB 1 (Neutral DB grey: x=2700, y=1000) -->
+                    <g id="node-maindb-1" class="node-group" transform="translate(2700, 1000)">
+                        <polygon points="0,160  160,160  80,80  -80,80" class="cube-face face-left face-db" />
+                        <polygon points="160,0  160,160  80,80  80,-80" class="cube-face face-right face-db" />
+                        <rect x="-80" y="-80" width="160" height="160" class="cube-face face-top face-db" />
+                        <text class="node-label font-bold" x="0" y="5">MAIN DB 1</text>
+                        <text class="node-status text-green" x="0" y="28">415V AC</text>
+                    </g>
+
+                    <!-- AC UPS DB B (Sub-DB: x=3100, y=750) -->
+                    <g id="node-ac-ups-db-b" class="node-group" transform="translate(3100, 750)">
+                        <polygon points="0,160  160,160  80,80  -80,80" class="cube-face face-left face-db" />
+                        <polygon points="160,0  160,160  80,80  80,-80" class="cube-face face-right face-db" />
+                        <rect x="-80" y="-80" width="160" height="160" class="cube-face face-top face-db" />
+                        <text class="node-label font-bold" x="0" y="5">AC UPS DB B</text>
+                        <text class="node-status text-green" x="0" y="28">ONLINE</text>
+                    </g>
+
+                    <!-- DC RECTIFIER DB B (Sub-DB: x=3100, y=1000) -->
+                    <g id="node-dc-rect-db-b" class="node-group" transform="translate(3100, 1000)">
+                        <polygon points="0,160  160,160  80,80  -80,80" class="cube-face face-left face-db" />
+                        <polygon points="160,0  160,160  80,80  80,-80" class="cube-face face-right face-db" />
+                        <rect x="-80" y="-80" width="160" height="160" class="cube-face face-top face-db" />
+                        <text class="node-label font-bold" x="0" y="5">REC DB B</text>
+                        <text class="node-status text-green" x="0" y="28">ONLINE</text>
+                    </g>
+
+                    <!-- AIRCON UNITS DB B (Sub-DB: x=3100, y=1250) -->
+                    <g id="node-aircon-db-b" class="node-group" transform="translate(3100, 1250)">
+                        <polygon points="0,160  160,160  80,80  -80,80" class="cube-face face-left face-db" />
+                        <polygon points="160,0  160,160  80,80  80,-80" class="cube-face face-right face-db" />
+                        <rect x="-80" y="-80" width="160" height="160" class="cube-face face-top face-db" />
+                        <text class="node-label font-bold" x="0" y="5">AC DB B</text>
+                        <text class="node-status text-green" x="0" y="28">ONLINE</text>
+                    </g>
+
+                    <!-- UPS 1 (Cyan UPS: x=3500, y=750) -->
+                    <g id="node-ups-1" class="node-group" transform="translate(3500, 750)">
+                        <polygon points="0,160  160,160  80,80  -80,80" class="cube-face face-left face-ups" />
+                        <polygon points="160,0  160,160  80,80  80,-80" class="cube-face face-right face-ups" />
+                        <rect x="-80" y="-80" width="160" height="160" class="cube-face face-top face-ups" />
+                        <text class="node-label font-bold" x="0" y="5">UPS 1</text>
+                        <text class="node-status text-green" x="0" y="28">ONLINE</text>
+                    </g>
+
+                    <!-- Rectifier 1 (Green Rectifier: x=3500, y=1000) -->
+                    <g id="node-rectifier-1" class="node-group" transform="translate(3500, 1000)">
+                        <polygon points="0,160  160,160  80,80  -80,80" class="cube-face face-left face-rectifier" />
+                        <polygon points="160,0  160,160  80,80  80,-80" class="cube-face face-right face-rectifier" />
+                        <rect x="-80" y="-80" width="160" height="160" class="cube-face face-top face-rectifier" />
+                        <text class="node-label font-bold" x="0" y="5">Rectifier 1</text>
+                        <text class="node-status text-green" x="0" y="28">ONLINE</text>
+                    </g>
+
+                    <!-- Emerson Aircon 1 (PR1 Perimeter: x=3900, y=600) -->
+                    <g id="node-pr1-ac-1" class="node-group" transform="translate(3900, 600)">
+                        <polygon points="0,160  160,160  80,80  -80,80" class="cube-face face-left face-aircon" />
+                        <polygon points="160,0  160,160  80,80  80,-80" class="cube-face face-right face-aircon" />
+                        <rect x="-80" y="-80" width="160" height="160" class="cube-face face-top face-aircon" />
+                        <circle cx="0" cy="0" r="48" class="cooling-fan" />
+                        <text class="node-label font-bold" x="0" y="-2">Emerson 1</text>
+                        <text class="node-status text-amber" x="0" y="20">RUNNING</text>
+                    </g>
+                    <!-- Emerson Aircon 2 (PR1 Perimeter: x=3900, y=900) -->
+                    <g id="node-pr1-ac-2" class="node-group" transform="translate(3900, 900)">
+                        <polygon points="0,160  160,160  80,80  -80,80" class="cube-face face-left face-aircon" />
+                        <polygon points="160,0  160,160  80,80  80,-80" class="cube-face face-right face-aircon" />
+                        <rect x="-80" y="-80" width="160" height="160" class="cube-face face-top face-aircon" />
+                        <circle cx="0" cy="0" r="48" class="cooling-fan" />
+                        <text class="node-label font-bold" x="0" y="-2">Emerson 2</text>
+                        <text class="node-status text-amber" x="0" y="20">RUNNING</text>
+                    </g>
+                    <!-- Emerson Aircon 3 (PR1 Perimeter: x=3900, y=1200) -->
+                    <g id="node-pr1-ac-3" class="node-group" transform="translate(3900, 1200)">
+                        <polygon points="0,160  160,160  80,80  -80,80" class="cube-face face-left face-aircon" />
+                        <polygon points="160,0  160,160  80,80  80,-80" class="cube-face face-right face-aircon" />
+                        <rect x="-80" y="-80" width="160" height="160" class="cube-face face-top face-aircon" />
+                        <circle cx="0" cy="0" r="48" class="cooling-fan" />
+                        <text class="node-label font-bold" x="0" y="-2">Emerson 3</text>
+                        <text class="node-status text-amber" x="0" y="20">RUNNING</text>
+                    </g>
+
+
+                    <!-- === IT ROOM 1 EQUIPMENT === -->
+                    <!-- Emerson 1 (IT Room 1: x=2450, y=1600) -->
+                    <g id="node-it1-ac-1" class="node-group" transform="translate(2450, 1600)">
+                        <polygon points="0,160  160,160  80,80  -80,80" class="cube-face face-left face-aircon" />
+                        <polygon points="160,0  160,160  80,80  80,-80" class="cube-face face-right face-aircon" />
+                        <rect x="-80" y="-80" width="160" height="160" class="cube-face face-top face-aircon" />
+                        <circle cx="0" cy="0" r="48" class="cooling-fan" />
+                        <text class="node-label font-bold" x="0" y="-2">Emerson 1</text>
+                        <text class="node-status text-amber" x="0" y="20">22.0°C</text>
+                    </g>
+                    <!-- Emerson 2 (IT Room 1: x=2750, y=2000) -->
+                    <g id="node-it1-ac-2" class="node-group" transform="translate(2750, 2000)">
+                        <polygon points="0,160  160,160  80,80  -80,80" class="cube-face face-left face-aircon" />
+                        <polygon points="160,0  160,160  80,80  80,-80" class="cube-face face-right face-aircon" />
+                        <rect x="-80" y="-80" width="160" height="160" class="cube-face face-top face-aircon" />
+                        <circle cx="0" cy="0" r="48" class="cooling-fan" />
+                        <text class="node-label font-bold" x="0" y="-2">Emerson 2</text>
+                        <text class="node-status text-amber" x="0" y="20">21.8°C</text>
+                    </g>
+
+
+                    <!-- === IT ROOM 2 EQUIPMENT === -->
+                    <!-- Emerson 1 (IT Room 2: x=3450, y=1600) -->
+                    <g id="node-it2-ac-1" class="node-group" transform="translate(3450, 1600)">
+                        <polygon points="0,160  160,160  80,80  -80,80" class="cube-face face-left face-aircon" />
+                        <polygon points="160,0  160,160  80,80  80,-80" class="cube-face face-right face-aircon" />
+                        <rect x="-80" y="-80" width="160" height="160" class="cube-face face-top face-aircon" />
+                        <circle cx="0" cy="0" r="48" class="cooling-fan" />
+                        <text class="node-label font-bold" x="0" y="-2">Emerson 1</text>
+                        <text class="node-status text-amber" x="0" y="20">22.1°C</text>
+                    </g>
+                    <!-- Emerson 2 (IT Room 2: x=3750, y=2000) -->
+                    <g id="node-it2-ac-2" class="node-group" transform="translate(3750, 2000)">
+                        <polygon points="0,160  160,160  80,80  -80,80" class="cube-face face-left face-aircon" />
+                        <polygon points="160,0  160,160  80,80  80,-80" class="cube-face face-right face-aircon" />
+                        <rect x="-80" y="-80" width="160" height="160" class="cube-face face-top face-aircon" />
+                        <circle cx="0" cy="0" r="48" class="cooling-fan" />
+                        <text class="node-label font-bold" x="0" y="-2">Emerson 2</text>
+                        <text class="node-status text-amber" x="0" y="20">21.9°C</text>
+                    </g>
+
+
+                    <!-- === THE SERVER ROOM EQUIPMENT === -->
+                    <!-- AC Server DB (Deep purple: x=1100, y=4800) -->
+                    <g id="node-ac-server-db" class="node-group" transform="translate(1100, 4800)">
+                        <polygon points="0,120  120,120  -120,-120  -240,-120" class="cube-face face-left face-server" />
+                        <polygon points="120,0  120,120  -120,-120  -120,-240" class="cube-face face-right face-server" />
+                        <rect x="-240" y="-240" width="120" height="120" class="cube-face face-top face-server" />
+                        <text class="node-label font-bold" x="-180" y="-195">AC SERVERS</text>
+                        <text class="node-status text-cyan" x="-180" y="-170">ACTIVE</text>
+                    </g>
+                    <!-- DC Server DB (Deep purple: x=1900, y=4000) -->
+                    <g id="node-dc-server-db" class="node-group" transform="translate(1900, 4000)">
+                        <polygon points="0,120  120,120  -120,-120  -240,-120" class="cube-face face-left face-server" />
+                        <polygon points="120,0  120,120  -120,-120  -120,-240" class="cube-face face-right face-server" />
+                        <rect x="-240" y="-240" width="120" height="120" class="cube-face face-top face-server" />
+                        <text class="node-label font-bold" x="-180" y="-195">DC SERVERS</text>
+                        <text class="node-status text-green" x="-180" y="-170">ACTIVE</text>
+                    </g>
+
+                    <!-- Specialty: Dragor (Purple core: x=1500, y=4400) -->
+                    <g id="node-dragor" class="node-group" transform="translate(1500, 4400)">
+                        <polygon points="0,160  160,160  80,80  -80,80" class="cube-face face-left" style="stroke: #d946ef; fill: rgba(217, 70, 239, 0.05);" />
+                        <polygon points="160,0  160,160  80,80  80,-80" class="cube-face face-right" style="stroke: #d946ef; fill: rgba(217, 70, 239, 0.05);" />
+                        <rect x="-80" y="-80" width="160" height="160" class="cube-face face-top" style="stroke: #d946ef; fill: rgba(217, 70, 239, 0.1);" />
+                        <text class="node-label font-bold" x="0" y="5">Dragor</text>
+                        <text class="node-status" x="0" y="28" style="fill: #d946ef;">SECURE</text>
+                    </g>
+
+                    <!-- Vertiv Cabinets Pod (Deep purple: Side Edge x=300, spaced by 400) -->
+                    <!-- Vertiv 1 (x=300, y=3600) -->
+                    <g id="node-vertiv-1" class="node-group" transform="translate(300, 3600)">
+                        <polygon points="0,120  120,120  -120,-120  -240,-120" class="cube-face face-left face-server" />
+                        <polygon points="120,0  120,120  -120,-120  -120,-240" class="cube-face face-right face-server" />
+                        <rect x="-240" y="-240" width="120" height="120" class="cube-face face-top face-server" />
+                        <text class="node-label font-bold" x="-180" y="-195">Vertiv 1</text>
+                        <text class="node-status text-cyan" x="-180" y="-170">LOAD OK</text>
+                    </g>
+                    <!-- Vertiv 2 (x=300, y=4000) -->
+                    <g id="node-vertiv-2" class="node-group" transform="translate(300, 4000)">
+                        <polygon points="0,120  120,120  -120,-120  -240,-120" class="cube-face face-left face-server" />
+                        <polygon points="120,0  120,120  -120,-120  -120,-240" class="cube-face face-right face-server" />
+                        <rect x="-240" y="-240" width="120" height="120" class="cube-face face-top face-server" />
+                        <text class="node-label font-bold" x="-180" y="-195">Vertiv 2</text>
+                        <text class="node-status text-cyan" x="-180" y="-170">LOAD OK</text>
+                    </g>
+                    <!-- Vertiv 3 (x=300, y=4400) -->
+                    <g id="node-vertiv-3" class="node-group" transform="translate(300, 4400)">
+                        <polygon points="0,120  120,120  -120,-120  -240,-120" class="cube-face face-left face-server" />
+                        <polygon points="120,0  120,120  -120,-120  -120,-240" class="cube-face face-right face-server" />
+                        <rect x="-240" y="-240" width="120" height="120" class="cube-face face-top face-server" />
+                        <text class="node-label font-bold" x="-180" y="-195">Vertiv 3</text>
+                        <text class="node-status text-green" x="-180" y="-170">LOAD OK</text>
+                    </g>
+                    <!-- Vertiv 4 (x=300, y=4800) -->
+                    <g id="node-vertiv-4" class="node-group" transform="translate(300, 4800)">
+                        <polygon points="0,120  120,120  -120,-120  -240,-120" class="cube-face face-left face-server" />
+                        <polygon points="120,0  120,120  -120,-120  -120,-240" class="cube-face face-right face-server" />
+                        <rect x="-240" y="-240" width="120" height="120" class="cube-face face-top face-server" />
+                        <text class="node-label font-bold" x="-180" y="-195">Vertiv 4</text>
+                        <text class="node-status text-green" x="-180" y="-170">LOAD OK</text>
+                    </g>
+                    <!-- Vertiv 5 (x=300, y=5200) -->
+                    <g id="node-vertiv-5" class="node-group" transform="translate(300, 5200)">
+                        <polygon points="0,120  120,120  -120,-120  -240,-120" class="cube-face face-left face-server" />
+                        <polygon points="120,0  120,120  -120,-120  -120,-240" class="cube-face face-right face-server" />
+                        <rect x="-240" y="-240" width="120" height="120" class="cube-face face-top face-server" />
+                        <text class="node-label font-bold" x="-180" y="-195">Vertiv 5</text>
+                        <text class="node-status text-green" x="-180" y="-170">LOAD OK</text>
+                    </g>
+
+                    <!-- Server Room Emerson Aircons (Back Edge y=3100, spaced by 400) -->
+                    <!-- Emerson 1 (x=300, y=3100) -->
+                    <g id="node-sr-ac-1" class="node-group" transform="translate(300, 3100)">
+                        <polygon points="0,160  160,160  80,80  -80,80" class="cube-face face-left face-aircon" />
+                        <polygon points="160,0  160,160  80,80  80,-80" class="cube-face face-right face-aircon" />
+                        <rect x="-80" y="-80" width="160" height="160" class="cube-face face-top face-aircon" />
+                        <circle cx="0" cy="0" r="48" class="cooling-fan" />
+                        <text class="node-label font-bold" x="0" y="-2">Emerson 1</text>
+                        <text class="node-status text-amber" x="0" y="20">21.2°C</text>
+                    </g>
+                    <!-- Emerson 2 (x=700, y=3100) -->
+                    <g id="node-sr-ac-2" class="node-group" transform="translate(700, 3100)">
+                        <polygon points="0,160  160,160  80,80  -80,80" class="cube-face face-left face-aircon" />
+                        <polygon points="160,0  160,160  80,80  80,-80" class="cube-face face-right face-aircon" />
+                        <rect x="-80" y="-80" width="160" height="160" class="cube-face face-top face-aircon" />
+                        <circle cx="0" cy="0" r="48" class="cooling-fan" />
+                        <text class="node-label font-bold" x="0" y="-2">Emerson 2</text>
+                        <text class="node-status text-amber" x="0" y="20">20.8°C</text>
+                    </g>
+                    <!-- Emerson 3 (x=1100, y=3100) -->
+                    <g id="node-sr-ac-3" class="node-group" transform="translate(1100, 3100)">
+                        <polygon points="0,160  160,160  80,80  -80,80" class="cube-face face-left face-aircon" />
+                        <polygon points="160,0  160,160  80,80  80,-80" class="cube-face face-right face-aircon" />
+                        <rect x="-80" y="-80" width="160" height="160" class="cube-face face-top face-aircon" />
+                        <circle cx="0" cy="0" r="48" class="cooling-fan" />
+                        <text class="node-label font-bold" x="0" y="-2">Emerson 3</text>
+                        <text class="node-status text-amber" x="0" y="20">21.0°C</text>
+                    </g>
+                    <!-- Emerson 4 (x=1500, y=3100) -->
+                    <g id="node-sr-ac-4" class="node-group" transform="translate(1500, 3100)">
+                        <polygon points="0,160  160,160  80,80  -80,80" class="cube-face face-left face-aircon" />
+                        <polygon points="160,0  160,160  80,80  80,-80" class="cube-face face-right face-aircon" />
+                        <rect x="-80" y="-80" width="160" height="160" class="cube-face face-top face-aircon" />
+                        <circle cx="0" cy="0" r="48" class="cooling-fan" />
+                        <text class="node-label font-bold" x="0" y="-2">Emerson 4</text>
+                        <text class="node-status text-amber" x="0" y="20">21.5°C</text>
+                    </g>
+                    <!-- Emerson 5 (x=1900, y=3100) -->
+                    <g id="node-sr-ac-5" class="node-group" transform="translate(1900, 3100)">
+                        <polygon points="0,160  160,160  80,80  -80,80" class="cube-face face-left face-aircon" />
+                        <polygon points="160,0  160,160  80,80  80,-80" class="cube-face face-right face-aircon" />
+                        <rect x="-80" y="-80" width="160" height="160" class="cube-face face-top face-aircon" />
+                        <circle cx="0" cy="0" r="48" class="cooling-fan" />
+                        <text class="node-label font-bold" x="0" y="-2">Emerson 5</text>
+                        <text class="node-status text-amber" x="0" y="20">20.5°C</text>
+                    </g>
+                    <!-- Emerson 6 (x=2300, y=3100) -->
+                    <g id="node-sr-ac-6" class="node-group" transform="translate(2300, 3100)">
+                        <polygon points="0,160  160,160  80,80  -80,80" class="cube-face face-left face-aircon" />
+                        <polygon points="160,0  160,160  80,80  80,-80" class="cube-face face-right face-aircon" />
+                        <rect x="-80" y="-80" width="160" height="160" class="cube-face face-top face-aircon" />
+                        <circle cx="0" cy="0" r="48" class="cooling-fan" />
+                        <text class="node-label font-bold" x="0" y="-2">Emerson 6</text>
+                        <text class="node-status text-amber" x="0" y="20">21.0°C</text>
+                    </g>
+                    <!-- Emerson 7 (x=2700, y=3100) -->
+                    <g id="node-sr-ac-7" class="node-group" transform="translate(2700, 3100)">
+                        <polygon points="0,160  160,160  80,80  -80,80" class="cube-face face-left face-aircon" />
+                        <polygon points="160,0  160,160  80,80  80,-80" class="cube-face face-right face-aircon" />
+                        <rect x="-80" y="-80" width="160" height="160" class="cube-face face-top face-aircon" />
+                        <circle cx="0" cy="0" r="48" class="cooling-fan" />
+                        <text class="node-label font-bold" x="0" y="-2">Emerson 7</text>
+                        <text class="node-status text-amber" x="0" y="20">21.3°C</text>
+                    </g>
+
+
+                    <!-- === THE DATA ROOM EQUIPMENT === -->
+                    <!-- Vertiv 6 (Deep purple: x=3750, y=3700) -->
+                    <g id="node-vertiv-6" class="node-group" transform="translate(3750, 3700)">
+                        <polygon points="0,120  120,120  -120,-120  -240,-120" class="cube-face face-left face-server" />
+                        <polygon points="120,0  120,120  -120,-120  -120,-240" class="cube-face face-right face-server" />
+                        <rect x="-240" y="-240" width="120" height="120" class="cube-face face-top face-server" />
+                        <text class="node-label font-bold" x="-180" y="-195">Vertiv 6</text>
+                        <text class="node-status text-muted" x="-180" y="-170">LOAD OK</text>
+                    </g>
+                    <!-- Emerson 1 (Data Room: x=3450, y=3000) -->
+                    <g id="node-dr-ac-1" class="node-group" transform="translate(3450, 3000)">
+                        <polygon points="0,160  160,160  80,80  -80,80" class="cube-face face-left face-aircon" />
+                        <polygon points="160,0  160,160  80,80  80,-80" class="cube-face face-right face-aircon" />
+                        <rect x="-80" y="-80" width="160" height="160" class="cube-face face-top face-aircon" />
+                        <circle cx="0" cy="0" r="48" class="cooling-fan" />
+                        <text class="node-label font-bold" x="0" y="-2">Emerson 1</text>
+                        <text class="node-status text-amber" x="0" y="20">21.8°C</text>
+                    </g>
+                    <!-- Emerson 2 (Data Room: x=4050, y=3000) -->
+                    <g id="node-dr-ac-2" class="node-group" transform="translate(4050, 3000)">
+                        <polygon points="0,160  160,160  80,80  -80,80" class="cube-face face-left face-aircon" />
+                        <polygon points="160,0  160,160  80,80  80,-80" class="cube-face face-right face-aircon" />
+                        <rect x="-80" y="-80" width="160" height="160" class="cube-face face-top face-aircon" />
+                        <circle cx="0" cy="0" r="48" class="cooling-fan" />
+                        <text class="node-label font-bold" x="0" y="-2">Emerson 2</text>
+                        <text class="node-status text-amber" x="0" y="20">21.4°C</text>
+                    </g>
+
+                </g>
+            </svg>
+        </main>
+    </div>
+
+    <!-- Floating Trace Power Path Banner -->
+    <div id="trace-banner" class="hidden">
+        <span id="trace-message">Tracing power path...</span>
+        <button id="btn-clear-trace">Clear Trace</button>
+    </div>
+
+    <!-- Floating Context Options Menu -->
+    <div id="equipment-context-menu" class="context-menu hidden">
+        <h3 id="context-node-name">Equipment Name</h3>
+        <button id="btn-trace-path">🔍 Trace Power Path</button>
+        <button id="btn-isolate-node">⚠️ Simulate Fault</button>
+        <button id="btn-restore-node" class="hidden">🔄 Clear Fault</button>
+        <button id="btn-close-menu">Close</button>
+    </div>
+
+    <script src="engine.js"></script>
+</body>
+</html>

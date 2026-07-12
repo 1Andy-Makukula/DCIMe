@@ -25,6 +25,7 @@ import { GlowDot } from "@/shared/ui";
 import { useNocTelemetry } from "../hooks/useNocTelemetry";
 import { supabase } from "@/shared/api/supabaseClient";
 import { useCurrentSite } from "@/shared/context/SiteContext";
+import { useAuth } from "@/shared/context/AuthContext";
 
 
 // ── Shared card wrapper ──────────────────────────────────────────────────────
@@ -64,6 +65,7 @@ const darkTooltipStyle = {
 
 // ── Main component ────────────────────────────────────────────────────────────
 export function NocOverview() {
+  const { employee } = useAuth();
   const {
     loadChartData,
     thermalData,
@@ -288,6 +290,16 @@ export function NocOverview() {
             className="bg-white border border-gray-250 rounded-xl px-3 py-2 text-[10px] font-black uppercase tracking-wider text-slate-700 hover:text-red-500 hover:border-red-100 hover:bg-red-50/20 active:scale-95 transition-all shadow-sm flex items-center gap-2 cursor-pointer"
           >
             🌱 Seed NTC DB
+          </button>
+
+          <button
+            onClick={() => {
+              const role = employee?.role || "ADMIN";
+              window.open(`/topology_engine/renderer/index.html?role=${role}`, "_blank");
+            }}
+            className="bg-white border border-gray-250 rounded-xl px-3 py-2 text-[10px] font-black uppercase tracking-wider text-slate-700 hover:text-red-500 hover:border-red-100 hover:bg-red-50/20 active:scale-95 transition-all shadow-sm flex items-center gap-2 cursor-pointer"
+          >
+            📊 View Visual Topology
           </button>
 
           {/* Live pulse badge */}

@@ -1,4 +1,4 @@
-import React, { useState, useRef } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import { useNavigate, useOutletContext } from "react-router";
 import { 
   Camera, 
@@ -14,6 +14,7 @@ import {
 import { useIncidents } from "../hooks/useIncidents";
 import { TechUser } from "./TechLayout";
 import { useCurrentSite } from "@/shared/context/SiteContext";
+import { supabase } from "@/shared/api/supabaseClient";
 import {
   Select,
   SelectContent,
@@ -81,7 +82,52 @@ export function IncidentReport() {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Report Form State
-  const [asset, setAsset] = useState("UPS-1");
+  const [asset, setAsset] = useState("");
+  const [equipmentList, setEquipmentList] = useState<{ value: string; label: string }[]>([]);
+  const [isLoadingEquip, setIsLoadingEquip] = useState(true);
+
+  useEffect(() => {
+    let active = true;
+    const loadEquipment = async () => {
+      if (!currentSite?.id) return;
+      try {
+        const { data, error } = await supabase
+          .from("equipment_registry")
+          .select("equipment_id, category, location")
+          .eq("site_uuid", currentSite.id)
+          .eq("is_active", true)
+          .order("equipment_id", { ascending: true });
+
+        if (error) throw error;
+        if (!active) return;
+
+        if (data) {
+          const list = data.map((item) => {
+            const prettyCategory = item.category ? item.category.toUpperCase() : "EQUIPMENT";
+            const prettyId = item.equipment_id.toUpperCase().replace(/_/g, " ");
+            const locationStr = item.location ? ` - ${item.location}` : "";
+            return {
+              value: item.equipment_id,
+              label: `${prettyId} (${prettyCategory}${locationStr})`
+            };
+          });
+          setEquipmentList(list);
+          if (list.length > 0) {
+            setAsset(list[0].value);
+          }
+        }
+      } catch (err) {
+        console.error("Failed to fetch equipment for incident reporting:", err);
+      } finally {
+        if (active) setIsLoadingEquip(false);
+      }
+    };
+
+    loadEquipment();
+    return () => {
+      active = false;
+    };
+  }, [currentSite?.id]);
   const [severity, setSeverity] = useState<"low" | "medium" | "critical">("critical");
   const [notes, setNotes] = useState("");
   const [photo, setPhoto] = useState<string | null>(null);
@@ -102,12 +148,7 @@ export function IncidentReport() {
   const [commentType, setCommentType] = useState<"addition" | "correction">("addition");
   const [isSubmittingComment, setIsSubmittingComment] = useState(false);
 
-  const mockAssets = [
-    { value: "UPS-1", label: "UPS-1 (Uninterruptible Power Supply)" },
-    { value: "Generator A", label: "Generator A (Diesel Backup)" },
-    { value: "CRAC Unit 3", label: "CRAC Unit 3 (Cooling)" },
-    { value: "Mains ATS", label: "Mains ATS (Automatic Transfer Switch)" }
-  ];
+
 
   const handlePhotoUpload = () => {
     // Trigger hidden camera file input
@@ -324,11 +365,21 @@ export function IncidentReport() {
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent className="bg-white border border-gray-100 rounded-2xl shadow-lg z-[10000]">
-                  {mockAssets.map((a) => (
-                    <SelectItem key={a.value} value={a.value} className="text-xs font-semibold text-gray-800 cursor-pointer">
-                      {a.label}
+                  {isLoadingEquip ? (
+                    <SelectItem value="loading" disabled className="text-xs font-semibold text-gray-400">
+                      Loading equipment...
                     </SelectItem>
-                  ))}
+                  ) : equipmentList.length === 0 ? (
+                    <SelectItem value="empty" disabled className="text-xs font-semibold text-gray-400">
+                      No active equipment found
+                    </SelectItem>
+                  ) : (
+                    equipmentList.map((a) => (
+                      <SelectItem key={a.value} value={a.value} className="text-xs font-semibold text-gray-800 cursor-pointer">
+                        {a.label}
+                      </SelectItem>
+                    ))
+                  )}
                 </SelectContent>
               </Select>
             </div>

@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/app/components/ui/card";
 import { Badge } from "@/app/components/ui/badge";
 import { Skeleton } from "@/app/components/ui/skeleton";
-import { Thermometer, Droplets, Fan, ShieldCheck } from 'lucide-react';
+import { Thermometer, Droplets, Fan, ShieldCheck, AlertCircle } from 'lucide-react';
 import { useDashboardData } from '../hooks/useDashboardData';
 import {
   LineChart,
@@ -17,7 +17,7 @@ import {
 
 export function ThermalAnalytics() {
   const [timePeriod] = useState("Today");
-  const { isLoading, thermalChartData, zoneData, kpis } = useDashboardData();
+  const { isLoading, isUsingMockData, thermalChartData, zoneData, kpis } = useDashboardData();
 
   if (isLoading) {
     return (
@@ -72,6 +72,13 @@ export function ThermalAnalytics() {
           </Badge>
         </div>
       </div>
+
+      {isUsingMockData && (
+        <div className="flex items-center gap-3 bg-amber-50 border border-amber-100/60 text-amber-800 p-4 rounded-3xl text-xs font-semibold">
+          <AlertCircle className="w-4.5 h-4.5 text-amber-600 shrink-0" />
+          <span>Operational Notice: Telemetry database table contains no records. Displaying baseline simulated data for dashboard verification.</span>
+        </div>
+      )}
 
       {/* KPI Cards */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">

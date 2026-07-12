@@ -19,7 +19,7 @@ import {
 
 export function IncidentAnalytics() {
   const [timePeriod] = useState("Today");
-  const { isLoading, incidentBubbles, ticketsLedger, kpis } = useDashboardData();
+  const { isLoading, isUsingMockData, incidentBubbles, ticketsLedger, kpis } = useDashboardData();
 
   if (isLoading) {
     return (
@@ -74,6 +74,13 @@ export function IncidentAnalytics() {
           </Badge>
         </div>
       </div>
+
+      {isUsingMockData && (
+        <div className="flex items-center gap-3 bg-amber-50 border border-amber-100/60 text-amber-800 p-4 rounded-3xl text-xs font-semibold">
+          <AlertCircle className="w-4.5 h-4.5 text-amber-600 shrink-0" />
+          <span>Operational Notice: Telemetry database table contains no records. Displaying baseline simulated data for dashboard verification.</span>
+        </div>
+      )}
 
       {/* KPI Cards */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -141,7 +148,7 @@ export function IncidentAnalytics() {
               <ResponsiveContainer width="100%" height="100%">
                 <ScatterChart margin={{ top: 10, right: 10, left: -25, bottom: 0 }}>
                   <CartesianGrid strokeDasharray="3 3" vertical={true} stroke="#F1F5F9" />
-                  <XAxis type="number" dataKey="dayIndex" name="Day" stroke="#94A3B8" fontSize={9} fontWeight="bold" domain={[1, 10]} tickFormatter={(val) => `Jul 0${val}`} tickLine={false} axisLine={false} dy={5} />
+                  <XAxis type="number" dataKey="dayIndex" name="Date" stroke="#94A3B8" fontSize={9} fontWeight="bold" domain={['dataMin', 'dataMax']} tickFormatter={(val) => new Date(val).toLocaleDateString([], { month: 'short', day: '2-digit' })} tickLine={false} axisLine={false} dy={5} />
                   <YAxis type="number" dataKey="yValue" name="Incident Slot" stroke="#94A3B8" fontSize={9} fontWeight="bold" domain={[0, 6]} tick={false} tickLine={false} axisLine={false} />
                   <ZAxis type="number" dataKey="severity" range={[100, 1000]} name="Severity Score" />
                   <Tooltip cursor={{ strokeDasharray: '3 3' }} contentStyle={{ background: '#fff', borderRadius: '12px', border: '1px solid #F1F5F9', fontSize: '11px', fontWeight: 'bold' }} />
