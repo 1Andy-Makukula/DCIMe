@@ -55,6 +55,9 @@ void PowerMatrix::toggleNodeFault(const std::string& id, bool faulted) {
             break;
         }
     }
+    if (id == "node-grid-tx") {
+        setGridActive(!faulted);
+    }
 }
 
 void PowerMatrix::clearAllFaults() {
@@ -334,7 +337,7 @@ void PowerMatrix::runMatrixUpdate() {
                     node.status = "RUNNING";
                     node.kw_load = 90.0;
                 } else if (dg_pair_status == "pair_a_starting") {
-                    node.is_active = false;
+                    node.is_active = true;
                     node.status = "STARTING...";
                     node.kw_load = 0.0;
                 } else {
@@ -348,7 +351,7 @@ void PowerMatrix::runMatrixUpdate() {
                     node.status = "RUNNING";
                     node.kw_load = 90.0;
                 } else if (dg_pair_status == "pair_b_starting") {
-                    node.is_active = false;
+                    node.is_active = true;
                     node.status = "STARTING...";
                     node.kw_load = 0.0;
                 } else {

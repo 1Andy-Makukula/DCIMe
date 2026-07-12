@@ -1,4 +1,4 @@
-﻿// ─────────────────────────────────────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────────────────────
 // DCIMe Engine — Relational Asset Dictionary
 // Single source of truth for the mobile app and Excel export engine.
 // ─────────────────────────────────────────────────────────────────────────────
@@ -41,10 +41,10 @@ export interface AssetCategory {
 function buildPacMetrics(prefix: string): AssetMetric[] {
   return [
     { id: `${prefix}_return_temp_actual`, label: 'Return Temp (Actual)', type: 'number', frequency: '2-hour', destinations: [{ workbook: 'commercial_logbook', sheetName: 'PAC', excelColumnIndex: 4 }] },
-    { id: `${prefix}_return_temp_set`,    label: 'Return Temp (Set)',    type: 'number', frequency: '2-hour', carryForward: true, destinations: [{ workbook: 'commercial_logbook', sheetName: 'PAC', excelColumnIndex: 5 }] },
-    { id: `${prefix}_supply_temp_set`,    label: 'Supply Temp (Set)',    type: 'number', frequency: '2-hour', carryForward: true, destinations: [{ workbook: 'commercial_logbook', sheetName: 'PAC', excelColumnIndex: 6 }] },
-    { id: `${prefix}_humidity_actual`,    label: 'Humidity (Actual)',    type: 'number', frequency: '2-hour', destinations: [{ workbook: 'commercial_logbook', sheetName: 'PAC', excelColumnIndex: 7 }] },
-    { id: `${prefix}_humidity_set`,       label: 'Humidity (Set)',       type: 'number', frequency: '2-hour', carryForward: true, destinations: [{ workbook: 'commercial_logbook', sheetName: 'PAC', excelColumnIndex: 8 }] },
+    { id: `${prefix}_return_temp_set`,    label: 'Return Temp (Set)',    type: 'number', frequency: '2-hour', isConstant: true, defaultValue: 22, destinations: [{ workbook: 'commercial_logbook', sheetName: 'PAC', excelColumnIndex: 5 }] },
+    { id: `${prefix}_supply_temp_set`,    label: 'Supply Temp (Set)',    type: 'number', frequency: '2-hour', isConstant: true, defaultValue: 20, destinations: [{ workbook: 'commercial_logbook', sheetName: 'PAC', excelColumnIndex: 6 }] },
+    { id: `${prefix}_humidity_actual`,    label: 'Humidity (Actual)',    type: 'number', frequency: '2-hour', isConstant: true, defaultValue: 45, destinations: [{ workbook: 'commercial_logbook', sheetName: 'PAC', excelColumnIndex: 7 }] },
+    { id: `${prefix}_humidity_set`,       label: 'Humidity (Set)',       type: 'number', frequency: '2-hour', isConstant: true, defaultValue: 45, destinations: [{ workbook: 'commercial_logbook', sheetName: 'PAC', excelColumnIndex: 8 }] },
     
     // Voltages
     { id: `${prefix}_voltage_ry`,         label: 'Voltage (R-Y)',        type: 'text',   frequency: '2-hour', isConstant: true, defaultValue: 'NA', destinations: [{ workbook: 'commercial_logbook', sheetName: 'PAC', excelColumnIndex: 9 }] },

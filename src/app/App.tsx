@@ -1,4 +1,5 @@
-import { BrowserRouter, Routes, Route, Navigate } from "react-router";
+import { useEffect } from "react";
+import { BrowserRouter, Routes, Route, Navigate, useSearchParams } from "react-router";
 import { AuthProvider } from "@/shared/context/AuthContext";
 import { SiteProvider } from "@/shared/context/SiteContext";
 import { Toaster } from "./components/ui/sonner";
@@ -29,6 +30,25 @@ import { UpsAnalytics } from "@/features/analytics/components/UpsAnalytics";
 import { ThermalAnalytics } from "@/features/analytics/components/ThermalAnalytics";
 import { IncidentAnalytics } from "@/features/analytics/components/IncidentAnalytics";
 
+// Redirect component to handle legacy/typo topology links
+function TopologyRedirect() {
+  const [searchParams] = useSearchParams();
+  useEffect(() => {
+    const roleParam = searchParams.get("role") || searchParams.get("ra") || "FIELD_TECH";
+    const mappedRole = roleParam.toUpperCase() === "ADMIN" ? "ADMIN" : "FIELD_TECH";
+    window.location.replace(`/topology_engine/renderer/index.html?role=${mappedRole}`);
+  }, [searchParams]);
+
+  return (
+    <div className="flex items-center justify-center min-h-screen bg-[#0a0c10] text-[#64748b]">
+      <div className="flex flex-col items-center gap-2">
+        <div className="w-6 h-6 rounded-full border-2 border-red-500 border-t-transparent animate-spin" />
+        <span className="text-[10px] font-black uppercase tracking-widest text-slate-500">Redirecting to SCADA Topology...</span>
+      </div>
+    </div>
+  );
+}
+
 export default function App() {
   return (
     <SiteProvider>
@@ -38,6 +58,12 @@ export default function App() {
         <Routes>
           {/* Public routes */}
           <Route path="/" element={<LoginPage />} />
+
+          {/* Failsafe static file redirects */}
+          <Route path="/topology_engine/render" element={<TopologyRedirect />} />
+          <Route path="/topology_engine/render/index.html" element={<TopologyRedirect />} />
+          <Route path="/topology_engine/renderer" element={<TopologyRedirect />} />
+          <Route path="/topology_engine/renderer/index.html" element={<TopologyRedirect />} />
 
           {/* Tech shell — nested routing */}
           <Route path="/tech" element={<TechLayout />}>

@@ -116,7 +116,39 @@ export function useTelemetryData(
 
         if (currentData && currentData.metrics) {
           setIsEditMode(true);
-          const metrics = currentData.metrics as Record<string, any>;
+          const metrics = { ...currentData.metrics } as Record<string, any>;
+
+          // Self-heal: ensure all constants/PAC constants are populated if blank/missing
+          MASTER_ASSET_DICTIONARY.forEach((category) => {
+            category.assets.forEach((asset) => {
+              asset.metrics.forEach((metric) => {
+                if (metric.isConstant || metric.defaultValue !== undefined) {
+                  const currentVal = metrics[metric.id];
+                  if (currentVal === undefined || currentVal === null || currentVal === "") {
+                    metrics[metric.id] = metric.defaultValue;
+                  }
+                }
+                if (asset.id.startsWith('pac_')) {
+                  const constants = PAC_CONSTANTS[asset.id];
+                  if (constants) {
+                    let expectedVal: any = undefined;
+                    if (metric.id.endsWith('_return_temp_set')) expectedVal = constants.returnTempSet;
+                    else if (metric.id.endsWith('_supply_temp_set')) expectedVal = constants.supplyTempSet;
+                    else if (metric.id.endsWith('_humidity_set')) expectedVal = constants.humiditySet;
+                    else if (metric.id.endsWith('_humidity_actual')) expectedVal = constants.humidityActual;
+
+                    if (expectedVal !== undefined) {
+                      const currentVal = metrics[metric.id];
+                      if (currentVal === undefined || currentVal === null || currentVal === "") {
+                        metrics[metric.id] = expectedVal;
+                      }
+                    }
+                  }
+                }
+              });
+            });
+          });
+
           setFormData(metrics);
           localStorage.setItem(cacheKey, JSON.stringify(metrics));
           setIsLoading(false);
@@ -192,8 +224,38 @@ export function useTelemetryData(
 
     fetchTelemetryData();
 
+    // Subscribe to realtime updates for the current target hour
+    const channel = supabase
+      .channel(`telemetry_logs_realtime_${targetHourISO}`)
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'telemetry_logs',
+          filter: `target_hour=eq.${targetHourISO}`
+        },
+        (payload) => {
+          if (!active) return;
+          if (payload.eventType === 'DELETE') {
+            setFormData({});
+            setIsEditMode(false);
+          } else {
+            const metrics = payload.new?.metrics as Record<string, any>;
+            if (metrics) {
+              setFormData(metrics);
+              setIsEditMode(true);
+              localStorage.setItem(cacheKey, JSON.stringify(metrics));
+              setActivePowerSource(metrics['grid_status'] === 'OFF' ? 'GENERATOR' : 'MAINS');
+            }
+          }
+        }
+      )
+      .subscribe();
+
     return () => {
       active = false;
+      supabase.removeChannel(channel);
     };
   }, [targetHour]);
 
