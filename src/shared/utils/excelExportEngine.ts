@@ -1,7 +1,7 @@
 import ExcelJS from "exceljs";
 import { saveAs } from "file-saver";
 import { MASTER_ASSET_DICTIONARY } from "../../features/field/constants/telemetrySchema";
-import { getExcelColumn, getPacEquipmentIndex, getEqptStatusRow } from "./excelMappingHelpers";
+import { getExcelColumn, getPacEquipmentIndex, getEqptStatusRow, getFssRoomOffset } from "./excelMappingHelpers";
 
 // Helper to get fallback/constant value based on user spec
 const getFallbackValue = (metricId: string, lastValue: any): any => {
@@ -126,13 +126,22 @@ export const generateMonthlyReport = async (
             const sheet = workbookObj.getWorksheet(sheetName) || workbookObj.getWorksheet(day.toString());
             if (!sheet) return;
 
-            const colLetter = getExcelColumn(dest.excelColumnIndex);
+            let colIndex = dest.excelColumnIndex;
+            if (sheetName === "Eqpt status") {
+              colIndex = dest.excelColumnIndex + (day - 1) * 4;
+            }
+            const colLetter = getExcelColumn(colIndex);
             let targetRow = 0;
 
             if (isDailyCanvas) {
               // Day sheets (01-31 or 1-31): hourly logs starting at row 6
               if (sheetName === day.toString().padStart(2, "0") || sheetName === day.toString()) {
                 targetRow = hour + 6;
+              } else if (sheetName === "FSS & VESDA") {
+                const roomOffset = getFssRoomOffset(asset.id);
+                if (roomOffset !== -1) {
+                  targetRow = 3 + ((day - 1) * 6) + roomOffset;
+                }
               }
             } else {
               // Commercial Logbook sheet rows
@@ -167,6 +176,24 @@ export const generateMonthlyReport = async (
     const dailySheet = dailyWb.getWorksheet(daySheetName) || dailyWb.getWorksheet(day.toString());
     if (dailySheet) {
       dailySheet.getCell("CC" + (hour + 6)).value = techName;
+    }
+
+    // Write technician name and Date to FSS & VESDA daily checks
+    const fssSheet = dailyWb.getWorksheet("FSS & VESDA");
+    if (fssSheet) {
+      const rooms = [
+        "fss_switch_room",
+        "fss_ibm_room",
+        "fss_power_room",
+        "fss_battery_room",
+        "fss_enterprise_1",
+        "fss_enterprise_2"
+      ];
+      rooms.forEach((_roomId, roomOffset) => {
+        const fssRow = 3 + ((day - 1) * 6) + roomOffset;
+        fssSheet.getCell("A" + fssRow).value = date.toLocaleDateString("en-US");
+        fssSheet.getCell("L" + fssRow).value = techName;
+      });
     }
 
     // Write technician name and static properties to commercial logbook sheets where appropriate

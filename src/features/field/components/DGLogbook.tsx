@@ -57,10 +57,54 @@ export const DGLogbook = forwardRef<HTMLDivElement, any>((props, ref) => {
   const [hr_meter_start, setHrMeterStart] = useState<number | "">("");
   const [hr_meter_stop, setHrMeterStop] = useState<number | "">("");
   const [cumulative_hrs, setCumulativeHrs] = useState<number | "">("");
+  const [run_hrs, setRunHrs] = useState("");
   const [engine_rpm, setEngineRpm] = useState<number | "">("");
   const [oil_pressure, setOilPressure] = useState<number | "">("");
   const [water_temp, setWaterTemp] = useState<number | "">("");
-  const [kwh_meter, setKwhMeter] = useState<number | "">("");
+  // History State
+  const [selectedHistory, setSelectedHistory] = useState<any | null>(null);
+  const isReadOnly = forceReadOnly || selectedHistory !== null;
+  const [historyChecklists, setHistoryChecklists] = useState<any[]>([]);
+  const [isHistoryLoading, setIsHistoryLoading] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const [saveSuccess, setSaveSuccess] = useState(false);
+
+  // Auto-calculate run_hrs and cumulative_hrs when inputs change
+  useEffect(() => {
+    if (!isReadOnly) {
+      if (time_start && time_stop) {
+        const startParts = time_start.split(":");
+        const stopParts = time_stop.split(":");
+        if (startParts.length >= 2 && stopParts.length >= 2) {
+          const startMin = parseInt(startParts[0], 10) * 60 + parseInt(startParts[1], 10);
+          const stopMin = parseInt(stopParts[0], 10) * 60 + parseInt(stopParts[1], 10);
+          if (!isNaN(startMin) && !isNaN(stopMin)) {
+            const diff = stopMin - startMin;
+            if (diff >= 0) {
+              const hrs = Math.floor(diff / 60);
+              const mins = diff % 60;
+              setRunHrs(`${String(hrs).padStart(2, "0")}:${String(mins).padStart(2, "0")}`);
+            } else {
+              setRunHrs("");
+            }
+          }
+        }
+      } else {
+        setRunHrs("");
+      }
+    }
+  }, [time_start, time_stop, isReadOnly]);
+
+  useEffect(() => {
+    if (!isReadOnly) {
+      if (hr_meter_start !== "" && hr_meter_stop !== "") {
+        const diff = Number(hr_meter_stop) - Number(hr_meter_start);
+        setCumulativeHrs(diff >= 0 ? parseFloat(diff.toFixed(2)) : "");
+      } else {
+        setCumulativeHrs("");
+      }
+    }
+  }, [hr_meter_start, hr_meter_stop, isReadOnly]);
 
   // Section 2 Parameters
   const [physicalChecks, setPhysicalChecks] = useState<
@@ -73,17 +117,8 @@ export const DGLogbook = forwardRef<HTMLDivElement, any>((props, ref) => {
     return initial;
   });
 
-  // Footer Remarks
+  const [kwh_meter, setKwhMeter] = useState<number | "">("");
   const [daily_remarks, setDailyRemarks] = useState("");
-
-  // History State
-  const [selectedHistory, setSelectedHistory] = useState<any | null>(null);
-  const [historyChecklists, setHistoryChecklists] = useState<any[]>([]);
-  const [isHistoryLoading, setIsHistoryLoading] = useState(false);
-  const [isSaving, setIsSaving] = useState(false);
-  const [saveSuccess, setSaveSuccess] = useState(false);
-
-  const isReadOnly = forceReadOnly || selectedHistory !== null;
 
   const handleStatusChange = (id: string, status: "OK" | "NOT OK" | "N/A") => {
     if (isReadOnly) return;
@@ -135,6 +170,7 @@ export const DGLogbook = forwardRef<HTMLDivElement, any>((props, ref) => {
             hr_meter_start: fData.hr_meter_start ?? "",
             hr_meter_stop: fData.hr_meter_stop ?? "",
             cumulative_hrs: fData.cumulative_hrs ?? "",
+            run_hrs: fData.run_hrs || "",
             engine_rpm: fData.engine_rpm ?? "",
             oil_pressure: fData.oil_pressure ?? "",
             water_temp: fData.water_temp ?? "",
@@ -167,6 +203,7 @@ export const DGLogbook = forwardRef<HTMLDivElement, any>((props, ref) => {
       setHrMeterStart(selectedHistory.hr_meter_start ?? "");
       setHrMeterStop(selectedHistory.hr_meter_stop ?? "");
       setCumulativeHrs(selectedHistory.cumulative_hrs ?? "");
+      setRunHrs(selectedHistory.run_hrs || "");
       setEngineRpm(selectedHistory.engine_rpm ?? "");
       setOilPressure(selectedHistory.oil_pressure ?? "");
       setWaterTemp(selectedHistory.water_temp ?? "");
@@ -183,6 +220,7 @@ export const DGLogbook = forwardRef<HTMLDivElement, any>((props, ref) => {
       setHrMeterStart(propData.hr_meter_start ?? "");
       setHrMeterStop(propData.hr_meter_stop ?? "");
       setCumulativeHrs(propData.cumulative_hrs ?? "");
+      setRunHrs(propData.run_hrs || "");
       setEngineRpm(propData.engine_rpm ?? "");
       setOilPressure(propData.oil_pressure ?? "");
       setWaterTemp(propData.water_temp ?? "");
@@ -206,6 +244,7 @@ export const DGLogbook = forwardRef<HTMLDivElement, any>((props, ref) => {
       });
       setTimeStart("");
       setTimeStop("");
+      setRunHrs("");
       setHrMeterStart("");
       setHrMeterStop("");
       setCumulativeHrs("");
@@ -230,6 +269,7 @@ export const DGLogbook = forwardRef<HTMLDivElement, any>((props, ref) => {
         hr_meter_start: hr_meter_start === "" ? null : Number(hr_meter_start),
         hr_meter_stop: hr_meter_stop === "" ? null : Number(hr_meter_stop),
         cumulative_hrs: cumulative_hrs === "" ? null : Number(cumulative_hrs),
+        run_hrs: run_hrs === "" ? null : run_hrs,
         engine_rpm: engine_rpm === "" ? null : Number(engine_rpm),
         oil_pressure: oil_pressure === "" ? null : Number(oil_pressure),
         water_temp: water_temp === "" ? null : Number(water_temp),
@@ -502,15 +542,25 @@ export const DGLogbook = forwardRef<HTMLDivElement, any>((props, ref) => {
               </div>
 
               <div>
-                <label className="block text-[10px] font-black text-gray-500 uppercase tracking-wider mb-1">Cumulative Run Hrs (cumulative_hrs)</label>
+                <label className="block text-[10px] font-black text-gray-500 uppercase tracking-wider mb-1">Hrs. Run (time_stop - time_start)</label>
+                <input
+                  type="text"
+                  value={run_hrs}
+                  disabled={true}
+                  placeholder="Calculated automatically"
+                  className="w-full bg-slate-100 border border-slate-200 rounded-lg px-3 py-2 font-bold text-slate-700 focus:outline-none print:bg-transparent print:border-none print:px-0 print:py-0 print:border-b print:border-black"
+                />
+              </div>
+
+              <div>
+                <label className="block text-[10px] font-black text-gray-500 uppercase tracking-wider mb-1">Cumulative Run Hrs (stop - start)</label>
                 <input
                   type="number"
                   step="any"
                   value={cumulative_hrs}
-                  disabled={isReadOnly}
-                  onChange={(e) => setCumulativeHrs(e.target.value === "" ? "" : Number(e.target.value))}
-                  placeholder="Total runtime hours"
-                  className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 font-semibold text-slate-800 focus:outline-none focus:border-red-500 print:bg-transparent print:border-none print:px-0 print:py-0 print:border-b print:border-black"
+                  disabled={true}
+                  placeholder="Calculated automatically"
+                  className="w-full bg-slate-100 border border-slate-200 rounded-lg px-3 py-2 font-bold text-slate-700 focus:outline-none print:bg-transparent print:border-none print:px-0 print:py-0 print:border-b print:border-black"
                 />
               </div>
 

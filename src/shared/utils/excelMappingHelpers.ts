@@ -24,6 +24,13 @@ export const getPacEquipmentIndex = (assetId: string): number => {
     if (num === 1) return 22;
     if (num === 2) return 23;
   }
+  if (assetId.startsWith("pac_data_em")) {
+    const num = parseInt(assetId.replace("pac_data_em", ""), 10);
+    if (num >= 1 && num <= 2) return 10 + (num - 1); // 10 to 11
+  }
+  if (assetId === "pac_data_vt6") {
+    return 12;
+  }
   if (assetId.startsWith("pac_pr1_em")) {
     const num = parseInt(assetId.replace("pac_pr1_em", ""), 10);
     if (num >= 1 && num <= 3) return 13 + (num - 1); // 13 to 15
@@ -76,3 +83,15 @@ export const getEqptStatusRow = (assetId: string): number => {
   }
   return -1;
 };
+
+// Helper to get Fire & Safety room row offset in FSS & VESDA sheet
+export const getFssRoomOffset = (assetId: string): number => {
+  if (assetId === "fss_switch_room") return 0;
+  if (assetId === "fss_ibm_room") return 1;
+  if (assetId === "fss_power_room") return 2;
+  if (assetId === "fss_battery_room") return 3;
+  if (assetId === "fss_enterprise_1") return 4;
+  if (assetId === "fss_enterprise_2") return 5;
+  return -1;
+};
+

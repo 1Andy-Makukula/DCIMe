@@ -16,6 +16,7 @@ export interface Incident {
     comment_text: string;
     type: "correction" | "addition" | string;
     timestamp: string;
+    photo_url?: string | null;
   }>;
   created_at: string;
   raised_by_name: string;
@@ -130,6 +131,7 @@ export function useIncidents() {
       type: "correction" | "addition" | string;
       author_name?: string;
       author_id?: string;
+      photo_url?: string | null;
     }
   ) => {
     setError(null);
@@ -143,6 +145,7 @@ export function useIncidents() {
         comment_text: payload.comment_text,
         type: payload.type,
         timestamp: new Date().toISOString(),
+        photo_url: payload.photo_url || null,
       };
 
       const updatedComments = [...currentComments, newComment];
