@@ -41,5 +41,7 @@ export const PAC_CONSTANTS: Record<string, PacConstantValues> = {
   "pac_it2_em2": { returnTempSet: "NA", supplyTempSet: "NA", humiditySet: "NA", humidityActual: "NA" },
   
   // Data Room / Server Room VT6
-  "pac_server_vt6": { returnTempSet: "NA", supplyTempSet: "NA", humiditySet: 50, humidityActual: 50.7 },
+  "pac_data_vt6": { returnTempSet: "NA", supplyTempSet: "NA", humiditySet: 50, humidityActual: 50.7 },
+  "pac_data_em1": { returnTempSet: "NA", supplyTempSet: "NA", humiditySet: "NA", humidityActual: "NA" },
+  "pac_data_em2": { returnTempSet: "NA", supplyTempSet: "NA", humiditySet: "NA", humidityActual: "NA" },
 };

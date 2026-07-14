@@ -48,15 +48,15 @@ function buildPacMetrics(prefix: string): AssetMetric[] {
     { id: `${prefix}_humidity_set`,       label: 'Humidity (Set)',       type: 'number', frequency: '2-hour', isConstant: true, defaultValue: 45, destinations: [{ workbook: 'commercial_logbook', sheetName: 'PAC', excelColumnIndex: 8 }] },
     
     // Voltages (L-L)
-    { id: `${prefix}_voltage_ry`,         label: 'Voltage (R-Y)',        type: 'number',   frequency: '2-hour', destinations: [{ workbook: 'commercial_logbook', sheetName: 'PAC', excelColumnIndex: 9 }] },
-    { id: `${prefix}_voltage_yb`,         label: 'Voltage (Y-B)',        type: 'number',   frequency: '2-hour', destinations: [{ workbook: 'commercial_logbook', sheetName: 'PAC', excelColumnIndex: 10 }] },
-    { id: `${prefix}_voltage_br`,         label: 'Voltage (B-R)',        type: 'number',   frequency: '2-hour', destinations: [{ workbook: 'commercial_logbook', sheetName: 'PAC', excelColumnIndex: 11 }] },
+    { id: `${prefix}_voltage_ry`,         label: 'Voltage (R-Y)',        type: 'text',   frequency: '2-hour', isConstant: true, defaultValue: 'NA', destinations: [{ workbook: 'commercial_logbook', sheetName: 'PAC', excelColumnIndex: 9 }] },
+    { id: `${prefix}_voltage_yb`,         label: 'Voltage (Y-B)',        type: 'text',   frequency: '2-hour', isConstant: true, defaultValue: 'NA', destinations: [{ workbook: 'commercial_logbook', sheetName: 'PAC', excelColumnIndex: 10 }] },
+    { id: `${prefix}_voltage_br`,         label: 'Voltage (B-R)',        type: 'text',   frequency: '2-hour', isConstant: true, defaultValue: 'NA', destinations: [{ workbook: 'commercial_logbook', sheetName: 'PAC', excelColumnIndex: 11 }] },
     
     // Load Currents
-    { id: `${prefix}_current_r`,          label: 'Load Current (R)',     type: 'number',   frequency: '2-hour', destinations: [{ workbook: 'commercial_logbook', sheetName: 'PAC', excelColumnIndex: 12 }] },
-    { id: `${prefix}_current_y`,          label: 'Load Current (Y)',     type: 'number',   frequency: '2-hour', destinations: [{ workbook: 'commercial_logbook', sheetName: 'PAC', excelColumnIndex: 13 }] },
-    { id: `${prefix}_current_b`,          label: 'Load Current (B)',     type: 'number',   frequency: '2-hour', destinations: [{ workbook: 'commercial_logbook', sheetName: 'PAC', excelColumnIndex: 14 }] },
-    { id: `${prefix}_current_n`,          label: 'Load Current (N)',     type: 'number',   frequency: '2-hour', destinations: [{ workbook: 'commercial_logbook', sheetName: 'PAC', excelColumnIndex: 15 }] },
+    { id: `${prefix}_current_r`,          label: 'Load Current (R)',     type: 'text',   frequency: '2-hour', isConstant: true, defaultValue: 'NA', destinations: [{ workbook: 'commercial_logbook', sheetName: 'PAC', excelColumnIndex: 12 }] },
+    { id: `${prefix}_current_y`,          label: 'Load Current (Y)',     type: 'text',   frequency: '2-hour', isConstant: true, defaultValue: 'NA', destinations: [{ workbook: 'commercial_logbook', sheetName: 'PAC', excelColumnIndex: 13 }] },
+    { id: `${prefix}_current_b`,          label: 'Load Current (B)',     type: 'text',   frequency: '2-hour', isConstant: true, defaultValue: 'NA', destinations: [{ workbook: 'commercial_logbook', sheetName: 'PAC', excelColumnIndex: 14 }] },
+    { id: `${prefix}_current_n`,          label: 'Load Current (N)',     type: 'text',   frequency: '2-hour', isConstant: true, defaultValue: 'NA', destinations: [{ workbook: 'commercial_logbook', sheetName: 'PAC', excelColumnIndex: 15 }] },
 
     // Daily Status
     { id: `${prefix}_daily_abnormality`, label: 'Remarks / Abnormality', type: 'text', frequency: 'daily', defaultValue: 'NON', destinations: [{ workbook: 'commercial_logbook', sheetName: 'PAC', excelColumnIndex: 16 }] },
@@ -279,6 +279,8 @@ export const MASTER_ASSET_DICTIONARY: AssetCategory[] = [
       { id: 'room_battery_ambient', name: 'Battery Room Ambient', metrics: buildAmbientMetrics('battery_ambient', 71, 14) },
       { id: 'ups_2', name: 'UPS 2', metrics: buildUpsMetrics('ups_2', 44) },
       { id: 'rectifier_2', name: 'Rectifier 2', metrics: buildRectifierMetrics('rectifier_2', 61) },
+      { id: 'pac_pr2_em1', name: 'Power Room 2 AC 1', metrics: buildPacMetrics('pac_pr2_em1') },
+      { id: 'pac_pr2_em2', name: 'Power Room 2 AC 2', metrics: buildPacMetrics('pac_pr2_em2') },
     ],
   },
 
