@@ -58,21 +58,23 @@ async function seedSiteData(siteCode: string, defaultSiteName: string): Promise<
       .eq('site_uuid', siteId);
 
     const siteEquipIds = (existingEquip || []).map((e) => e.equipment_id);
+    const dictEquipIds = MASTER_ASSET_DICTIONARY.flatMap((cat) => cat.assets.map((a) => a.id));
+    const allEquipIdsToDelete = Array.from(new Set([...siteEquipIds, ...dictEquipIds]));
 
-    if (siteEquipIds.length > 0) {
+    if (allEquipIdsToDelete.length > 0) {
       console.log(`[DCIMe Seed] Cleaning up existing ${siteCode} parameters...`);
       // Delete parameters referencing site equipment
       const { error: deleteParamsErr } = await supabase
         .from('equipment_parameters')
         .delete()
-        .in('equipment_id', siteEquipIds);
+        .in('equipment_id', allEquipIdsToDelete);
       if (deleteParamsErr) throw deleteParamsErr;
 
       // Delete equipment registry entries
       const { error: deleteEquipErr } = await supabase
         .from('equipment_registry')
         .delete()
-        .in('equipment_id', siteEquipIds);
+        .in('equipment_id', allEquipIdsToDelete);
       if (deleteEquipErr) throw deleteEquipErr;
     }
 
