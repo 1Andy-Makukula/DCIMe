@@ -209,6 +209,13 @@ export function useTelemetryData(
           });
         });
 
+        // Carry forward all asset status values (e.g. status_pac_server_em1 = 'OFFLINE')
+        Object.keys(previousMetrics).forEach((key) => {
+          if (key.startsWith('status_')) {
+            newFormState[key] = previousMetrics[key];
+          }
+        });
+
         setFormData(newFormState);
         localStorage.setItem(cacheKey, JSON.stringify(newFormState));
         setIsLoading(false);

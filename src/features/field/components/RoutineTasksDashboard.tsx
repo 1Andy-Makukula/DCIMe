@@ -1,4 +1,5 @@
 import { useState, useMemo, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { Save, CheckCircle2, Loader2, Zap, AlertTriangle, ArrowLeft, Plug, Edit2, Server, Battery, Network, Building2, Radio, Flame, ClipboardList, Share2, History, Copy, Trash2, X } from 'lucide-react';
 import { supabase } from '@/shared/api/supabaseClient';
 import { useAuth } from '@/shared/context/AuthContext';
@@ -232,6 +233,56 @@ export const RoutineTasksDashboard = ({
   const [prevGeneratorValues, setPrevGeneratorValues] = useState<Record<string, any>>({});
   const [attemptedFetches, setAttemptedFetches] = useState<Set<string>>(new Set());
 
+  // --- Auto-calculate generator cumulative hours and fuel balance in real-time ---
+  useEffect(() => {
+    let changed = false;
+    const updated = { ...formData };
+
+    // 1. Generator Cumulative Run Hours
+    const dgIds = ['dg_1', 'dg_2', 'dg_3', 'dg_4', 'dg_hq'];
+    dgIds.forEach((dgId) => {
+      const startKey = `${dgId}_hr_meter_start`;
+      const stopKey = `${dgId}_hr_meter_stop`;
+      const cumKey = `${dgId}_cumulative_hrs`;
+
+      const startVal = parseFloat(formData[startKey]);
+      const stopVal = parseFloat(formData[stopKey]);
+
+      if (!isNaN(startVal) && !isNaN(stopVal)) {
+        const diff = stopVal - startVal;
+        const expectedCum = diff >= 0 ? parseFloat(diff.toFixed(2)) : 0;
+        if (updated[cumKey] !== expectedCum) {
+          updated[cumKey] = expectedCum;
+          changed = true;
+        }
+      }
+    });
+
+    // 2. Fuel Balance
+    const bf = parseFloat(formData['fuel_brought_forward']) || 0;
+    const rec = parseFloat(formData['fuel_received']) || 0;
+    const cons = parseFloat(formData['fuel_consumed']) || 0;
+    const expectedBalance = parseFloat((bf + rec - cons).toFixed(2));
+    if (updated['fuel_balance'] !== expectedBalance) {
+      updated['fuel_balance'] = expectedBalance;
+      changed = true;
+    }
+
+    if (changed && setFormData) {
+      setFormData(updated);
+      const cacheKey = `telemetry_cache_${targetHour}`;
+      localStorage.setItem(cacheKey, JSON.stringify(updated));
+    }
+  }, [
+    formData['dg_1_hr_meter_start'], formData['dg_1_hr_meter_stop'],
+    formData['dg_2_hr_meter_start'], formData['dg_2_hr_meter_stop'],
+    formData['dg_3_hr_meter_start'], formData['dg_3_hr_meter_stop'],
+    formData['dg_4_hr_meter_start'], formData['dg_4_hr_meter_stop'],
+    formData['dg_hq_hr_meter_start'], formData['dg_hq_hr_meter_stop'],
+    formData['fuel_brought_forward'], formData['fuel_received'], formData['fuel_consumed'],
+    targetHour
+  ]);
+
   // --- WhatsApp Share & Save History ---
   const [historyOpen, setHistoryOpen] = useState(false);
   const [whatsappHistory, setWhatsappHistory] = useState<{ timestamp: string, date: string, hour: string, text: string }[]>(() => {
@@ -243,10 +294,10 @@ export const RoutineTasksDashboard = ({
     }
   });
 
-  const getFormValue = (key: string, fallback: string = "NA") => {
+  const getCleanValue = (key: string, fallback: string = "NA") => {
     const val = formData[key];
-    if (val === undefined || val === null || val === "") return fallback;
-    return val;
+    if (val === undefined || val === null || String(val).trim() === "") return fallback;
+    return String(val).trim();
   };
 
   const generateReportTexts = () => {
@@ -258,11 +309,11 @@ export const RoutineTasksDashboard = ({
     const isGen = activePowerSource === 'GENERATOR';
     
     // Grid vs Gen Voltage / Current / Load
-    const voltageVal = isGen ? getFormValue('dg_load_voltage_r') : getFormValue('grid_voltage_r');
-    const ampsVal = isGen ? getFormValue('dg_load_amps_r') : getFormValue('grid_amps_r');
+    const voltageVal = isGen ? getCleanValue('dg_load_voltage_r') : getCleanValue('grid_voltage_r');
+    const ampsVal = isGen ? getCleanValue('dg_load_amps_r') : getCleanValue('grid_amps_r');
     
     // Calculate Generator KW: KW = (Volts * Amps * 1.732 * PF) / 1000
-    const pfVal = isGen ? "0.9" : getFormValue('grid_power_factor', "0.9");
+    const pfVal = isGen ? "0.9" : getCleanValue('grid_power_factor', "0.9");
     const voltageNum = parseFloat(voltageVal);
     const ampsNum = parseFloat(ampsVal);
     const pfNum = parseFloat(pfVal);
@@ -270,131 +321,152 @@ export const RoutineTasksDashboard = ({
       ? Math.round((voltageNum * ampsNum * 1.732 * pfNum) / 1000)
       : 0;
 
-    const kwVal = isGen ? calcKw.toString() : getFormValue('grid_total_site_load'); 
+    const kwVal = isGen ? calcKw.toString() : getCleanValue('grid_total_site_load'); 
 
     // Rectifiers
-    const r1_v = getFormValue('rectifier_1_dc_voltage', '54.2');
-    const r1_a = getFormValue('rectifier_1_amps');
-    const r1_cap = getFormValue('rectifier_1_used_percentage');
+    const r1_v = getCleanValue('rectifier_1_dc_voltage', '54.2');
+    const r1_a = getCleanValue('rectifier_1_amps');
+    const r1_cap = getCleanValue('rectifier_1_used_percentage');
     
-    const r2_v = getFormValue('rectifier_2_dc_voltage', '54.2');
-    const r2_a = getFormValue('rectifier_2_amps');
-    const r2_cap = getFormValue('rectifier_2_used_percentage');
+    const r2_v = getCleanValue('rectifier_2_dc_voltage', '54.2');
+    const r2_a = getCleanValue('rectifier_2_amps');
+    const r2_cap = getCleanValue('rectifier_2_used_percentage');
 
     // UPS 1
-    const ups1_l1 = getFormValue('ups_1_output_voltage_a', '230');
-    const ups1_l2 = getFormValue('ups_1_output_voltage_b', '230');
-    const ups1_l3 = getFormValue('ups_1_output_voltage_c', '230');
-    const ups1_a1 = getFormValue('ups_1_load_amps_a');
-    const ups1_a2 = getFormValue('ups_1_load_amps_b');
-    const ups1_a3 = getFormValue('ups_1_load_amps_c');
-    const ups1_batt = getFormValue('ups_1_battery_voltage');
-    const ups1_charge = getFormValue('ups_1_battery_charge_percent', '100');
-    const ups1_used = getFormValue('ups_1_used_capacity');
-    const ups1_load = getFormValue('ups_1_output_load_kw');
+    const ups1_l1 = getCleanValue('ups_1_output_voltage_a', '230');
+    const ups1_l2 = getCleanValue('ups_1_output_voltage_b', '230');
+    const ups1_l3 = getCleanValue('ups_1_output_voltage_c', '230');
+    const ups1_a1 = getCleanValue('ups_1_load_amps_a');
+    const ups1_a2 = getCleanValue('ups_1_load_amps_b');
+    const ups1_a3 = getCleanValue('ups_1_load_amps_c');
+    const ups1_batt = getCleanValue('ups_1_battery_voltage');
+    const ups1_charge = getCleanValue('ups_1_battery_charge_percent', '100');
+    const ups1_used = getCleanValue('ups_1_used_capacity');
+    const ups1_load = getCleanValue('ups_1_output_load_kw');
 
     // UPS 2
-    const ups2_l1 = getFormValue('ups_2_output_voltage_a', '230');
-    const ups2_l2 = getFormValue('ups_2_output_voltage_b', '230');
-    const ups2_l3 = getFormValue('ups_2_output_voltage_c', '230');
-    const ups2_a1 = getFormValue('ups_2_load_amps_a');
-    const ups2_a2 = getFormValue('ups_2_load_amps_b');
-    const ups2_a3 = getFormValue('ups_2_load_amps_c');
-    const ups2_batt = getFormValue('ups_2_battery_voltage');
-    const ups2_charge = getFormValue('ups_2_battery_charge_percent', '100');
-    const ups2_used = getFormValue('ups_2_used_capacity');
-    const ups2_load = getFormValue('ups_2_output_load_kw');
+    const ups2_l1 = getCleanValue('ups_2_output_voltage_a', '230');
+    const ups2_l2 = getCleanValue('ups_2_output_voltage_b', '230');
+    const ups2_l3 = getCleanValue('ups_2_output_voltage_c', '230');
+    const ups2_a1 = getCleanValue('ups_2_load_amps_a');
+    const ups2_a2 = getCleanValue('ups_2_load_amps_b');
+    const ups2_a3 = getCleanValue('ups_2_load_amps_c');
+    const ups2_batt = getCleanValue('ups_2_battery_voltage');
+    const ups2_charge = getCleanValue('ups_2_battery_charge_percent', '100');
+    const ups2_used = getCleanValue('ups_2_used_capacity');
+    const ups2_load = getCleanValue('ups_2_output_load_kw');
 
     // Temperature Room values
-    const tempMain = getFormValue('server_ambient_temp');
-    const tempPr1 = getFormValue('pr1_ambient_temp');
-    const tempPr2 = getFormValue('pr2_ambient_temp');
-    const tempIt1 = getFormValue('it1_ambient_temp');
-    const tempIt2 = getFormValue('it2_ambient_temp');
-    const humidityMain = getFormValue('server_ambient_humidity');
+    const tempMain = getCleanValue('server_ambient_temp');
+    const tempPr1 = getCleanValue('pr1_ambient_temp');
+    const tempPr2 = getCleanValue('pr2_ambient_temp');
+    const tempIt1 = getCleanValue('it1_ambient_temp');
+    const tempIt2 = getCleanValue('it2_ambient_temp');
+    const humidityMain = getCleanValue('server_ambient_humidity');
 
     // Real system time when sharing is happening
     const shareTime = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
-    // VERSION A (WhatsApp Share) - strictly bolded with * and proper spacing
+    // VERSION A (WhatsApp Share) - strictly formatted according to user template, with asterisks for bolding
     const whatsappPayload = `*NTC ZM 0874*
 *${firstName.toUpperCase()} ON DUTY*
-*TIME: ${shareTime} (Log Hour: ${targetHour}hrs)*
+*TIME: ${shareTime}hrs (Log Hour: ${targetHour}hrs)*
 *LOAD ON ${powerSourceText}*
-Load voltage: *${voltageVal}V*
-Load in Amps: *${ampsVal}A*
+Load voltage *${voltageVal}*V
+Load in Amps *${ampsVal}*A
 
-Total load: *${kwVal} kW*
-Power factor: *${pfVal}*
+*KW:${kwVal}*KW
+Power factor *${pfVal}*
 
 *VERTIV RECTIFIER 1*
-(Power Room 1): *${r1_v}v / ${r1_a}A / ${r1_cap}%*
+(Power room 1) *${r1_v}*v/*${r1_a}*A/*${r1_cap}*%
 *VERTIV RECTIFIER 2*
-(Power Room 2): *${r2_v}v / ${r2_a}A / ${r2_cap}%*
+(Power room 2)*${r2_v}*v/*${r2_a}*A/*${r2_cap}*%
 
-*UPS 1 output*
-(Power Room 1)
-L1: *${ups1_l1}V / ${ups1_a1}A*
-L2: *${ups1_l2}V / ${ups1_a2}A*
-L3: *${ups1_l3}V / ${ups1_a3}A*
-Battery voltage: *${ups1_batt}VDC*
-Battery Charge: *${ups1_charge}%*
-Used Capacity: *${ups1_used}%*
-Load: *${ups1_load} kW*
+*UPS 1 out put*
+(Power room_1)
+L1-*${ups1_l1}*/*${ups1_a1}*A
+L2-*${ups1_l2}*/*${ups1_a2}*A
+L3-*${ups1_l3}*/*${ups1_a3}*A
+Battery voltage
 
-*UPS 2 output*
-(Power Room 2)
-L1: *${ups2_l1}V / ${ups2_a1}A*
-L2: *${ups2_l2}V / ${ups2_a2}A*
-L3: *${ups2_l3}V / ${ups2_a3}A*
-Battery voltage: *${ups2_batt}VDC*
-Battery Charge: *${ups2_charge}%*
-Used Capacity: *${ups2_used}%*
-Load: *${ups2_load} kW*
+*${ups1_batt}*VDC
+Battery Charge:*${ups1_charge}*%
+Used Capacity:*${ups1_used}*%
+Load *${ups1_load}*KW
+
+*UPS 2 out put*
+(Power room_2)
+L1-*${ups2_l1}*/*${ups2_a1}*A
+L2-*${ups2_l2}*/*${ups2_a2}*A
+L3-*${ups2_l3}*/*${ups2_a3}*A
+Battery voltage
+
+*${ups2_batt}*VDC
+Battery Charge:*${ups2_charge}*%
+Used Capacity:*${ups2_used}*%
+Load *${ups2_load}*KW
 
 *TEMPERATURE*
-Main Room: *${tempMain}°C*
-Power Room 1: *${tempPr1}°C*
-Power Room 2: *${tempPr2}°C*
-First Floor Server Room
-ENTERPRISE ROOM 1: *${tempIt1}°C*
-ENTERPRISE ROOM 2: *${tempIt2}°C*
-Humidity: *${humidityMain}%*`;
+Main Room *${tempMain}*°C
+Power Room1_*${tempPr1}*°C
+Power Room2_ *${tempPr2}*°C
+First  Floor Server Room
+ENTERPRISE  ROOM 1 *${tempIt1}*°C
+ENTERPRISE ROOM 2 *${tempIt2}*°C
+Humidity *${humidityMain}*%`;
 
     // Extracting unit temperatures
-    const em1 = getFormValue('pac_server_em1_return_temp_actual');
-    const em2 = getFormValue('pac_server_em2_return_temp_actual');
-    const em3 = getFormValue('pac_server_em3_return_temp_actual');
-    const em4 = getFormValue('pac_server_em4_return_temp_actual');
-    const em5 = getFormValue('pac_server_em5_return_temp_actual');
-    const em6 = getFormValue('pac_server_em6_return_temp_actual');
-    const em7 = getFormValue('pac_server_em7_return_temp_actual');
+    const em1_temp = getCleanValue('pac_server_em1_return_temp_actual');
+    const em2_temp = getCleanValue('pac_server_em2_return_temp_actual');
+    const em3_temp = getCleanValue('pac_server_em3_return_temp_actual');
+    const em4_temp = getCleanValue('pac_server_em4_return_temp_actual');
+    const em5_temp = getCleanValue('pac_server_em5_return_temp_actual');
+    const em6_temp = getCleanValue('pac_server_em6_return_temp_actual');
+    const em7_temp = getCleanValue('pac_server_em7_return_temp_actual');
 
-    const vt1 = getFormValue('pac_server_vt1_return_temp_actual');
-    const vt2 = getFormValue('pac_server_vt2_return_temp_actual');
-    const vt3 = getFormValue('pac_server_vt3_return_temp_actual');
-    const vt4 = getFormValue('pac_server_vt4_return_temp_actual');
-    const vt5 = getFormValue('pac_server_vt5_return_temp_actual');
-    const vt6 = getFormValue('pac_data_vt6_return_temp_actual');
+    const vt1_temp = getCleanValue('pac_server_vt1_return_temp_actual');
+    const vt2_temp = getCleanValue('pac_server_vt2_return_temp_actual');
+    const vt3_temp = getCleanValue('pac_server_vt3_return_temp_actual');
+    const vt4_temp = getCleanValue('pac_server_vt4_return_temp_actual');
+    const vt5_temp = getCleanValue('pac_server_vt5_return_temp_actual');
+    const vt6_temp = getCleanValue('pac_data_vt6_return_temp_actual');
 
-    // VERSION B (Internal Save)
+    // Extracting Voltages and Currents for Active Power Source (ZESCO Grid vs Generator)
+    const v_r = isGen ? getCleanValue('dg_load_voltage_r') : getCleanValue('grid_voltage_r');
+    const v_y = isGen ? getCleanValue('dg_load_voltage_y') : getCleanValue('grid_voltage_y');
+    const v_b = isGen ? getCleanValue('dg_load_voltage_b') : getCleanValue('grid_voltage_b');
+
+    const v_rn = isGen ? "230" : getCleanValue('grid_phase_voltage_rn', '230');
+    const v_yn = isGen ? "230" : getCleanValue('grid_phase_voltage_yn', '230');
+    const v_bn = isGen ? "230" : getCleanValue('grid_phase_voltage_bn', '230');
+
+    const a_r = isGen ? getCleanValue('dg_load_amps_r') : getCleanValue('grid_amps_r');
+    const a_y = isGen ? getCleanValue('dg_load_amps_y') : getCleanValue('grid_amps_y');
+    const a_b = isGen ? getCleanValue('dg_load_amps_b') : getCleanValue('grid_amps_b');
+
+    // VERSION B (Internal Save) - includes unit temperatures and active source electrical metrics
     const internalPayload = `${whatsappPayload}
 
 Unit Temperatures
-Emerson 1 : ${em1}
-Emerson 2 : ${em2}
-Emerson 3 : ${em3}
-Emerson 4 : ${em4}
-Emerson 5 : ${em5}
-Emerson 6 : ${em6}
-Emerson 7 : ${em7}
+Emerson 1 : ${em1_temp}
+Emerson 2 : ${em2_temp}
+Emerson 3 : ${em3_temp}
+Emerson 4 : ${em4_temp}
+Emerson 5 : ${em5_temp}
+Emerson 6 : ${em6_temp}
+Emerson 7 : ${em7_temp}
 
-Vertiv 1 : ${vt1}
-Vertiv 2: ${vt2}
-Vertiv 3: ${vt3}
-Vertiv 4 : ${vt4}
-Vertiv 5 : ${vt5}
-Vertiv 6 : ${vt6}`;
+Vertiv 1 : ${vt1_temp}
+Vertiv 2: ${vt2_temp}
+Vertiv 3: ${vt3_temp}
+Vertiv 4 : ${vt4_temp}
+Vertiv 5 : ${vt5_temp}
+Vertiv 6 : ${vt6_temp}
+
+VOLTAGE: ${v_r} ${v_b} ${v_y}
+VOLTAGE: ${v_rn} ${v_bn} ${v_yn}
+CURRENT: ${a_r} ${a_b} ${a_y}`;
 
     return { whatsappPayload, internalPayload };
   };
@@ -828,20 +900,27 @@ Vertiv 6 : ${vt6}`;
                                           )}
                                         </div>
                                         <div className="relative">
-                                          <input
-                                            id={metric.id}
-                                            type={metric.type === "number" ? "number" : "text"}
-                                            inputMode={metric.type === "number" ? "decimal" : "text"}
-                                            disabled={isOffline || isGridLocked}
-                                            value={(isOffline || isGridLocked) ? "" : (formData[metric.id] ?? "")}
-                                            onChange={(e) => handleUserInputChange(metric.id, e.target.value)}
-                                            placeholder="—"
-                                            className={`w-full px-3 py-2 rounded-lg border text-xs font-semibold focus:outline-none focus:ring-1 transition-all ${
-                                              isAutoFilled && isDg
-                                                ? "bg-emerald-50/10 border-emerald-200 text-emerald-700 focus:border-emerald-500 focus:ring-emerald-500/20"
-                                                : "bg-white border-gray-200 text-gray-800 focus:border-red-400 focus:ring-red-400"
-                                            }`}
-                                          />
+                                          {(() => {
+                                            const isReadOnlyField = metric.id.endsWith('_cumulative_hrs') || metric.id === 'fuel_balance';
+                                            return (
+                                              <input
+                                                id={metric.id}
+                                                type={metric.type === "number" ? "number" : "text"}
+                                                inputMode={metric.type === "number" ? "decimal" : "text"}
+                                                disabled={isOffline || isGridLocked || isReadOnlyField}
+                                                value={(isOffline || isGridLocked) ? "" : (formData[metric.id] ?? "")}
+                                                onChange={(e) => handleUserInputChange(metric.id, e.target.value)}
+                                                placeholder="—"
+                                                className={`w-full px-3 py-2 rounded-lg border text-xs font-semibold focus:outline-none focus:ring-1 transition-all ${
+                                                  isReadOnlyField
+                                                    ? "bg-slate-100 border-gray-200 text-slate-500 cursor-not-allowed"
+                                                    : isAutoFilled && isDg
+                                                    ? "bg-emerald-50/10 border-emerald-200 text-emerald-700 focus:border-emerald-500 focus:ring-emerald-500/20"
+                                                    : "bg-white border-gray-200 text-gray-800 focus:border-red-400 focus:ring-red-400"
+                                                }`}
+                                              />
+                                            );
+                                          })()}
                                         </div>
                                       </div>
                                     );
@@ -1048,26 +1127,24 @@ Vertiv 6 : ${vt6}`;
           left: 0;
           width: 100vw;
           height: 100vh;
-          background: rgba(0, 0, 0, 0.4);
-          backdrop-filter: blur(4px);
-          z-index: 10000;
+          background: rgba(0, 0, 0, 0.5);
+          backdrop-filter: blur(6px);
+          z-index: 999999;
           display: flex;
           justify-content: center;
           align-items: stretch;
         }
         .dcime-modal-sheet {
           width: 100%;
-          max-width: 100%;
+          max-width: 100vw;
           height: 100vh;
           max-height: 100vh;
-          background: rgba(255, 255, 255, 0.9);
-          backdrop-filter: blur(20px);
-          -webkit-backdrop-filter: blur(20px);
-          border-radius: 0;
+          background: #ffffff;
           display: flex;
           flex-direction: column;
-          box-shadow: 0 -10px 25px rgba(0, 0, 0, 0.1);
+          box-shadow: 0 -10px 25px rgba(0, 0, 0, 0.15);
           border: none;
+          z-index: 1000000;
           animation: slideUp 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
         }
         @keyframes slideUp {
@@ -1167,7 +1244,7 @@ Vertiv 6 : ${vt6}`;
         </button>
       </div>
 
-      {historyOpen && (
+      {historyOpen && createPortal(
         <div className="dcime-modal-overlay" onClick={() => setHistoryOpen(false)}>
           <div className="dcime-modal-sheet" onClick={(e) => e.stopPropagation()}>
             <div className="dcime-modal-header">
@@ -1221,7 +1298,8 @@ Vertiv 6 : ${vt6}`;
               )}
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );

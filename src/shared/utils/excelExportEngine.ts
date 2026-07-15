@@ -9,6 +9,11 @@ const getFallbackValue = (metricId: string, lastValue: any): any => {
     return lastValue;
   }
 
+  // If a PAC voltage/current field is not entered, fall back to "NA"
+  if (metricId.includes("_voltage_") || metricId.includes("_current_")) {
+    return "NA";
+  }
+
   // Status check variables can have standard safe constants if they represent status checks,
   // but for measurements (like volts, temps, capacity, run hours, etc.), return null.
   if (metricId === "grid_status") return "ON";
@@ -25,6 +30,12 @@ const getFallbackValue = (metricId: string, lastValue: any): any => {
   if (metricId === "leakage_sign" || metricId === "spillage_sign") return "NO";
 
   return null;
+};
+
+// Helper to look up worksheets case-insensitively
+const getWorksheetCaseInsensitive = (workbook: ExcelJS.Workbook, name: string): ExcelJS.Worksheet | undefined => {
+  const lowercaseName = name.toLowerCase();
+  return workbook.worksheets.find(ws => ws.name.toLowerCase() === lowercaseName);
 };
 
 export const generateMonthlyReport = async (
@@ -110,9 +121,17 @@ export const generateMonthlyReport = async (
             if (isAssetOffline) {
               cellValue = "OFFLINE";
             } else {
-              const finalValue = rawValue !== undefined && rawValue !== null && rawValue !== ""
+              let finalValue = rawValue !== undefined && rawValue !== null && rawValue !== ""
                 ? rawValue
                 : lastEnteredValues[metric.id];
+
+              // Intercept generator run hours for the Fuel Record sheet and map it from the calculated cumulative run hours
+              if (metric.id.endsWith('_run_hours') && metric.id.startsWith('dg_')) {
+                const dgPrefix = metric.id.substring(0, 4); // e.g. "dg_1" or "dg_h"
+                const cumKey = dgPrefix === 'dg_h' ? 'dg_hq_cumulative_hrs' : `${dgPrefix}_cumulative_hrs`;
+                finalValue = lastEnteredValues[cumKey] !== undefined ? lastEnteredValues[cumKey] : null;
+              }
+
               cellValue = getFallbackValue(metric.id, finalValue);
             }
 
@@ -132,7 +151,7 @@ export const generateMonthlyReport = async (
                 ? day.toString().padStart(2, "0")
                 : dest.sheetName;
 
-              const sheet = workbookObj.getWorksheet(sheetName) || workbookObj.getWorksheet(day.toString());
+              const sheet = getWorksheetCaseInsensitive(workbookObj, sheetName) || getWorksheetCaseInsensitive(workbookObj, day.toString());
               if (!sheet) return;
 
               let colIndex = dest.excelColumnIndex;
@@ -193,7 +212,7 @@ export const generateMonthlyReport = async (
           dailySheet.getCell("CC" + (hour + 6)).value = lastTechName;
         }
 
-        const fssSheet = dailyWb.getWorksheet("FSS & VESDA");
+        const fssSheet = getWorksheetCaseInsensitive(dailyWb, "FSS & VESDA");
         if (fssSheet) {
           const rooms = [
             "fss_switch_room",
@@ -213,7 +232,7 @@ export const generateMonthlyReport = async (
       }
 
       // Write metadata/technician names to commercial logbook sheets for every day and hour slot
-      const cpSheet = commWb.getWorksheet("Commercial Power Log");
+      const cpSheet = getWorksheetCaseInsensitive(commWb, "Commercial Power Log");
       if (cpSheet) {
         const cpRow = 7 + ((day - 1) * 6) + Math.floor(hour / 4);
         const logDateStr = new Date(parseInt(year, 10), parseInt(month, 10) - 1, day).toLocaleDateString("en-US");
@@ -221,7 +240,7 @@ export const generateMonthlyReport = async (
         cpSheet.getCell("R" + cpRow).value = lastTechName;
       }
 
-      const trSheet = commWb.getWorksheet("Temp Record");
+      const trSheet = getWorksheetCaseInsensitive(commWb, "Temp Record");
       if (trSheet) {
         const trRow = 7 + ((day - 1) * 6) + Math.floor(hour / 4);
         const logDateStr = new Date(parseInt(year, 10), parseInt(month, 10) - 1, day).toLocaleDateString("en-US");
@@ -231,7 +250,7 @@ export const generateMonthlyReport = async (
 
       const dgNames = ["DG-1", "DG-2", "DG-3", "DG-4", "DG-HQ"];
       dgNames.forEach(name => {
-        const sheet = commWb.getWorksheet(name);
+        const sheet = getWorksheetCaseInsensitive(commWb, name);
         if (sheet) {
           const logDateStr = new Date(parseInt(year, 10), parseInt(month, 10) - 1, day).toLocaleDateString("en-US");
           sheet.getCell("A" + (2 + day)).value = logDateStr;
@@ -239,14 +258,17 @@ export const generateMonthlyReport = async (
         }
       });
 
-      const fuelSheet = commWb.getWorksheet("Fuel Record");
+      const fuelSheet = getWorksheetCaseInsensitive(commWb, "Fuel Record");
       if (fuelSheet) {
         const fuelRow = 5 + day;
         const logDateStr = new Date(parseInt(year, 10), parseInt(month, 10) - 1, day).toLocaleDateString("en-US");
         fuelSheet.getCell("A" + fuelRow).value = logDateStr;
+        // Column M (12): OK, Column N (13): Field Tech Signature Name
+        fuelSheet.getCell("M" + fuelRow).value = "OK";
+        fuelSheet.getCell("N" + fuelRow).value = lastTechName;
       }
 
-      const pacSheet = commWb.getWorksheet("PAC");
+      const pacSheet = getWorksheetCaseInsensitive(commWb, "PAC");
       if (pacSheet) {
         for (let eqIdx = 0; eqIdx < 24; eqIdx++) {
           const pacRow = 5 + (Math.floor(hour / 2) * 24) + eqIdx;
@@ -270,7 +292,7 @@ export const generateMonthlyReport = async (
     const fullTechName = log.technician_name || "Field Tech";
     const techName = fullTechName.trim().split(/\s+/)[0];
 
-    const checkSheet = commWb.getWorksheet("DG Check");
+    const checkSheet = getWorksheetCaseInsensitive(commWb, "DG Check");
     if (checkSheet) {
       const startRow = 5 + (day - 1) * 6;
       const formVals = log.metrics?.formValues || {};
