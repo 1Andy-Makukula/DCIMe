@@ -244,8 +244,6 @@ export const generateMonthlyReport = async (
         const fuelRow = 5 + day;
         const logDateStr = new Date(parseInt(year, 10), parseInt(month, 10) - 1, day).toLocaleDateString("en-US");
         fuelSheet.getCell("A" + fuelRow).value = logDateStr;
-        fuelSheet.getCell("K" + fuelRow).value = "NO";
-        fuelSheet.getCell("L" + fuelRow).value = "NO";
       }
 
       const pacSheet = commWb.getWorksheet("PAC");
