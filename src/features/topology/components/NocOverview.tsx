@@ -136,12 +136,14 @@ export function NocOverview() {
     asset_id: string;
     severity: string;
     notes: string;
+    photo_url: string | null;
     comments: Array<{
       author_name: string;
       author_id: string;
       comment_text: string;
       type: string;
       timestamp: string;
+      photo_url?: string;
     }>;
     created_at: string;
     raised_by_name: string;
@@ -159,6 +161,7 @@ export function NocOverview() {
   const [incidents, setIncidents] = React.useState<IncidentLog[]>([]);
   const [filter, setFilter] = React.useState<"all" | "open" | "resolved">("all");
   const [searchQuery, setSearchQuery] = React.useState("");
+  const [activePhotoUrl, setActivePhotoUrl] = React.useState<string | null>(null);
 
   // Open alarm count — derived from incidents state
   const openAlarmCount = incidents.filter((i) => i.status === "OPEN").length;
@@ -826,60 +829,132 @@ export function NocOverview() {
                         </td>
 
                         {/* Reporter Audit */}
-                        <td className="p-4 space-y-1.5">
-                          <div className="flex items-center gap-1.5">
-                            <User size={12} className="text-gray-400 shrink-0" />
-                            <span className="font-bold text-gray-800">{incident.raised_by_name}</span>
-                            <span className="text-[9px] text-gray-400">({incident.raised_by_id})</span>
+                        <td className="p-4 space-y-3">
+                          <div className="space-y-1">
+                            <div className="flex items-center gap-1.5">
+                              <User size={12} className="text-gray-400 shrink-0" />
+                              <span className="font-bold text-gray-800">{incident.raised_by_name}</span>
+                              <span className="text-[9px] text-gray-400">({incident.raised_by_id})</span>
+                            </div>
+                            <div className="text-[10px] font-semibold text-gray-400 font-mono">
+                              {formatDateTime(incident.occurred_at)}
+                            </div>
+                            {incident.notes && (
+                              <div className="text-[10px] text-gray-600 font-semibold italic bg-gray-50 border border-gray-100 rounded p-1.5 max-w-xs">
+                                "{incident.notes}"
+                              </div>
+                            )}
                           </div>
-                          <div className="text-[10px] font-semibold text-gray-400 font-mono">
-                            {formatDateTime(incident.occurred_at)}
-                          </div>
-                          {incident.notes && (
-                            <div className="text-[10px] text-gray-500 max-w-xs truncate italic">
-                              "{incident.notes}"
+
+                          {/* Reported Photo Thumbnail */}
+                          {incident.photo_url && (
+                            <div className="mt-1">
+                              <div className="text-[8px] font-black text-gray-450 uppercase tracking-wider mb-1">Fault Photo</div>
+                              <button 
+                                onClick={() => setActivePhotoUrl(incident.photo_url)}
+                                className="block rounded-lg overflow-hidden border border-gray-200 hover:border-blue-400 transition-all max-w-[100px] shadow-sm active:scale-95"
+                              >
+                                <img src={incident.photo_url} alt="Fault Evidence" className="w-full h-auto object-cover" />
+                              </button>
                             </div>
                           )}
-                          {/* Appended logs timeline in NOC Audit view */}
-                          {incident.comments && incident.comments.length > 0 && (
-                            <div className="mt-2.5 space-y-1 pl-2 border-l border-red-200">
-                              <div className="text-[8px] font-black text-gray-400 uppercase tracking-wider">Comments ({incident.comments.length})</div>
-                              {incident.comments.map((cmt, idx) => (
-                                <div key={idx} className="text-[10px] text-gray-600 leading-normal">
-                                  <span className={`font-bold ${cmt.type === 'correction' ? 'text-red-500' : 'text-blue-500'}`}>
-                                    {cmt.type === 'correction' ? 'Correction: ' : 'Add: '}
-                                  </span>
-                                  {cmt.comment_text} <span className="text-[8px] text-gray-450 font-mono">({formatDateTime(cmt.timestamp)})</span>
-                                </div>
-                              ))}
-                            </div>
-                          )}
+
+                          {/* Contractor Visits Section */}
+                          {(() => {
+                            const visits = (incident.comments || []).filter(c => c.type === 'contractor_visit');
+                            if (visits.length === 0) return null;
+                            return (
+                              <div className="mt-2 space-y-1.5 pl-2 border-l border-emerald-300">
+                                <div className="text-[8px] font-black text-emerald-600 uppercase tracking-widest">👷‍♂️ Contractor Visits ({visits.length})</div>
+                                {visits.map((cmt, idx) => (
+                                  <div key={idx} className="text-[10px] text-gray-700 leading-normal bg-emerald-50/30 p-1 rounded border border-emerald-100/40">
+                                    <div className="font-semibold">{cmt.comment_text}</div>
+                                    <div className="text-[8px] text-gray-400 font-mono mt-0.5">{formatDateTime(cmt.timestamp)}</div>
+                                    {cmt.photo_url && (
+                                      <button 
+                                        onClick={() => setActivePhotoUrl(cmt.photo_url || null)}
+                                        className="mt-1 block rounded overflow-hidden border border-slate-200 max-w-[60px] active:scale-95 hover:border-blue-400 transition-colors"
+                                      >
+                                        <img src={cmt.photo_url} alt="Progress" className="w-full h-auto" />
+                                      </button>
+                                    )}
+                                  </div>
+                                ))}
+                              </div>
+                            );
+                          })()}
+
+                          {/* Technician Remarks Section */}
+                          {(() => {
+                            const remarks = (incident.comments || []).filter(c => c.type === 'addition' || c.type === 'correction');
+                            if (remarks.length === 0) return null;
+                            return (
+                              <div className="mt-2 space-y-1 pl-2 border-l border-slate-300">
+                                <div className="text-[8px] font-black text-slate-500 uppercase tracking-widest">📝 Technician Updates ({remarks.length})</div>
+                                {remarks.map((cmt, idx) => (
+                                  <div key={idx} className="text-[10px] text-gray-600 leading-normal">
+                                    <span className={`font-black ${cmt.type === 'correction' ? 'text-red-500' : 'text-blue-500'}`}>
+                                      {cmt.type === 'correction' ? 'Correction: ' : 'Remark: '}
+                                    </span>
+                                    {cmt.comment_text} <span className="text-[8px] text-gray-400 font-mono">({formatDateTime(cmt.timestamp)})</span>
+                                  </div>
+                                ))}
+                              </div>
+                            );
+                          })()}
                         </td>
 
                         {/* Resolution Audit */}
                         <td className="p-4">
                           {isResolved ? (
-                            <div className="space-y-1.5">
-                              <div className="flex items-center gap-1">
-                                <span className="font-bold text-green-700 font-mono text-[10px] bg-green-50 px-1.5 py-0.5 rounded border border-green-100">
+                            <div className="space-y-2">
+                              <div className="flex items-center gap-1.5 flex-wrap">
+                                <span className="font-bold text-green-700 font-mono text-[9px] bg-green-50 px-1.5 py-0.5 rounded border border-green-100">
                                   {incident.receipt_number}
                                 </span>
                                 <span className="text-[9px] text-gray-400">by {incident.resolved_by_name} ({incident.resolved_by_id})</span>
                               </div>
                               
-                              <div className="text-[10px] font-semibold text-gray-400 font-mono">
+                              <div className="text-[10px] font-semibold text-gray-450 font-mono">
                                 {incident.resolved_at ? formatDateTime(incident.resolved_at) : ""}
                               </div>
 
-                              <div className="text-[10px] text-gray-600 leading-relaxed max-w-sm">
-                                <span className="font-bold text-gray-500">Work:</span> {incident.resolution_details}
+                              <div className="text-[10px] text-gray-700 leading-relaxed bg-gray-50 border border-gray-150 p-2 rounded max-w-sm">
+                                <span className="font-extrabold text-gray-500 block text-[8px] uppercase tracking-wider mb-0.5">Resolution Details</span>
+                                {incident.resolution_details}
                               </div>
 
                               <div className="flex flex-wrap items-center gap-2 text-[9px] font-bold">
-                                <span className="text-gray-400">Impact:</span>
-                                <span className="bg-gray-100 text-gray-700 px-1.5 py-0.5 rounded uppercase">{incident.impact}</span>
-                                <span className="text-gray-400">Contractor:</span>
-                                <span className="bg-gray-100 text-gray-700 px-1.5 py-0.5 rounded">{incident.contractor_engaged}</span>
+                                <span className="text-gray-450">Impact:</span>
+                                <span className="bg-gray-150 text-gray-700 px-1.5 py-0.5 rounded uppercase">{incident.impact}</span>
+                                <span className="text-gray-450">Contractor:</span>
+                                <span className="bg-gray-150 text-gray-700 px-1.5 py-0.5 rounded">{incident.contractor_engaged}</span>
+                              </div>
+
+                              {/* Resolution Photo Preview */}
+                              {(() => {
+                                const resCmt = (incident.comments || []).find(c => c.type === 'resolution');
+                                if (!resCmt?.photo_url) return null;
+                                return (
+                                  <div className="mt-1">
+                                    <div className="text-[8px] font-black text-gray-450 uppercase tracking-wider mb-1">Resolution Photo</div>
+                                    <button 
+                                      onClick={() => setActivePhotoUrl(resCmt.photo_url || null)}
+                                      className="block rounded-lg overflow-hidden border border-gray-200 hover:border-blue-400 transition-all max-w-[100px] shadow-sm active:scale-95"
+                                    >
+                                      <img src={resCmt.photo_url} alt="Resolution Details" className="w-full h-auto object-cover" />
+                                    </button>
+                                  </div>
+                                );
+                              })()}
+                            </div>
+                          ) : incident.contractor_engaged ? (
+                            <div className="space-y-1.5">
+                              <span className="inline-flex items-center gap-1.5 bg-blue-50 text-blue-700 border border-blue-100 rounded-lg px-2 py-0.5 text-[9px] font-black uppercase tracking-wider">
+                                👷‍♂️ Contractor Active
+                              </span>
+                              <div className="text-[10px] text-gray-700 font-bold">
+                                Engaged: <span className="text-gray-900 font-black">{incident.contractor_engaged}</span>
                               </div>
                             </div>
                           ) : (
@@ -911,6 +986,29 @@ export function NocOverview() {
           </div>
         </Card>
       </div>
+
+      {/* Photo Preview Modal */}
+      {activePhotoUrl && (
+        <div 
+          onClick={() => setActivePhotoUrl(null)}
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/85 backdrop-blur-xs cursor-pointer animate-fade-in"
+        >
+          <div 
+            onClick={(e) => e.stopPropagation()} 
+            className="relative max-w-4xl max-h-[90vh] bg-white rounded-2xl overflow-hidden shadow-2xl flex flex-col cursor-default"
+          >
+            <button 
+              onClick={() => setActivePhotoUrl(null)}
+              className="absolute top-4 right-4 z-10 px-3 py-1.5 rounded-xl bg-black/60 hover:bg-black/85 text-white active:scale-95 transition-all text-[10px] font-black uppercase tracking-wider"
+            >
+              Close
+            </button>
+            <div className="p-2 bg-slate-900 flex items-center justify-center">
+              <img src={activePhotoUrl} alt="Enlarged View" className="w-full h-auto max-h-[80vh] object-contain rounded-lg" />
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

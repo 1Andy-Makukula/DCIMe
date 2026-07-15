@@ -423,6 +423,8 @@ export function ShiftReports() {
       // Flatten each row: { target_hour (or created_at), ...metrics }
       const flatData = telemetryRows.map((row: any) => ({
         created_at: row.target_hour ?? row.created_at,
+        frequency: row.frequency,
+        asset_id: row.asset_id,
         ...(row.metrics as Record<string, any> || {}),
       }));
 

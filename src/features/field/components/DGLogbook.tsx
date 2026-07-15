@@ -71,40 +71,36 @@ export const DGLogbook = forwardRef<HTMLDivElement, any>((props, ref) => {
 
   // Auto-calculate run_hrs and cumulative_hrs when inputs change
   useEffect(() => {
-    if (!isReadOnly) {
-      if (time_start && time_stop) {
-        const startParts = time_start.split(":");
-        const stopParts = time_stop.split(":");
-        if (startParts.length >= 2 && stopParts.length >= 2) {
-          const startMin = parseInt(startParts[0], 10) * 60 + parseInt(startParts[1], 10);
-          const stopMin = parseInt(stopParts[0], 10) * 60 + parseInt(stopParts[1], 10);
-          if (!isNaN(startMin) && !isNaN(stopMin)) {
-            const diff = stopMin - startMin;
-            if (diff >= 0) {
-              const hrs = Math.floor(diff / 60);
-              const mins = diff % 60;
-              setRunHrs(`${String(hrs).padStart(2, "0")}:${String(mins).padStart(2, "0")}`);
-            } else {
-              setRunHrs("");
-            }
+    if (time_start && time_stop) {
+      const startParts = time_start.split(":");
+      const stopParts = time_stop.split(":");
+      if (startParts.length >= 2 && stopParts.length >= 2) {
+        const startMin = parseInt(startParts[0], 10) * 60 + parseInt(startParts[1], 10);
+        const stopMin = parseInt(stopParts[0], 10) * 60 + parseInt(stopParts[1], 10);
+        if (!isNaN(startMin) && !isNaN(stopMin)) {
+          const diff = stopMin - startMin;
+          if (diff >= 0) {
+            const hrs = Math.floor(diff / 60);
+            const mins = diff % 60;
+            setRunHrs(`${String(hrs).padStart(2, "0")}:${String(mins).padStart(2, "0")}`);
+          } else {
+            setRunHrs("");
           }
         }
-      } else {
-        setRunHrs("");
       }
+    } else {
+      setRunHrs("");
     }
-  }, [time_start, time_stop, isReadOnly]);
+  }, [time_start, time_stop]);
 
   useEffect(() => {
-    if (!isReadOnly) {
-      if (hr_meter_start !== "" && hr_meter_stop !== "") {
-        const diff = Number(hr_meter_stop) - Number(hr_meter_start);
-        setCumulativeHrs(diff >= 0 ? parseFloat(diff.toFixed(2)) : "");
-      } else {
-        setCumulativeHrs("");
-      }
+    if (hr_meter_start !== "" && hr_meter_stop !== "") {
+      const diff = Number(hr_meter_stop) - Number(hr_meter_start);
+      setCumulativeHrs(diff >= 0 ? parseFloat(diff.toFixed(2)) : "");
+    } else {
+      setCumulativeHrs("");
     }
-  }, [hr_meter_start, hr_meter_stop, isReadOnly]);
+  }, [hr_meter_start, hr_meter_stop]);
 
   // Section 2 Parameters
   const [physicalChecks, setPhysicalChecks] = useState<

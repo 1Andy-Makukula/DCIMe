@@ -116,7 +116,7 @@ function buildRectifierMetrics(prefix: string, canvasStartIndex: number): AssetM
 function buildDgMetrics(prefix: string, dgNumber: number, isHq: boolean = false, _defaultVoltage: number = 26.7): AssetMetric[] {
   const dgName = isHq ? 'DG-HQ' : `DG-${dgNumber}`;
   const canvasStartIndex = isHq ? undefined : 19 + (dgNumber - 1) * 3;
-  const checkVoltageIndex = isHq ? 16 : 12 + (dgNumber - 1);
+  const checkVoltageIndex = isHq ? 69 : 13 + (dgNumber - 1) * 14;
 
   const getLogbookDest = (colIndex: number): ExcelTarget[] => [
     { workbook: 'commercial_logbook', sheetName: dgName, excelColumnIndex: colIndex }
@@ -126,7 +126,7 @@ function buildDgMetrics(prefix: string, dgNumber: number, isHq: boolean = false,
     // Hourly/Daily Logs
     { id: `${prefix}_run_hrs`, label: 'Run Hours', type: 'number', frequency: 'hourly', carryForward: true, destinations: [
       ...(canvasStartIndex !== undefined ? [{ workbook: 'daily_canvas' as const, sheetName: 'DYNAMIC_DAY', excelColumnIndex: canvasStartIndex }] : []),
-      { workbook: 'commercial_logbook', sheetName: dgName, excelColumnIndex: 5 }
+      { workbook: 'commercial_logbook', sheetName: dgName, excelColumnIndex: 6 }
     ] },
     { id: `${prefix}_batt_voltage`, label: 'Battery Voltage', type: 'number', frequency: 'hourly', destinations: [
       ...(canvasStartIndex !== undefined ? [{ workbook: 'daily_canvas' as const, sheetName: 'DYNAMIC_DAY', excelColumnIndex: canvasStartIndex + 1 }] : []),
@@ -137,29 +137,29 @@ function buildDgMetrics(prefix: string, dgNumber: number, isHq: boolean = false,
     ] },
     
     // Daily Engine & Time Logs (Commercial Logbook DG Sheets)
-    { id: `${prefix}_hr_meter_start`, label: 'Hour Meter (Start)', type: 'number', frequency: 'daily', carryForward: true, destinations: getLogbookDest(1) },
-    { id: `${prefix}_hr_meter_stop`, label: 'Hour Meter (Stop)', type: 'number', frequency: 'daily', destinations: getLogbookDest(2) },
-    { id: `${prefix}_time_start`, label: 'Time (Start)', type: 'text', frequency: 'daily', defaultValue: '0:00', destinations: getLogbookDest(3) },
-    { id: `${prefix}_time_stop`, label: 'Time (Stop)', type: 'text', frequency: 'daily', defaultValue: '0:00', destinations: getLogbookDest(4) },
-    { id: `${prefix}_cumulative_hrs`, label: 'Cumulative Run Hrs', type: 'number', frequency: 'daily', carryForward: true, destinations: getLogbookDest(6) },
-    { id: `${prefix}_auto_status`, label: 'Auto Functioning?', type: 'text', frequency: 'daily', isConstant: true, defaultValue: 'YES', destinations: getLogbookDest(7) },
-    { id: `${prefix}_kwh_meter`, label: 'KWH Meter', type: 'number', frequency: 'daily', carryForward: true, destinations: getLogbookDest(8) },
+    { id: `${prefix}_hr_meter_start`, label: 'Hour Meter (Start)', type: 'number', frequency: 'daily', carryForward: true, destinations: getLogbookDest(2) },
+    { id: `${prefix}_hr_meter_stop`, label: 'Hour Meter (Stop)', type: 'number', frequency: 'daily', destinations: getLogbookDest(3) },
+    { id: `${prefix}_time_start`, label: 'Time (Start)', type: 'text', frequency: 'daily', defaultValue: '0:00', destinations: getLogbookDest(4) },
+    { id: `${prefix}_time_stop`, label: 'Time (Stop)', type: 'text', frequency: 'daily', defaultValue: '0:00', destinations: getLogbookDest(5) },
+    { id: `${prefix}_cumulative_hrs`, label: 'Cumulative Run Hrs', type: 'number', frequency: 'daily', carryForward: true, destinations: getLogbookDest(7) },
+    { id: `${prefix}_auto_status`, label: 'Auto Functioning?', type: 'text', frequency: 'daily', isConstant: true, defaultValue: 'YES', destinations: getLogbookDest(8) },
+    { id: `${prefix}_kwh_meter`, label: 'KWH Meter', type: 'number', frequency: 'daily', carryForward: true, destinations: getLogbookDest(9) },
     
     // DG Voltages & Currents
-    { id: `${prefix}_voltage_ry`, label: 'Voltage (R-Y)', type: 'number', frequency: 'daily', destinations: getLogbookDest(9) },
-    { id: `${prefix}_voltage_yb`, label: 'Voltage (Y-B)', type: 'number', frequency: 'daily', destinations: getLogbookDest(10) },
-    { id: `${prefix}_voltage_br`, label: 'Voltage (B-R)', type: 'number', frequency: 'daily', destinations: getLogbookDest(11) },
-    { id: `${prefix}_current_r`, label: 'Load Current (R)', type: 'number', frequency: 'daily', destinations: getLogbookDest(12) },
-    { id: `${prefix}_current_y`, label: 'Load Current (Y)', type: 'number', frequency: 'daily', destinations: getLogbookDest(13) },
-    { id: `${prefix}_current_b`, label: 'Load Current (B)', type: 'number', frequency: 'daily', destinations: getLogbookDest(14) },
+    { id: `${prefix}_voltage_ry`, label: 'Voltage (R-Y)', type: 'number', frequency: 'daily', destinations: getLogbookDest(10) },
+    { id: `${prefix}_voltage_yb`, label: 'Voltage (Y-B)', type: 'number', frequency: 'daily', destinations: getLogbookDest(11) },
+    { id: `${prefix}_voltage_br`, label: 'Voltage (B-R)', type: 'number', frequency: 'daily', destinations: getLogbookDest(12) },
+    { id: `${prefix}_current_r`, label: 'Load Current (R)', type: 'number', frequency: 'daily', destinations: getLogbookDest(13) },
+    { id: `${prefix}_current_y`, label: 'Load Current (Y)', type: 'number', frequency: 'daily', destinations: getLogbookDest(14) },
+    { id: `${prefix}_current_b`, label: 'Load Current (B)', type: 'number', frequency: 'daily', destinations: getLogbookDest(15) },
     
     // Engine Health
     { id: `${prefix}_load_kw`, label: 'Load in KW', type: 'number', frequency: 'daily', destinations: [] }, // No load_kw column exists in DG sheet, disabled destination
-    { id: `${prefix}_frequency`, label: 'Frequency (Hz)', type: 'number', frequency: 'daily', destinations: getLogbookDest(15) }, // Column P (index 15)
-    { id: `${prefix}_engine_rpm`, label: 'Engine Speed', type: 'number', frequency: 'daily', destinations: getLogbookDest(16) }, // Column Q (index 16)
-    { id: `${prefix}_oil_pressure`, label: 'Lub. Oil Pressure', type: 'number', frequency: 'daily', destinations: getLogbookDest(17) }, // Column R (index 17)
-    { id: `${prefix}_water_temp`, label: 'Water Temp', type: 'number', frequency: 'daily', destinations: getLogbookDest(18) }, // Column S (index 18)
-    { id: `${prefix}_daily_remarks`, label: 'Remarks', type: 'text', frequency: 'daily', defaultValue: 'OK', destinations: getLogbookDest(20) }, // Column U (index 20)
+    { id: `${prefix}_frequency`, label: 'Frequency (Hz)', type: 'number', frequency: 'daily', destinations: getLogbookDest(16) },
+    { id: `${prefix}_engine_rpm`, label: 'Engine Speed', type: 'number', frequency: 'daily', destinations: getLogbookDest(17) },
+    { id: `${prefix}_oil_pressure`, label: 'Lub. Oil Pressure', type: 'number', frequency: 'daily', destinations: getLogbookDest(18) },
+    { id: `${prefix}_water_temp`, label: 'Water Temp', type: 'number', frequency: 'daily', destinations: getLogbookDest(19) },
+    { id: `${prefix}_daily_remarks`, label: 'Remarks', type: 'text', frequency: 'daily', defaultValue: 'OK', destinations: getLogbookDest(21) },
   ];
 }
 

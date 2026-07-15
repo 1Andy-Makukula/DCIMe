@@ -349,7 +349,7 @@ export function useTelemetryData(
       
       // Force all Zesco/Grid metrics (grid_main) to null
       const gridAsset = MASTER_ASSET_DICTIONARY
-        .find((cat) => cat.categoryName.includes('Outside / Main Grid'))
+        .find((cat) => cat.categoryName.includes('Main Grid'))
         ?.assets.find((ast) => ast.id === 'grid_main');
 
       if (gridAsset) {

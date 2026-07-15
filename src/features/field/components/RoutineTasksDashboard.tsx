@@ -260,8 +260,17 @@ export const RoutineTasksDashboard = ({
     // Grid vs Gen Voltage / Current / Load
     const voltageVal = isGen ? getFormValue('dg_load_voltage_r') : getFormValue('grid_voltage_r');
     const ampsVal = isGen ? getFormValue('dg_load_amps_r') : getFormValue('grid_amps_r');
-    const kwVal = isGen ? getFormValue('dg_load_amps_r') : getFormValue('grid_total_site_load'); 
+    
+    // Calculate Generator KW: KW = (Volts * Amps * 1.732 * PF) / 1000
     const pfVal = isGen ? "0.9" : getFormValue('grid_power_factor', "0.9");
+    const voltageNum = parseFloat(voltageVal);
+    const ampsNum = parseFloat(ampsVal);
+    const pfNum = parseFloat(pfVal);
+    const calcKw = (isGen && !isNaN(voltageNum) && !isNaN(ampsNum))
+      ? Math.round((voltageNum * ampsNum * 1.732 * pfNum) / 1000)
+      : 0;
+
+    const kwVal = isGen ? calcKw.toString() : getFormValue('grid_total_site_load'); 
 
     // Rectifiers
     const r1_v = getFormValue('rectifier_1_dc_voltage', '54.2');
@@ -304,54 +313,53 @@ export const RoutineTasksDashboard = ({
     const tempIt2 = getFormValue('it2_ambient_temp');
     const humidityMain = getFormValue('server_ambient_humidity');
 
-    // VERSION A (WhatsApp Share) - strictly bolded with *
+    // Real system time when sharing is happening
+    const shareTime = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+    // VERSION A (WhatsApp Share) - strictly bolded with * and proper spacing
     const whatsappPayload = `*NTC ZM 0874*
 *${firstName.toUpperCase()} ON DUTY*
-*TIME: ${targetHour}hrs*
+*TIME: ${shareTime} (Log Hour: ${targetHour}hrs)*
 *LOAD ON ${powerSourceText}*
-Load voltage *${voltageVal}V*
-Load in Amps *${ampsVal}A*
+Load voltage: *${voltageVal}V*
+Load in Amps: *${ampsVal}A*
 
-KW:*${kwVal}KW*
-Power factor *${pfVal}*
+Total load: *${kwVal} kW*
+Power factor: *${pfVal}*
 
 *VERTIV RECTIFIER 1*
-(Power room 1) *${r1_v}v/${r1_a}A/${r1_cap}%*
+(Power Room 1): *${r1_v}v / ${r1_a}A / ${r1_cap}%*
 *VERTIV RECTIFIER 2*
-(Power room 2)*${r2_v}v/${r2_a}A/${r2_cap}%*
+(Power Room 2): *${r2_v}v / ${r2_a}A / ${r2_cap}%*
 
-*UPS 1 out put*
-(Power room_1)
-L1-*${ups1_l1}/${ups1_a1}A*
-L2-*${ups1_l2}/${ups1_a2}A*
-L3-*${ups1_l3}/${ups1_a3}A*
-Battery voltage
+*UPS 1 output*
+(Power Room 1)
+L1: *${ups1_l1}V / ${ups1_a1}A*
+L2: *${ups1_l2}V / ${ups1_a2}A*
+L3: *${ups1_l3}V / ${ups1_a3}A*
+Battery voltage: *${ups1_batt}VDC*
+Battery Charge: *${ups1_charge}%*
+Used Capacity: *${ups1_used}%*
+Load: *${ups1_load} kW*
 
-*${ups1_batt}VDC*
-Battery Charge:*${ups1_charge}%*
-Used Capacity:*${ups1_used}%*
-Load *${ups1_load}KW*
-
-*UPS 2 out put*
-(Power room_2)
-L1-*${ups2_l1}/${ups2_a1}A*
-L2-*${ups2_l2}/${ups2_a2}A*
-L3-*${ups2_l3}/${ups2_a3}A*
-Battery voltage
-
-*${ups2_batt}VDC*
-Battery Charge:*${ups2_charge}%*
-Used Capacity:*${ups2_used}%*
-Load *${ups2_load}KW*
+*UPS 2 output*
+(Power Room 2)
+L1: *${ups2_l1}V / ${ups2_a1}A*
+L2: *${ups2_l2}V / ${ups2_a2}A*
+L3: *${ups2_l3}V / ${ups2_a3}A*
+Battery voltage: *${ups2_batt}VDC*
+Battery Charge: *${ups2_charge}%*
+Used Capacity: *${ups2_used}%*
+Load: *${ups2_load} kW*
 
 *TEMPERATURE*
-Main Room *${tempMain}°C*
-Power Room1_*${tempPr1}°C*
-Power Room2_ *${tempPr2}°C*
-First  Floor Server Room
-ENTERPRISE  ROOM 1 *${tempIt1}°C*
-ENTERPRISE ROOM 2 *${tempIt2}°C*
-Humidity *${humidityMain}%*`;
+Main Room: *${tempMain}°C*
+Power Room 1: *${tempPr1}°C*
+Power Room 2: *${tempPr2}°C*
+First Floor Server Room
+ENTERPRISE ROOM 1: *${tempIt1}°C*
+ENTERPRISE ROOM 2: *${tempIt2}°C*
+Humidity: *${humidityMain}%*`;
 
     // Extracting unit temperatures
     const em1 = getFormValue('pac_server_em1_return_temp_actual');
@@ -367,7 +375,7 @@ Humidity *${humidityMain}%*`;
     const vt3 = getFormValue('pac_server_vt3_return_temp_actual');
     const vt4 = getFormValue('pac_server_vt4_return_temp_actual');
     const vt5 = getFormValue('pac_server_vt5_return_temp_actual');
-    const vt6 = getFormValue('pac_server_vt6_return_temp_actual');
+    const vt6 = getFormValue('pac_data_vt6_return_temp_actual');
 
     // VERSION B (Internal Save)
     const internalPayload = `${whatsappPayload}
@@ -1045,22 +1053,21 @@ Vertiv 6 : ${vt6}`;
           z-index: 10000;
           display: flex;
           justify-content: center;
-          align-items: flex-end;
+          align-items: stretch;
         }
         .dcime-modal-sheet {
           width: 100%;
-          max-width: 480px;
+          max-width: 100%;
+          height: 100vh;
+          max-height: 100vh;
           background: rgba(255, 255, 255, 0.9);
           backdrop-filter: blur(20px);
           -webkit-backdrop-filter: blur(20px);
-          border-top-left-radius: 24px;
-          border-top-right-radius: 24px;
-          max-height: 80vh;
+          border-radius: 0;
           display: flex;
           flex-direction: column;
           box-shadow: 0 -10px 25px rgba(0, 0, 0, 0.1);
-          border: 1px solid rgba(255, 255, 255, 0.5);
-          border-bottom: none;
+          border: none;
           animation: slideUp 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
         }
         @keyframes slideUp {

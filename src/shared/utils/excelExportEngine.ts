@@ -49,196 +49,253 @@ export const generateMonthlyReport = async (
   const commWb = new ExcelJS.Workbook();
   await commWb.xlsx.load(await commRes.arrayBuffer());
 
-  // Filter out daily checklists from telemetry log processing
-  const filteredLogs = logs.filter(log => log.frequency !== "daily" && log.asset_id !== "daily_checklist");
+  // Filter out daily checklists from the main hourly telemetry log processing
+  const filteredLogs = logs.filter(log => log.asset_id !== "AIRTEL_DAILY_CHECKLIST");
 
-  // Sort logs chronologically to ensure correct carry-forward state tracking
-  const sortedLogs = [...filteredLogs].sort((a, b) => {
-    return new Date(a.target_hour).getTime() - new Date(b.target_hour).getTime();
+  // Build a lookup map of hourly logs by day and hour in CAT
+  const logsMap = new Map<string, any>();
+  filteredLogs.forEach((log) => {
+    const timestampStr = log.target_hour;
+    if (!timestampStr) return;
+    const date = new Date(timestampStr);
+    const catDate = new Date(date.getTime() + 2 * 60 * 60 * 1000);
+    const day = catDate.getUTCDate();
+    const hour = catDate.getUTCHours();
+    logsMap.set(`${day}-${hour}`, log);
   });
+
+  // Determine number of days in the month
+  const numDays = new Date(parseInt(year, 10), parseInt(month, 10), 0).getDate();
 
   // Stateful carry-forward trackers
   const lastEnteredValues: Record<string, any> = {};
+  let lastTechName = "Field Tech";
 
-  // Routing Engine (The Loop)
-  for (const log of sortedLogs) {
+  // Loop over every day and hour chronologically
+  for (let day = 1; day <= numDays; day++) {
+    for (let hour = 0; hour <= 23; hour++) {
+      const logKey = `${day}-${hour}`;
+      const log = logsMap.get(logKey);
+
+      if (log) {
+        const fullTechName = log.technician_name || "Field Tech";
+        lastTechName = fullTechName.trim().split(/\s+/)[0];
+
+        // Update state tracker with newly logged values
+        if (log.metrics) {
+          Object.keys(log.metrics).forEach((key) => {
+            const val = log.metrics[key];
+            if (val !== undefined && val !== null && val !== "") {
+              lastEnteredValues[key] = val;
+            }
+          });
+        }
+      }
+
+      // Loop over categories -> assets -> metrics
+      MASTER_ASSET_DICTIONARY.forEach((category) => {
+        category.assets.forEach((asset) => {
+          // Intercept asset status: status_[assetId] = 'OFFLINE'
+          const isAssetOffline = log?.metrics && log.metrics[`status_${asset.id}`] === "OFFLINE";
+
+          asset.metrics.forEach((metric) => {
+            // If offline, suspend carry-forward logic for this metric
+            if (isAssetOffline) {
+              delete lastEnteredValues[metric.id];
+            }
+
+            const rawValue = log?.metrics ? log.metrics[metric.id] : undefined;
+
+            let cellValue: any = null;
+            if (isAssetOffline) {
+              cellValue = "OFFLINE";
+            } else {
+              const finalValue = rawValue !== undefined && rawValue !== null && rawValue !== ""
+                ? rawValue
+                : lastEnteredValues[metric.id];
+              cellValue = getFallbackValue(metric.id, finalValue);
+            }
+
+            // Route strictly using coordinates defined in the dictionary destinations
+            const destinations = metric.destinations || [];
+            destinations.forEach((dest) => {
+              const isDailyCanvas = dest.workbook === "daily_canvas";
+              const isCommercialLogbook = dest.workbook === "commercial_logbook";
+
+              if (!isDailyCanvas && !isCommercialLogbook) return;
+
+              // Only write to daily_canvas if an actual log exists for this hour
+              if (isDailyCanvas && !log) return;
+
+              const workbookObj = isDailyCanvas ? dailyWb : commWb;
+              const sheetName = (isDailyCanvas && dest.sheetName === "DYNAMIC_DAY")
+                ? day.toString().padStart(2, "0")
+                : dest.sheetName;
+
+              const sheet = workbookObj.getWorksheet(sheetName) || workbookObj.getWorksheet(day.toString());
+              if (!sheet) return;
+
+              let colIndex = dest.excelColumnIndex;
+              if (sheetName === "Eqpt status") {
+                colIndex = dest.excelColumnIndex + (day - 1) * 4;
+              }
+              const colLetter = getExcelColumn(colIndex);
+              let targetRow = 0;
+
+              if (isDailyCanvas) {
+                // Day sheets (01-31 or 1-31): hourly logs starting at row 6
+                if (sheetName === day.toString().padStart(2, "0") || sheetName === day.toString()) {
+                  targetRow = hour + 6;
+                } else if (sheetName === "FSS & VESDA") {
+                  const roomOffset = getFssRoomOffset(asset.id);
+                  if (roomOffset !== -1) {
+                    targetRow = 3 + ((day - 1) * 6) + roomOffset;
+                  }
+                }
+              } else {
+                // Commercial Logbook sheet rows
+                if (sheetName === "Commercial Power Log" || sheetName === "Temp Record") {
+                  targetRow = 7 + ((day - 1) * 6) + Math.floor(hour / 4);
+                } else if (sheetName.startsWith("DG-")) {
+                  targetRow = 2 + day;
+                } else if (sheetName === "Fuel Record") {
+                  targetRow = 5 + day;
+                } else if (sheetName === "DG Check") {
+                  targetRow = 5 + (day - 1) * 6; // Set targetRow to the first row of the day
+                } else if (sheetName === "PAC") {
+                  const equipIdx = getPacEquipmentIndex(asset.id);
+                  if (equipIdx !== -1) {
+                    targetRow = 5 + (Math.floor(hour / 2) * 24) + equipIdx;
+                  }
+                } else if (sheetName === "Eqpt status") {
+                  targetRow = getEqptStatusRow(asset.id);
+                }
+              }
+
+              if (targetRow > 0) {
+                const cell = sheet.getCell(colLetter + targetRow);
+                // Protect cell formulas from being overwritten
+                const isFormula = cell.value && typeof cell.value === 'object' && ('formula' in cell.value || (cell.value as any).formula);
+                if (!isFormula) {
+                  cell.value = cellValue;
+                }
+              }
+            });
+          });
+        });
+      });
+
+      // Write tech name and date to daily canvas sheets (only if log exists)
+      if (log) {
+        const daySheetName = day.toString().padStart(2, "0");
+        const dailySheet = dailyWb.getWorksheet(daySheetName) || dailyWb.getWorksheet(day.toString());
+        if (dailySheet) {
+          dailySheet.getCell("CC" + (hour + 6)).value = lastTechName;
+        }
+
+        const fssSheet = dailyWb.getWorksheet("FSS & VESDA");
+        if (fssSheet) {
+          const rooms = [
+            "fss_switch_room",
+            "fss_ibm_room",
+            "fss_power_room",
+            "fss_battery_room",
+            "fss_enterprise_1",
+            "fss_enterprise_2"
+          ];
+          rooms.forEach((_roomId, roomOffset) => {
+            const fssRow = 3 + ((day - 1) * 6) + roomOffset;
+            const logDate = new Date(log.target_hour);
+            fssSheet.getCell("A" + fssRow).value = logDate.toLocaleDateString("en-US");
+            fssSheet.getCell("L" + fssRow).value = lastTechName;
+          });
+        }
+      }
+
+      // Write metadata/technician names to commercial logbook sheets for every day and hour slot
+      const cpSheet = commWb.getWorksheet("Commercial Power Log");
+      if (cpSheet) {
+        const cpRow = 7 + ((day - 1) * 6) + Math.floor(hour / 4);
+        const logDateStr = new Date(parseInt(year, 10), parseInt(month, 10) - 1, day).toLocaleDateString("en-US");
+        cpSheet.getCell("A" + cpRow).value = logDateStr;
+        cpSheet.getCell("R" + cpRow).value = lastTechName;
+      }
+
+      const trSheet = commWb.getWorksheet("Temp Record");
+      if (trSheet) {
+        const trRow = 7 + ((day - 1) * 6) + Math.floor(hour / 4);
+        const logDateStr = new Date(parseInt(year, 10), parseInt(month, 10) - 1, day).toLocaleDateString("en-US");
+        trSheet.getCell("A" + trRow).value = logDateStr;
+        trSheet.getCell("V" + trRow).value = lastTechName;
+      }
+
+      const dgNames = ["DG-1", "DG-2", "DG-3", "DG-4", "DG-HQ"];
+      dgNames.forEach(name => {
+        const sheet = commWb.getWorksheet(name);
+        if (sheet) {
+          const logDateStr = new Date(parseInt(year, 10), parseInt(month, 10) - 1, day).toLocaleDateString("en-US");
+          sheet.getCell("A" + (2 + day)).value = logDateStr;
+          sheet.getCell("T" + (2 + day)).value = lastTechName;
+        }
+      });
+
+      const fuelSheet = commWb.getWorksheet("Fuel Record");
+      if (fuelSheet) {
+        const fuelRow = 5 + day;
+        const logDateStr = new Date(parseInt(year, 10), parseInt(month, 10) - 1, day).toLocaleDateString("en-US");
+        fuelSheet.getCell("A" + fuelRow).value = logDateStr;
+        fuelSheet.getCell("K" + fuelRow).value = "NO";
+        fuelSheet.getCell("L" + fuelRow).value = "NO";
+      }
+
+      const pacSheet = commWb.getWorksheet("PAC");
+      if (pacSheet) {
+        for (let eqIdx = 0; eqIdx < 24; eqIdx++) {
+          const pacRow = 5 + (Math.floor(hour / 2) * 24) + eqIdx;
+          const logDateStr = new Date(parseInt(year, 10), parseInt(month, 10) - 1, day).toLocaleDateString("en-US");
+          pacSheet.getCell("A" + pacRow).value = logDateStr;
+          pacSheet.getCell("R" + pacRow).value = lastTechName;
+        }
+      }
+    }
+  }
+
+  // Process daily checklists to populate "DG Check" status checks
+  const checklistLogs = logs.filter(log => log.asset_id === "AIRTEL_DAILY_CHECKLIST");
+  for (const log of checklistLogs) {
     const timestampStr = log.target_hour;
     if (!timestampStr) continue;
 
     const date = new Date(timestampStr);
-    // Add +2 hours offset to guarantee we parse the day and hour in CAT (Central Africa Time, UTC+2)
-    // regardless of local browser/client timezone.
     const catDate = new Date(date.getTime() + 2 * 60 * 60 * 1000);
     const day = catDate.getUTCDate();
-    const hour = catDate.getUTCHours();
-
     const fullTechName = log.technician_name || "Field Tech";
     const techName = fullTechName.trim().split(/\s+/)[0];
 
-    // Update state tracker with newly logged values
-    if (log.metrics) {
-      Object.keys(log.metrics).forEach((key) => {
-        const val = log.metrics[key];
-        if (val !== undefined && val !== null && val !== "") {
-          lastEnteredValues[key] = val;
-        }
-      });
-    }
-
-    // Loop over categories -> assets -> metrics
-    MASTER_ASSET_DICTIONARY.forEach((category) => {
-      category.assets.forEach((asset) => {
-        // Intercept asset status: status_[assetId] = 'OFFLINE'
-        const isAssetOffline = log.metrics && log.metrics[`status_${asset.id}`] === "OFFLINE";
-
-        asset.metrics.forEach((metric) => {
-          // If offline, suspend carry-forward logic for this metric
-          if (isAssetOffline) {
-            delete lastEnteredValues[metric.id];
-          }
-
-          const rawValue = log.metrics ? log.metrics[metric.id] : undefined;
-
-          let cellValue: any = null;
-          if (isAssetOffline) {
-            // Explicitly write "OFFLINE" into those cells instead of carrying forward metrics
-            cellValue = "OFFLINE";
-          } else {
-            const finalValue = rawValue !== undefined && rawValue !== null && rawValue !== ""
-              ? rawValue
-              : lastEnteredValues[metric.id];
-            cellValue = getFallbackValue(metric.id, finalValue);
-          }
-
-          // Route strictly using coordinates defined in the dictionary destinations
-          const destinations = metric.destinations || [];
-          destinations.forEach((dest) => {
-            const isDailyCanvas = dest.workbook === "daily_canvas";
-            const isCommercialLogbook = dest.workbook === "commercial_logbook";
-
-            if (!isDailyCanvas && !isCommercialLogbook) return;
-
-            const workbookObj = isDailyCanvas ? dailyWb : commWb;
-            const sheetName = (isDailyCanvas && dest.sheetName === "DYNAMIC_DAY")
-              ? day.toString().padStart(2, "0")
-              : dest.sheetName;
-
-            const sheet = workbookObj.getWorksheet(sheetName) || workbookObj.getWorksheet(day.toString());
-            if (!sheet) return;
-
-            let colIndex = dest.excelColumnIndex;
-            if (sheetName === "Eqpt status") {
-              colIndex = dest.excelColumnIndex + (day - 1) * 4;
-            }
-            const colLetter = getExcelColumn(colIndex);
-            let targetRow = 0;
-
-            if (isDailyCanvas) {
-              // Day sheets (01-31 or 1-31): hourly logs starting at row 6
-              if (sheetName === day.toString().padStart(2, "0") || sheetName === day.toString()) {
-                targetRow = hour + 6;
-              } else if (sheetName === "FSS & VESDA") {
-                const roomOffset = getFssRoomOffset(asset.id);
-                if (roomOffset !== -1) {
-                  targetRow = 3 + ((day - 1) * 6) + roomOffset;
-                }
-              }
-            } else {
-              // Commercial Logbook sheet rows
-              if (sheetName === "Commercial Power Log" || sheetName === "Temp Record") {
-                targetRow = 7 + ((day - 1) * 6) + Math.floor(hour / 4);
-              } else if (sheetName.startsWith("DG-")) {
-                targetRow = 2 + day;
-              } else if (sheetName === "Fuel Record") {
-                targetRow = 5 + day;
-              } else if (sheetName === "DG Check") {
-                targetRow = 3 + day;
-              } else if (sheetName === "PAC") {
-                const equipIdx = getPacEquipmentIndex(asset.id);
-                if (equipIdx !== -1) {
-                  targetRow = 5 + (Math.floor(hour / 2) * 24) + equipIdx;
-                }
-              } else if (sheetName === "Eqpt status") {
-                targetRow = getEqptStatusRow(asset.id);
-              }
-            }
-
-            if (targetRow > 0) {
-              sheet.getCell(colLetter + targetRow).value = cellValue;
-            }
-          });
-        });
-      });
-    });
-
-    // Write technician name to daily day sheets (column CC)
-    const daySheetName = day.toString().padStart(2, "0");
-    const dailySheet = dailyWb.getWorksheet(daySheetName) || dailyWb.getWorksheet(day.toString());
-    if (dailySheet) {
-      dailySheet.getCell("CC" + (hour + 6)).value = techName;
-    }
-
-    // Write technician name and Date to FSS & VESDA daily checks
-    const fssSheet = dailyWb.getWorksheet("FSS & VESDA");
-    if (fssSheet) {
-      const rooms = [
-        "fss_switch_room",
-        "fss_ibm_room",
-        "fss_power_room",
-        "fss_battery_room",
-        "fss_enterprise_1",
-        "fss_enterprise_2"
-      ];
-      rooms.forEach((_roomId, roomOffset) => {
-        const fssRow = 3 + ((day - 1) * 6) + roomOffset;
-        fssSheet.getCell("A" + fssRow).value = date.toLocaleDateString("en-US");
-        fssSheet.getCell("L" + fssRow).value = techName;
-      });
-    }
-
-    // Write technician name and static properties to commercial logbook sheets where appropriate
-    const cpSheet = commWb.getWorksheet("Commercial Power Log");
-    if (cpSheet) {
-      const cpRow = 7 + ((day - 1) * 6) + Math.floor(hour / 4);
-      cpSheet.getCell("R" + cpRow).value = techName;
-    }
-
-    const trSheet = commWb.getWorksheet("Temp Record");
-    if (trSheet) {
-      const trRow = 7 + ((day - 1) * 6) + Math.floor(hour / 4);
-      trSheet.getCell("V" + trRow).value = techName;
-    }
-
-    const dgNames = ["DG-1", "DG-2", "DG-3", "DG-4", "DG-HQ"];
-    dgNames.forEach(name => {
-      const sheet = commWb.getWorksheet(name);
-      if (sheet) {
-        sheet.getCell("T" + (2 + day)).value = techName;
-      }
-    });
-
-    const fuelSheet = commWb.getWorksheet("Fuel Record");
-    if (fuelSheet) {
-      const fuelRow = 5 + day;
-      fuelSheet.getCell("A" + fuelRow).value = date.toLocaleDateString("en-US");
-      fuelSheet.getCell("K" + fuelRow).value = "NO";
-      fuelSheet.getCell("L" + fuelRow).value = "NO";
-    }
-
     const checkSheet = commWb.getWorksheet("DG Check");
     if (checkSheet) {
-      const checkRow = 3 + day;
-      checkSheet.getCell("A" + checkRow).value = date.toLocaleDateString("en-US");
-      checkSheet.getCell("W" + checkRow).value = techName;
-    }
+      const startRow = 5 + (day - 1) * 6;
+      const formVals = log.metrics?.formValues || {};
+      
+      const checkItems = [
+        { key: "g5", defaultText: "Check engine oil level" },
+        { key: "g5", defaultText: "Check radiator coolant level" },
+        { key: "g3", defaultText: "Check starting batteries" },
+        { key: "g1", defaultText: "Check for active alarms on control panel" },
+        { key: "g4", defaultText: "Verify fuel tank levels" },
+        { key: "g2", defaultText: "Verify no water or fuel leakage" },
+      ];
 
-    const pacSheet = commWb.getWorksheet("PAC");
-    if (pacSheet) {
-      for (let eqIdx = 0; eqIdx < 24; eqIdx++) {
-        const pacRow = 5 + (Math.floor(hour / 2) * 24) + eqIdx;
-        pacSheet.getCell("A" + pacRow).value = date.toLocaleDateString("en-US");
-        pacSheet.getCell("R" + pacRow).value = techName;
-      }
+      checkItems.forEach((item, idx) => {
+        const rowNum = startRow + idx;
+        const val = formVals[item.key] || { status: "OK", comment: "" };
+        
+        checkSheet.getCell("A" + rowNum).value = date.toLocaleDateString("en-US");
+        checkSheet.getCell("C" + rowNum).value = val.status || "OK";
+        
+        const commentStr = val.comment ? `${val.comment} (${techName})` : `OK (${techName})`;
+        checkSheet.getCell("AF" + rowNum).value = commentStr;
+      });
     }
   }
 
@@ -258,12 +315,21 @@ export const generateLegacyMonthlyReport = async (
   const mappedLogs = flatData.map((row) => {
     const metrics: Record<string, any> = {};
     Object.keys(row).forEach((key) => {
-      if (key !== "target_hour" && key !== "created_at") {
+      if (
+        key !== "target_hour" &&
+        key !== "created_at" &&
+        key !== "frequency" &&
+        key !== "asset_id" &&
+        key !== "technician_name"
+      ) {
         metrics[key] = row[key];
       }
     });
     return {
       target_hour: row.target_hour || row.created_at,
+      frequency: row.frequency,
+      asset_id: row.asset_id,
+      technician_name: row.technician_name,
       metrics,
     };
   });

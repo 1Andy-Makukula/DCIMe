@@ -11,7 +11,7 @@ import {
   PlusCircle,
   History
 } from "lucide-react";
-import { useIncidents } from "../hooks/useIncidents";
+import { useIncidents, Incident } from "../hooks/useIncidents";
 import { TechUser } from "./TechLayout";
 import { useCurrentSite } from "@/shared/context/SiteContext";
 import { supabase } from "@/shared/api/supabaseClient";
@@ -363,6 +363,82 @@ export function IncidentReport() {
     } finally {
       setIsSubmittingAction(false);
     }
+  };
+
+  const renderIncidentTimeline = (incident: Incident) => {
+    const visits = (incident.comments || []).filter((c: any) => c.type === 'contractor_visit');
+    const remarks = (incident.comments || []).filter((c: any) => c.type === 'addition' || c.type === 'correction' || c.type === 'resolution');
+
+    const hasVisits = visits.length > 0;
+    const hasRemarks = remarks.length > 0;
+
+    if (!hasVisits && !hasRemarks) {
+      return <p className="text-[10px] text-gray-400 italic pl-1">No comments or visit logs recorded yet.</p>;
+    }
+
+    return (
+      <div className="pl-1 space-y-4">
+        {/* Contractor Visits Section */}
+        {hasVisits && (
+          <div className="space-y-2">
+            <h4 className="text-[9px] font-black text-emerald-600 uppercase tracking-widest flex items-center gap-1.5 bg-emerald-50/50 w-fit px-2 py-0.5 rounded-md border border-emerald-100">
+              <span>👷‍♂️ Contractor Visits ({visits.length})</span>
+            </h4>
+            <div className="relative pl-3.5 border-l border-emerald-200/60 space-y-3.5 ml-1.5">
+              {visits.map((cmt: any, idx: number) => (
+                <div key={idx} className="relative space-y-1">
+                  <div className="absolute -left-[22px] top-1.5 w-2.5 h-2.5 rounded-full bg-emerald-500 border-2 border-white" />
+                  <div className="flex items-center justify-between text-[8px] font-bold text-emerald-650">
+                    <span className="uppercase tracking-wider">Site Visit</span>
+                    <span className="font-mono">{formatDate(cmt.timestamp)}</span>
+                  </div>
+                  <p className="text-xs text-slate-700 font-semibold leading-relaxed">{cmt.comment_text}</p>
+                  {cmt.photo_url && (
+                    <div className="mt-1.5 max-w-[140px] rounded-xl overflow-hidden border border-slate-200 shadow-sm">
+                      <img src={cmt.photo_url} alt="Visit Evidence" className="w-full h-auto object-cover" />
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Technician Remarks & Resolution Details */}
+        {hasRemarks && (
+          <div className="space-y-2">
+            <h4 className="text-[9px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-1.5 bg-slate-50 w-fit px-2 py-0.5 rounded-md border border-slate-200">
+              <span>📝 Shift Remarks & Fixes ({remarks.length})</span>
+            </h4>
+            <div className="relative pl-3.5 border-l border-slate-200/60 space-y-3.5 ml-1.5">
+              {remarks.map((cmt: any, idx: number) => (
+                <div key={idx} className="relative space-y-1">
+                  <div className="absolute -left-[22px] top-1.5 w-2.5 h-2.5 rounded-full bg-slate-350 border-2 border-white" />
+                  <div className="flex items-center justify-between gap-2">
+                    <span className={`text-[8px] font-black uppercase tracking-wider px-1.5 py-0.2 rounded ${
+                      cmt.type === "correction"
+                        ? "bg-red-50 text-red-600 border border-red-100"
+                        : cmt.type === "resolution"
+                        ? "bg-green-50 text-green-700 border border-green-100"
+                        : "bg-blue-50 text-blue-600 border border-blue-100"
+                    }`}>
+                      {cmt.type.replace(/_/g, " ")}
+                    </span>
+                    <span className="text-[8px] font-mono text-gray-400">{formatDate(cmt.timestamp)}</span>
+                  </div>
+                  <p className="text-xs text-slate-700 font-semibold leading-relaxed">{cmt.comment_text}</p>
+                  {cmt.photo_url && (
+                    <div className="mt-1.5 max-w-[140px] rounded-xl overflow-hidden border border-slate-200 shadow-sm">
+                      <img src={cmt.photo_url} alt="Resolution Evidence" className="w-full h-auto object-cover" />
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
+    );
   };
 
   // Filter incidents personally reported by this technician
@@ -725,28 +801,9 @@ export function IncidentReport() {
                       </div>
 
                       {/* Display comments/visits log timeline */}
-                      {incident.comments && incident.comments.length > 0 && (
-                        <div className="pl-1 border-t border-gray-50 pt-3.5 space-y-3.5">
-                          <h4 className="text-[9px] font-black text-gray-400 uppercase tracking-wider">Visit Logs & Comments</h4>
-                          <div className="relative pl-3.5 border-l border-slate-100 space-y-3 ml-1">
-                            {incident.comments.map((cmt, idx) => (
-                              <div key={idx} className="relative space-y-1">
-                                <div className="absolute -left-[21px] top-1 w-2 h-2 rounded-full bg-slate-200 border-2 border-white" />
-                                <div className="flex items-center justify-between text-[8px] font-bold text-slate-400">
-                                  <span className="uppercase tracking-wider text-slate-500">{cmt.type.replace(/_/g, " ")}</span>
-                                  <span>{formatDate(cmt.timestamp)}</span>
-                                </div>
-                                <p className="text-xs text-slate-700 font-semibold leading-relaxed">{cmt.comment_text}</p>
-                                {cmt.photo_url && (
-                                  <div className="mt-1.5 max-w-[120px] rounded-lg overflow-hidden border border-slate-200">
-                                    <img src={cmt.photo_url} alt="Attachment" className="w-full h-auto object-cover" />
-                                  </div>
-                                )}
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-                      )}
+                      <div className="border-t border-gray-50 pt-3.5">
+                        {renderIncidentTimeline(incident)}
+                      </div>
 
                       {/* Ticketing Action Forms */}
                       {!isSelectedAction ? (
@@ -961,41 +1018,8 @@ export function IncidentReport() {
                       )}
 
                       {/* Appended comments timeline */}
-                      <div className="border-t border-gray-50 pt-3.5 space-y-3">
-                        <h4 className="text-[9px] font-black text-gray-400 uppercase tracking-wider">
-                          Appended Updates ({incident.comments?.length || 0})
-                        </h4>
-
-                        {incident.comments && incident.comments.length > 0 ? (
-                          <div className="relative pl-3.5 border-l border-gray-100 space-y-3 ml-1">
-                            {incident.comments.map((cmt, cIdx) => (
-                              <div key={cIdx} className="relative space-y-1">
-                                {/* Timeline dot */}
-                                <div className="absolute -left-[21px] top-1 w-2 h-2 rounded-full bg-gray-300 border-2 border-white" />
-                                <div className="flex items-center justify-between gap-2">
-                                  <span className={`text-[8px] font-black uppercase tracking-wider px-1.5 py-0.2 rounded ${
-                                    cmt.type === "correction"
-                                      ? "bg-red-50 text-red-600 border border-red-100"
-                                      : "bg-blue-50 text-blue-600 border border-blue-100"
-                                  }`}>
-                                    {cmt.type.replace(/_/g, " ")}
-                                  </span>
-                                  <span className="text-[8px] font-mono text-gray-400">{formatDate(cmt.timestamp)}</span>
-                                </div>
-                                <p className="text-xs text-gray-700 font-medium leading-relaxed">
-                                  {cmt.comment_text}
-                                </p>
-                                {cmt.photo_url && (
-                                  <div className="mt-1.5 max-w-[120px] rounded-lg overflow-hidden border border-slate-200">
-                                    <img src={cmt.photo_url} alt="Attachment" className="w-full h-auto object-cover" />
-                                  </div>
-                                )}
-                              </div>
-                            ))}
-                          </div>
-                        ) : (
-                          <p className="text-[10px] text-gray-400 italic">No comments or corrections appended yet.</p>
-                        )}
+                      <div className="border-t border-gray-50 pt-3.5">
+                        {renderIncidentTimeline(incident)}
                       </div>
 
                       {/* Interactive Form Trigger (Only for open incidents) */}
