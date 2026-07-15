@@ -157,15 +157,13 @@ export function useTelemetryData(
         }
 
         // Step D (Supabase Query 2 - Carry-Forward)
-        const prevHour = targetHour - 1;
-        const prevDate = new Date();
-        prevDate.setHours(prevHour, 0, 0, 0);
-        const prevHourISO = prevDate.toISOString();
-
+        // Find the most recent telemetry log in the database before the current target hour
         const { data: previousData, error: prevError } = await supabase
           .from('telemetry_logs')
           .select('*')
-          .eq('target_hour', prevHourISO)
+          .lt('target_hour', targetHourISO)
+          .order('target_hour', { ascending: false })
+          .limit(1)
           .maybeSingle();
 
         if (!active) return;
@@ -185,8 +183,8 @@ export function useTelemetryData(
               if (metric.defaultValue !== undefined) {
                 newFormState[metric.id] = metric.defaultValue;
               }
-              // If a metric has carryForward: true AND previous hour data exists, set newFormState[metric.id] = previousData.metrics[metric.id]
-              if (metric.carryForward && previousMetrics[metric.id] !== undefined) {
+              // Carry forward previously entered values if available from the previous hour
+              if (previousMetrics[metric.id] !== undefined) {
                 newFormState[metric.id] = previousMetrics[metric.id];
               }
 

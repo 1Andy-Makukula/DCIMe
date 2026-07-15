@@ -72,7 +72,8 @@ export function IncidentReport() {
     incidents, 
     reportIncident, 
     addIncidentComment,
-    resolveIncident
+    resolveIncident,
+    refresh
   } = useIncidents();
   const { currentSite } = useCurrentSite();
   
@@ -89,6 +90,8 @@ export function IncidentReport() {
   const [actionNotes, setActionNotes] = useState("");
   const [actionPhoto, setActionPhoto] = useState<string | null>(null);
   const [isSubmittingAction, setIsSubmittingAction] = useState(false);
+  const [visitType, setVisitType] = useState<"routine" | "corrective">("routine");
+  const [selectedFaultId, setSelectedFaultId] = useState<string>("");
 
   // Report Form State
   const [asset, setAsset] = useState("");
@@ -268,7 +271,8 @@ export function IncidentReport() {
     }
   };
 
-  const handleSubmitContractorVisit = async (incidentId: string) => {
+  const handleLogSiteVisit = async (e: React.FormEvent) => {
+    e.preventDefault();
     if (!contractorName.trim()) {
       alert("Please specify the Contractor name.");
       return;
@@ -277,33 +281,87 @@ export function IncidentReport() {
       alert("Please provide the tasks being executed.");
       return;
     }
+    if (visitType === "corrective" && !selectedFaultId) {
+      alert("Please select the active fault ticket being repaired.");
+      return;
+    }
 
     setIsSubmittingAction(true);
     try {
       const firstName = (user?.name || "Field Tech").trim().split(/\s+/)[0];
-      
-      // 1. Update the contractor name on the incident record in Supabase
-      const { error: updateError } = await supabase
-        .from("incidents")
-        .update({ contractor_engaged: contractorName })
-        .eq("id", incidentId);
-      
-      if (updateError) throw updateError;
 
-      // 2. Append a comment logging the visitor/arrival details and work details
-      await addIncidentComment(incidentId, {
-        comment_text: `[Contractor: ${contractorName}] Logged site visit. Tasks: ${actionNotes}`,
-        type: "contractor_visit",
-        photo_url: actionPhoto,
-        author_name: firstName,
-        author_id: user?.id || "EMP-UNKNOWN"
-      });
+      if (visitType === "corrective") {
+        // 1. Update the contractor name on the incident record in Supabase
+        const { error: updateError } = await supabase
+          .from("incidents")
+          .update({ contractor_engaged: contractorName })
+          .eq("id", selectedFaultId);
+        
+        if (updateError) throw updateError;
 
-      alert("Contractor site visit logged successfully!");
-      setActiveAction(null);
+        // 2. Append a comment logging the visitor/arrival details and work details
+        await addIncidentComment(selectedFaultId, {
+          comment_text: `[Contractor: ${contractorName}] Logged site visit. Tasks: ${actionNotes}`,
+          type: "contractor_visit",
+          photo_url: actionPhoto,
+          author_name: firstName,
+          author_id: user?.id || "EMP-UNKNOWN"
+        });
+
+        alert("Contractor site visit logged successfully against active fault!");
+      } else {
+        // Routine visit: Log as a resolved incident under 'GENERAL_SITE'
+        const currentYear = new Date().getFullYear();
+        const randomCode = Math.floor(1000 + Math.random() * 9000);
+        const receiptNumber = `REC-${currentYear}-${randomCode}`;
+        const ticketNum = `VISIT-2026-${Math.floor(1000 + Math.random() * 9000)}`;
+
+        const newRoutineVisit = {
+          ticket_number: ticketNum,
+          status: "RESOLVED",
+          site_name: currentSite?.site_name || "NTC ZM 0874",
+          site_uuid: currentSite?.id || null,
+          asset_id: "GENERAL_SITE",
+          severity: "low",
+          notes: `[Routine Visit] Contractor: ${contractorName}. Work Done: ${actionNotes}`,
+          photo_url: actionPhoto || null,
+          comments: [
+            {
+              author_name: firstName,
+              author_id: user?.id || "EMP-UNKNOWN",
+              comment_text: `Logged routine site visit. Tasks: ${actionNotes}`,
+              type: "contractor_visit",
+              timestamp: new Date().toISOString(),
+              photo_url: actionPhoto || null
+            }
+          ],
+          occurred_at: new Date().toISOString(),
+          raised_by_name: firstName,
+          raised_by_id: user?.id || "EMP-UNKNOWN",
+          created_at: new Date().toISOString(),
+          resolved_at: new Date().toISOString(),
+          resolved_by_name: firstName,
+          resolved_by_id: user?.id || "EMP-UNKNOWN",
+          receipt_number: receiptNumber,
+          impact: "NONE",
+          contractor_engaged: contractorName,
+          resolution_details: `Completed routine maintenance / refueling: ${actionNotes}`
+        };
+
+        const { error: insertError } = await supabase
+          .from("incidents")
+          .insert([newRoutineVisit]);
+
+        if (insertError) throw insertError;
+
+        alert("Routine contractor visit logged successfully!");
+        refresh(); // Refresh list to fetch the newly created log
+      }
+
       setContractorName("");
       setActionNotes("");
       setActionPhoto(null);
+      setSelectedFaultId("");
     } catch (err: any) {
       console.error("Error logging contractor visit:", err);
       alert("Failed to log contractor visit. Please try again.");
@@ -730,228 +788,385 @@ export function IncidentReport() {
 
       {/* Tab 2: Contractor & Ticketing Management */}
       {activeTab === "contractor" && (
-        <div className="space-y-4">
+        <div className="space-y-6">
           <div className="px-1">
-            <h1 className="text-xl font-black text-gray-900 tracking-tight">Contractors & Ticketing</h1>
-            <p className="text-xs text-gray-500 mt-0.5">Log contractor visits and provide resolutions for active alerts.</p>
+            <h1 className="text-xl font-black text-gray-900 tracking-tight">Contractor Visits</h1>
+            <p className="text-xs text-gray-500 mt-0.5">Log visitor details, routine refueling/servicing, or corrective fault fixes.</p>
           </div>
 
-          {/* Hidden input for Contractor Visit/Resolution Photo evidence */}
-          <input
-            type="file"
-            ref={actionFileInputRef}
-            accept="image/*"
-            capture="environment"
-            onChange={handleActionFileChange}
-            className="hidden"
-          />
+          {/* New Log Site Visit Form */}
+          <form
+            onSubmit={handleLogSiteVisit}
+            className="bg-white rounded-3xl border border-gray-100 shadow-sm p-5 flex flex-col gap-6"
+          >
+            <div className="flex items-center gap-2 border-b border-gray-50 pb-3">
+              <span className="w-1.5 h-6 bg-slate-900 rounded-full" />
+              <span className="text-xs font-black text-slate-800 uppercase tracking-wider">Log New Visit</span>
+            </div>
 
-          {incidents.filter((i) => i.status === "OPEN").length === 0 ? (
-            <div className="bg-white border border-gray-100 rounded-3xl p-8 text-center space-y-4 shadow-sm">
-              <div className="w-16 h-16 bg-gray-50 rounded-full flex items-center justify-center mx-auto text-gray-400 border border-gray-100">
-                <CheckCircle2 size={30} className="text-green-500" />
-              </div>
-              <div className="space-y-1">
-                <h3 className="font-black text-gray-950 text-sm">All Systems Nominal</h3>
-                <p className="text-xs text-gray-400 max-w-[240px] mx-auto">
-                  There are no open incident alerts at this time.
-                </p>
+            {/* Visit Type Toggle */}
+            <div className="space-y-2">
+              <label className="text-xs font-black text-gray-400 uppercase tracking-widest block">
+                Visit Category
+              </label>
+              <div className="grid grid-cols-2 gap-2 bg-gray-50 p-1 rounded-2xl border border-gray-100">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setVisitType("routine");
+                    setSelectedFaultId("");
+                  }}
+                  className={`py-2 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all cursor-pointer ${
+                    visitType === "routine"
+                      ? "bg-white text-gray-905 shadow-sm font-bold"
+                      : "text-gray-400 hover:text-gray-600"
+                  }`}
+                >
+                  Routine / Refueling
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setVisitType("corrective")}
+                  className={`py-2 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all cursor-pointer ${
+                    visitType === "corrective"
+                      ? "bg-white text-gray-905 shadow-sm font-bold"
+                      : "text-gray-400 hover:text-gray-600"
+                  }`}
+                >
+                  Corrective (Fix Fault)
+                </button>
               </div>
             </div>
-          ) : (
-            <div className="space-y-4">
-              {incidents
-                .filter((i) => i.status === "OPEN")
-                .map((incident) => {
-                  const isSelectedAction = activeAction?.incidentId === incident.id;
-                  const currentContractor = incident.contractor_engaged || "";
-                  
-                  return (
-                    <div
-                      key={incident.id}
-                      className="bg-white border border-gray-100 rounded-3xl p-5 shadow-sm space-y-4 relative overflow-hidden"
+
+            {/* Contractor Name */}
+            <div className="space-y-2">
+              <label className="text-xs font-black text-gray-400 uppercase tracking-widest block">
+                Contractor Company/Name
+              </label>
+              <input
+                type="text"
+                value={contractorName}
+                onChange={(e) => setContractorName(e.target.value)}
+                placeholder="e.g. Cummins Services, Vertiv Team"
+                className="w-full px-4 h-12 bg-gray-50 border border-gray-200 rounded-2xl text-sm font-semibold text-gray-850 focus:outline-none focus:border-slate-800 focus:ring-1 focus:ring-slate-800/10 transition-colors"
+                required
+              />
+            </div>
+
+            {/* Conditional Dropdown for Active Faults */}
+            {visitType === "corrective" && (
+              <div className="space-y-2 animate-fade-in">
+                <label className="text-xs font-black text-gray-400 uppercase tracking-widest block">
+                  Select Active Fault Ticket
+                </label>
+                <Select value={selectedFaultId} onValueChange={setSelectedFaultId}>
+                  <SelectTrigger className="w-full h-12 bg-gray-50 border border-gray-200 rounded-2xl text-sm font-semibold text-gray-800 focus:ring-1 focus:ring-slate-850/10 focus:border-slate-800">
+                    <SelectValue placeholder="-- Choose an open fault ticket --" />
+                  </SelectTrigger>
+                  <SelectContent className="bg-white border border-gray-100 rounded-2xl shadow-lg z-[10000]">
+                    {incidents.filter((i) => i.status === "OPEN").length === 0 ? (
+                      <SelectItem value="empty" disabled className="text-xs font-semibold text-gray-450">
+                        No open fault tickets available
+                      </SelectItem>
+                    ) : (
+                      incidents
+                        .filter((i) => i.status === "OPEN")
+                        .map((inc) => (
+                          <SelectItem
+                            key={inc.id}
+                            value={inc.id}
+                            className="text-xs font-semibold text-gray-800 cursor-pointer"
+                          >
+                            {inc.ticket_number} - {inc.asset_id.toUpperCase().replace(/_/g, " ")}
+                          </SelectItem>
+                        ))
+                    )}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+
+            {/* Tasks / Work details */}
+            <div className="space-y-2">
+              <label className="text-xs font-black text-gray-400 uppercase tracking-widest block">
+                Tasks / Work Description
+              </label>
+              <textarea
+                rows={4}
+                value={actionNotes}
+                onChange={(e) => setActionNotes(e.target.value)}
+                placeholder={
+                  visitType === "routine"
+                    ? "Detail the routine tasks done, refueling quantities, or checkups..."
+                    : "Detail the repairs or fixes applied to the selected asset..."
+                }
+                className="w-full p-4 rounded-2xl bg-gray-50 border border-gray-200 text-sm font-semibold text-gray-800 placeholder-gray-450 focus:outline-none focus:border-slate-800 focus:ring-1 focus:ring-slate-800/10 resize-none transition-colors"
+                required
+              />
+            </div>
+
+            {/* Photo upload */}
+            <div className="space-y-2">
+              <label className="text-xs font-black text-gray-400 uppercase tracking-widest block">
+                Visit Photo / Evidence
+              </label>
+              <div
+                onClick={handleActionPhotoUpload}
+                className={`h-32 bg-gray-50 border-2 border-dashed rounded-2xl flex flex-col items-center justify-center text-gray-550 cursor-pointer active:bg-gray-100 transition-colors p-0 relative overflow-hidden ${
+                  actionPhoto ? "border-green-400" : "border-gray-200"
+                }`}
+              >
+                {actionPhoto ? (
+                  <div className="w-full h-full flex flex-col items-center justify-center relative p-0">
+                    <img
+                      src={actionPhoto}
+                      alt="Visit evidence preview"
+                      className="w-full h-full object-cover rounded-2xl"
+                    />
+                    <div className="absolute inset-0 bg-black/45 flex flex-col items-center justify-center text-white opacity-0 hover:opacity-100 transition-opacity rounded-2xl">
+                      <Camera size={20} />
+                      <span className="text-[10px] font-bold mt-1 uppercase tracking-wider">Tap to retake</span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={handleRemoveActionPhoto}
+                      className="absolute top-2 right-2 p-1.5 rounded-full bg-black/60 hover:bg-black/80 text-white transition-colors z-10"
                     >
-                      {/* Left border indicator */}
-                      <div className="absolute left-0 top-0 bottom-0 w-1.5 bg-red-500" />
+                      <X size={12} />
+                    </button>
+                  </div>
+                ) : (
+                  <div className="flex flex-col items-center justify-center space-y-1.5 text-center px-4">
+                    <Camera size={24} className="text-gray-400" />
+                    <div>
+                      <span className="text-xs font-bold text-gray-700 block">Tap to take photo</span>
+                      <span className="text-[10px] text-gray-400">capture visit proof</span>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
 
-                      <div className="flex items-center justify-between pl-1">
-                        <span className="text-[10px] font-mono font-black text-gray-400 tracking-wider">
-                          {incident.ticket_number}
-                        </span>
-                        <span className="bg-red-55 border border-red-100 text-[8px] font-black uppercase tracking-wider px-2 py-0.5 rounded text-red-600">
-                          {incident.severity}
-                        </span>
-                      </div>
+            {/* Hidden Input for Action Camera Capture */}
+            <input
+              type="file"
+              ref={actionFileInputRef}
+              accept="image/*"
+              capture="environment"
+              onChange={handleActionFileChange}
+              className="hidden"
+            />
 
-                      <div className="pl-1">
-                        <h3 className="font-black text-gray-900 text-sm tracking-tight">
-                          {incident.asset_id.toUpperCase().replace(/_/g, " ")}
-                        </h3>
-                        <p className="text-xs text-gray-500 mt-1 font-medium leading-relaxed">
-                          <span className="font-bold text-gray-400 block text-[9px] uppercase tracking-wider mb-0.5">Fault Details</span>
-                          {incident.notes}
-                        </p>
-                        
-                        {incident.contractor_engaged && (
-                          <div className="mt-2.5 inline-flex items-center gap-1.5 bg-slate-50 border border-slate-200/60 rounded-lg px-2 py-1 text-[10px] font-bold text-slate-600">
-                            <span>Contractor:</span>
-                            <span className="text-slate-800 font-extrabold">{incident.contractor_engaged}</span>
+            <button
+              type="submit"
+              disabled={isSubmittingAction}
+              className="w-full py-4 bg-slate-900 hover:bg-slate-950 text-white font-black text-sm tracking-widest uppercase rounded-2xl transition-all shadow-md flex items-center justify-center gap-2 active:scale-[0.98] cursor-pointer"
+            >
+              {isSubmittingAction ? (
+                <span>Logging Site Visit...</span>
+              ) : (
+                <>
+                  <CheckCircle2 size={16} />
+                  <span>Log Visit Logbook</span>
+                </>
+              )}
+            </button>
+          </form>
+
+          {/* Section: Active Open Faults for Resolution */}
+          <div className="space-y-4 pt-4">
+            <div className="px-1 flex items-center justify-between">
+              <div>
+                <h2 className="text-sm font-black text-gray-905 uppercase tracking-wider">Active Fault Tickets</h2>
+                <p className="text-[11px] text-gray-400">Fault tickets awaiting final resolution.</p>
+              </div>
+              <span className="bg-red-50 text-red-600 font-extrabold text-[10px] px-2.5 py-1 rounded-full border border-red-100">
+                {incidents.filter((i) => i.status === "OPEN").length} Open
+              </span>
+            </div>
+
+            {incidents.filter((i) => i.status === "OPEN").length === 0 ? (
+              <div className="bg-white border border-gray-100 rounded-3xl p-6 text-center shadow-sm">
+                <CheckCircle2 size={24} className="text-green-500 mx-auto mb-2" />
+                <p className="text-xs font-bold text-slate-800">All Systems Nominal</p>
+                <p className="text-[10px] text-slate-400 mt-0.5">There are no open faults to resolve.</p>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {incidents
+                  .filter((i) => i.status === "OPEN")
+                  .map((incident) => {
+                    const isResolving = activeAction?.incidentId === incident.id && activeAction.type === "resolve";
+
+                    return (
+                      <div
+                        key={incident.id}
+                        className="bg-white border border-gray-100 rounded-3xl p-5 shadow-sm space-y-4 relative overflow-hidden"
+                      >
+                        {/* Left border indicator */}
+                        <div className="absolute left-0 top-0 bottom-0 w-1.5 bg-red-500" />
+
+                        <div className="flex items-center justify-between pl-1">
+                          <span className="text-[10px] font-mono font-black text-gray-400 tracking-wider">
+                            {incident.ticket_number}
+                          </span>
+                          <span className="bg-red-50 border border-red-100 text-[8px] font-black uppercase tracking-wider px-2 py-0.5 rounded text-red-600">
+                            {incident.severity}
+                          </span>
+                        </div>
+
+                        <div className="pl-1">
+                          <h3 className="font-black text-gray-900 text-sm tracking-tight">
+                            {incident.asset_id.toUpperCase().replace(/_/g, " ")}
+                          </h3>
+                          <p className="text-xs text-gray-500 mt-1 font-medium leading-relaxed">
+                            <span className="font-bold text-gray-400 block text-[9px] uppercase tracking-wider mb-0.5">Fault Details</span>
+                            {incident.notes}
+                          </p>
+
+                          {incident.contractor_engaged && (
+                            <div className="mt-2.5 inline-flex items-center gap-1.5 bg-slate-50 border border-slate-200/60 rounded-lg px-2 py-1 text-[10px] font-bold text-slate-650">
+                              <span>Assigned Contractor:</span>
+                              <span className="text-slate-850 font-extrabold">{incident.contractor_engaged}</span>
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Display comments/visits log timeline */}
+                        <div className="border-t border-gray-50 pt-3.5">
+                          {renderIncidentTimeline(incident)}
+                        </div>
+
+                        {/* Resolution Button/Form */}
+                        {!isResolving ? (
+                          <div className="pl-1 pt-3 border-t border-gray-50 flex justify-end">
+                            <button
+                              onClick={() => {
+                                setActiveAction({ incidentId: incident.id, type: "resolve" });
+                                setContractorName(incident.contractor_engaged || "");
+                                setActionNotes("");
+                                setActionPhoto(null);
+                              }}
+                              className="py-2.5 px-4 bg-green-600 hover:bg-green-700 text-white font-bold rounded-xl text-xs uppercase tracking-wider active:scale-[0.98] transition-all flex items-center gap-1.5 cursor-pointer shadow-sm shadow-green-600/10"
+                            >
+                              <CheckCircle2 size={13} />
+                              <span>Resolve Fault</span>
+                            </button>
                           </div>
+                        ) : (
+                          <form
+                            onSubmit={(e) => {
+                              e.preventDefault();
+                              handleSubmitResolution(incident.id);
+                            }}
+                            className="space-y-4 bg-gray-50/60 p-4 border border-gray-200/50 rounded-2xl animate-fade-in pl-1"
+                          >
+                            <div className="flex items-center justify-between">
+                              <span className="text-[10px] font-black text-slate-800 uppercase tracking-wider">
+                                Resolve Fault Ticket
+                              </span>
+                              <button
+                                type="button"
+                                onClick={() => setActiveAction(null)}
+                                className="text-gray-400 hover:text-gray-600"
+                              >
+                                <X size={14} />
+                              </button>
+                            </div>
+
+                            {/* Contractor Name */}
+                            <div className="space-y-1.5">
+                              <label className="text-[9px] font-black text-gray-400 uppercase tracking-widest block">
+                                Contractor Name/Company
+                              </label>
+                              <input
+                                type="text"
+                                value={contractorName}
+                                onChange={(e) => setContractorName(e.target.value)}
+                                placeholder="e.g. Vertiv Services"
+                                className="w-full px-3 py-2 bg-white border border-gray-200 rounded-xl text-xs font-semibold text-gray-800 focus:outline-none focus:border-red-500"
+                                required
+                              />
+                            </div>
+
+                            {/* Resolution Details */}
+                            <div className="space-y-1.5">
+                              <label className="text-[9px] font-black text-gray-400 uppercase tracking-widest block">
+                                Resolution / Solution Provided
+                              </label>
+                              <textarea
+                                rows={3}
+                                value={actionNotes}
+                                onChange={(e) => setActionNotes(e.target.value)}
+                                placeholder="Explain how the fault was resolved..."
+                                className="w-full p-3 bg-white border border-gray-250 rounded-xl text-xs font-semibold text-gray-800 focus:outline-none focus:border-red-500 resize-none"
+                                required
+                              />
+                            </div>
+
+                            {/* Capture/Upload resolution photo */}
+                            <div className="space-y-1.5">
+                              <label className="text-[9px] font-black text-gray-400 uppercase tracking-widest block">
+                                Resolution Photo (Optional)
+                              </label>
+                              <div
+                                onClick={handleActionPhotoUpload}
+                                className={`h-24 bg-white border-2 border-dashed rounded-xl flex flex-col items-center justify-center text-gray-500 cursor-pointer active:bg-gray-50 transition-colors relative overflow-hidden p-0 ${
+                                  actionPhoto ? "border-green-400" : "border-gray-200"
+                                }`}
+                              >
+                                {actionPhoto ? (
+                                  <div className="w-full h-full flex flex-col items-center justify-center relative p-0">
+                                    <img src={actionPhoto} alt="Evidence" className="w-full h-full object-cover rounded-xl" />
+                                    <button
+                                      type="button"
+                                      onClick={handleRemoveActionPhoto}
+                                      className="absolute top-1.5 right-1.5 p-1 rounded-full bg-black/60 hover:bg-black/80 text-white transition-colors"
+                                    >
+                                      <X size={10} />
+                                    </button>
+                                  </div>
+                                ) : (
+                                  <div className="flex flex-col items-center justify-center space-y-1 text-center">
+                                    <Camera size={18} className="text-gray-400" />
+                                    <span className="text-[10px] font-bold text-gray-700">Upload Resolution Photo</span>
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+
+                            {/* Action Buttons */}
+                            <div className="flex gap-2 justify-end">
+                              <button
+                                type="button"
+                                onClick={() => setActiveAction(null)}
+                                className="py-2 px-3.5 border border-gray-200 text-gray-600 font-bold rounded-xl text-[10px] uppercase tracking-wider active:scale-[0.98] transition-all cursor-pointer bg-white"
+                              >
+                                Cancel
+                              </button>
+                              <button
+                                type="submit"
+                                disabled={isSubmittingAction}
+                                className="py-2 px-4 text-white bg-green-600 hover:bg-green-700 font-black rounded-xl text-[10px] uppercase tracking-wider active:scale-[0.98] transition-all flex items-center justify-center gap-1.5 cursor-pointer"
+                              >
+                                {isSubmittingAction ? (
+                                  <span>Resolving...</span>
+                                ) : (
+                                  <>
+                                    <CheckCircle2 size={12} />
+                                    <span>Confirm Resolution</span>
+                                  </>
+                                )}
+                              </button>
+                            </div>
+                          </form>
                         )}
                       </div>
-
-                      {/* Display comments/visits log timeline */}
-                      <div className="border-t border-gray-50 pt-3.5">
-                        {renderIncidentTimeline(incident)}
-                      </div>
-
-                      {/* Ticketing Action Forms */}
-                      {!isSelectedAction ? (
-                        <div className="grid grid-cols-2 gap-2 pl-1 pt-3.5 border-t border-gray-50">
-                          <button
-                            onClick={() => {
-                              setActiveAction({ incidentId: incident.id, type: "visit" });
-                              setContractorName(currentContractor);
-                              setActionNotes("");
-                              setActionPhoto(null);
-                            }}
-                            className="py-2.5 bg-gray-50 border border-gray-250 hover:bg-gray-100 text-slate-700 font-bold rounded-2xl text-xs uppercase tracking-wider active:scale-[0.98] transition-all flex items-center justify-center gap-1.5 cursor-pointer"
-                          >
-                            <FileText size={13} />
-                            <span>Log Visit</span>
-                          </button>
-                          <button
-                            onClick={() => {
-                              setActiveAction({ incidentId: incident.id, type: "resolve" });
-                              setContractorName(currentContractor);
-                              setActionNotes("");
-                              setActionPhoto(null);
-                            }}
-                            className="py-2.5 bg-green-600 hover:bg-green-700 text-white font-bold rounded-2xl text-xs uppercase tracking-wider active:scale-[0.98] transition-all flex items-center justify-center gap-1.5 cursor-pointer shadow-sm shadow-green-600/10"
-                          >
-                            <CheckCircle2 size={13} />
-                            <span>Resolve</span>
-                          </button>
-                        </div>
-                      ) : (
-                        <form
-                          onSubmit={(e) => {
-                            e.preventDefault();
-                            if (activeAction.type === "visit") {
-                              handleSubmitContractorVisit(incident.id);
-                            } else {
-                              handleSubmitResolution(incident.id);
-                            }
-                          }}
-                          className="space-y-4 bg-gray-50/60 p-4 border border-gray-200/50 rounded-2xl animate-fade-in pl-1"
-                        >
-                          <div className="flex items-center justify-between">
-                            <span className="text-[10px] font-black text-slate-800 uppercase tracking-wider">
-                              {activeAction.type === "visit" ? "Log Contractor Visit" : "Resolve Incident"}
-                            </span>
-                            <button
-                              type="button"
-                              onClick={() => setActiveAction(null)}
-                              className="text-gray-400 hover:text-gray-600"
-                            >
-                              <X size={14} />
-                            </button>
-                          </div>
-
-                          {/* Contractor Name */}
-                          <div className="space-y-1.5">
-                            <label className="text-[9px] font-black text-gray-400 uppercase tracking-widest block">
-                              Contractor Company/Name
-                            </label>
-                            <input
-                              type="text"
-                              value={contractorName}
-                              onChange={(e) => setContractorName(e.target.value)}
-                              placeholder="e.g. Vertiv Services"
-                              className="w-full px-3 py-2 bg-white border border-gray-200 rounded-xl text-xs font-semibold text-gray-800 focus:outline-none focus:border-red-500"
-                              required
-                            />
-                          </div>
-
-                          {/* Work/Resolution Details */}
-                          <div className="space-y-1.5">
-                            <label className="text-[9px] font-black text-gray-400 uppercase tracking-widest block">
-                              {activeAction.type === "visit" ? "Tasks / Work Progress" : "Resolution / Solution Provided"}
-                            </label>
-                            <textarea
-                              rows={3}
-                              value={actionNotes}
-                              onChange={(e) => setActionNotes(e.target.value)}
-                              placeholder={activeAction.type === "visit" ? "Explain work started or completed..." : "Explain how the fault was resolved..."}
-                              className="w-full p-3 bg-white border border-gray-200 rounded-xl text-xs font-semibold text-gray-800 focus:outline-none focus:border-red-500 resize-none"
-                              required
-                            />
-                          </div>
-
-                          {/* Capture/Upload progress photo */}
-                          <div className="space-y-1.5">
-                            <label className="text-[9px] font-black text-gray-400 uppercase tracking-widest block">
-                              Attachment Photo (Optional)
-                            </label>
-                            <div
-                              onClick={handleActionPhotoUpload}
-                              className={`h-24 bg-white border-2 border-dashed rounded-xl flex flex-col items-center justify-center text-gray-500 cursor-pointer active:bg-gray-50 transition-colors relative overflow-hidden p-0 ${
-                                actionPhoto ? "border-green-400" : "border-gray-200"
-                              }`}
-                            >
-                              {actionPhoto ? (
-                                <div className="w-full h-full flex flex-col items-center justify-center relative p-0">
-                                  <img src={actionPhoto} alt="Evidence" className="w-full h-full object-cover rounded-xl" />
-                                  <button
-                                    type="button"
-                                    onClick={handleRemoveActionPhoto}
-                                    className="absolute top-1.5 right-1.5 p-1 rounded-full bg-black/60 hover:bg-black/80 text-white transition-colors"
-                                  >
-                                    <X size={10} />
-                                  </button>
-                                </div>
-                              ) : (
-                                <div className="flex flex-col items-center justify-center space-y-1 text-center">
-                                  <Camera size={18} className="text-gray-400" />
-                                  <span className="text-[10px] font-bold text-gray-700">Upload Visit/Resolution Photo</span>
-                                </div>
-                              )}
-                            </div>
-                          </div>
-
-                          {/* Action Buttons */}
-                          <div className="flex gap-2 justify-end">
-                            <button
-                              type="button"
-                              onClick={() => setActiveAction(null)}
-                              className="py-2 px-3.5 border border-gray-200 text-gray-600 font-bold rounded-xl text-[10px] uppercase tracking-wider active:scale-[0.98] transition-all cursor-pointer bg-white"
-                            >
-                              Cancel
-                            </button>
-                            <button
-                              type="submit"
-                              disabled={isSubmittingAction}
-                              className={`py-2 px-4 text-white font-black rounded-xl text-[10px] uppercase tracking-wider active:scale-[0.98] transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
-                                activeAction.type === "visit" ? "bg-slate-800 hover:bg-slate-900" : "bg-green-600 hover:bg-green-700"
-                              }`}
-                            >
-                              {isSubmittingAction ? (
-                                <span>Saving...</span>
-                              ) : (
-                                <>
-                                  <CheckCircle2 size={12} />
-                                  <span>{activeAction.type === "visit" ? "Save Visit Log" : "Confirm Resolution"}</span>
-                                </>
-                              )}
-                            </button>
-                          </div>
-                        </form>
-                      )}
-                    </div>
-                  );
-                })}
-            </div>
-          )}
+                    );
+                  })}
+              </div>
+            )}
+          </div>
         </div>
       )}
 

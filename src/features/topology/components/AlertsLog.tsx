@@ -340,14 +340,21 @@ function ResolvedCard({ incident }: { incident: Incident }) {
                 Duration: {incident.duration}
               </span>
             )}
-            <div className="ml-auto flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-green-100 text-green-700 text-[10px] font-black uppercase tracking-wider">
-              <ShieldCheck size={10} />
-              Resolved
-            </div>
+            {incident.id?.startsWith("VISIT-") ? (
+              <div className="ml-auto flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-100 text-emerald-700 text-[10px] font-black uppercase tracking-wider">
+                <User size={10} />
+                Visit Logged
+              </div>
+            ) : (
+              <div className="ml-auto flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-green-100 text-green-700 text-[10px] font-black uppercase tracking-wider">
+                <ShieldCheck size={10} />
+                Resolved
+              </div>
+            )}
           </div>
 
           <div className="flex items-baseline gap-2 flex-wrap mb-1">
-            <span className="text-[13px] font-black text-gray-700 line-through decoration-gray-400">
+            <span className={incident.id?.startsWith("VISIT-") ? "text-[13px] font-black text-gray-700" : "text-[13px] font-black text-gray-700 line-through decoration-gray-400"}>
               {incident.asset}
             </span>
             <span className="text-[10px] font-mono font-semibold text-gray-400">
@@ -480,7 +487,9 @@ export function AlertsLog() {
 
     // Determine a nice category
     let categoryStr = "System Alert";
-    if (row.asset_id) {
+    if (row.ticket_number?.startsWith("VISIT-")) {
+      categoryStr = "Contractor Visit";
+    } else if (row.asset_id) {
       if (row.asset_id.startsWith("PWR-")) categoryStr = "Power / Fault";
       else if (row.asset_id.startsWith("COOL-")) categoryStr = "Cooling / Thermal";
       else if (row.asset_id.startsWith("NET-")) categoryStr = "Network / Connectivity";

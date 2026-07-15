@@ -796,6 +796,15 @@ export function NocOverview() {
                         <td className="p-4">
                           <div className="flex items-center gap-2">
                             <span className="font-mono font-black text-gray-900">{incident.ticket_number}</span>
+                            {incident.ticket_number?.startsWith("VISIT-") ? (
+                              <span className="inline-block bg-emerald-50 text-emerald-700 border border-emerald-100 text-[8px] font-black uppercase tracking-wider px-1.5 py-0.5 rounded">
+                                👷‍♂️ Visit Log
+                              </span>
+                            ) : (
+                              <span className="inline-block bg-red-50 text-red-700 border border-red-100 text-[8px] font-black uppercase tracking-wider px-1.5 py-0.5 rounded">
+                                🚨 Fault Alert
+                              </span>
+                            )}
                             {incident.comments && incident.comments.length > 0 && (
                               <span className="inline-block bg-amber-50 text-amber-700 border border-amber-100 text-[8px] font-black uppercase tracking-wider px-1.5 py-0.5 rounded" title={`${incident.comments.length} appended updates`}>
                                 {incident.comments.length} {incident.comments.length === 1 ? "Update" : "Updates"}
