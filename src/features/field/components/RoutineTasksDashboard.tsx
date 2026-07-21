@@ -1,17 +1,16 @@
+// src/features/field/components/RoutineTasksDashboard.tsx
 import { useState, useMemo, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { Save, CheckCircle2, Loader2, Zap, AlertTriangle, ArrowLeft, Plug, Edit2, Server, Battery, Network, Building2, Radio, Flame, ClipboardList, Share2, History, Copy, Trash2, X } from 'lucide-react';
+import { Save, CheckCircle2, Loader2, Zap, AlertTriangle, ArrowLeft, Plug, ClipboardList, Share2, History, Copy, Trash2, X } from 'lucide-react';
 import { supabase } from '@/shared/api/supabaseClient';
 import { useAuth } from '@/shared/context/AuthContext';
-import { MASTER_ASSET_DICTIONARY } from '../constants/telemetrySchema';
+import { useCurrentSite } from '@/shared/context/SiteContext';
+import { SITE_BLUEPRINTS } from '@/config/sites';
 import { useTelemetryData } from '../hooks/useTelemetryData';
 import { useSiteEquipment } from '../hooks/useSiteEquipment';
 import { useTelemetryMutation } from '../hooks/useTelemetryMutation';
 import { toast } from 'sonner';
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Types & Props
-// ─────────────────────────────────────────────────────────────────────────────
+import { PathRenderer } from './PathRenderer';
 
 interface RoutineTasksDashboardProps {
   targetHour: number;
@@ -20,23 +19,7 @@ interface RoutineTasksDashboardProps {
   onSubmitSuccess?: (hour: number) => void;
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Helpers
-// ─────────────────────────────────────────────────────────────────────────────
 
-/** Returns the category icon element for a category name */
-function categoryIcon(name: string): React.ReactNode {
-  const n = name.toLowerCase();
-  const size = 14;
-  if (n.includes('server')) return <Server size={size} />;
-  if (n.includes('power room 1')) return <Zap size={size} />;
-  if (n.includes('power room 2')) return <Battery size={size} />;
-  if (n.includes('grid') || n.includes('outside')) return <Network size={size} />;
-  if (n.includes('hq')) return <Building2 size={size} />;
-  if (n.includes('it room')) return <Radio size={size} />;
-  if (n.includes('fuel')) return <Flame size={size} />;
-  return <ClipboardList size={size} />;
-}
 
 /** Derives a human-readable frequency label for the active checks */
 function activeChecksLabel(isTwoHour: boolean, isFourHour: boolean, isDaily: boolean): string {
@@ -47,10 +30,6 @@ function activeChecksLabel(isTwoHour: boolean, isFourHour: boolean, isDaily: boo
   return parts.join(' + ') + ' Checks';
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Component
-// ─────────────────────────────────────────────────────────────────────────────
-
 export const RoutineTasksDashboard = ({ 
   targetHour: propTargetHour, 
   onComplete,
@@ -59,6 +38,9 @@ export const RoutineTasksDashboard = ({
 }: RoutineTasksDashboardProps) => {
   const targetHour = `${String(propTargetHour).padStart(2, '0')}:00`;
   const { employee } = useAuth();
+  const { currentSite } = useCurrentSite();
+  const siteCode = currentSite?.site_code || "NTC";
+  const blueprint = SITE_BLUEPRINTS[siteCode] || SITE_BLUEPRINTS.NTC;
 
   const [currentTime, setCurrentTime] = useState(new Date());
 
@@ -68,7 +50,7 @@ export const RoutineTasksDashboard = ({
     return () => clearInterval(timer);
   }, []);
 
-  // ── Consume the Telemetry Hook ─────────────────────────────────────────────
+  // Consume the Telemetry Hook
   const { 
     formData, 
     setFormData,
@@ -78,9 +60,13 @@ export const RoutineTasksDashboard = ({
     handleInputChange, 
     handleSubmit, 
     activePowerSource,
-    setActivePowerSource,
     isSuccess,
     submitError,
+    // FSM hooks
+    fsmMode,
+    setFsmMode,
+    isDailyTestDoneToday,
+    dailyTestCompletedInfo
   } = useTelemetryData(targetHour, onComplete, onSubmitSuccess);
 
   const { groupedEquipment } = useSiteEquipment();
@@ -110,21 +96,22 @@ export const RoutineTasksDashboard = ({
     }
   };
 
-  // Dynamically resolve generators registered to this site
   const allEquipment = Object.values(groupedEquipment).flat();
 
   const handleDashboardSubmit = () => {
     // Validate comments for DEGRADED or OFFLINE
-    for (const eq of allEquipment) {
-      const status = formData[`status_${eq.equipment_id}`] || "ONLINE";
-      const comment = formData[`comment_${eq.equipment_id}`] || "";
+    for (const eqId of currentStepEquipmentIds) {
+      if (!isEquipmentActive(eqId)) continue;
+      const status = formData[`status_${eqId}`] || "ONLINE";
+      const comment = formData[`comment_${eqId}`] || "";
       if ((status === "OFFLINE" || status === "DEGRADED") && !comment.trim()) {
-        toast.error(`Please provide a comment for ${eq.equipment_id} (${status})`);
+        toast.error(`Please provide a comment for ${eqId} (${status})`);
         return;
       }
     }
     handleSubmit(activeGenerators);
   };
+
   const activeSiteGenerators = allEquipment
     .filter((eq) => eq.category === "GENERATOR")
     .map((eq) => eq.equipment_id.toLowerCase().replace("-", "_"));
@@ -163,7 +150,6 @@ export const RoutineTasksDashboard = ({
         ? prev.filter((id) => id !== dgId)
         : [...prev, dgId];
       
-      // Synchronize in-memory (no database network calls onChange)
       setFormData((prevForm: any) => {
         const updated = {
           ...prevForm,
@@ -178,9 +164,9 @@ export const RoutineTasksDashboard = ({
     });
   };
 
-  // Fallback: If in generator mode and no generators are selected, default to the last generator as active
+  // Fallback: If in outage mode and no generators are selected, default to the last generator as active
   useEffect(() => {
-    if (activePowerSource === 'GENERATOR' && activeGenerators.length === 0 && generatorIds.length > 0) {
+    if ((fsmMode === 'OUTAGE' || fsmMode === 'ON_LOAD_TEST') && activeGenerators.length === 0 && generatorIds.length > 0) {
       const defaultDg = generatorIds[generatorIds.length - 1];
       setActiveGenerators([defaultDg]);
       setFormData((prevForm: any) => {
@@ -193,24 +179,34 @@ export const RoutineTasksDashboard = ({
         return updated;
       });
     }
-  }, [activePowerSource, activeGenerators, generatorIds]);
+  }, [fsmMode, activeGenerators, generatorIds]);
 
-  // ── Frequency accordion math (for header display and filtering) ────────────
-  // Parse hour as number for compatibility with modulo operations
   const numericHour = parseInt(targetHour.split(":")[0], 10);
   const isTwoHour  = numericHour % 2 === 0;
   const isFourHour = numericHour % 4 === 0;
   const isDaily    = numericHour === 9;
 
-  // ── Filtering Logic ────────────────────────────────────────────────────────
+  // Filtering Logic
   const getVisibleMetrics = (assetId: string, metrics: any[]): any[] => {
     return metrics.filter((metric) => {
-      // Exclude grid_status since it is now controlled by the Master Power Toggle at the top
       if (metric.id === 'grid_status') return false;
 
-      // Generator metrics are shown based solely on whether the generator is inside activeGenerators
-      if (assetId.includes('dg_')) {
+      // Generator metrics are only visible in DAILY_TEST, OUTAGE or ON_LOAD_TEST mode, and only for active enabled generators
+      if (assetId.startsWith('dg_')) {
+        if (fsmMode === 'NORMAL') return false;
+        if (fsmMode === 'DAILY_TEST') {
+          // Hide electrical load parameters for No-Load test
+          const isLoadMetric = metric.id.endsWith('_current_r') || metric.id.endsWith('_current_y') || metric.id.endsWith('_current_b') ||
+                               metric.id.endsWith('_voltage_ry') || metric.id.endsWith('_voltage_yb') || metric.id.endsWith('_voltage_br') ||
+                               metric.id.endsWith('_kwh_meter') || metric.id.endsWith('_frequency');
+          if (isLoadMetric) return false;
+        }
         return activeGenerators.includes(assetId);
+      }
+
+      // Grid metrics are hidden/muted in OUTAGE and ON_LOAD_TEST modes
+      if (assetId === 'grid_main') {
+        if (fsmMode === 'OUTAGE' || fsmMode === 'ON_LOAD_TEST') return false;
       }
 
       switch (metric.frequency) {
@@ -223,22 +219,46 @@ export const RoutineTasksDashboard = ({
     });
   };
 
-  // ── Back handler ───────────────────────────────────────────────────────────
   const handleBack = onBack || onComplete;
 
-  // ── Room Pagination / Focus Mode ───────────────────────────────────────────
-  const [currentRoomIndex, setCurrentRoomIndex] = useState(0);
-
+  // Room Pagination / Focus Mode (Wizard)
+  const [currentStepIndex, setCurrentStepIndex] = useState(0);
   const [autoFilledFields, setAutoFilledFields] = useState<Set<string>>(new Set());
   const [prevGeneratorValues, setPrevGeneratorValues] = useState<Record<string, any>>({});
   const [attemptedFetches, setAttemptedFetches] = useState<Set<string>>(new Set());
 
-  // --- Auto-calculate generator cumulative hours and fuel balance in real-time ---
+  // Determine if an equipment is marked as active in database registry
+  const isEquipmentActive = (equipmentId: string): boolean => {
+    const eq = allEquipment.find(e => e.equipment_id.toLowerCase() === equipmentId.toLowerCase());
+    return eq ? eq.is_active : true;
+  };
+
+  // Compile the list of walking path steps that are visible based on active assets & metric schedules
+  const visibleSteps = useMemo(() => {
+    return blueprint.walking_path.filter((step: any) => {
+      // Always show the Generator Fleet & Fuel step so tests can be started/managed from it
+      if (step.room_id === "room_fuel") return true;
+      
+      return step.equipment_ids.some((eqId: string) => {
+        if (!isEquipmentActive(eqId)) return false;
+        const equipBp = blueprint.equipment.find((e: any) => e.id === eqId);
+        if (!equipBp) return false;
+        return getVisibleMetrics(eqId, equipBp.metrics).length > 0;
+      });
+    });
+  }, [blueprint, activeGenerators, targetHour, allEquipment, fsmMode]);
+
+  useEffect(() => {
+    if (currentStepIndex >= visibleSteps.length && visibleSteps.length > 0) {
+      setCurrentStepIndex(visibleSteps.length - 1);
+    }
+  }, [visibleSteps, currentStepIndex]);
+
+  // Real-time generator calculations and fuel logic
   useEffect(() => {
     let changed = false;
     const updated = { ...formData };
 
-    // 1. Generator Cumulative Run Hours
     const dgIds = ['dg_1', 'dg_2', 'dg_3', 'dg_4', 'dg_hq'];
     dgIds.forEach((dgId) => {
       const startKey = `${dgId}_hr_meter_start`;
@@ -258,7 +278,6 @@ export const RoutineTasksDashboard = ({
       }
     });
 
-    // 2. Fuel Balance
     const bf = parseFloat(formData['fuel_brought_forward']) || 0;
     const rec = parseFloat(formData['fuel_received']) || 0;
     const cons = parseFloat(formData['fuel_consumed']) || 0;
@@ -268,22 +287,111 @@ export const RoutineTasksDashboard = ({
       changed = true;
     }
 
+    // Auto-calculate Room Ambient Temperature and Humidity Averages
+    const roomAverages = [
+      {
+        ambientTempKey: 'server_ambient_temp',
+        ambientHumKey: 'server_ambient_humidity',
+        pacPrefixes: [
+          'pac_server_em1', 'pac_server_em2', 'pac_server_em3', 'pac_server_em4', 'pac_server_em5', 'pac_server_em6', 'pac_server_em7',
+          'pac_server_vt1', 'pac_server_vt2', 'pac_server_vt3', 'pac_server_vt4', 'pac_server_vt5'
+        ]
+      },
+      {
+        ambientTempKey: 'media_ambient_temp',
+        ambientHumKey: 'media_ambient_humidity',
+        pacPrefixes: ['pac_data_vt6', 'pac_data_em1', 'pac_data_em2']
+      },
+      {
+        ambientTempKey: 'pr1_ambient_temp',
+        ambientHumKey: 'pr1_ambient_humidity',
+        pacPrefixes: ['pac_pr1_em1', 'pac_pr1_em2']
+      },
+      {
+        ambientTempKey: 'pr2_ambient_temp',
+        ambientHumKey: 'pr2_ambient_humidity',
+        pacPrefixes: ['pac_pr2_em1', 'pac_pr2_em2']
+      },
+      {
+        ambientTempKey: 'it1_ambient_temp',
+        ambientHumKey: 'it1_ambient_humidity',
+        pacPrefixes: ['pac_it1_em1', 'pac_it1_em2']
+      },
+      {
+        ambientTempKey: 'it2_ambient_temp',
+        ambientHumKey: 'it2_ambient_humidity',
+        pacPrefixes: ['pac_it2_em1', 'pac_it2_em2']
+      },
+      {
+        ambientTempKey: 'hq_ambient_temp',
+        ambientHumKey: 'hq_ambient_humidity',
+        pacPrefixes: ['pac_hq_em1', 'pac_hq_em2', 'pac_hq_em3']
+      }
+    ];
+
+    roomAverages.forEach(({ ambientTempKey, ambientHumKey, pacPrefixes }) => {
+      const temps: number[] = [];
+      const hums: number[] = [];
+
+      pacPrefixes.forEach((prefix) => {
+        const isOffline = formData[`status_${prefix}`] === 'OFFLINE';
+        if (isOffline) return;
+
+        const tempVal = parseFloat(formData[`${prefix}_return_temp_actual`]);
+        if (!isNaN(tempVal)) {
+          temps.push(tempVal);
+        }
+        const humVal = parseFloat(formData[`${prefix}_humidity_actual`]);
+        if (!isNaN(humVal)) {
+          hums.push(humVal);
+        }
+      });
+
+      if (temps.length > 0) {
+        const avgTemp = parseFloat((temps.reduce((a, b) => a + b, 0) / temps.length).toFixed(1));
+        const isCurrentlyEmpty = updated[ambientTempKey] === undefined || updated[ambientTempKey] === null || updated[ambientTempKey] === "";
+        const wasAutoFilled = autoFilledFields.has(ambientTempKey);
+
+        if (isCurrentlyEmpty || wasAutoFilled) {
+          if (updated[ambientTempKey] !== avgTemp) {
+            updated[ambientTempKey] = avgTemp;
+            setAutoFilledFields((prev) => {
+              const next = new Set(prev);
+              next.add(ambientTempKey);
+              return next;
+            });
+            changed = true;
+          }
+        }
+      }
+
+      if (hums.length > 0) {
+        const avgHum = parseFloat((hums.reduce((a, b) => a + b, 0) / hums.length).toFixed(1));
+        const isCurrentlyEmpty = updated[ambientHumKey] === undefined || updated[ambientHumKey] === null || updated[ambientHumKey] === "";
+        const wasAutoFilled = autoFilledFields.has(ambientHumKey);
+
+        if (isCurrentlyEmpty || wasAutoFilled) {
+          if (updated[ambientHumKey] !== avgHum) {
+            updated[ambientHumKey] = avgHum;
+            setAutoFilledFields((prev) => {
+              const next = new Set(prev);
+              next.add(ambientHumKey);
+              return next;
+            });
+            changed = true;
+          }
+        }
+      }
+    });
+
     if (changed && setFormData) {
       setFormData(updated);
       const cacheKey = `telemetry_cache_${targetHour}`;
       localStorage.setItem(cacheKey, JSON.stringify(updated));
     }
-  }, [
-    formData['dg_1_hr_meter_start'], formData['dg_1_hr_meter_stop'],
-    formData['dg_2_hr_meter_start'], formData['dg_2_hr_meter_stop'],
-    formData['dg_3_hr_meter_start'], formData['dg_3_hr_meter_stop'],
-    formData['dg_4_hr_meter_start'], formData['dg_4_hr_meter_stop'],
-    formData['dg_hq_hr_meter_start'], formData['dg_hq_hr_meter_stop'],
-    formData['fuel_brought_forward'], formData['fuel_received'], formData['fuel_consumed'],
-    targetHour
-  ]);
+  }, [formData, autoFilledFields, targetHour]);
 
-  // --- WhatsApp Share & Save History ---
+  // WhatsApp Share & History
   const [historyOpen, setHistoryOpen] = useState(false);
   const [whatsappHistory, setWhatsappHistory] = useState<{ timestamp: string, date: string, hour: string, text: string }[]>(() => {
     try {
@@ -303,72 +411,65 @@ export const RoutineTasksDashboard = ({
   const generateReportTexts = () => {
     const technicianName = employee?.full_name || "Unknown Tech";
     const firstName = technicianName.trim().split(/\s+/)[0];
-    
-    // ZESCO Grid load variables depending on active source
     const powerSourceText = activePowerSource === 'GENERATOR' ? 'GENERATOR' : 'ZESCO MAINS';
     const isGen = activePowerSource === 'GENERATOR';
-    
-    // Grid vs Gen Voltage / Current / Load
-    const voltageVal = isGen ? getCleanValue('dg_load_voltage_r') : getCleanValue('grid_voltage_r');
-    const ampsVal = isGen ? getCleanValue('dg_load_amps_r') : getCleanValue('grid_amps_r');
-    
-    // Calculate Generator KW: KW = (Volts * Amps * 1.732 * PF) / 1000
-    const pfVal = isGen ? "0.9" : getCleanValue('grid_power_factor', "0.9");
-    const voltageNum = parseFloat(voltageVal);
-    const ampsNum = parseFloat(ampsVal);
-    const pfNum = parseFloat(pfVal);
-    const calcKw = (isGen && !isNaN(voltageNum) && !isNaN(ampsNum))
-      ? Math.round((voltageNum * ampsNum * 1.732 * pfNum) / 1000)
-      : 0;
-
-    const kwVal = isGen ? calcKw.toString() : getCleanValue('grid_total_site_load'); 
-
-    // Rectifiers
-    const r1_v = getCleanValue('rectifier_1_dc_voltage', '54.2');
-    const r1_a = getCleanValue('rectifier_1_amps');
-    const r1_cap = getCleanValue('rectifier_1_used_percentage');
-    
-    const r2_v = getCleanValue('rectifier_2_dc_voltage', '54.2');
-    const r2_a = getCleanValue('rectifier_2_amps');
-    const r2_cap = getCleanValue('rectifier_2_used_percentage');
-
-    // UPS 1
-    const ups1_l1 = getCleanValue('ups_1_output_voltage_a', '230');
-    const ups1_l2 = getCleanValue('ups_1_output_voltage_b', '230');
-    const ups1_l3 = getCleanValue('ups_1_output_voltage_c', '230');
-    const ups1_a1 = getCleanValue('ups_1_load_amps_a');
-    const ups1_a2 = getCleanValue('ups_1_load_amps_b');
-    const ups1_a3 = getCleanValue('ups_1_load_amps_c');
-    const ups1_batt = getCleanValue('ups_1_battery_voltage');
-    const ups1_charge = getCleanValue('ups_1_battery_charge_percent', '100');
-    const ups1_used = getCleanValue('ups_1_used_capacity');
-    const ups1_load = getCleanValue('ups_1_output_load_kw');
-
-    // UPS 2
-    const ups2_l1 = getCleanValue('ups_2_output_voltage_a', '230');
-    const ups2_l2 = getCleanValue('ups_2_output_voltage_b', '230');
-    const ups2_l3 = getCleanValue('ups_2_output_voltage_c', '230');
-    const ups2_a1 = getCleanValue('ups_2_load_amps_a');
-    const ups2_a2 = getCleanValue('ups_2_load_amps_b');
-    const ups2_a3 = getCleanValue('ups_2_load_amps_c');
-    const ups2_batt = getCleanValue('ups_2_battery_voltage');
-    const ups2_charge = getCleanValue('ups_2_battery_charge_percent', '100');
-    const ups2_used = getCleanValue('ups_2_used_capacity');
-    const ups2_load = getCleanValue('ups_2_output_load_kw');
-
-    // Temperature Room values
-    const tempMain = getCleanValue('server_ambient_temp');
-    const tempPr1 = getCleanValue('pr1_ambient_temp');
-    const tempPr2 = getCleanValue('pr2_ambient_temp');
-    const tempIt1 = getCleanValue('it1_ambient_temp');
-    const tempIt2 = getCleanValue('it2_ambient_temp');
-    const humidityMain = getCleanValue('server_ambient_humidity');
-
-    // Real system time when sharing is happening
     const shareTime = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
-    // VERSION A (WhatsApp Share) - strictly formatted according to user template, with asterisks for bolding
-    const whatsappPayload = `*NTC ZM 0874*
+    let whatsappPayload = "";
+    let internalPayload = "";
+
+    if (siteCode === "NTC") {
+      const voltageVal = isGen ? getCleanValue('dg_load_voltage_r') : getCleanValue('grid_voltage_r');
+      const ampsVal = isGen ? getCleanValue('dg_load_amps_r') : getCleanValue('grid_amps_r');
+      
+      const pfVal = isGen ? "0.9" : getCleanValue('grid_power_factor', "0.9");
+      const voltageNum = parseFloat(voltageVal);
+      const ampsNum = parseFloat(ampsVal);
+      const pfNum = parseFloat(pfVal);
+      const calcKw = (isGen && !isNaN(voltageNum) && !isNaN(ampsNum))
+        ? Math.round((voltageNum * ampsNum * 1.732 * pfNum) / 1000)
+        : 0;
+
+      const kwVal = isGen ? calcKw.toString() : getCleanValue('grid_total_site_load');
+
+      const r1_v = getCleanValue('rectifier_1_dc_voltage', '54.2');
+      const r1_a = getCleanValue('rectifier_1_amps');
+      const r1_cap = getCleanValue('rectifier_1_used_percentage');
+      
+      const r2_v = getCleanValue('rectifier_2_dc_voltage', '54.2');
+      const r2_a = getCleanValue('rectifier_2_amps');
+      const r2_cap = getCleanValue('rectifier_2_used_percentage');
+
+      const ups1_l1 = getCleanValue('ups_1_output_voltage_a', '230');
+      const ups1_l2 = getCleanValue('ups_1_output_voltage_b', '230');
+      const ups1_l3 = getCleanValue('ups_1_output_voltage_c', '230');
+      const ups1_a1 = getCleanValue('ups_1_load_amps_a');
+      const ups1_a2 = getCleanValue('ups_1_load_amps_b');
+      const ups1_a3 = getCleanValue('ups_1_load_amps_c');
+      const ups1_batt = getCleanValue('ups_1_battery_voltage');
+      const ups1_charge = getCleanValue('ups_1_battery_charge_percent', '100');
+      const ups1_used = getCleanValue('ups_1_used_capacity');
+      const ups1_load = getCleanValue('ups_1_output_load_kw');
+
+      const ups2_l1 = getCleanValue('ups_2_output_voltage_a', '230');
+      const ups2_l2 = getCleanValue('ups_2_output_voltage_b', '230');
+      const ups2_l3 = getCleanValue('ups_2_output_voltage_c', '230');
+      const ups2_a1 = getCleanValue('ups_2_load_amps_a');
+      const ups2_a2 = getCleanValue('ups_2_load_amps_b');
+      const ups2_a3 = getCleanValue('ups_2_load_amps_c');
+      const ups2_batt = getCleanValue('ups_2_battery_voltage');
+      const ups2_charge = getCleanValue('ups_2_battery_charge_percent', '100');
+      const ups2_used = getCleanValue('ups_2_used_capacity');
+      const ups2_load = getCleanValue('ups_2_output_load_kw');
+
+      const tempMain = getCleanValue('server_ambient_temp');
+      const tempPr1 = getCleanValue('pr1_ambient_temp');
+      const tempPr2 = getCleanValue('pr2_ambient_temp');
+      const tempIt1 = getCleanValue('it1_ambient_temp');
+      const tempIt2 = getCleanValue('it2_ambient_temp');
+      const humidityMain = getCleanValue('server_ambient_humidity');
+
+      whatsappPayload = `*NTC ZM 0874*
 *${firstName.toUpperCase()} ON DUTY*
 *TIME: ${shareTime}hrs (Log Hour: ${targetHour}hrs)*
 *LOAD ON ${powerSourceText}*
@@ -416,37 +517,34 @@ ENTERPRISE  ROOM 1 *${tempIt1}*°C
 ENTERPRISE ROOM 2 *${tempIt2}*°C
 Humidity *${humidityMain}*%`;
 
-    // Extracting unit temperatures
-    const em1_temp = getCleanValue('pac_server_em1_return_temp_actual');
-    const em2_temp = getCleanValue('pac_server_em2_return_temp_actual');
-    const em3_temp = getCleanValue('pac_server_em3_return_temp_actual');
-    const em4_temp = getCleanValue('pac_server_em4_return_temp_actual');
-    const em5_temp = getCleanValue('pac_server_em5_return_temp_actual');
-    const em6_temp = getCleanValue('pac_server_em6_return_temp_actual');
-    const em7_temp = getCleanValue('pac_server_em7_return_temp_actual');
+      const em1_temp = getCleanValue('pac_server_em1_return_temp_actual');
+      const em2_temp = getCleanValue('pac_server_em2_return_temp_actual');
+      const em3_temp = getCleanValue('pac_server_em3_return_temp_actual');
+      const em4_temp = getCleanValue('pac_server_em4_return_temp_actual');
+      const em5_temp = getCleanValue('pac_server_em5_return_temp_actual');
+      const em6_temp = getCleanValue('pac_server_em6_return_temp_actual');
+      const em7_temp = getCleanValue('pac_server_em7_return_temp_actual');
 
-    const vt1_temp = getCleanValue('pac_server_vt1_return_temp_actual');
-    const vt2_temp = getCleanValue('pac_server_vt2_return_temp_actual');
-    const vt3_temp = getCleanValue('pac_server_vt3_return_temp_actual');
-    const vt4_temp = getCleanValue('pac_server_vt4_return_temp_actual');
-    const vt5_temp = getCleanValue('pac_server_vt5_return_temp_actual');
-    const vt6_temp = getCleanValue('pac_data_vt6_return_temp_actual');
+      const vt1_temp = getCleanValue('pac_server_vt1_return_temp_actual');
+      const vt2_temp = getCleanValue('pac_server_vt2_return_temp_actual');
+      const vt3_temp = getCleanValue('pac_server_vt3_return_temp_actual');
+      const vt4_temp = getCleanValue('pac_server_vt4_return_temp_actual');
+      const vt5_temp = getCleanValue('pac_server_vt5_return_temp_actual');
+      const vt6_temp = getCleanValue('pac_data_vt6_return_temp_actual');
 
-    // Extracting Voltages and Currents for Active Power Source (ZESCO Grid vs Generator)
-    const v_r = isGen ? getCleanValue('dg_load_voltage_r') : getCleanValue('grid_voltage_r');
-    const v_y = isGen ? getCleanValue('dg_load_voltage_y') : getCleanValue('grid_voltage_y');
-    const v_b = isGen ? getCleanValue('dg_load_voltage_b') : getCleanValue('grid_voltage_b');
+      const v_r = isGen ? getCleanValue('dg_load_voltage_r') : getCleanValue('grid_voltage_r');
+      const v_y = isGen ? getCleanValue('dg_load_voltage_y') : getCleanValue('grid_voltage_y');
+      const v_b = isGen ? getCleanValue('dg_load_voltage_b') : getCleanValue('grid_voltage_b');
 
-    const v_rn = isGen ? "230" : getCleanValue('grid_phase_voltage_rn', '230');
-    const v_yn = isGen ? "230" : getCleanValue('grid_phase_voltage_yn', '230');
-    const v_bn = isGen ? "230" : getCleanValue('grid_phase_voltage_bn', '230');
+      const v_rn = isGen ? "230" : getCleanValue('grid_phase_voltage_rn', '230');
+      const v_yn = isGen ? "230" : getCleanValue('grid_phase_voltage_yn', '230');
+      const v_bn = isGen ? "230" : getCleanValue('grid_phase_voltage_bn', '230');
 
-    const a_r = isGen ? getCleanValue('dg_load_amps_r') : getCleanValue('grid_amps_r');
-    const a_y = isGen ? getCleanValue('dg_load_amps_y') : getCleanValue('grid_amps_y');
-    const a_b = isGen ? getCleanValue('dg_load_amps_b') : getCleanValue('grid_amps_b');
+      const a_r = isGen ? getCleanValue('dg_load_amps_r') : getCleanValue('grid_amps_r');
+      const a_y = isGen ? getCleanValue('dg_load_amps_y') : getCleanValue('grid_amps_y');
+      const a_b = isGen ? getCleanValue('dg_load_amps_b') : getCleanValue('grid_amps_b');
 
-    // VERSION B (Internal Save) - includes unit temperatures and active source electrical metrics
-    const internalPayload = `${whatsappPayload}
+      internalPayload = `${whatsappPayload}
 
 Unit Temperatures
 Emerson 1 : ${em1_temp}
@@ -467,14 +565,38 @@ Vertiv 6 : ${vt6_temp}
 VOLTAGE: ${v_r} ${v_b} ${v_y}
 VOLTAGE: ${v_rn} ${v_bn} ${v_yn}
 CURRENT: ${a_r} ${a_b} ${a_y}`;
+    } else {
+      const voltageVal = isGen ? getCleanValue('dg_load_voltage_r') : getCleanValue('grid_voltage_r');
+      const ampsVal = isGen ? getCleanValue('dg_load_amps_r') : getCleanValue('grid_amps_r');
+      const pfVal = isGen ? "0.9" : getCleanValue('grid_power_factor', "0.9");
+      const kwVal = getCleanValue('grid_total_site_load');
+
+      const tempMain = getCleanValue('server_ambient_temp');
+      const tempPr1 = getCleanValue('pr1_ambient_temp');
+      const tempIt1 = getCleanValue('it1_ambient_temp');
+
+      whatsappPayload = `*${siteCode} ${currentSite?.site_name || ""}*
+*${firstName.toUpperCase()} ON DUTY*
+*TIME: ${shareTime}hrs (Log Hour: ${targetHour}hrs)*
+*LOAD ON ${powerSourceText}*
+Load voltage *${voltageVal}*V
+Load in Amps *${ampsVal}*A
+*KW:${kwVal}*KW
+Power factor *${pfVal}*
+
+*TEMPERATURE*
+Main Room *${tempMain}*°C
+Power Room1_*${tempPr1}*°C
+Enterprise Room 1 *${tempIt1}*°C`;
+
+      internalPayload = whatsappPayload;
+    }
 
     return { whatsappPayload, internalPayload };
   };
 
   const handleShareAndSave = () => {
     const { whatsappPayload, internalPayload } = generateReportTexts();
-    
-    // Save locally for History
     const dateStr = new Date().toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
     
     const newRecord = {
@@ -492,7 +614,6 @@ CURRENT: ${a_r} ${a_b} ${a_y}`;
 
     toast.success("Log saved locally to history!");
 
-    // Open WhatsApp Web / App
     const waUrl = `https://api.whatsapp.com/send?text=${encodeURIComponent(whatsappPayload)}`;
     window.open(waUrl, '_blank');
   };
@@ -509,7 +630,6 @@ CURRENT: ${a_r} ${a_b} ${a_y}`;
       if (error) throw error;
       
       if (data) {
-        // Find the most recent log where the generator stopped running
         const lastLogWithDg = data.find((row: any) => {
           const m = row.metrics || {};
           return m[`${dgId}_hr_meter_stop`] !== undefined && m[`${dgId}_hr_meter_stop`] !== null && m[`${dgId}_hr_meter_stop`] !== "";
@@ -625,23 +745,6 @@ CURRENT: ${a_r} ${a_b} ${a_y}`;
     });
   };
 
-  const visibleCategories = useMemo(() => {
-    return MASTER_ASSET_DICTIONARY.filter((category) => {
-      return category.assets.some((asset) => {
-        const isDg = asset.id.startsWith('dg_');
-        if (isDg && !activeGenerators.includes(asset.id)) return false;
-        return getVisibleMetrics(asset.id, asset.metrics).length > 0;
-      });
-    });
-  }, [activeGenerators, activePowerSource, targetHour]);
-
-  useEffect(() => {
-    if (currentRoomIndex >= visibleCategories.length && visibleCategories.length > 0) {
-      setCurrentRoomIndex(visibleCategories.length - 1);
-    }
-  }, [visibleCategories, currentRoomIndex]);
-
-  // ── Loading skeleton ───────────────────────────────────────────────────────
   if (isLoading) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[50vh] gap-3 text-gray-400">
@@ -651,7 +754,8 @@ CURRENT: ${a_r} ${a_b} ${a_y}`;
     );
   }
 
-  // ── Render ─────────────────────────────────────────────────────────────────
+  const currentStep = visibleSteps[currentStepIndex];
+  const currentStepEquipmentIds = currentStep ? currentStep.equipment_ids : [];
 
   return (
     <div className="max-w-md mx-auto space-y-6 pb-24">
@@ -686,10 +790,15 @@ CURRENT: ${a_r} ${a_b} ${a_y}`;
           </span>
           {isEditMode && (
             <span className="bg-amber-50 text-amber-800 text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full border border-amber-200 flex items-center gap-1">
-              <Edit2 size={10} /> Editing
+              <ClipboardList size={10} /> Editing
             </span>
           )}
-          {activePowerSource === 'GENERATOR' && (
+          {fsmMode === 'ON_LOAD_TEST' && (
+            <span className="bg-amber-50 text-amber-800 text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full border border-amber-200 flex items-center gap-1">
+              <Zap size={10} /> Simulated Blackout (On-Load Test)
+            </span>
+          )}
+          {fsmMode === 'OUTAGE' && (
             <span className="bg-red-50 text-red-800 text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full border border-red-200 flex items-center gap-1">
               <Zap size={10} /> Outage Mode
             </span>
@@ -697,315 +806,164 @@ CURRENT: ${a_r} ${a_b} ${a_y}`;
         </p>
       </div>
 
-      {/* Active Site Power Toggle (Local UI State Only) */}
+      {/* Facility State Machine (FSM) Mode Selector */}
       <div className="backdrop-blur-md bg-white/75 border border-gray-200/50 rounded-3xl p-5 shadow-sm space-y-4">
-        <div className="flex items-center justify-between">
-          <div>
-            <span className="text-xs font-black text-gray-700 uppercase tracking-wider block">Active Site Power</span>
-            <span className="text-[10px] text-gray-400 font-semibold mt-0.5 block">Select primary energy feed</span>
-          </div>
-          <div className="flex bg-slate-100 rounded-xl p-1 border border-slate-200/50">
-            <button
-              type="button"
-              onClick={() => setActivePowerSource('MAINS')}
-              className={`px-4.5 py-2 rounded-lg text-xs font-black uppercase tracking-wider transition-all cursor-pointer flex items-center gap-1.5 ${
-                activePowerSource === 'MAINS'
-                  ? "bg-white text-green-600 shadow-sm border border-slate-200/30"
-                  : "text-slate-500 hover:text-slate-700"
-              }`}
-            >
-              <Plug size={12} /> MAINS
-            </button>
-            <button
-              type="button"
-              onClick={() => setActivePowerSource('GENERATOR')}
-              className={`px-4.5 py-2 rounded-lg text-xs font-black uppercase tracking-wider transition-all cursor-pointer flex items-center gap-1.5 ${
-                activePowerSource === 'GENERATOR'
-                  ? "bg-red-500 text-white shadow-sm"
-                  : "text-slate-500 hover:text-slate-700"
-              }`}
-            >
-              <Zap size={12} /> GENERATOR
-            </button>
-          </div>
+        <div>
+          <span className="text-xs font-black text-gray-700 uppercase tracking-wider block">Facility Operating Mode</span>
+          <span className="text-[10px] text-gray-400 font-semibold mt-0.5 block">Select active state of site grids and generators</span>
+        </div>
+        
+        <div className="grid grid-cols-4 gap-2 bg-slate-100 rounded-2xl p-1 border border-slate-200/50">
+          <button
+            type="button"
+            onClick={() => setFsmMode('NORMAL')}
+            className={`py-2.5 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all cursor-pointer flex flex-col items-center justify-center gap-1 text-center ${
+              fsmMode === 'NORMAL'
+                ? "bg-white text-green-600 shadow-sm border border-slate-200/30"
+                : "text-slate-500 hover:text-slate-700"
+            }`}
+          >
+            <Plug size={14} />
+            <span>Normal</span>
+          </button>
+          
+          <button
+            type="button"
+            disabled={isDailyTestDoneToday && fsmMode !== 'DAILY_TEST'}
+            onClick={() => setFsmMode('DAILY_TEST')}
+            className={`py-2.5 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all cursor-pointer flex flex-col items-center justify-center gap-1 text-center ${
+              fsmMode === 'DAILY_TEST'
+                ? "bg-amber-500 text-white shadow-sm"
+                : isDailyTestDoneToday
+                ? "opacity-50 cursor-not-allowed text-slate-400"
+                : "text-slate-500 hover:text-slate-700"
+            }`}
+          >
+            <Zap size={14} />
+            <span>Daily Test</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setFsmMode('ON_LOAD_TEST')}
+            className={`py-2.5 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all cursor-pointer flex flex-col items-center justify-center gap-1 text-center ${
+              fsmMode === 'ON_LOAD_TEST'
+                ? "bg-amber-600 text-white shadow-sm"
+                : "text-slate-500 hover:text-slate-700"
+            }`}
+          >
+            <Zap size={14} />
+            <span>On-Load</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setFsmMode('OUTAGE')}
+            className={`py-2.5 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all cursor-pointer flex flex-col items-center justify-center gap-1 text-center ${
+              fsmMode === 'OUTAGE'
+                ? "bg-red-500 text-white shadow-sm"
+                : "text-slate-500 hover:text-slate-700"
+            }`}
+          >
+            <AlertTriangle size={14} />
+            <span>Outage</span>
+          </button>
         </div>
 
-        <div className="space-y-2 border-t border-slate-100 pt-3">
-          <label className="block text-[10px] font-black text-slate-400 uppercase tracking-wider">
-            Active Generator Fleet (Tap to toggle)
-          </label>
-          <div className="flex flex-wrap gap-2">
-            {generatorIds.map((dgId) => {
-              const label = dgId === 'dg_hq' ? 'DG-HQ' : `DG-${dgId.replace('dg_', '').toUpperCase()}`;
-              const isActive = activeGenerators.includes(dgId);
-              return (
-                <button
-                  key={dgId}
-                  type="button"
-                  onClick={() => toggleGenerator(dgId)}
-                  className={`px-3.5 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider transition-all cursor-pointer border ${
-                    isActive
-                      ? "bg-green-500 text-white border-green-600 shadow-sm"
-                      : "bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100"
-                  }`}
-                >
-                  {label}
-                </button>
-              );
-            })}
+        {/* Daily Test completion gatekeeper banner */}
+        {isDailyTestDoneToday && (
+          <div className="bg-green-50 border border-green-200/50 rounded-2xl p-3 flex items-center gap-2.5 text-[10px] font-bold text-green-800">
+            <CheckCircle2 size={14} className="text-green-600 shrink-0" />
+            <div>
+              <span>Daily DG No-Load Test completed today</span>
+              {dailyTestCompletedInfo && (
+                <span className="block text-[9px] font-semibold text-green-600/80 mt-0.5">
+                  At {dailyTestCompletedInfo.time} CAT by {dailyTestCompletedInfo.tech}
+                </span>
+              )}
+            </div>
           </div>
-        </div>
+        )}
+
+        {/* Checkbox to mark Daily Test Completed during active test */}
+        {fsmMode === 'DAILY_TEST' && !isDailyTestDoneToday && (
+          <div className="flex items-center gap-2 bg-amber-50 border border-amber-200/50 rounded-2xl p-3 animate-fade-in">
+            <input
+              id="mark_daily_completed"
+              type="checkbox"
+              checked={formData['daily_dg_test_completed'] === true}
+              onChange={(e) => handleInputChange('daily_dg_test_completed', e.target.checked)}
+              className="w-4 h-4 rounded text-amber-600 focus:ring-amber-500 border-gray-300 cursor-pointer"
+            />
+            <label htmlFor="mark_daily_completed" className="text-[10px] font-black text-amber-950 uppercase tracking-wider cursor-pointer">
+              Mark Daily DG No-Load Test Completed
+            </label>
+          </div>
+        )}
+
+        {/* Generator fleet toggle */}
+        {(fsmMode === 'DAILY_TEST' || fsmMode === 'OUTAGE' || fsmMode === 'ON_LOAD_TEST') && (
+          <div className="space-y-2 border-t border-slate-100 pt-3 animate-fade-in">
+            <label className="block text-[9px] font-black text-slate-400 uppercase tracking-wider">
+              Active Generator Fleet (Tap to toggle)
+            </label>
+            <div className="flex flex-wrap gap-2">
+              {generatorIds.map((dgId) => {
+                const label = dgId === 'dg_hq' ? 'DG-HQ' : `DG-${dgId.replace('dg_', '').toUpperCase()}`;
+                const isActive = activeGenerators.includes(dgId);
+                return (
+                  <button
+                    key={dgId}
+                    type="button"
+                    onClick={() => toggleGenerator(dgId)}
+                    className={`px-3 py-2 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all cursor-pointer border ${
+                      isActive
+                        ? "bg-slate-900 text-white border-slate-950 shadow-sm"
+                        : "bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100"
+                    }`}
+                  >
+                    {label}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Progress Indicator */}
-      {visibleCategories.length > 0 && visibleCategories[currentRoomIndex] && (
+      {visibleSteps.length > 0 && currentStep && (
         <div className="mx-1 bg-white border border-gray-100 rounded-2xl px-4 py-3 flex items-center justify-between shadow-sm animate-fade-in">
           <span className="text-[11px] font-black text-slate-500 uppercase tracking-widest">
-            Room {currentRoomIndex + 1} of {visibleCategories.length}
+            Step {currentStepIndex + 1} of {visibleSteps.length}
           </span>
           <span className="text-xs font-black text-gray-800 uppercase tracking-wider bg-slate-100 px-3 py-1 rounded-xl border border-slate-200">
-            {visibleCategories[currentRoomIndex].categoryName}
+            {currentStep.name}
           </span>
         </div>
       )}
 
-      {/* Dictionary loop replaced with Focus Mode Room Pagination */}
+      {/* Focus Mode Room Pagination (Wizard UI) */}
       <div className="flex-1 overflow-y-auto p-4 pb-52">
-        {visibleCategories.length === 0 ? (
+        {visibleSteps.length === 0 ? (
           <div className="text-center py-12 bg-white rounded-3xl border border-gray-100 shadow-sm animate-fade-in">
             <p className="text-sm font-bold text-gray-400 uppercase tracking-wider">No active parameters for this hour.</p>
           </div>
         ) : (
-          (() => {
-            const category = visibleCategories[currentRoomIndex];
-            if (!category) return null;
-
-            return (
-              <div key={category.categoryName} className="bg-white rounded-3xl border border-gray-100 shadow-sm overflow-hidden transition-all mb-4 animate-fade-in">
-                {/* Header */}
-                <div className="w-full flex items-center justify-between px-5 py-4 border-b border-gray-50 bg-slate-50/50">
-                  <div className="flex items-center gap-3">
-                    <div
-                      className="w-8 h-8 rounded-xl flex items-center justify-center flex-shrink-0 bg-slate-900 text-white"
-                    >
-                      <span className="text-sm">{categoryIcon(category.categoryName)}</span>
-                    </div>
-                    <span className="font-black text-xs text-gray-800 uppercase tracking-wider">{category.categoryName}</span>
-                  </div>
-                </div>
-
-                {/* Asset Cards */}
-                <div className="p-4 bg-gray-50/50 space-y-4">
-                  {category.assets.map((asset) => {
-                    const isDg = asset.id.startsWith('dg_');
-                    if (isDg && !activeGenerators.includes(asset.id)) return null;
-
-                    const visibleMetrics = getVisibleMetrics(asset.id, asset.metrics);
-                    if (visibleMetrics.length === 0) return null;
-
-                    const dbEquipment = allEquipment.find(
-                      (eq) => eq.equipment_id.toLowerCase().replace("-", "_") === asset.id.toLowerCase().replace("-", "_")
-                    );
-                    const dbParams = (dbEquipment?.equipment_parameters || []).filter(
-                      (p) => !visibleMetrics.some(
-                        (m) => m.label.toLowerCase() === p.parameter_name.toLowerCase()
-                      )
-                    );
-
-                    const isGridLocked = asset.id === 'grid_main' && activePowerSource === 'GENERATOR';
-
-                    return (
-                      <div key={asset.id} className={`bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden transition-all ${isGridLocked ? "opacity-45 bg-gray-50/50 pointer-events-none" : ""}`}>
-                        {/* ── Card Header: Name  ·  Status Toggle ── */}
-                        {(() => {
-                          const statusKey  = `status_${asset.id}`;
-                          const commentKey = `comment_${asset.id}`;
-                          const currentStatus  = formData[statusKey]  || "ONLINE";
-                          const currentComment = formData[commentKey] || "";
-                          const isOffline  = currentStatus === "OFFLINE";
-                          const isDegraded = currentStatus === "DEGRADED";
-                          const isDg = asset.id.startsWith('dg_');
-                          const hideBody = isDg && isOffline;
-
-                          const colorStyles: Record<string, string> = {
-                            ONLINE:   "bg-green-600  text-white shadow-sm",
-                            DEGRADED: "bg-amber-500  text-white shadow-sm",
-                            OFFLINE:  "bg-red-600    text-white shadow-sm",
-                          };
-                          const dotColor: Record<string, string> = {
-                            ONLINE:   "bg-green-500",
-                            DEGRADED: "bg-amber-500",
-                            OFFLINE:  "bg-red-500",
-                          };
-
-                          return (
-                            <>
-                              {/* Header row */}
-                              <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100 bg-slate-50/50 gap-3">
-                                <h3 className="text-xs font-black text-gray-800 uppercase tracking-wider leading-none">
-                                  {asset.name}
-                                </h3>
-
-                                {/* 3-way status toggle — compact pill group */}
-                                <div className="flex rounded-lg bg-slate-100 border border-slate-200 p-0.5 gap-0.5 flex-shrink-0">
-                                  {(["ONLINE", "DEGRADED", "OFFLINE"] as const).map((st) => {
-                                    const isActive = currentStatus === st;
-                                    return (
-                                      <button
-                                        key={st}
-                                        type="button"
-                                        disabled={isGridLocked}
-                                        onClick={() => {
-                                          const extra: Record<string, any> = {};
-                                          if (st === "OFFLINE") {
-                                            visibleMetrics.forEach((m) => { extra[m.id] = ""; });
-                                            dbParams.forEach((p) => { extra[`param_${p.id}`] = ""; });
-                                          }
-                                          handleToggleChange(statusKey, st, extra);
-                                        }}
-                                        className={`px-2.5 py-1.5 rounded-md text-[9px] font-black uppercase tracking-wider transition-all cursor-pointer flex items-center gap-1 ${
-                                          isActive
-                                            ? colorStyles[st] + " border border-transparent"
-                                            : "bg-white text-slate-500 border border-slate-200 hover:text-slate-700"
-                                        }`}
-                                      >
-                                        <span className={`w-1.5 h-1.5 rounded-full inline-block flex-shrink-0 ${isActive ? 'bg-white' : dotColor[st]}`} />
-                                        <span className="hidden sm:inline">{st}</span>
-                                      </button>
-                                    );
-                                  })}
-                                </div>
-                              </div>
-
-                              {/* ── Body: Inputs (full-width, normal) ── */}
-                              {!hideBody && (
-                                <div className={`p-4 space-y-3 transition-opacity ${(isOffline || isGridLocked) ? "opacity-40 pointer-events-none" : ""}`}>
-                                <div className="grid grid-cols-2 gap-3">
-                                  {visibleMetrics.map((metric) => {
-                                    const isConst = metric.isConstant === true;
-                                    if (isConst) return null;
-                                    const isAutoFilled = autoFilledFields.has(metric.id);
-
-                                    return (
-                                      <div key={metric.id} className="space-y-1">
-                                        <div className="flex items-center justify-between text-[10px] mb-1">
-                                          <label htmlFor={metric.id} className="flex items-center gap-1 text-[10px] font-bold text-gray-400 uppercase tracking-wider">
-                                            <span>{metric.label}</span>
-                                          </label>
-                                          {/* Muted read-only previous value label next to the active input for Generators */}
-                                          {isDg && prevGeneratorValues[metric.id] !== undefined && (
-                                            <span className="text-[9px] font-semibold text-slate-400 bg-slate-50 px-1.5 py-0.5 rounded-md border border-slate-200/50 flex items-center gap-1">
-                                              Prev: <span className="font-mono font-bold text-slate-600">{prevGeneratorValues[metric.id]}</span>
-                                            </span>
-                                          )}
-                                        </div>
-                                        <div className="relative">
-                                          {(() => {
-                                            const isReadOnlyField = metric.id.endsWith('_cumulative_hrs') || metric.id === 'fuel_balance';
-                                            return (
-                                              <input
-                                                id={metric.id}
-                                                type={metric.type === "number" ? "number" : "text"}
-                                                inputMode={metric.type === "number" ? "decimal" : "text"}
-                                                disabled={isOffline || isGridLocked || isReadOnlyField}
-                                                value={(isOffline || isGridLocked) ? "" : (formData[metric.id] ?? "")}
-                                                onChange={(e) => handleUserInputChange(metric.id, e.target.value)}
-                                                placeholder="—"
-                                                className={`w-full px-3 py-2 rounded-lg border text-xs font-semibold focus:outline-none focus:ring-1 transition-all ${
-                                                  isReadOnlyField
-                                                    ? "bg-slate-100 border-gray-200 text-slate-500 cursor-not-allowed"
-                                                    : isAutoFilled && isDg
-                                                    ? "bg-emerald-50/10 border-emerald-200 text-emerald-700 focus:border-emerald-500 focus:ring-emerald-500/20"
-                                                    : "bg-white border-gray-200 text-gray-800 focus:border-red-400 focus:ring-red-400"
-                                                }`}
-                                              />
-                                            );
-                                          })()}
-                                        </div>
-                                      </div>
-                                    );
-                                  })}
-
-                                  {/* Dynamic DB parameters */}
-                                  {dbParams.map((param) => {
-                                    const isConst  = param.is_constant;
-                                    if (isConst) return null;
-                                    const inputKey = `param_${param.id}`;
-                                    return (
-                                      <div key={param.id} className="space-y-1">
-                                        <label htmlFor={inputKey} className="flex items-center gap-1 text-[10px] font-bold text-gray-400 uppercase tracking-wider">
-                                          <span>{param.parameter_name}</span>
-                                        </label>
-
-                                        {param.data_type === "boolean" ? (
-                                          <div className="flex items-center h-9 pl-1">
-                                            <input
-                                              id={inputKey}
-                                              type="checkbox"
-                                              disabled={isOffline || isGridLocked}
-                                              checked={!(isOffline || isGridLocked) && (formData[inputKey] === "true" || formData[inputKey] === true)}
-                                              onChange={(e) => handleToggleChange(inputKey, e.target.checked ? "true" : "false")}
-                                              className="w-4 h-4 rounded text-red-600 focus:ring-red-500 border-gray-300"
-                                            />
-                                          </div>
-                                        ) : (
-                                          <div className="relative">
-                                            <input
-                                              id={inputKey}
-                                              type={param.data_type === "number" ? "number" : "text"}
-                                              inputMode={param.data_type === "number" ? "decimal" : "text"}
-                                              disabled={isOffline || isGridLocked}
-                                              value={(isOffline || isGridLocked) ? "" : (formData[inputKey] ?? "")}
-                                              onChange={(e) => handleUserInputChange(inputKey, e.target.value)}
-                                              placeholder={param.unit ? `[${param.unit}]` : "—"}
-                                              className="w-full px-3 py-2 rounded-lg border border-gray-200 bg-white text-xs font-semibold text-gray-800 focus:outline-none focus:border-red-400 focus:ring-1 focus:ring-red-400 transition-all"
-                                            />
-                                            {param.unit && (
-                                              <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] text-gray-400 font-bold uppercase pointer-events-none">
-                                                {param.unit}
-                                              </span>
-                                            )}
-                                          </div>
-                                        )}
-                                      </div>
-                                    );
-                                  })}
-                                </div>
-                              </div>
-                            )}
-
-                              {/* ── Comment — shown when DEGRADED or OFFLINE ── */}
-                              {(isDegraded || isOffline) && (
-                                <div className="px-4 pb-4 space-y-1 animate-fade-in">
-                                  <label htmlFor={commentKey} className="block text-[10px] font-bold text-red-500 uppercase tracking-wider">
-                                    {isOffline ? "Outage Reason (Required)" : "Fault Comment (Required)"}
-                                  </label>
-                                  <textarea
-                                    id={commentKey}
-                                    required
-                                    rows={2}
-                                    value={currentComment}
-                                    onChange={(e) => {
-                                      const val = e.target.value;
-                                      setFormData((prev: any) => ({ ...prev, [commentKey]: val }));
-                                      const cacheKey = `telemetry_cache_${targetHour}`;
-                                      localStorage.setItem(cacheKey, JSON.stringify({ ...formData, [commentKey]: val }));
-                                    }}
-                                    placeholder={isOffline ? "Total power failure, breaker tripped..." : "Compressor 1 down..."}
-                                    className="w-full px-3 py-2 rounded-lg border border-red-200 bg-red-50/30 text-xs font-semibold text-gray-800 focus:outline-none focus:border-red-500 focus:ring-1 focus:ring-red-500 transition-all resize-none"
-                                  />
-                                </div>
-                              )}
-                            </>
-                          );
-                        })()}
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-            );
-          })()
+            <PathRenderer
+              currentStep={currentStep}
+              blueprint={blueprint}
+              formData={formData}
+              allEquipment={allEquipment}
+              fsmMode={fsmMode}
+              autoFilledFields={autoFilledFields}
+              prevGeneratorValues={prevGeneratorValues}
+              getVisibleMetrics={getVisibleMetrics}
+              isEquipmentActive={isEquipmentActive}
+              handleUserInputChange={handleUserInputChange}
+              handleToggleChange={handleToggleChange}
+              setFsmMode={setFsmMode}
+            />
         )}
       </div>
 
@@ -1020,23 +978,23 @@ CURRENT: ${a_r} ${a_b} ${a_y}`;
       {/* Sticky Submit / Pagination Footer */}
       <div className="fixed bottom-16 left-0 w-full p-4 bg-slate-50 border-t border-slate-200 z-[999] shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.1)]">
         <div className="max-w-md mx-auto flex items-center gap-3">
-          {currentRoomIndex > 0 && (
+          {currentStepIndex > 0 && (
             <button
               type="button"
-              onClick={() => setCurrentRoomIndex((prev) => prev - 1)}
+              onClick={() => setCurrentStepIndex((prev) => prev - 1)}
               className="flex-1 py-3.5 rounded-2xl bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 font-black text-xs tracking-widest uppercase transition-all shadow-sm cursor-pointer text-center"
             >
-              ← Prev Room
+              ← Prev Step
             </button>
           )}
 
-          {currentRoomIndex < visibleCategories.length - 1 ? (
+          {currentStepIndex < visibleSteps.length - 1 ? (
             <button
               type="button"
-              onClick={() => setCurrentRoomIndex((prev) => prev + 1)}
+              onClick={() => setCurrentStepIndex((prev) => prev + 1)}
               className="flex-1 py-3.5 rounded-2xl bg-slate-900 hover:bg-slate-800 text-white font-black text-xs tracking-widest uppercase transition-all shadow-md cursor-pointer text-center"
             >
-              Next Room →
+              Next Step →
             </button>
           ) : (
             <button
@@ -1047,8 +1005,8 @@ CURRENT: ${a_r} ${a_b} ${a_y}`;
                   ? "bg-gray-400 shadow-none cursor-not-allowed text-gray-100"
                   : isSuccess
                   ? "bg-green-600 shadow-green-600/10 active:scale-[0.98]"
-                  : activePowerSource === 'GENERATOR'
-                  ? "bg-amber-600 hover:bg-amber-700 shadow-amber-600/10 active:scale-[0.98]"
+                  : (fsmMode === 'OUTAGE' || fsmMode === 'ON_LOAD_TEST')
+                  ? "bg-red-600 hover:bg-red-700 shadow-red-600/10 active:scale-[0.98]"
                   : "bg-red-600 hover:bg-red-700 shadow-red-600/10 active:scale-[0.98]"
               }`}
             >
@@ -1064,7 +1022,7 @@ CURRENT: ${a_r} ${a_b} ${a_y}`;
                 </>
               ) : (
                 <>
-                  {activePowerSource === 'GENERATOR' ? <Zap size={16} /> : <Save size={16} />}
+                  {(fsmMode === 'OUTAGE' || fsmMode === 'ON_LOAD_TEST') ? <Zap size={16} /> : <Save size={16} />}
                   <span>{isEditMode ? 'Update Log' : 'Submit Log'}</span>
                 </>
               )}
@@ -1073,7 +1031,7 @@ CURRENT: ${a_r} ${a_b} ${a_y}`;
         </div>
       </div>
 
-      {/* --- Task 1 & 2: Floating buttons & History bottom sheet --- */}
+      {/* Floating buttons & History bottom sheet */}
       <style dangerouslySetInnerHTML={{ __html: `
         .dcime-float-container {
           position: fixed;

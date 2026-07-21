@@ -86,12 +86,12 @@ export const getEqptStatusRow = (assetId: string): number => {
 
 // Helper to get Fire & Safety room row offset in FSS & VESDA sheet
 export const getFssRoomOffset = (assetId: string): number => {
-  if (assetId === "fss_switch_room") return 0;
-  if (assetId === "fss_ibm_room") return 1;
-  if (assetId === "fss_power_room") return 2;
-  if (assetId === "fss_battery_room") return 3;
-  if (assetId === "fss_enterprise_1") return 4;
-  if (assetId === "fss_enterprise_2") return 5;
+  if (assetId === "fss_switch_room" || assetId === "fss_switch") return 0;
+  if (assetId === "fss_ibm_room" || assetId === "fss_ibm") return 1;
+  if (assetId === "fss_power_room" || assetId === "fss_power") return 2;
+  if (assetId === "fss_battery_room" || assetId === "fss_battery") return 3;
+  if (assetId === "fss_enterprise_1" || assetId === "fss_ent1") return 4;
+  if (assetId === "fss_enterprise_2" || assetId === "fss_ent2") return 5;
   return -1;
 };
 

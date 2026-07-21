@@ -1,0 +1,301 @@
+{
+  "site_code": "WTC",
+  "site_name": "WTC Zambia",
+  "templates": {
+    "daily_canvas": "/template_daily_canvas.xlsx",
+    "commercial_logbook": "/template_commercial_logbook.xlsx"
+  },
+  "rooms": [
+    { "id": "room_server", "name": "Server Room", "sort_order": 0 },
+    { "id": "room_pr1", "name": "Power Room 1", "sort_order": 1 },
+    { "id": "room_it1", "name": "IT Room 1", "sort_order": 2 },
+    { "id": "room_zesco", "name": "ZESCO Load Room", "sort_order": 3 },
+    { "id": "room_dg1", "name": "DG-1 Room", "sort_order": 4 },
+    { "id": "room_dg_hq", "name": "DG-HQ Container", "sort_order": 5 },
+    { "id": "room_fuel", "name": "Fuel Reservoir", "sort_order": 6 }
+  ],
+  "equipment": [
+    {
+      "id": "room_server_ambient",
+      "name": "Server Room Ambient",
+      "category": "ENVIRONMENT",
+      "room_id": "room_server",
+      "sort_order": 0,
+      "metrics": [
+        { "id": "server_ambient_temp", "label": "Temperature (°C)", "type": "number", "frequency": "4-hour" },
+        { "id": "server_ambient_humidity", "label": "Humidity (%)", "type": "number", "frequency": "4-hour" }
+      ]
+    },
+    {
+      "id": "pac_server_em1",
+      "name": "Emerson Aircon 1",
+      "category": "AIRCON",
+      "room_id": "room_server",
+      "sort_order": 1,
+      "metrics": [
+        { "id": "pac_server_em1_return_temp_actual", "label": "Return Temp (Actual)", "type": "number", "frequency": "2-hour" },
+        { "id": "pac_server_em1_return_temp_set", "label": "Return Temp (Set)", "type": "number", "frequency": "2-hour", "is_constant": true, "default_value": 20 },
+        { "id": "pac_server_em1_supply_temp_set", "label": "Supply Temp (Set)", "type": "number", "frequency": "2-hour", "is_constant": true, "default_value": 20 },
+        { "id": "pac_server_em1_humidity_actual", "label": "Humidity (Actual)", "type": "number", "frequency": "2-hour", "is_constant": true, "default_value": 31 },
+        { "id": "pac_server_em1_humidity_set", "label": "Humidity (Set)", "type": "number", "frequency": "2-hour", "is_constant": true, "default_value": 50 }
+      ]
+    },
+    {
+      "id": "pac_server_em2",
+      "name": "Emerson Aircon 2",
+      "category": "AIRCON",
+      "room_id": "room_server",
+      "sort_order": 2,
+      "metrics": [
+        { "id": "pac_server_em2_return_temp_actual", "label": "Return Temp (Actual)", "type": "number", "frequency": "2-hour" },
+        { "id": "pac_server_em2_return_temp_set", "label": "Return Temp (Set)", "type": "number", "frequency": "2-hour", "is_constant": true, "default_value": 18 },
+        { "id": "pac_server_em2_supply_temp_set", "label": "Supply Temp (Set)", "type": "number", "frequency": "2-hour", "is_constant": true, "default_value": 20 },
+        { "id": "pac_server_em2_humidity_actual", "label": "Humidity (Actual)", "type": "number", "frequency": "2-hour", "is_constant": true, "default_value": 42 },
+        { "id": "pac_server_em2_humidity_set", "label": "Humidity (Set)", "type": "number", "frequency": "2-hour", "is_constant": true, "default_value": 50 }
+      ]
+    },
+    {
+      "id": "room_pr1_ambient",
+      "name": "Power Room 1 Ambient",
+      "category": "ENVIRONMENT",
+      "room_id": "room_pr1",
+      "sort_order": 0,
+      "metrics": [
+        { "id": "pr1_ambient_temp", "label": "Temperature (°C)", "type": "number", "frequency": "4-hour" },
+        { "id": "pr1_ambient_humidity", "label": "Humidity (%)", "type": "number", "frequency": "4-hour" }
+      ]
+    },
+    {
+      "id": "pac_pr1_em1",
+      "name": "Power Room 1 AC 1",
+      "category": "AIRCON",
+      "room_id": "room_pr1",
+      "sort_order": 1,
+      "metrics": [
+        { "id": "pac_pr1_em1_return_temp_actual", "label": "Return Temp (Actual)", "type": "number", "frequency": "2-hour" },
+        { "id": "pac_pr1_em1_return_temp_set", "label": "Return Temp (Set)", "type": "number", "frequency": "2-hour", "is_constant": true, "default_value": 20 },
+        { "id": "pac_pr1_em1_supply_temp_set", "label": "Supply Temp (Set)", "type": "number", "frequency": "2-hour", "is_constant": true, "default_value": "NA" },
+        { "id": "pac_pr1_em1_humidity_actual", "label": "Humidity (Actual)", "type": "number", "frequency": "2-hour", "is_constant": true, "default_value": "NA" },
+        { "id": "pac_pr1_em1_humidity_set", "label": "Humidity (Set)", "type": "number", "frequency": "2-hour", "is_constant": true, "default_value": "NA" }
+      ]
+    },
+    {
+      "id": "rectifier_1",
+      "name": "Rectifier 1",
+      "category": "RECTIFIER",
+      "room_id": "room_pr1",
+      "sort_order": 2,
+      "metrics": [
+        { "id": "rectifier_1_dc_voltage", "label": "DC Voltage (V)", "type": "number", "frequency": "hourly" },
+        { "id": "rectifier_1_amps", "label": "Current (A)", "type": "number", "frequency": "hourly" },
+        { "id": "rectifier_1_battery_status", "label": "BB Charging Status", "type": "text", "frequency": "hourly", "is_constant": true, "default_value": "OK" },
+        { "id": "rectifier_1_used_percentage", "label": "Used Percentage (%)", "type": "number", "frequency": "hourly" },
+        { "id": "rectifier_1_daily_status", "label": "Status (OK/Not OK)", "type": "text", "frequency": "daily", "is_constant": true, "default_value": "OK" },
+        { "id": "rectifier_1_daily_abnormality", "label": "Abnormality Observed", "type": "text", "frequency": "daily", "is_constant": true, "default_value": "NON" }
+      ]
+    },
+    {
+      "id": "ups_1",
+      "name": "UPS 1",
+      "category": "UPS",
+      "room_id": "room_pr1",
+      "sort_order": 3,
+      "metrics": [
+        { "id": "ups_1_output_load_kw", "label": "Output Load (kW)", "type": "number", "frequency": "hourly" },
+        { "id": "ups_1_used_capacity", "label": "Used Capacity (%)", "type": "number", "frequency": "hourly" },
+        { "id": "ups_1_battery_charge_percent", "label": "Battery Charge (%)", "type": "number", "frequency": "hourly" },
+        { "id": "ups_1_battery_voltage", "label": "Battery Voltage (V)", "type": "number", "frequency": "hourly" },
+        { "id": "ups_1_load_amps_a", "label": "Load Current (A)", "type": "number", "frequency": "hourly" },
+        { "id": "ups_1_load_amps_b", "label": "Load Current (B)", "type": "number", "frequency": "hourly" },
+        { "id": "ups_1_load_amps_c", "label": "Load Current (C)", "type": "number", "frequency": "hourly" },
+        { "id": "ups_1_load_phase_percent_a", "label": "Load Phase % (A)", "type": "number", "frequency": "hourly" },
+        { "id": "ups_1_load_phase_percent_b", "label": "Load Phase % (B)", "type": "number", "frequency": "hourly" },
+        { "id": "ups_1_load_phase_percent_c", "label": "Load Phase % (C)", "type": "number", "frequency": "hourly" },
+        { "id": "ups_1_output_voltage_a", "label": "Output Voltage (A)", "type": "number", "frequency": "hourly" },
+        { "id": "ups_1_output_voltage_b", "label": "Output Voltage (B)", "type": "number", "frequency": "hourly" },
+        { "id": "ups_1_output_voltage_c", "label": "Output Voltage (C)", "type": "number", "frequency": "hourly" },
+        { "id": "ups_1_daily_status", "label": "Status (OK/Not OK)", "type": "text", "frequency": "daily", "is_constant": true, "default_value": "OK" },
+        { "id": "ups_1_daily_abnormality", "label": "Abnormality Observed", "type": "text", "frequency": "daily", "is_constant": true, "default_value": "NON" }
+      ]
+    },
+    {
+      "id": "room_it1_ambient",
+      "name": "IT Room 1 Ambient",
+      "category": "ENVIRONMENT",
+      "room_id": "room_it1",
+      "sort_order": 0,
+      "metrics": [
+        { "id": "it1_ambient_temp", "label": "Temperature (°C)", "type": "number", "frequency": "4-hour" },
+        { "id": "it1_ambient_humidity", "label": "Humidity (%)", "type": "number", "frequency": "4-hour" }
+      ]
+    },
+    {
+      "id": "pac_it1_em1",
+      "name": "IT Room 1 AC 1",
+      "category": "AIRCON",
+      "room_id": "room_it1",
+      "sort_order": 1,
+      "metrics": [
+        { "id": "pac_it1_em1_return_temp_actual", "label": "Return Temp (Actual)", "type": "number", "frequency": "2-hour" },
+        { "id": "pac_it1_em1_return_temp_set", "label": "Return Temp (Set)", "type": "number", "frequency": "2-hour", "is_constant": true, "default_value": "NA" },
+        { "id": "pac_it1_em1_supply_temp_set", "label": "Supply Temp (Set)", "type": "number", "frequency": "2-hour", "is_constant": true, "default_value": "NA" },
+        { "id": "pac_it1_em1_humidity_actual", "label": "Humidity (Actual)", "type": "number", "frequency": "2-hour", "is_constant": true, "default_value": "NA" },
+        { "id": "pac_it1_em1_humidity_set", "label": "Humidity (Set)", "type": "number", "frequency": "2-hour", "is_constant": true, "default_value": "NA" }
+      ]
+    },
+    {
+      "id": "grid_main",
+      "name": "ZESCO Grid",
+      "category": "MAINS",
+      "room_id": "room_zesco",
+      "sort_order": 0,
+      "metrics": [
+        { "id": "grid_voltage_r", "label": "Voltage (R)", "type": "number", "frequency": "hourly" },
+        { "id": "grid_voltage_y", "label": "Voltage (Y)", "type": "number", "frequency": "hourly" },
+        { "id": "grid_voltage_b", "label": "Voltage (B)", "type": "number", "frequency": "hourly" },
+        { "id": "grid_amps_r", "label": "Amps (R)", "type": "number", "frequency": "hourly" },
+        { "id": "grid_amps_y", "label": "Amps (Y)", "type": "number", "frequency": "hourly" },
+        { "id": "grid_amps_b", "label": "Amps (B)", "type": "number", "frequency": "hourly" },
+        { "id": "grid_frequency", "label": "Frequency (Hz)", "type": "number", "frequency": "hourly" },
+        { "id": "grid_status", "label": "Status", "type": "text", "frequency": "hourly", "is_constant": true, "default_value": "ON" },
+        { "id": "grid_off_time", "label": "Off Time", "type": "text", "frequency": "hourly", "is_constant": true, "default_value": "0:00" },
+        { "id": "grid_restored_time", "label": "Restored Time", "type": "text", "frequency": "hourly", "is_constant": true, "default_value": "0:00" },
+        { "id": "grid_off_duration", "label": "Off Duration", "type": "text", "frequency": "hourly", "is_constant": true, "default_value": "0:00" },
+        { "id": "grid_total_site_load", "label": "Total Site Load (kW)", "type": "number", "frequency": "hourly" },
+        { "id": "facility_load_on", "label": "Load On (MAINS/DG)", "type": "text", "frequency": "hourly", "is_constant": true, "default_value": "MAINS" },
+        { "id": "grid_phase_voltage_rn", "label": "Phase Voltage (RN)", "type": "number", "frequency": "4-hour" },
+        { "id": "grid_phase_voltage_yn", "label": "Phase Voltage (YN)", "type": "number", "frequency": "4-hour" },
+        { "id": "grid_phase_voltage_bn", "label": "Phase Voltage (BN)", "type": "number", "frequency": "4-hour" },
+        { "id": "grid_transformer_temp", "label": "Transformer Temp (°C)", "type": "text", "frequency": "4-hour", "is_constant": true, "default_value": "NA" },
+        { "id": "grid_power_factor", "label": "Power Factor", "type": "number", "frequency": "4-hour" },
+        { "id": "grid_energy_meter_1", "label": "Energy Meter (Sw 1)", "type": "number", "frequency": "4-hour" },
+        { "id": "grid_energy_meter_2", "label": "Energy Meter (Sw 2)", "type": "number", "frequency": "4-hour" }
+      ]
+    },
+    {
+      "id": "dg_1",
+      "name": "Generator 1",
+      "category": "GENERATOR",
+      "room_id": "room_dg1",
+      "sort_order": 0,
+      "metrics": [
+        { "id": "dg_1_run_hrs", "label": "Run Hours", "type": "number", "frequency": "hourly", "carry_forward": true },
+        { "id": "dg_1_batt_voltage", "label": "Battery Voltage", "type": "number", "frequency": "hourly" },
+        { "id": "dg_1_charged_status", "label": "Charged Status", "type": "text", "frequency": "hourly", "is_constant": true, "default_value": "GREEN" },
+        { "id": "dg_1_hr_meter_start", "label": "Hour Meter (Start)", "type": "number", "frequency": "daily", "carry_forward": true },
+        { "id": "dg_1_hr_meter_stop", "label": "Hour Meter (Stop)", "type": "number", "frequency": "daily" },
+        { "id": "dg_1_time_start", "label": "Time (Start)", "type": "text", "frequency": "daily", "default_value": "0:00" },
+        { "id": "dg_1_time_stop", "label": "Time (Stop)", "type": "text", "frequency": "daily", "default_value": "0:00" },
+        { "id": "dg_1_cumulative_hrs", "label": "Cumulative Run Hrs", "type": "number", "frequency": "daily", "carry_forward": true },
+        { "id": "dg_1_auto_status", "label": "Auto Functioning?", "type": "text", "frequency": "daily", "is_constant": true, "default_value": "YES" },
+        { "id": "dg_1_kwh_meter", "label": "KWH Meter", "type": "number", "frequency": "daily", "carry_forward": true },
+        { "id": "dg_1_voltage_ry", "label": "Voltage (R-Y)", "type": "number", "frequency": "daily" },
+        { "id": "dg_1_voltage_yb", "label": "Voltage (Y-B)", "type": "number", "frequency": "daily" },
+        { "id": "dg_1_voltage_br", "label": "Voltage (B-R)", "type": "number", "frequency": "daily" },
+        { "id": "dg_1_current_r", "label": "Load Current (R)", "type": "number", "frequency": "daily" },
+        { "id": "dg_1_current_y", "label": "Load Current (Y)", "type": "number", "frequency": "daily" },
+        { "id": "dg_1_current_b", "label": "Load Current (B)", "type": "number", "frequency": "daily" },
+        { "id": "dg_1_frequency", "label": "Frequency (Hz)", "type": "number", "frequency": "daily" },
+        { "id": "dg_1_engine_rpm", "label": "Engine Speed", "type": "number", "frequency": "daily" },
+        { "id": "dg_1_oil_pressure", "label": "Lub. Oil Pressure", "type": "number", "frequency": "daily" },
+        { "id": "dg_1_water_temp", "label": "Water Temp", "type": "number", "frequency": "daily" },
+        { "id": "dg_1_daily_remarks", "label": "Remarks", "type": "text", "frequency": "daily", "default_value": "OK" }
+      ]
+    },
+    {
+      "id": "dg_hq",
+      "name": "Generator HQ",
+      "category": "GENERATOR",
+      "room_id": "room_dg_hq",
+      "sort_order": 0,
+      "metrics": [
+        { "id": "dg_hq_run_hrs", "label": "Run Hours", "type": "number", "frequency": "hourly", "carry_forward": true },
+        { "id": "dg_hq_batt_voltage", "label": "Battery Voltage", "type": "number", "frequency": "hourly" },
+        { "id": "dg_hq_charged_status", "label": "Charged Status", "type": "text", "frequency": "hourly", "is_constant": true, "default_value": "GREEN" },
+        { "id": "dg_hq_hr_meter_start", "label": "Hour Meter (Start)", "type": "number", "frequency": "daily", "carry_forward": true },
+        { "id": "dg_hq_hr_meter_stop", "label": "Hour Meter (Stop)", "type": "number", "frequency": "daily" },
+        { "id": "dg_hq_time_start", "label": "Time (Start)", "type": "text", "frequency": "daily", "default_value": "0:00" },
+        { "id": "dg_hq_time_stop", "label": "Time (Stop)", "type": "text", "frequency": "daily", "default_value": "0:00" },
+        { "id": "dg_hq_cumulative_hrs", "label": "Cumulative Run Hrs", "type": "number", "frequency": "daily", "carry_forward": true },
+        { "id": "dg_hq_auto_status", "label": "Auto Functioning?", "type": "text", "frequency": "daily", "is_constant": true, "default_value": "YES" },
+        { "id": "dg_hq_kwh_meter", "label": "KWH Meter", "type": "number", "frequency": "daily", "carry_forward": true },
+        { "id": "dg_hq_voltage_ry", "label": "Voltage (R-Y)", "type": "number", "frequency": "daily" },
+        { "id": "dg_hq_voltage_yb", "label": "Voltage (Y-B)", "type": "number", "frequency": "daily" },
+        { "id": "dg_hq_voltage_br", "label": "Voltage (B-R)", "type": "number", "frequency": "daily" },
+        { "id": "dg_hq_current_r", "label": "Load Current (R)", "type": "number", "frequency": "daily" },
+        { "id": "dg_hq_current_y", "label": "Load Current (Y)", "type": "number", "frequency": "daily" },
+        { "id": "dg_hq_current_b", "label": "Load Current (B)", "type": "number", "frequency": "daily" },
+        { "id": "dg_hq_frequency", "label": "Frequency (Hz)", "type": "number", "frequency": "daily" },
+        { "id": "dg_hq_engine_rpm", "label": "Engine Speed", "type": "number", "frequency": "daily" },
+        { "id": "dg_hq_oil_pressure", "label": "Lub. Oil Pressure", "type": "number", "frequency": "daily" },
+        { "id": "dg_hq_water_temp", "label": "Water Temp", "type": "number", "frequency": "daily" },
+        { "id": "dg_hq_daily_remarks", "label": "Remarks", "type": "text", "frequency": "daily", "default_value": "OK" }
+      ]
+    },
+    {
+      "id": "site_fuel_record",
+      "name": "Site Fuel Record",
+      "category": "FUEL_LOGISTICS",
+      "room_id": "room_fuel",
+      "sort_order": 0,
+      "metrics": [
+        { "id": "fuel_brought_forward", "label": "Fuel B/F (Ltr.)", "type": "number", "frequency": "daily", "carry_forward": true },
+        { "id": "fuel_received", "label": "Fuel Received (Ltr.)", "type": "number", "frequency": "daily", "default_value": 0 },
+        { "id": "fuel_consumed", "label": "Fuel Consumed (Ltr.)", "type": "number", "frequency": "daily", "default_value": 0 },
+        { "id": "fuel_balance", "label": "Fuel Balance (Ltr.)", "type": "number", "frequency": "daily", "carry_forward": true },
+        { "id": "fuel_leakage_sign", "label": "Leakage Sign", "type": "text", "frequency": "daily", "is_constant": true, "default_value": "NO" },
+        { "id": "fuel_spillage_sign", "label": "Spillage Sign", "type": "text", "frequency": "daily", "is_constant": true, "default_value": "NO" }
+      ]
+    }
+  ],
+  "walking_path": [
+    {
+      "step_number": 1,
+      "name": "Server Room - Emerson Aircons",
+      "room_id": "room_server",
+      "equipment_ids": [
+        "room_server_ambient",
+        "pac_server_em1",
+        "pac_server_em2"
+      ]
+    },
+    {
+      "step_number": 2,
+      "name": "Power Room 1",
+      "room_id": "room_pr1",
+      "equipment_ids": [
+        "room_pr1_ambient",
+        "pac_pr1_em1",
+        "rectifier_1",
+        "ups_1"
+      ]
+    },
+    {
+      "step_number": 3,
+      "name": "IT Room 1",
+      "room_id": "room_it1",
+      "equipment_ids": [
+        "room_it1_ambient",
+        "pac_it1_em1"
+      ]
+    },
+    {
+      "step_number": 4,
+      "name": "ZESCO Load Room",
+      "room_id": "room_zesco",
+      "equipment_ids": [
+        "grid_main"
+      ]
+    },
+    {
+      "step_number": 5,
+      "name": "Generator Fleet & Fuel",
+      "room_id": "room_fuel",
+      "equipment_ids": [
+        "dg_1",
+        "dg_hq",
+        "site_fuel_record"
+      ]
+    }
+  ]
+}

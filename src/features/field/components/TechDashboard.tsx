@@ -2,7 +2,6 @@ import { useState, useEffect } from "react";
 import { useOutletContext } from "react-router";
 import { 
   Clock, 
-  User, 
   MapPin, 
   CheckCircle, 
   ShieldCheck,
@@ -10,12 +9,11 @@ import {
   AlertOctagon,
   Loader2,
   FileText,
-  Printer
+  User
 } from "lucide-react";
 import { ShiftTimeline } from "./ShiftTimeline";
 import { RoutineTasksDashboard } from "./RoutineTasksDashboard";
 import { PrintableChecklist } from "./PrintableChecklist";
-import { DGLogbook } from "./DGLogbook";
 import { supabase } from "@/shared/api/supabaseClient";
 import { useShiftReports } from "../hooks/useShiftReports";
 import { TechUser } from "./TechLayout";
@@ -28,8 +26,8 @@ export function TechDashboard() {
   const [completedHours, setCompletedHours] = useState<number[]>([]);
   const [currentTime, setCurrentTime] = useState(new Date());
   
-  // Tab state: "checklist", "handover", "maintenance", or "dg_logbook"
-  const [activeTab, setActiveTab] = useState<"checklist" | "handover" | "maintenance" | "dg_logbook">("checklist");
+  // Tab state: "checklist", "handover", or "maintenance"
+  const [activeTab, setActiveTab] = useState<"checklist" | "handover" | "maintenance">("checklist");
 
   const { shiftReports, isLoading: isHandoversLoading, error: handoversError, refresh: refreshHandovers } = useShiftReports();
 
@@ -184,17 +182,7 @@ export function TechDashboard() {
           <span className="leading-tight block">Daily<br />Checklist</span>
         </button>
 
-        <button
-          onClick={() => setActiveTab("dg_logbook")}
-          className={`flex-1 py-2 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all flex flex-col items-center justify-center gap-1 text-center ${
-            activeTab === "dg_logbook"
-              ? "bg-red-500 text-white shadow-sm shadow-red-500/10"
-              : "text-gray-400 hover:text-gray-600"
-          }`}
-        >
-          <Printer size={16} />
-          <span className="leading-tight block">DG<br />Logbook</span>
-        </button>
+
 
         <button
           onClick={() => { setActiveTab("handover"); refreshHandovers(); }}
@@ -252,12 +240,7 @@ export function TechDashboard() {
         </div>
       )}
 
-      {/* Tab Content: DG Logbook */}
-      {activeTab === "dg_logbook" && (
-        <div className="w-full">
-          <DGLogbook />
-        </div>
-      )}
+
 
       {/* Tab Content 3: Pass-down Notes from Outgoing Shifts */}
       {activeTab === "handover" && (

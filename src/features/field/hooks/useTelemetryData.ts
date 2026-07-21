@@ -1,9 +1,11 @@
+// src/features/field/hooks/useTelemetryData.ts
 import { useState, useEffect } from 'react';
 import { supabase } from '@/shared/api/supabaseClient';
-import { MASTER_ASSET_DICTIONARY } from '../constants/telemetrySchema';
 import { useAuth } from '@/shared/context/AuthContext';
-import { PAC_CONSTANTS } from '../constants/pacConstants';
+import { useCurrentSite } from '@/shared/context/SiteContext';
+import { SITE_BLUEPRINTS } from '@/config/sites';
 import { toast } from 'sonner';
+import { useFacilityState } from './useFacilityState';
 
 export function useTelemetryData(
   targetHourProp: number | string,
@@ -15,23 +17,47 @@ export function useTelemetryData(
     : Number(targetHourProp);
 
   const { employee } = useAuth();
-  // 2. Exhaustive State Initialization
+  const { currentSite } = useCurrentSite();
+  const siteCode = currentSite?.site_code || "NTC";
+  const blueprint = SITE_BLUEPRINTS[siteCode] || SITE_BLUEPRINTS.NTC;
+
+  // Exhaustive State Initialization
   const [formData, setFormData] = useState<Record<string, any>>({});
   const [activePowerSource, setActivePowerSource] = useState<'MAINS' | 'GENERATOR'>('MAINS');
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
   const [isEditMode, setIsEditMode] = useState<boolean>(false);
 
+  // FSM states
+  const { fsmMode, setFsmMode } = useFacilityState();
+  const [isDailyTestDoneToday, setIsDailyTestDoneToday] = useState<boolean>(false);
+  const [dailyTestCompletedInfo, setDailyTestCompletedInfo] = useState<{ time: string; tech: string } | null>(null);
+
   // Compatibility states for RoutineTasksDashboard
   const [isSuccess, setIsSuccess] = useState<boolean>(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [fetchError, setFetchError] = useState<string | null>(null);
 
-  // 6. The Grid Override Boolean
-  const isGridOff = formData['grid_status'] === 'OFF';
+  // The Grid Override Boolean
+  const isGridOff = formData['grid_status'] === 'OFF' || fsmMode === 'OUTAGE' || fsmMode === 'ON_LOAD_TEST';
 
   const dateStr = new Date().toISOString().slice(0, 10);
   const getCacheKey = (hour: number) => `telemetry_cache_${dateStr}_${hour}`;
+
+  useEffect(() => {
+    setFormData((prev) => {
+      if (prev['fsm_mode'] === fsmMode) return prev;
+      const updated = {
+        ...prev,
+        fsm_mode: fsmMode,
+        grid_status: (fsmMode === 'OUTAGE' || fsmMode === 'ON_LOAD_TEST') ? 'OFF' : 'ON'
+      };
+      const cacheKey = getCacheKey(targetHour);
+      localStorage.setItem(cacheKey, JSON.stringify(updated));
+      return updated;
+    });
+    setActivePowerSource((fsmMode === 'OUTAGE' || fsmMode === 'ON_LOAD_TEST') ? 'GENERATOR' : 'MAINS');
+  }, [fsmMode, targetHour]);
 
   // Purge cached telemetry forms older than 48 hours to prevent localStorage bloat
   useEffect(() => {
@@ -64,7 +90,46 @@ export function useTelemetryData(
     }
   }, []);
 
-  // 3. Zero-Delay Local Cache & Supabase Fetch Engine
+  // Check if Daily DG No-Load Test was completed today
+  useEffect(() => {
+    const checkDailyTest = async () => {
+      try {
+        const todayStart = new Date();
+        todayStart.setHours(0, 0, 0, 0);
+        const todayEnd = new Date();
+        todayEnd.setHours(23, 59, 59, 999);
+
+        const { data, error } = await supabase
+          .from('telemetry_logs')
+          .select('metrics, technician_name, target_hour')
+          .gte('target_hour', todayStart.toISOString())
+          .lte('target_hour', todayEnd.toISOString());
+
+        if (error) throw error;
+
+        if (data) {
+          const completedLog = data.find((row: any) => row.metrics?.daily_dg_test_completed === true);
+          if (completedLog) {
+            setIsDailyTestDoneToday(true);
+            const timeStr = new Date(completedLog.target_hour).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false });
+            setDailyTestCompletedInfo({
+              time: timeStr,
+              tech: completedLog.technician_name || "Field Tech"
+            });
+          } else {
+            setIsDailyTestDoneToday(false);
+            setDailyTestCompletedInfo(null);
+          }
+        }
+      } catch (e) {
+        console.error('[DCIMe] Failed to check daily DG test status:', e);
+      }
+    };
+
+    checkDailyTest();
+  }, [formData?.daily_dg_test_completed]);
+
+  // Zero-Delay Local Cache & Supabase Fetch Engine
   useEffect(() => {
     let active = true;
 
@@ -79,7 +144,7 @@ export function useTelemetryData(
         setFormData(parsed);
         setIsLoading(false);
         hasCache = true;
-        setActivePowerSource(parsed['grid_status'] === 'OFF' ? 'GENERATOR' : 'MAINS');
+        setActivePowerSource(parsed['fsm_mode'] === 'OUTAGE' || parsed['fsm_mode'] === 'ON_LOAD_TEST' || parsed['grid_status'] === 'OFF' ? 'GENERATOR' : 'MAINS');
       } catch (e) {
         console.warn('[DCIMe] Failed to parse telemetry cache:', e);
       }
@@ -118,46 +183,26 @@ export function useTelemetryData(
           setIsEditMode(true);
           const metrics = { ...currentData.metrics } as Record<string, any>;
 
-          // Self-heal: ensure all constants/PAC constants are populated if blank/missing
-          MASTER_ASSET_DICTIONARY.forEach((category) => {
-            category.assets.forEach((asset) => {
-              asset.metrics.forEach((metric) => {
-                if (metric.isConstant || metric.defaultValue !== undefined) {
-                  const currentVal = metrics[metric.id];
-                  if (currentVal === undefined || currentVal === null || currentVal === "") {
-                    metrics[metric.id] = metric.defaultValue;
-                  }
+          // Self-heal: ensure all constants from blueprint are populated if blank/missing
+          blueprint.equipment.forEach((equip: any) => {
+            equip.metrics.forEach((metric: any) => {
+              if (metric.is_constant || metric.default_value !== undefined) {
+                const currentVal = metrics[metric.id];
+                if (currentVal === undefined || currentVal === null || currentVal === "") {
+                  metrics[metric.id] = metric.default_value;
                 }
-                if (asset.id.startsWith('pac_')) {
-                  const constants = PAC_CONSTANTS[asset.id];
-                  if (constants) {
-                    let expectedVal: any = undefined;
-                    if (metric.id.endsWith('_return_temp_set')) expectedVal = constants.returnTempSet;
-                    else if (metric.id.endsWith('_supply_temp_set')) expectedVal = constants.supplyTempSet;
-                    else if (metric.id.endsWith('_humidity_set')) expectedVal = constants.humiditySet;
-                    else if (metric.id.endsWith('_humidity_actual')) expectedVal = constants.humidityActual;
-
-                    if (expectedVal !== undefined) {
-                      const currentVal = metrics[metric.id];
-                      if (currentVal === undefined || currentVal === null || currentVal === "") {
-                        metrics[metric.id] = expectedVal;
-                      }
-                    }
-                  }
-                }
-              });
+              }
             });
           });
 
           setFormData(metrics);
           localStorage.setItem(cacheKey, JSON.stringify(metrics));
           setIsLoading(false);
-          setActivePowerSource(metrics['grid_status'] === 'OFF' ? 'GENERATOR' : 'MAINS');
+          setActivePowerSource(metrics['fsm_mode'] === 'OUTAGE' || metrics['fsm_mode'] === 'ON_LOAD_TEST' || metrics['grid_status'] === 'OFF' ? 'GENERATOR' : 'MAINS');
           return;
         }
 
         // Step D (Supabase Query 2 - Carry-Forward)
-        // Find the most recent telemetry log in the database before the current target hour
         const { data: previousData, error: prevError } = await supabase
           .from('telemetry_logs')
           .select('*')
@@ -175,35 +220,14 @@ export function useTelemetryData(
         const newFormState: Record<string, any> = {};
         const previousMetrics = (previousData?.metrics as Record<string, any>) || {};
 
-        // Loop through every category, asset, and metric in MASTER_ASSET_DICTIONARY
-        MASTER_ASSET_DICTIONARY.forEach((category) => {
-          category.assets.forEach((asset) => {
-            asset.metrics.forEach((metric) => {
-              // If a metric has defaultValue, set newFormState[metric.id] = metric.defaultValue
-              if (metric.defaultValue !== undefined) {
-                newFormState[metric.id] = metric.defaultValue;
-              }
-              // Carry forward previously entered values if available from the previous hour
-              if (previousMetrics[metric.id] !== undefined) {
-                newFormState[metric.id] = previousMetrics[metric.id];
-              }
-
-              // PAC Constants override for initialization
-              if (asset.id.startsWith('pac_')) {
-                const constants = PAC_CONSTANTS[asset.id];
-                if (constants) {
-                  if (metric.id.endsWith('_return_temp_set')) {
-                    newFormState[metric.id] = constants.returnTempSet;
-                  } else if (metric.id.endsWith('_supply_temp_set')) {
-                    newFormState[metric.id] = constants.supplyTempSet;
-                  } else if (metric.id.endsWith('_humidity_set')) {
-                    newFormState[metric.id] = constants.humiditySet;
-                  } else if (metric.id.endsWith('_humidity_actual')) {
-                    newFormState[metric.id] = constants.humidityActual;
-                  }
-                }
-              }
-            });
+        blueprint.equipment.forEach((equip: any) => {
+          equip.metrics.forEach((metric: any) => {
+            if (metric.default_value !== undefined) {
+              newFormState[metric.id] = metric.default_value;
+            }
+            if (previousMetrics[metric.id] !== undefined) {
+              newFormState[metric.id] = previousMetrics[metric.id];
+            }
           });
         });
 
@@ -217,7 +241,7 @@ export function useTelemetryData(
         setFormData(newFormState);
         localStorage.setItem(cacheKey, JSON.stringify(newFormState));
         setIsLoading(false);
-        setActivePowerSource(newFormState['grid_status'] === 'OFF' ? 'GENERATOR' : 'MAINS');
+        setActivePowerSource(newFormState['fsm_mode'] === 'OUTAGE' || newFormState['fsm_mode'] === 'ON_LOAD_TEST' || newFormState['grid_status'] === 'OFF' ? 'GENERATOR' : 'MAINS');
       } catch (err: any) {
         console.error('[DCIMe] Fetch telemetry error:', err);
         if (active) {
@@ -251,7 +275,7 @@ export function useTelemetryData(
               setFormData(metrics);
               setIsEditMode(true);
               localStorage.setItem(cacheKey, JSON.stringify(metrics));
-              setActivePowerSource(metrics['grid_status'] === 'OFF' ? 'GENERATOR' : 'MAINS');
+              setActivePowerSource(metrics['fsm_mode'] === 'OUTAGE' || metrics['fsm_mode'] === 'ON_LOAD_TEST' || metrics['grid_status'] === 'OFF' ? 'GENERATOR' : 'MAINS');
             }
           }
         }
@@ -262,9 +286,54 @@ export function useTelemetryData(
       active = false;
       supabase.removeChannel(channel);
     };
-  }, [targetHour]);
+  }, [targetHour, siteCode]);
 
-  // 4. The Input Handler
+  // Dynamic Ambient Average Temperature Calculations
+  useEffect(() => {
+    if (formData && Object.keys(formData).length > 0) {
+      const updated = { ...formData };
+      let changed = false;
+
+      blueprint.rooms.forEach((room: any) => {
+        const envEquip = blueprint.equipment.find(
+          (eq: any) => eq.room_id === room.id && eq.category === 'ENVIRONMENT'
+        );
+        const ambientMetric = envEquip?.metrics.find((m: any) => m.id.endsWith('_ambient_temp'));
+        if (!ambientMetric) return;
+
+        const roomAircons = blueprint.equipment.filter(
+          (eq: any) => eq.room_id === room.id && eq.category === 'AIRCON'
+        );
+
+        const temperatures: number[] = [];
+        roomAircons.forEach((ac: any) => {
+          const status = formData[`status_${ac.id}`] || 'ONLINE';
+          if (status !== 'OFFLINE') {
+            const tempVal = parseFloat(formData[`${ac.id}_return_temp_actual`]);
+            if (!isNaN(tempVal)) {
+              temperatures.push(tempVal);
+            }
+          }
+        });
+
+        if (temperatures.length > 0) {
+          const avg = parseFloat((temperatures.reduce((a, b) => a + b, 0) / temperatures.length).toFixed(1));
+          if (formData[ambientMetric.id] !== avg) {
+            updated[ambientMetric.id] = avg;
+            changed = true;
+          }
+        }
+      });
+
+      if (changed) {
+        setFormData(updated);
+        const cacheKey = getCacheKey(targetHour);
+        localStorage.setItem(cacheKey, JSON.stringify(updated));
+      }
+    }
+  }, [formData, siteCode]);
+
+  // The Input Handler
   const handleInputChange = (id: string, value: any) => {
     setFormData((prev) => {
       const updated = { ...prev, [id]: value };
@@ -275,7 +344,9 @@ export function useTelemetryData(
     setSubmitError(null);
   };
 
-  // 5. Exhaustive Ambient Average Math & Submission
+
+
+  // Exhaustive Ambient Average Math & Submission
   const handleSubmit = async (activeGenerators: string[] = []) => {
     setIsSubmitting(true);
     setSubmitError(null);
@@ -309,18 +380,17 @@ export function useTelemetryData(
       }
     });
 
-    // The Math: Calculate the ambient_avg_temp.
-    // You MUST exclusively average these specific exact IDs:
-    // server_ambient_temp, pr1_ambient_temp, pr2_ambient_temp, it1_ambient_temp, it2_ambient_temp.
-    // Ignore hq_ambient_temp or any empty/null values.
-    const ambientIDs = [
-      'server_ambient_temp',
-      'pr1_ambient_temp',
-      'pr2_ambient_temp',
-      'it1_ambient_temp',
-      'it2_ambient_temp',
-      'media_ambient_temp',
-    ];
+    // Calculate the ambient_avg_temp dynamically by scanning for all ENVIRONMENT ambient temp metrics
+    const ambientIDs: string[] = [];
+    blueprint.equipment.forEach((eq: any) => {
+      if (eq.category === 'ENVIRONMENT') {
+        eq.metrics.forEach((m: any) => {
+          if (m.id.endsWith('_ambient_temp')) {
+            ambientIDs.push(m.id);
+          }
+        });
+      }
+    });
 
     const tempValues: number[] = [];
     ambientIDs.forEach((id) => {
@@ -343,22 +413,26 @@ export function useTelemetryData(
     const payload: Record<string, any> = {
       ...formData,
       ...fuelBurnUpdates,
-      grid_status: activePowerSource === 'GENERATOR' ? 'OFF' : 'ON'
+      fsm_mode: fsmMode,
+      grid_status: (fsmMode === 'OUTAGE' || fsmMode === 'ON_LOAD_TEST' || activePowerSource === 'GENERATOR') ? 'OFF' : 'ON'
     };
     if (ambient_avg_temp !== null) {
       payload['ambient_avg_temp'] = ambient_avg_temp;
     }
 
-    if (activePowerSource === 'GENERATOR') {
+    if (fsmMode === 'ON_LOAD_TEST') {
+      payload['outage_type'] = 'planned_test';
+    } else if (fsmMode === 'OUTAGE') {
+      payload['outage_type'] = 'grid_failure';
+    }
+
+    if (fsmMode === 'OUTAGE' || fsmMode === 'ON_LOAD_TEST' || activePowerSource === 'GENERATOR') {
       payload['active_dg_hq'] = true;
       
       // Force all Zesco/Grid metrics (grid_main) to null
-      const gridAsset = MASTER_ASSET_DICTIONARY
-        .find((cat) => cat.categoryName.includes('Main Grid'))
-        ?.assets.find((ast) => ast.id === 'grid_main');
-
+      const gridAsset = blueprint.equipment.find((eq: any) => eq.id === 'grid_main');
       if (gridAsset) {
-        gridAsset.metrics.forEach((metric) => {
+        gridAsset.metrics.forEach((metric: any) => {
           payload[metric.id] = null;
         });
       }
@@ -382,16 +456,14 @@ export function useTelemetryData(
         }
       });
 
-      // Strip legacy metrics for offline assets
-      MASTER_ASSET_DICTIONARY.forEach((cat) => {
-        cat.assets.forEach((asset) => {
-          const normalizedAssetId = asset.id.toLowerCase().replace(/-/g, '_');
-          if (offlineAssetIds.has(normalizedAssetId)) {
-            asset.metrics.forEach((m) => {
-              delete payload[m.id];
-            });
-          }
-        });
+      // Strip metrics for offline assets
+      blueprint.equipment.forEach((equip: any) => {
+        const normalizedAssetId = equip.id.toLowerCase().replace(/-/g, '_');
+        if (offlineAssetIds.has(normalizedAssetId)) {
+          equip.metrics.forEach((m: any) => {
+            delete payload[m.id];
+          });
+        }
       });
 
       // Strip dynamic parameters for offline assets
@@ -401,15 +473,15 @@ export function useTelemetryData(
           if (offlineAssetIds.has(normalizedAssetId)) {
             delete payload[`param_${param.id}`];
           }
-          if (param.equipment_id === 'grid_main' && activePowerSource === 'GENERATOR') {
+          if (param.equipment_id === 'grid_main' && (fsmMode === 'OUTAGE' || fsmMode === 'ON_LOAD_TEST' || activePowerSource === 'GENERATOR')) {
             payload[`param_${param.id}`] = null;
           }
         });
       }
+      
       // Instantly get the cached user session (Zero Network Delay)
       const { data: { session } } = await supabase.auth.getSession();
 
-      // Intelligently fallback: employee.full_name -> auth.metadata -> auth.email -> 'Unknown Tech'
       const technicianName = employee?.full_name
         || session?.user?.user_metadata?.full_name 
         || session?.user?.email 
@@ -417,7 +489,7 @@ export function useTelemetryData(
 
       const firstName = (technicianName || 'Field Tech').trim().split(/\s+/)[0];
 
-      // The Upsert: Execute a Supabase .upsert to telemetry_logs.
+      // Upsert to telemetry_logs
       const { error } = await supabase
         .from('telemetry_logs')
         .upsert(
@@ -426,8 +498,8 @@ export function useTelemetryData(
             frequency: 'hourly',
             metrics: payload,
             is_edited: isEditMode,
-            asset_id: 'facility_wide', // Keeping site hardcoded as requested
-            technician_name: firstName // DYNAMIC IDENTITY (First name only)
+            asset_id: 'facility_wide',
+            technician_name: firstName
           },
           { onConflict: 'target_hour' }
         );
@@ -466,7 +538,6 @@ export function useTelemetryData(
           .eq('log_id', targetShiftLogId);
       }
  
-      // Cleanup: On success, localStorage.removeItem(cacheKey), set isSubmitting(false), call onComplete?.() and onSubmitSuccess?.().
       const cacheKey = getCacheKey(targetHour);
       localStorage.removeItem(cacheKey);
       
@@ -506,7 +577,7 @@ export function useTelemetryData(
     });
   };
 
-  // 7. Return Statement
+  // Return Statement
   return {
     formData,
     setFormData,
@@ -518,6 +589,12 @@ export function useTelemetryData(
     isGridOff,
     activePowerSource,
     setActivePowerSource,
+
+    // FSM exports
+    fsmMode,
+    setFsmMode,
+    isDailyTestDoneToday,
+    dailyTestCompletedInfo,
 
     // Compatibility exports for existing TechDashboard / RoutineTasksDashboard
     handleChange: handleInputChange,

@@ -16,6 +16,7 @@ import {
   FileSpreadsheet,
 } from "lucide-react";
 import { generateLegacyMonthlyReport } from "../../../shared/utils/excelExportEngine";
+import { useCurrentSite } from "@/shared/context/SiteContext";
 import { supabase } from "@/shared/api/supabaseClient";
 import { PrintableChecklist } from "../../field/components/PrintableChecklist";
 
@@ -328,6 +329,8 @@ function ShiftCard({
 
 // ── Main Component ────────────────────────────────────────────────────────────
 export function ShiftReports() {
+  const { currentSite } = useCurrentSite();
+  const siteCode = currentSite?.site_code || "NTC";
   const [activeTab, setActiveTab] = useState<"shifts" | "checklists">("shifts");
   const [dateRange, setDateRange] = useState<DateRange>("7d");
   const [showPicker, setShowPicker] = useState(false);
@@ -428,7 +431,7 @@ export function ShiftReports() {
         ...(row.metrics as Record<string, any> || {}),
       }));
 
-      await generateLegacyMonthlyReport(monthName, yearStr, flatData);
+      await generateLegacyMonthlyReport(monthName, yearStr, flatData, siteCode);
     } catch (err) {
       console.error("Error generating legacy monthly report:", err);
     } finally {

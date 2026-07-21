@@ -1,27 +1,15 @@
+// src/shared/utils/seedDatabase.ts
 import { supabase } from "@/shared/api/supabaseClient";
-import { MASTER_ASSET_DICTIONARY } from "@/features/field/constants/telemetrySchema";
-
-function mapAssetCategory(assetId: string): string {
-  const id = assetId.toLowerCase();
-  if (id.startsWith('ups_')) return 'UPS';
-  if (id.startsWith('dg_')) return 'GENERATOR';
-  if (id.startsWith('grid_')) return 'MAINS';
-  if (id.startsWith('rectifier_')) return 'RECTIFIER';
-  if (id.startsWith('pac_')) return 'AIRCON';
-  if (id.includes('ambient')) return 'ENVIRONMENT';
-  if (id.includes('fm200')) return 'FIRE_SUPPRESSION';
-  if (id.includes('fuel')) return 'FUEL_LOGISTICS';
-  if (id.includes('workstation')) return 'ENVIRONMENT';
-  return 'ENVIRONMENT';
-}
-
-function extractUnit(label: string): string | null {
-  const match = label.match(/\(([^)]+)\)/);
-  return match ? match[1] : null;
-}
+import { SITE_BLUEPRINTS } from "@/config/sites";
+import { EXCEL_MAPPINGS } from "@/config/mappings/excelMappings";
 
 async function seedSiteData(siteCode: string, defaultSiteName: string): Promise<{ success: boolean; message: string }> {
   try {
+    const blueprint = SITE_BLUEPRINTS[siteCode];
+    if (!blueprint) {
+      throw new Error(`Blueprint for site code ${siteCode} not found.`);
+    }
+
     // 1. Fetch the site_id from public.sites table
     let siteId: string;
     const { data: siteData, error: siteError } = await supabase
@@ -51,6 +39,9 @@ async function seedSiteData(siteCode: string, defaultSiteName: string): Promise<
 
     console.log(`[DCIMe Seed] Found or created ${siteCode} Site UUID: ${siteId}`);
 
+    // Get all equipment IDs from the blueprint
+    const blueprintEquipIds = blueprint.equipment.map((e: any) => e.id);
+
     // 2. Perform idempotent cleanup of existing equipment & rooms for this site
     const { data: existingEquip } = await supabase
       .from('equipment_registry')
@@ -58,8 +49,7 @@ async function seedSiteData(siteCode: string, defaultSiteName: string): Promise<
       .eq('site_uuid', siteId);
 
     const siteEquipIds = (existingEquip || []).map((e) => e.equipment_id);
-    const dictEquipIds = MASTER_ASSET_DICTIONARY.flatMap((cat) => cat.assets.map((a) => a.id));
-    const allEquipIdsToDelete = Array.from(new Set([...siteEquipIds, ...dictEquipIds]));
+    const allEquipIdsToDelete = Array.from(new Set([...siteEquipIds, ...blueprintEquipIds]));
 
     if (allEquipIdsToDelete.length > 0) {
       console.log(`[DCIMe Seed] Cleaning up existing ${siteCode} parameters...`);
@@ -86,93 +76,84 @@ async function seedSiteData(siteCode: string, defaultSiteName: string): Promise<
       .eq('site_id', siteId);
     if (deleteRoomsErr) throw deleteRoomsErr;
 
-    // 3. Loop through MASTER_ASSET_DICTIONARY (Rooms)
-    console.log(`[DCIMe Seed] Starting seed inserts for ${siteCode}...`);
-    for (let rIdx = 0; rIdx < MASTER_ASSET_DICTIONARY.length; rIdx++) {
-      const category = MASTER_ASSET_DICTIONARY[rIdx];
+    // 3. Loop through Rooms in blueprint
+    console.log(`[DCIMe Seed] Inserting rooms for ${siteCode}...`);
+    const roomUuidMap = new Map<string, string>();
 
-      // INSERT Room
+    for (const room of blueprint.rooms) {
       const { data: roomData, error: roomError } = await supabase
         .from('rooms')
         .insert({
           site_id: siteId,
-          room_name: category.categoryName,
-          sort_order: rIdx
+          room_name: room.name,
+          sort_order: room.sort_order
         })
         .select()
         .single();
 
       if (roomError) throw roomError;
-      const roomId = roomData.id;
+      roomUuidMap.set(room.id, roomData.id);
+    }
 
-      // Loop through assets in this category/room
-      for (let aIdx = 0; aIdx < category.assets.length; aIdx++) {
-        const asset = category.assets[aIdx];
+    // 4. Loop through Equipment in blueprint
+    console.log(`[DCIMe Seed] Inserting equipment & parameters for ${siteCode}...`);
+    for (const equip of blueprint.equipment) {
+      const dbRoomId = roomUuidMap.get(equip.room_id) || null;
+      const roomName = blueprint.rooms.find((r: any) => r.id === equip.room_id)?.name || 'Unknown Room';
 
-        // INSERT equipment
-        const { error: equipError } = await supabase
-          .from('equipment_registry')
-          .insert({
-            equipment_id: asset.id,
-            category: mapAssetCategory(asset.id),
-            location: category.categoryName,
-            is_active: true,
-            room_id: roomId,
-            sort_order: aIdx,
-            site_uuid: siteId
-          });
-
-        if (equipError) throw equipError;
-
-        // Loop through metrics/parameters in this asset
-        const paramsPayload = asset.metrics.map((metric) => {
-          // Destructure excel mapping details
-          let excel_workbook: string | null = null;
-          let excel_sheet_name: string | null = null;
-          let excel_column_index: number | null = null;
-
-          if (metric.destinations && metric.destinations.length > 0) {
-            const dest = metric.destinations[0];
-            excel_workbook = dest.workbook;
-            excel_sheet_name = dest.sheetName;
-            excel_column_index = dest.excelColumnIndex;
-          }
-
-          // Map legacy text to string data type
-          const dataTypeMap: Record<string, string> = {
-            number: 'number',
-            boolean: 'boolean',
-            text: 'string',
-            string: 'string'
-          };
-          const mappedDataType = dataTypeMap[metric.type] || 'number';
-
-          return {
-            equipment_id: asset.id,
-            parameter_name: metric.label,
-            data_type: mappedDataType,
-            is_constant: metric.isConstant || false,
-            constant_value: metric.defaultValue !== undefined ? String(metric.defaultValue) : null,
-            is_graphable: metric.type === 'number',
-            unit: extractUnit(metric.label),
-            excel_workbook,
-            excel_sheet_name,
-            excel_column_index
-          };
+      const { error: equipError } = await supabase
+        .from('equipment_registry')
+        .insert({
+          equipment_id: equip.id,
+          category: equip.category,
+          location: roomName,
+          is_active: true,
+          room_id: dbRoomId,
+          sort_order: equip.sort_order,
+          site_uuid: siteId
         });
 
-        if (paramsPayload.length > 0) {
-          const { error: paramsError } = await supabase
-            .from('equipment_parameters')
-            .insert(paramsPayload);
+      if (equipError) throw equipError;
 
-          if (paramsError) throw paramsError;
-        }
+      // Prepare parameters payload
+      const paramsPayload = equip.metrics.map((metric: any) => {
+        // Resolve Excel mapping coordinates from the broker registry
+        const mappings = EXCEL_MAPPINGS[siteCode]?.[metric.id] || [];
+        const dest = mappings[0] || null;
+
+        const excel_workbook = dest ? dest.workbook : null;
+        const excel_sheet_name = dest ? dest.sheetName : null;
+        const excel_column_index = dest ? dest.excelColumnIndex : null;
+
+        // Clean label to extract unit, e.g. "Temperature (°C)"
+        const match = metric.label.match(/\(([^)]+)\)/);
+        const unit = match ? match[1] : null;
+
+        return {
+          equipment_id: equip.id,
+          parameter_name: metric.label,
+          data_type: metric.type === 'text' ? 'string' : metric.type,
+          is_constant: metric.is_constant || false,
+          constant_value: metric.default_value !== undefined ? String(metric.default_value) : null,
+          is_graphable: metric.type === 'number',
+          unit: unit,
+          excel_workbook,
+          excel_sheet_name,
+          excel_column_index
+        };
+      });
+
+      if (paramsPayload.length > 0) {
+        const { error: paramsError } = await supabase
+          .from('equipment_parameters')
+          .insert(paramsPayload);
+
+        if (paramsError) throw paramsError;
       }
     }
 
     console.log(`[DCIMe Seed] ${siteCode} Data seeded successfully!`);
-    return { success: true, message: `${siteCode} Database seeded successfully from legacy dictionary.` };
+    return { success: true, message: `${siteCode} Database seeded successfully from JSON blueprint.` };
   } catch (err: any) {
     console.error(`[DCIMe Seed] ${siteCode} Seeding error:`, err);
     return { success: false, message: err.message || 'Seeding failed.' };

@@ -289,32 +289,39 @@ export function IncidentReport() {
     setIsSubmittingAction(true);
     try {
       const firstName = (user?.name || "Field Tech").trim().split(/\s+/)[0];
+      const currentYear = new Date().getFullYear();
 
       if (visitType === "corrective") {
-        // 1. Update the contractor name on the incident record in Supabase
+        // Atomic update of both contractor_engaged and comments in a single database write
+        const existingIncident = incidents.find(i => i.id === selectedFaultId);
+        const currentComments = existingIncident?.comments || [];
+        
+        const newComment = {
+          author_name: firstName,
+          author_id: user?.id || "EMP-UNKNOWN",
+          comment_text: `[Contractor: ${contractorName}] Logged site visit. Tasks: ${actionNotes}`,
+          type: "contractor_visit",
+          timestamp: new Date().toISOString(),
+          photo_url: actionPhoto || null
+        };
+
         const { error: updateError } = await supabase
           .from("incidents")
-          .update({ contractor_engaged: contractorName })
+          .update({ 
+            contractor_engaged: contractorName,
+            comments: [...currentComments, newComment]
+          })
           .eq("id", selectedFaultId);
         
         if (updateError) throw updateError;
 
-        // 2. Append a comment logging the visitor/arrival details and work details
-        await addIncidentComment(selectedFaultId, {
-          comment_text: `[Contractor: ${contractorName}] Logged site visit. Tasks: ${actionNotes}`,
-          type: "contractor_visit",
-          photo_url: actionPhoto,
-          author_name: firstName,
-          author_id: user?.id || "EMP-UNKNOWN"
-        });
-
         alert("Contractor site visit logged successfully against active fault!");
+        refresh(); // Refresh list to fetch the newly created log and timeline update
       } else {
         // Routine visit: Log as a resolved incident under 'GENERAL_SITE'
-        const currentYear = new Date().getFullYear();
         const randomCode = Math.floor(1000 + Math.random() * 9000);
         const receiptNumber = `REC-${currentYear}-${randomCode}`;
-        const ticketNum = `VISIT-2026-${Math.floor(1000 + Math.random() * 9000)}`;
+        const ticketNum = `VISIT-${currentYear}-${Math.floor(1000 + Math.random() * 9000)}`;
 
         const newRoutineVisit = {
           ticket_number: ticketNum,
@@ -818,7 +825,7 @@ export function IncidentReport() {
                   }}
                   className={`py-2 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all cursor-pointer ${
                     visitType === "routine"
-                      ? "bg-white text-gray-905 shadow-sm font-bold"
+                      ? "bg-white text-gray-900 shadow-sm font-bold"
                       : "text-gray-400 hover:text-gray-600"
                   }`}
                 >
@@ -829,7 +836,7 @@ export function IncidentReport() {
                   onClick={() => setVisitType("corrective")}
                   className={`py-2 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all cursor-pointer ${
                     visitType === "corrective"
-                      ? "bg-white text-gray-905 shadow-sm font-bold"
+                      ? "bg-white text-gray-900 shadow-sm font-bold"
                       : "text-gray-400 hover:text-gray-600"
                   }`}
                 >
@@ -848,7 +855,7 @@ export function IncidentReport() {
                 value={contractorName}
                 onChange={(e) => setContractorName(e.target.value)}
                 placeholder="e.g. Cummins Services, Vertiv Team"
-                className="w-full px-4 h-12 bg-gray-50 border border-gray-200 rounded-2xl text-sm font-semibold text-gray-850 focus:outline-none focus:border-slate-800 focus:ring-1 focus:ring-slate-800/10 transition-colors"
+                className="w-full px-4 h-12 bg-gray-50 border border-gray-200 rounded-2xl text-sm font-semibold text-gray-800 focus:outline-none focus:border-slate-800 focus:ring-1 focus:ring-slate-800/10 transition-colors"
                 required
               />
             </div>
@@ -860,12 +867,12 @@ export function IncidentReport() {
                   Select Active Fault Ticket
                 </label>
                 <Select value={selectedFaultId} onValueChange={setSelectedFaultId}>
-                  <SelectTrigger className="w-full h-12 bg-gray-50 border border-gray-200 rounded-2xl text-sm font-semibold text-gray-800 focus:ring-1 focus:ring-slate-850/10 focus:border-slate-800">
+                  <SelectTrigger className="w-full h-12 bg-gray-50 border border-gray-200 rounded-2xl text-sm font-semibold text-gray-800 focus:ring-1 focus:ring-slate-800/10 focus:border-slate-800">
                     <SelectValue placeholder="-- Choose an open fault ticket --" />
                   </SelectTrigger>
                   <SelectContent className="bg-white border border-gray-100 rounded-2xl shadow-lg z-[10000]">
                     {incidents.filter((i) => i.status === "OPEN").length === 0 ? (
-                      <SelectItem value="empty" disabled className="text-xs font-semibold text-gray-450">
+                      <SelectItem value="empty" disabled className="text-xs font-semibold text-gray-400">
                         No open fault tickets available
                       </SelectItem>
                     ) : (
@@ -900,7 +907,7 @@ export function IncidentReport() {
                     ? "Detail the routine tasks done, refueling quantities, or checkups..."
                     : "Detail the repairs or fixes applied to the selected asset..."
                 }
-                className="w-full p-4 rounded-2xl bg-gray-50 border border-gray-200 text-sm font-semibold text-gray-800 placeholder-gray-450 focus:outline-none focus:border-slate-800 focus:ring-1 focus:ring-slate-800/10 resize-none transition-colors"
+                className="w-full p-4 rounded-2xl bg-gray-50 border border-gray-200 text-sm font-semibold text-gray-800 placeholder-gray-400 focus:outline-none focus:border-slate-800 focus:ring-1 focus:ring-slate-800/10 resize-none transition-colors"
                 required
               />
             </div>
@@ -912,7 +919,7 @@ export function IncidentReport() {
               </label>
               <div
                 onClick={handleActionPhotoUpload}
-                className={`h-32 bg-gray-50 border-2 border-dashed rounded-2xl flex flex-col items-center justify-center text-gray-550 cursor-pointer active:bg-gray-100 transition-colors p-0 relative overflow-hidden ${
+                className={`h-32 bg-gray-50 border-2 border-dashed rounded-2xl flex flex-col items-center justify-center text-gray-500 cursor-pointer active:bg-gray-100 transition-colors p-0 relative overflow-hidden ${
                   actionPhoto ? "border-green-400" : "border-gray-200"
                 }`}
               >
@@ -977,8 +984,8 @@ export function IncidentReport() {
           <div className="space-y-4 pt-4">
             <div className="px-1 flex items-center justify-between">
               <div>
-                <h2 className="text-sm font-black text-gray-905 uppercase tracking-wider">Active Fault Tickets</h2>
-                <p className="text-[11px] text-gray-400">Fault tickets awaiting final resolution.</p>
+                <h2 className="text-sm font-black text-gray-900 uppercase tracking-wider">Active Fault Tickets</h2>
+                <p className="text-[11px] text-gray-400 font-semibold">Fault tickets awaiting final resolution.</p>
               </div>
               <span className="bg-red-50 text-red-600 font-extrabold text-[10px] px-2.5 py-1 rounded-full border border-red-100">
                 {incidents.filter((i) => i.status === "OPEN").length} Open
@@ -1025,9 +1032,9 @@ export function IncidentReport() {
                           </p>
 
                           {incident.contractor_engaged && (
-                            <div className="mt-2.5 inline-flex items-center gap-1.5 bg-slate-50 border border-slate-200/60 rounded-lg px-2 py-1 text-[10px] font-bold text-slate-650">
+                            <div className="mt-2.5 inline-flex items-center gap-1.5 bg-slate-50 border border-slate-200/60 rounded-lg px-2 py-1 text-[10px] font-bold text-slate-600">
                               <span>Assigned Contractor:</span>
-                              <span className="text-slate-850 font-extrabold">{incident.contractor_engaged}</span>
+                              <span className="text-slate-800 font-extrabold">{incident.contractor_engaged}</span>
                             </div>
                           )}
                         </div>

@@ -1,6 +1,8 @@
+// src/features/field/hooks/useSiteEquipment.ts
 import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/shared/api/supabaseClient";
 import { useCurrentSite } from "@/shared/context/SiteContext";
+import { SITE_BLUEPRINTS } from "@/config/sites";
 
 export interface EquipmentParameter {
   id: string;
@@ -27,11 +29,6 @@ export interface Equipment {
     room_name: string;
     site_id: string;
     sort_order: number;
-  }[] | {
-    id: string;
-    room_name: string;
-    site_id: string;
-    sort_order: number;
   } | null;
   equipment_parameters?: EquipmentParameter[];
 }
@@ -42,6 +39,9 @@ export interface GroupedEquipment {
 
 export function useSiteEquipment() {
   const { currentSite } = useCurrentSite();
+  const siteCode = currentSite?.site_code || "NTC";
+  const blueprint = SITE_BLUEPRINTS[siteCode] || SITE_BLUEPRINTS.NTC;
+
   const [groupedEquipment, setGroupedEquipment] = useState<GroupedEquipment>({});
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
@@ -84,26 +84,52 @@ export function useSiteEquipment() {
             created_at
           )
         `)
-        .eq("site_uuid", currentSite.id)
-        .eq("is_active", true)
-        .order("room_id", { ascending: true })
-        .order("sort_order", { ascending: true });
+        .eq("site_uuid", currentSite.id);
 
       if (fetchError) throw fetchError;
 
-      const grouped: GroupedEquipment = {};
+      // Index DB equipment status & parameters by equipment_id
+      const dbEquipMap = new Map<string, any>();
       (data || []).forEach((item: any) => {
-        const joinedRooms = item.rooms;
-        const roomObj = Array.isArray(joinedRooms) ? joinedRooms[0] : joinedRooms;
-        const roomName = roomObj?.room_name || "Unassigned Room";
+        dbEquipMap.set(item.equipment_id.toLowerCase(), item);
+      });
 
-        if (!grouped[roomName]) {
-          grouped[roomName] = [];
-        }
-        grouped[roomName].push({
-          ...item,
-          rooms: roomObj || null
+      // Construct groupedEquipment dynamically based on the blueprint rooms & equipment
+      const grouped: GroupedEquipment = {};
+
+      blueprint.rooms.forEach((room: any) => {
+        const roomName = room.name;
+        const roomEquip = blueprint.equipment.filter((e: any) => e.room_id === room.id);
+        
+        const mappedEquip: Equipment[] = [];
+        
+        roomEquip.forEach((eqBp: any) => {
+          const dbEquip = dbEquipMap.get(eqBp.id.toLowerCase());
+          const isActive = dbEquip ? dbEquip.is_active : true;
+          
+          if (isActive) {
+            mappedEquip.push({
+              equipment_id: eqBp.id,
+              category: eqBp.category,
+              location: roomName,
+              is_active: true,
+              room_id: room.id,
+              sort_order: eqBp.sort_order,
+              site_uuid: currentSite.id,
+              rooms: {
+                id: room.id,
+                room_name: roomName,
+                site_id: currentSite.id,
+                sort_order: room.sort_order
+              },
+              equipment_parameters: dbEquip?.equipment_parameters || []
+            });
+          }
         });
+
+        if (mappedEquip.length > 0) {
+          grouped[roomName] = mappedEquip.sort((a, b) => a.sort_order - b.sort_order);
+        }
       });
 
       setGroupedEquipment(grouped);
@@ -113,11 +139,33 @@ export function useSiteEquipment() {
     } finally {
       setIsLoading(false);
     }
-  }, [currentSite?.id]);
+  }, [currentSite?.id, siteCode]);
 
   useEffect(() => {
     fetchEquipment();
-  }, [fetchEquipment]);
+
+    if (!currentSite?.id) return;
+
+    const channel = supabase
+      .channel(`equipment_registry_realtime_${currentSite.id}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "equipment_registry",
+          filter: `site_uuid=eq.${currentSite.id}`
+        },
+        () => {
+          fetchEquipment();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [fetchEquipment, currentSite?.id]);
 
   return {
     groupedEquipment,

@@ -295,7 +295,9 @@ export function useDashboardData() {
           const totalLogs = telLogs.length;
           const offlineLogs = telLogs.filter(row => {
             const status = (row.metrics?.grid_status || '').toUpperCase();
-            return status === 'OFFLINE' || status === 'OFF';
+            const outageType = row.metrics?.outage_type || '';
+            const isOffline = status === 'OFFLINE' || status === 'OFF';
+            return isOffline && outageType !== 'planned_test';
           }).length;
           const uptimePct = totalLogs > 0 ? (((totalLogs - offlineLogs) / totalLogs) * 100).toFixed(1) : "100.0";
           const blackoutHours = (offlineLogs * 1).toFixed(1); // Hourly resolution

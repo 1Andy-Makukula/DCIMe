@@ -3,13 +3,6 @@ import { supabase } from "@/shared/api/supabaseClient";
 import { useCurrentSite } from "@/shared/context/SiteContext";
 import { TelemetryChart } from "./TelemetryChart";
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/app/components/ui/select";
-import {
   Search,
   Filter,
   Download,
@@ -17,15 +10,12 @@ import {
   Thermometer,
   Network,
   Cpu,
-  ChevronDown,
-  ArrowUpDown,
   X,
-  Trash2,
   Loader2,
   Database,
   Activity,
-  AlertCircle,
-  Plus
+  ChevronDown,
+  ArrowUpDown
 } from "lucide-react";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -48,6 +38,7 @@ interface Asset {
   metricUnit: string;
   lastSeen: string;
   room_id?: string | null;
+  is_active: boolean;
 }
 
 
@@ -170,744 +161,7 @@ function Th({ children, className = "" }: { children: React.ReactNode; className
   );
 }
 
-interface AddAssetModalProps {
-  isOpen: boolean;
-  onClose: () => void;
-  onSaveSuccess: () => void;
-  rooms: any[];
-  assets: Asset[];
-}
 
-function AddAssetModal({ isOpen, onClose, onSaveSuccess, rooms, assets }: AddAssetModalProps) {
-  const { currentSite } = useCurrentSite();
-  const [name, setName] = useState("");
-  const [category, setCategory] = useState("UPS");
-  const [assetId, setAssetId] = useState("");
-  const [ipAddress, setIpAddress] = useState("");
-  const [selectedRoomId, setSelectedRoomId] = useState("");
-  const [manufacturer, setManufacturer] = useState("");
-  const [model, setModel] = useState("");
-  const [firmwareVersion, setFirmwareVersion] = useState("");
-  const [rackLocation, setRackLocation] = useState("");
-
-  useEffect(() => {
-    if (rooms.length > 0 && !selectedRoomId) {
-      setSelectedRoomId(rooms[0].id);
-    }
-  }, [rooms, selectedRoomId]);
-
-  useEffect(() => {
-    if (!isOpen) return;
-
-    // Generate temporary suffix number for suggestion
-    const categoryCount = assets.filter(a => {
-      const dbCat = category === "AIRCON" ? "COOLING" : category;
-      return a.category.toUpperCase() === dbCat;
-    }).length;
-    const nextNum = String(categoryCount + 1).padStart(3, "0");
-
-    let defaultName = "";
-    let defaultMfg = "Standard";
-    let defaultModel = "Generic Model";
-    let defaultIp = "10.0.4.10";
-    let defaultFw = "v1.0.0";
-    let defaultRack = "";
-
-    if (category === "UPS") {
-      defaultName = `UPS Unit ${nextNum}`;
-      defaultMfg = "Vertiv";
-      defaultModel = "Liebert EXL S1 80kVA";
-      defaultIp = `10.0.4.1${nextNum.charAt(2) || '1'}`;
-      defaultFw = "v4.2.1";
-      defaultRack = `R-${nextNum.substring(1)}`;
-    } else if (category === "GENERATOR") {
-      defaultName = `Diesel Generator ${nextNum === "001" ? "A" : "B"}`;
-      defaultMfg = "Cummins";
-      defaultModel = "C250 D5 250kVA";
-      defaultIp = `10.0.4.2${nextNum.charAt(2) || '1'}`;
-      defaultFw = "v2.8.0";
-      defaultRack = "—";
-    } else if (category === "RECTIFIER") {
-      defaultName = `Rectifier ${nextNum === "001" ? "A – Rm 1" : "B – Rm 2"}`;
-      defaultMfg = "Eltek";
-      defaultModel = "Flatpack2 HE 48V";
-      defaultIp = `10.0.4.3${nextNum.charAt(2) || '1'}`;
-      defaultFw = "v5.3.0";
-      defaultRack = `R-0${4 + parseInt(nextNum)}`;
-    } else if (category === "AIRCON") {
-      defaultName = `CRAC Unit ${nextNum}`;
-      defaultMfg = "Stulz";
-      defaultModel = "CyberAir 3PRO DX";
-      defaultIp = `10.0.5.1${nextNum.charAt(2) || '1'}`;
-      defaultFw = "v3.1.4";
-      defaultRack = "—";
-    } else if (category === "MAINS") {
-      defaultName = "ZESCO Mains Grid";
-      defaultMfg = "ZESCO";
-      defaultModel = "Utility Feed";
-      defaultIp = "10.0.4.50";
-      defaultFw = "v1.0";
-      defaultRack = "—";
-    }
-
-    setName(defaultName);
-    setIpAddress(defaultIp);
-    setManufacturer(defaultMfg);
-    setModel(defaultModel);
-    setFirmwareVersion(defaultFw);
-    setRackLocation(defaultRack);
-    setAssetId(`PWR-${category}-${nextNum}`);
-  }, [category, assets, isOpen]);
-
-  if (!isOpen) return null;
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!currentSite?.id) return;
-    try {
-      const selectedRoom = rooms.find(r => r.id === selectedRoomId);
-      const { error } = await supabase
-        .from("equipment_registry")
-        .insert([{
-          equipment_id: assetId.trim().toUpperCase(),
-          category: category, // 'UPS', 'GENERATOR', 'MAINS', 'RECTIFIER', 'AIRCON'
-          location: selectedRoom?.room_name || "Unknown",
-          room_id: selectedRoomId || null,
-          site_uuid: currentSite.id,
-          name: name.trim() || null,
-          ip_address: ipAddress.trim() || null,
-          manufacturer: manufacturer.trim() || null,
-          model: model.trim() || null,
-          firmware_version: firmwareVersion.trim() || null,
-          rack_location: rackLocation.trim() || null,
-          is_active: true
-        }]);
-
-      if (error) throw error;
-
-      onSaveSuccess();
-      onClose();
-      setName("");
-      setAssetId("");
-      setIpAddress("");
-      setManufacturer("");
-      setModel("");
-      setFirmwareVersion("");
-      setRackLocation("");
-    } catch (err) {
-      console.error("Error saving equipment:", err);
-      alert("Failed to save equipment to the database.");
-    }
-  };
-
-  return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-4"
-      style={{ backgroundColor: "rgba(0,0,0,0.45)", backdropFilter: "blur(4px)" }}
-    >
-      <div className="bg-white rounded-3xl shadow-2xl w-full max-w-xl overflow-hidden animate-fade-in">
-        {/* Header */}
-        <div className="flex items-center justify-between px-6 py-5 border-b border-gray-100">
-          <div>
-            <div className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-0.5">
-              Ledger · Provisioning
-            </div>
-            <h2 className="text-[16px] font-black text-gray-900 leading-none">
-              Add New Equipment
-            </h2>
-          </div>
-          <button
-            onClick={onClose}
-            className="p-2 rounded-xl text-gray-400 hover:text-gray-700 hover:bg-gray-100 transition-all cursor-pointer"
-          >
-            <X size={16} />
-          </button>
-        </div>
-
-        {/* Form Body */}
-        <form onSubmit={handleSubmit}>
-          <div className="px-6 py-5 space-y-4 max-h-[70vh] overflow-y-auto">
-            {/* Row 1: Name and Category */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-[10px] font-black text-gray-400 uppercase tracking-[0.12em] mb-1.5">
-                  Equipment Name
-                </label>
-                <input
-                  type="text"
-                  required
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  placeholder="e.g. UPS System 3"
-                  className="w-full px-4 py-3 rounded-xl bg-gray-50 border border-gray-200 text-[12px] font-semibold text-gray-900 placeholder-gray-400 focus:outline-none focus:border-gray-400 transition-all"
-                />
-              </div>
-              <div>
-                <label className="block text-[10px] font-black text-gray-400 uppercase tracking-[0.12em] mb-1.5">
-                  Category
-                </label>
-                <Select value={category} onValueChange={setCategory}>
-                  <SelectTrigger className="w-full h-11 bg-gray-50 border border-gray-200 rounded-xl text-[12px] font-semibold text-gray-900 focus:ring-1 focus:ring-gray-450 focus:border-gray-450">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent className="bg-white border border-gray-100 rounded-xl shadow-lg z-[10000]">
-                    <SelectItem value="UPS" className="text-[12px] font-semibold text-gray-900 cursor-pointer">UPS</SelectItem>
-                    <SelectItem value="GENERATOR" className="text-[12px] font-semibold text-gray-900 cursor-pointer">Generator</SelectItem>
-                    <SelectItem value="MAINS" className="text-[12px] font-semibold text-gray-900 cursor-pointer">Mains Feed</SelectItem>
-                    <SelectItem value="RECTIFIER" className="text-[12px] font-semibold text-gray-900 cursor-pointer">Rectifier</SelectItem>
-                    <SelectItem value="AIRCON" className="text-[12px] font-semibold text-gray-900 cursor-pointer">Air Conditioner (CRAC)</SelectItem>
-                    <SelectItem value="ENVIRONMENT" className="text-[12px] font-semibold text-gray-900 cursor-pointer">Environment Sensor</SelectItem>
-                    <SelectItem value="FIRE_SUPPRESSION" className="text-[12px] font-semibold text-gray-900 cursor-pointer">Fire Suppression</SelectItem>
-                    <SelectItem value="FUEL_LOGISTICS" className="text-[12px] font-semibold text-gray-900 cursor-pointer">Fuel Logistics</SelectItem>
-                    <SelectItem value="LOAD_PANEL" className="text-[12px] font-semibold text-gray-900 cursor-pointer">Load Panel</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-
-            {/* Row 2: Asset ID and IP Address */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-[10px] font-black text-gray-400 uppercase tracking-[0.12em] mb-1.5">
-                  Asset ID
-                </label>
-                <input
-                  type="text"
-                  required
-                  value={assetId}
-                  onChange={(e) => setAssetId(e.target.value)}
-                  placeholder="e.g. PWR-UPS-003"
-                  className="w-full px-4 py-3 rounded-xl bg-gray-50 border border-gray-200 text-[12px] font-semibold text-gray-900 placeholder-gray-400 focus:outline-none focus:border-gray-400 transition-all"
-                />
-              </div>
-              <div>
-                <label className="block text-[10px] font-black text-gray-400 uppercase tracking-[0.12em] mb-1.5">
-                  IP Address
-                </label>
-                <input
-                  type="text"
-                  required
-                  value={ipAddress}
-                  onChange={(e) => setIpAddress(e.target.value)}
-                  placeholder="e.g. 10.0.4.13"
-                  className="w-full px-4 py-3 rounded-xl bg-gray-50 border border-gray-200 text-[12px] font-semibold text-gray-900 placeholder-gray-400 focus:outline-none focus:border-gray-400 transition-all"
-                />
-              </div>
-            </div>
-
-            {/* Row 3: Manufacturer and Model */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-[10px] font-black text-gray-400 uppercase tracking-[0.12em] mb-1.5">
-                  Manufacturer
-                </label>
-                <input
-                  type="text"
-                  required
-                  value={manufacturer}
-                  onChange={(e) => setManufacturer(e.target.value)}
-                  placeholder="e.g. Vertiv"
-                  className="w-full px-4 py-3 rounded-xl bg-gray-50 border border-gray-200 text-[12px] font-semibold text-gray-900 placeholder-gray-400 focus:outline-none focus:border-gray-400 transition-all"
-                />
-              </div>
-              <div>
-                <label className="block text-[10px] font-black text-gray-400 uppercase tracking-[0.12em] mb-1.5">
-                  Model
-                </label>
-                <input
-                  type="text"
-                  required
-                  value={model}
-                  onChange={(e) => setModel(e.target.value)}
-                  placeholder="e.g. Liebert EXL S1"
-                  className="w-full px-4 py-3 rounded-xl bg-gray-50 border border-gray-200 text-[12px] font-semibold text-gray-900 placeholder-gray-400 focus:outline-none focus:border-gray-400 transition-all"
-                />
-              </div>
-            </div>
-
-            {/* Row 4: Firmware and Rack Location */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-[10px] font-black text-gray-400 uppercase tracking-[0.12em] mb-1.5">
-                  Firmware Version
-                </label>
-                <input
-                  type="text"
-                  required
-                  value={firmwareVersion}
-                  onChange={(e) => setFirmwareVersion(e.target.value)}
-                  placeholder="e.g. v1.0.0"
-                  className="w-full px-4 py-3 rounded-xl bg-gray-50 border border-gray-200 text-[12px] font-semibold text-gray-900 placeholder-gray-400 focus:outline-none focus:border-gray-400 transition-all"
-                />
-              </div>
-              <div>
-                <label className="block text-[10px] font-black text-gray-400 uppercase tracking-[0.12em] mb-1.5">
-                  Rack Location
-                </label>
-                <input
-                  type="text"
-                  value={rackLocation}
-                  onChange={(e) => setRackLocation(e.target.value)}
-                  placeholder="e.g. R-01"
-                  className="w-full px-4 py-3 rounded-xl bg-gray-50 border border-gray-200 text-[12px] font-semibold text-gray-900 placeholder-gray-400 focus:outline-none focus:border-gray-400 transition-all"
-                />
-              </div>
-            </div>
-
-            {/* Row 5: Room */}
-            <div>
-              <label className="block text-[10px] font-black text-gray-400 uppercase tracking-[0.12em] mb-1.5">
-                Room
-              </label>
-              {rooms.length === 0 ? (
-                <div className="text-[11px] text-red-500 font-bold uppercase tracking-wider p-3 bg-red-50 rounded-xl border border-red-100">
-                  No rooms configured. Add a room in the sidebar first.
-                </div>
-              ) : (
-                <Select value={selectedRoomId} onValueChange={setSelectedRoomId}>
-                  <SelectTrigger className="w-full h-11 bg-gray-50 border border-gray-200 rounded-xl text-[12px] font-semibold text-gray-900 focus:ring-1 focus:ring-gray-450 focus:border-gray-450">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent className="bg-white border border-gray-100 rounded-xl shadow-lg z-[10000]">
-                    {rooms.map((r) => (
-                      <SelectItem key={r.id} value={r.id} className="text-[12px] font-semibold text-gray-900 cursor-pointer">
-                        {r.room_name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              )}
-            </div>
-          </div>
-
-          {/* Footer */}
-          <div className="flex items-center justify-end gap-2 px-6 py-4 border-t border-gray-100 bg-gray-50/50">
-            <button
-              type="button"
-              onClick={onClose}
-              className="px-4 py-2.5 rounded-xl text-[11px] font-black text-gray-500 hover:bg-gray-100 transition-all uppercase tracking-wider cursor-pointer"
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              disabled={rooms.length === 0}
-              className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-gray-900 text-white text-[11px] font-black uppercase tracking-wider hover:bg-gray-700 active:scale-[0.98] transition-all cursor-pointer disabled:opacity-50"
-            >
-              Save Equipment
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
-  );
-}
-
-interface AddRoomModalProps {
-  isOpen: boolean;
-  onClose: () => void;
-  onSaveSuccess: () => void;
-  setRooms: React.Dispatch<React.SetStateAction<any[]>>;
-}
-
-function AddRoomModal({ isOpen, onClose, onSaveSuccess, setRooms }: AddRoomModalProps) {
-  const { currentSite } = useCurrentSite();
-  const [roomName, setRoomName] = useState("");
-  const [sortOrder, setSortOrder] = useState("0");
-  const [isSaving, setIsSaving] = useState(false);
-
-  if (!isOpen) return null;
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!currentSite?.id) return;
-    setIsSaving(true);
-    const tempId = "temp-" + Math.random().toString();
-    const name = roomName.trim();
-    const order = parseInt(sortOrder) || 0;
-
-    // Optimistic update
-    setRooms((prev) =>
-      [...prev, { id: tempId, room_name: name, sort_order: order }].sort(
-        (a, b) => a.sort_order - b.sort_order
-      )
-    );
-
-    try {
-      const { data, error } = await supabase
-        .from("rooms")
-        .insert([{
-          site_id: currentSite.id,
-          room_name: name,
-          sort_order: order
-        }])
-        .select()
-        .single();
-
-      if (error) throw error;
-
-      // Swap temp id with real site details
-      setRooms((prev) => prev.map((r) => (r.id === tempId ? data : r)));
-      onSaveSuccess();
-      onClose();
-      setRoomName("");
-      setSortOrder("0");
-    } catch (err) {
-      console.error("Error creating room:", err);
-      // Rollback
-      setRooms((prev) => prev.filter((r) => r.id !== tempId));
-      alert("Failed to create room.");
-    } finally {
-      setIsSaving(false);
-    }
-  };
-
-  return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-4"
-      style={{ backgroundColor: "rgba(0,0,0,0.45)", backdropFilter: "blur(4px)" }}
-    >
-      <div className="bg-white rounded-3xl shadow-2xl w-full max-w-md overflow-hidden">
-        {/* Header */}
-        <div className="flex items-center justify-between px-6 py-5 border-b border-gray-100">
-          <div>
-            <div className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-0.5">
-              Rooms · Configuration
-            </div>
-            <h2 className="text-[16px] font-black text-gray-900 leading-none">
-              Create New Room
-            </h2>
-          </div>
-          <button
-            onClick={onClose}
-            className="p-2 rounded-xl text-gray-400 hover:text-gray-700 hover:bg-gray-100 transition-all cursor-pointer"
-          >
-            <X size={16} />
-          </button>
-        </div>
-
-        {/* Form Body */}
-        <form onSubmit={handleSubmit}>
-          <div className="px-6 py-5 space-y-4">
-            <div>
-              <label className="block text-[10px] font-black text-gray-400 uppercase tracking-[0.12em] mb-1.5">
-                Room Name
-              </label>
-              <input
-                type="text"
-                required
-                value={roomName}
-                onChange={(e) => setRoomName(e.target.value)}
-                placeholder="e.g. Server Room 2"
-                className="w-full px-4 py-3 rounded-xl bg-gray-50 border border-gray-200 text-[12px] font-semibold text-gray-900 placeholder-gray-400 focus:outline-none focus:border-gray-400 transition-all"
-              />
-            </div>
-
-            <div>
-              <label className="block text-[10px] font-black text-gray-400 uppercase tracking-[0.12em] mb-1.5">
-                Sort Order
-              </label>
-              <input
-                type="number"
-                required
-                value={sortOrder}
-                onChange={(e) => setSortOrder(e.target.value)}
-                placeholder="0"
-                className="w-full px-4 py-3 rounded-xl bg-gray-50 border border-gray-200 text-[12px] font-semibold text-gray-900 placeholder-gray-400 focus:outline-none focus:border-gray-400 transition-all"
-              />
-            </div>
-          </div>
-
-          {/* Footer */}
-          <div className="flex items-center justify-end gap-2 px-6 py-4 border-t border-gray-100 bg-gray-50/50">
-            <button
-              type="button"
-              onClick={onClose}
-              className="px-4 py-2.5 rounded-xl text-[11px] font-black text-gray-500 hover:bg-gray-100 transition-all uppercase tracking-wider cursor-pointer"
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              disabled={isSaving}
-              className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-gray-900 text-white text-[11px] font-black uppercase tracking-wider hover:bg-gray-700 active:scale-[0.98] transition-all cursor-pointer disabled:opacity-50"
-            >
-              {isSaving && <Loader2 size={12} className="animate-spin" />}
-              <span>Create Room</span>
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
-  );
-}
-
-interface EditAssetModalProps {
-  isOpen: boolean;
-  onClose: () => void;
-  onSaveSuccess: () => void;
-  rooms: any[];
-  asset: Asset | null;
-}
-
-function EditAssetModal({ isOpen, onClose, onSaveSuccess, rooms, asset }: EditAssetModalProps) {
-  const [name, setName] = useState("");
-  const [category, setCategory] = useState("UPS");
-  const [ipAddress, setIpAddress] = useState("");
-  const [selectedRoomId, setSelectedRoomId] = useState("");
-  const [manufacturer, setManufacturer] = useState("");
-  const [model, setModel] = useState("");
-  const [firmwareVersion, setFirmwareVersion] = useState("");
-  const [rackLocation, setRackLocation] = useState("");
-  const [isSaving, setIsSaving] = useState(false);
-
-  useEffect(() => {
-    if (asset) {
-      setName(asset.name || "");
-      setCategory(asset.categoryDb || (asset.category === "Cooling" ? "AIRCON" : "UPS"));
-      setIpAddress(asset.ip || "");
-      setSelectedRoomId(asset.room_id || "");
-      setManufacturer(asset.manufacturer || "");
-      setModel(asset.model || "");
-      setFirmwareVersion(asset.firmware || "");
-      setRackLocation(asset.rack === "—" ? "" : asset.rack || "");
-    }
-  }, [asset]);
-
-  if (!isOpen || !asset) return null;
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setIsSaving(true);
-    try {
-      const selectedRoom = rooms.find(r => r.id === selectedRoomId);
-      const { error } = await supabase
-        .from("equipment_registry")
-        .update({
-          name: name.trim() || null,
-          category: category,
-          ip_address: ipAddress.trim() || null,
-          room_id: selectedRoomId || null,
-          location: selectedRoom?.room_name || "Unknown",
-          manufacturer: manufacturer.trim() || null,
-          model: model.trim() || null,
-          firmware_version: firmwareVersion.trim() || null,
-          rack_location: rackLocation.trim() || null
-        })
-        .eq("equipment_id", asset.id);
-
-      if (error) throw error;
-      onSaveSuccess();
-      onClose();
-    } catch (err) {
-      console.error("Error updating equipment:", err);
-      alert("Failed to update equipment.");
-    } finally {
-      setIsSaving(false);
-    }
-  };
-
-  return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-4"
-      style={{ backgroundColor: "rgba(0,0,0,0.45)", backdropFilter: "blur(4px)" }}
-    >
-      <div className="bg-white rounded-3xl shadow-2xl w-full max-w-xl overflow-hidden animate-fade-in">
-        {/* Header */}
-        <div className="flex items-center justify-between px-6 py-5 border-b border-gray-100">
-          <div>
-            <div className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-0.5">
-              Ledger · Edit Configuration
-            </div>
-            <h2 className="text-[16px] font-black text-gray-900 leading-none">
-              Edit Equipment {asset.id}
-            </h2>
-          </div>
-          <button
-            onClick={onClose}
-            className="p-2 rounded-xl text-gray-400 hover:text-gray-700 hover:bg-gray-100 transition-all cursor-pointer"
-          >
-            <X size={16} />
-          </button>
-        </div>
-
-        {/* Form Body */}
-        <form onSubmit={handleSubmit}>
-          <div className="px-6 py-5 space-y-4 max-h-[70vh] overflow-y-auto">
-            {/* Row 1: Name and Category */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-[10px] font-black text-gray-400 uppercase tracking-[0.12em] mb-1.5">
-                  Equipment Name
-                </label>
-                <input
-                  type="text"
-                  required
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  placeholder="e.g. UPS System 3"
-                  className="w-full px-4 py-3 rounded-xl bg-gray-50 border border-gray-200 text-[12px] font-semibold text-gray-900 placeholder-gray-400 focus:outline-none focus:border-gray-400 transition-all"
-                />
-              </div>
-              <div>
-                <label className="block text-[10px] font-black text-gray-400 uppercase tracking-[0.12em] mb-1.5">
-                  Category
-                </label>
-                <Select value={category} onValueChange={setCategory}>
-                  <SelectTrigger className="w-full h-11 bg-gray-50 border border-gray-200 rounded-xl text-[12px] font-semibold text-gray-900 focus:ring-1 focus:ring-gray-450 focus:border-gray-450">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent className="bg-white border border-gray-100 rounded-xl shadow-lg z-[10000]">
-                    <SelectItem value="UPS" className="text-[12px] font-semibold text-gray-900 cursor-pointer">UPS</SelectItem>
-                    <SelectItem value="GENERATOR" className="text-[12px] font-semibold text-gray-900 cursor-pointer">Generator</SelectItem>
-                    <SelectItem value="MAINS" className="text-[12px] font-semibold text-gray-900 cursor-pointer">Mains Feed</SelectItem>
-                    <SelectItem value="RECTIFIER" className="text-[12px] font-semibold text-gray-900 cursor-pointer">Rectifier</SelectItem>
-                    <SelectItem value="AIRCON" className="text-[12px] font-semibold text-gray-900 cursor-pointer">Air Conditioner (CRAC)</SelectItem>
-                    <SelectItem value="ENVIRONMENT" className="text-[12px] font-semibold text-gray-900 cursor-pointer">Environment Sensor</SelectItem>
-                    <SelectItem value="FIRE_SUPPRESSION" className="text-[12px] font-semibold text-gray-900 cursor-pointer">Fire Suppression</SelectItem>
-                    <SelectItem value="FUEL_LOGISTICS" className="text-[12px] font-semibold text-gray-900 cursor-pointer">Fuel Logistics</SelectItem>
-                    <SelectItem value="LOAD_PANEL" className="text-[12px] font-semibold text-gray-900 cursor-pointer">Load Panel</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-
-            {/* Row 2: Asset ID and IP Address */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-[10px] font-black text-gray-400 uppercase tracking-[0.12em] mb-1.5">
-                  Asset ID
-                </label>
-                <input
-                  type="text"
-                  disabled
-                  value={asset.id}
-                  className="w-full px-4 py-3 rounded-xl bg-gray-100 border border-gray-200 text-[12px] font-semibold text-gray-400 cursor-not-allowed focus:outline-none"
-                />
-              </div>
-              <div>
-                <label className="block text-[10px] font-black text-gray-400 uppercase tracking-[0.12em] mb-1.5">
-                  IP Address
-                </label>
-                <input
-                  type="text"
-                  required
-                  value={ipAddress}
-                  onChange={(e) => setIpAddress(e.target.value)}
-                  placeholder="e.g. 10.0.4.13"
-                  className="w-full px-4 py-3 rounded-xl bg-gray-50 border border-gray-200 text-[12px] font-semibold text-gray-900 placeholder-gray-400 focus:outline-none focus:border-gray-400 transition-all"
-                />
-              </div>
-            </div>
-
-            {/* Row 3: Manufacturer and Model */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-[10px] font-black text-gray-400 uppercase tracking-[0.12em] mb-1.5">
-                  Manufacturer
-                </label>
-                <input
-                  type="text"
-                  required
-                  value={manufacturer}
-                  onChange={(e) => setManufacturer(e.target.value)}
-                  placeholder="e.g. Vertiv"
-                  className="w-full px-4 py-3 rounded-xl bg-gray-50 border border-gray-200 text-[12px] font-semibold text-gray-900 placeholder-gray-400 focus:outline-none focus:border-gray-400 transition-all"
-                />
-              </div>
-              <div>
-                <label className="block text-[10px] font-black text-gray-400 uppercase tracking-[0.12em] mb-1.5">
-                  Model
-                </label>
-                <input
-                  type="text"
-                  required
-                  value={model}
-                  onChange={(e) => setModel(e.target.value)}
-                  placeholder="e.g. Liebert EXL S1"
-                  className="w-full px-4 py-3 rounded-xl bg-gray-50 border border-gray-200 text-[12px] font-semibold text-gray-900 placeholder-gray-400 focus:outline-none focus:border-gray-400 transition-all"
-                />
-              </div>
-            </div>
-
-            {/* Row 4: Firmware and Rack Location */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-[10px] font-black text-gray-400 uppercase tracking-[0.12em] mb-1.5">
-                  Firmware Version
-                </label>
-                <input
-                  type="text"
-                  required
-                  value={firmwareVersion}
-                  onChange={(e) => setFirmwareVersion(e.target.value)}
-                  placeholder="e.g. v1.0.0"
-                  className="w-full px-4 py-3 rounded-xl bg-gray-50 border border-gray-200 text-[12px] font-semibold text-gray-900 placeholder-gray-400 focus:outline-none focus:border-gray-400 transition-all"
-                />
-              </div>
-              <div>
-                <label className="block text-[10px] font-black text-gray-400 uppercase tracking-[0.12em] mb-1.5">
-                  Rack Location
-                </label>
-                <input
-                  type="text"
-                  value={rackLocation}
-                  onChange={(e) => setRackLocation(e.target.value)}
-                  placeholder="e.g. R-01"
-                  className="w-full px-4 py-3 rounded-xl bg-gray-50 border border-gray-200 text-[12px] font-semibold text-gray-900 placeholder-gray-400 focus:outline-none focus:border-gray-400 transition-all"
-                />
-              </div>
-            </div>
-
-            {/* Row 5: Room */}
-            <div>
-              <label className="block text-[10px] font-black text-gray-400 uppercase tracking-[0.12em] mb-1.5">
-                Room
-              </label>
-              {rooms.length === 0 ? (
-                <div className="text-[11px] text-red-500 font-bold uppercase tracking-wider p-3 bg-red-50 rounded-xl border border-red-100">
-                  No rooms configured. Add a room in the sidebar first.
-                </div>
-              ) : (
-                <Select value={selectedRoomId} onValueChange={setSelectedRoomId}>
-                  <SelectTrigger className="w-full h-11 bg-gray-50 border border-gray-200 rounded-xl text-[12px] font-semibold text-gray-900 focus:ring-1 focus:ring-gray-450 focus:border-gray-450">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent className="bg-white border border-gray-100 rounded-xl shadow-lg z-[10000]">
-                    {rooms.map((r) => (
-                      <SelectItem key={r.id} value={r.id} className="text-[12px] font-semibold text-gray-900 cursor-pointer">
-                        {r.room_name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              )}
-            </div>
-          </div>
-
-          {/* Footer */}
-          <div className="flex items-center justify-end gap-2 px-6 py-4 border-t border-gray-100 bg-gray-50/50">
-            <button
-              type="button"
-              onClick={onClose}
-              className="px-4 py-2.5 rounded-xl text-[11px] font-black text-gray-500 hover:bg-gray-100 transition-all uppercase tracking-wider cursor-pointer"
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              disabled={isSaving || rooms.length === 0}
-              className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-gray-900 text-white text-[11px] font-black uppercase tracking-wider hover:bg-gray-700 active:scale-[0.98] transition-all cursor-pointer disabled:opacity-50"
-            >
-              {isSaving && <Loader2 size={12} className="animate-spin" />}
-              <span>Save Changes</span>
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
-  );
-}
 
 // ── ChartPanel — embedded telemetry chart section ─────────────────────────────
 
@@ -951,7 +205,6 @@ function ChartPanel({ equipmentId }: { equipmentId: string }) {
 }
 
 interface ManageParametersModalProps {
-
   isOpen: boolean;
   onClose: () => void;
   equipmentId: string;
@@ -972,17 +225,6 @@ interface EquipmentParameter {
 function ManageParametersModal({ isOpen, onClose, equipmentId }: ManageParametersModalProps) {
   const [parameters, setParameters] = useState<EquipmentParameter[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [isSaving, setIsSaving] = useState(false);
-  const [isDeletingId, setIsDeletingId] = useState<string | null>(null);
-
-  // Form states
-  const [parameterName, setParameterName] = useState("");
-  const [dataType, setDataType] = useState<'number' | 'string' | 'boolean'>("number");
-  const [isConstant, setIsConstant] = useState(false);
-  const [constantValue, setConstantValue] = useState("");
-  const [isGraphable, setIsGraphable] = useState(false);
-  const [unit, setUnit] = useState("");
-  const [validationError, setValidationError] = useState<string | null>(null);
 
   const fetchParameters = async () => {
     setIsLoading(true);
@@ -1005,115 +247,11 @@ function ManageParametersModal({ isOpen, onClose, equipmentId }: ManageParameter
   useEffect(() => {
     if (isOpen && equipmentId) {
       fetchParameters();
-      // Reset form
-      setParameterName("");
-      setDataType("number");
-      setIsConstant(false);
-      setConstantValue("");
-      setIsGraphable(false);
-      setUnit("");
-      setValidationError(null);
     }
   }, [isOpen, equipmentId]);
 
   if (!isOpen) return null;
 
-  const handleAddParameter = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setValidationError(null);
-
-    const nameTrimmed = parameterName.trim();
-    if (!nameTrimmed) {
-      setValidationError("Parameter name is required.");
-      return;
-    }
-
-    // Check unique parameter name for this equipment
-    const exists = parameters.some(
-      (p) => p.parameter_name.toLowerCase() === nameTrimmed.toLowerCase()
-    );
-    if (exists) {
-      setValidationError(`A parameter named "${nameTrimmed}" already exists for this equipment.`);
-      return;
-    }
-
-    let finalConstantValue = null;
-    if (isConstant) {
-      const valTrimmed = constantValue.trim();
-      if (!valTrimmed) {
-        setValidationError("Constant value is required for constant parameters.");
-        return;
-      }
-
-      // DataType validations
-      if (dataType === "number") {
-        const num = Number(valTrimmed);
-        if (isNaN(num)) {
-          setValidationError("Constant value must be a valid number.");
-          return;
-        }
-      } else if (dataType === "boolean") {
-        const valLower = valTrimmed.toLowerCase();
-        if (valLower !== "true" && valLower !== "false") {
-          setValidationError("Constant value must be 'true' or 'false' for boolean type.");
-          return;
-        }
-      }
-      finalConstantValue = valTrimmed;
-    }
-
-    setIsSaving(true);
-    try {
-      const { error } = await supabase
-        .from("equipment_parameters")
-        .insert([{
-          equipment_id: equipmentId,
-          parameter_name: nameTrimmed,
-          data_type: dataType,
-          is_constant: isConstant,
-          constant_value: finalConstantValue,
-          is_graphable: isGraphable,
-          unit: unit.trim() || null
-        }]);
-
-      if (error) throw error;
-
-      // Reset form fields
-      setParameterName("");
-      setConstantValue("");
-      setIsConstant(false);
-      setIsGraphable(false);
-      setUnit("");
-      
-      // Reload
-      await fetchParameters();
-    } catch (err: any) {
-      console.error("Error saving parameter:", err);
-      setValidationError(err.message || "Failed to save parameter.");
-    } finally {
-      setIsSaving(false);
-    }
-  };
-
-  const handleDeleteParameter = async (paramId: string) => {
-    setIsDeletingId(paramId);
-    try {
-      const { error } = await supabase
-        .from("equipment_parameters")
-        .delete()
-        .eq("id", paramId);
-
-      if (error) throw error;
-      setParameters((prev) => prev.filter((p) => p.id !== paramId));
-    } catch (err) {
-      console.error("Error deleting parameter:", err);
-      alert("Failed to delete parameter.");
-    } finally {
-      setIsDeletingId(null);
-    }
-  };
-
-  // Grouping
   const constants = parameters.filter((p) => p.is_constant);
   const telemetries = parameters.filter((p) => !p.is_constant);
 
@@ -1122,7 +260,7 @@ function ManageParametersModal({ isOpen, onClose, equipmentId }: ManageParameter
       className="fixed inset-0 z-50 flex items-center justify-center p-4"
       style={{ backgroundColor: "rgba(0,0,0,0.45)", backdropFilter: "blur(4px)" }}
     >
-      <div className="bg-white rounded-3xl shadow-2xl w-full max-w-4xl overflow-hidden flex flex-col max-h-[90vh]">
+      <div className="bg-white rounded-3xl shadow-2xl w-full max-w-3xl overflow-hidden flex flex-col max-h-[90vh]">
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-5 border-b border-gray-100 flex-shrink-0">
           <div>
@@ -1130,7 +268,7 @@ function ManageParametersModal({ isOpen, onClose, equipmentId }: ManageParameter
               EAV Parameter Engine · {equipmentId}
             </div>
             <h2 className="text-[16px] font-black text-gray-900 leading-none">
-              Manage Equipment Parameters
+              View Equipment Parameters
             </h2>
           </div>
           <button
@@ -1141,16 +279,13 @@ function ManageParametersModal({ isOpen, onClose, equipmentId }: ManageParameter
           </button>
         </div>
 
-        {/* Content Side-by-Side */}
+        {/* Content */}
         <div className="flex-1 overflow-y-auto flex flex-col min-h-0">
-
           {/* Telemetry History Chart — full width panel */}
           <ChartPanel equipmentId={equipmentId} />
 
-          {/* Parameters + Form side by side */}
-          <div className="flex flex-col md:flex-row min-h-0 flex-1">
-          {/* Left Panel: Parameters List */}
-          <div className="w-full md:w-3/5 border-r border-gray-100 p-6 overflow-y-auto flex flex-col gap-6">
+          {/* Parameters List */}
+          <div className="p-6 overflow-y-auto flex flex-col gap-6">
             {isLoading ? (
               <div className="flex flex-col items-center justify-center py-12 text-gray-400 gap-2">
                 <Loader2 size={24} className="animate-spin text-red-500" />
@@ -1160,9 +295,6 @@ function ManageParametersModal({ isOpen, onClose, equipmentId }: ManageParameter
               <div className="flex flex-col items-center justify-center py-16 text-gray-400 border-2 border-dashed border-gray-100 rounded-2xl">
                 <Database size={32} className="mb-2 text-gray-300" />
                 <span className="text-xs font-bold uppercase tracking-wider">No parameters configured</span>
-                <p className="text-[10px] text-gray-400 text-center mt-1 max-w-[240px]">
-                  Add telemetry metrics or threshold configurations using the form on the right.
-                </p>
               </div>
             ) : (
               <>
@@ -1177,7 +309,7 @@ function ManageParametersModal({ isOpen, onClose, equipmentId }: ManageParameter
                       {constants.map((param) => (
                         <div
                           key={param.id}
-                          className="bg-blue-50/30 border border-blue-100 rounded-xl p-3.5 flex items-center justify-between gap-4 group"
+                          className="bg-blue-50/30 border border-blue-100 rounded-xl p-3.5 flex items-center justify-between gap-4"
                         >
                           <div className="min-w-0">
                             <div className="flex items-center gap-2">
@@ -1195,18 +327,6 @@ function ManageParametersModal({ isOpen, onClose, equipmentId }: ManageParameter
                               )}
                             </div>
                           </div>
-                          <button
-                            type="button"
-                            onClick={() => handleDeleteParameter(param.id)}
-                            disabled={isDeletingId === param.id}
-                            className="p-2 rounded-lg text-gray-400 hover:text-red-600 hover:bg-red-50/50 transition-all cursor-pointer opacity-0 group-hover:opacity-100 focus:opacity-100"
-                          >
-                            {isDeletingId === param.id ? (
-                              <Loader2 size={13} className="animate-spin" />
-                            ) : (
-                              <Trash2 size={13} />
-                            )}
-                          </button>
                         </div>
                       ))}
                     </div>
@@ -1224,7 +344,7 @@ function ManageParametersModal({ isOpen, onClose, equipmentId }: ManageParameter
                       {telemetries.map((param) => (
                         <div
                           key={param.id}
-                          className="bg-red-50/20 border border-red-100/50 rounded-xl p-3.5 flex items-center justify-between gap-4 group"
+                          className="bg-red-50/20 border border-red-100/50 rounded-xl p-3.5 flex items-center justify-between gap-4"
                         >
                           <div className="min-w-0">
                             <div className="flex items-center gap-2">
@@ -1247,18 +367,6 @@ function ManageParametersModal({ isOpen, onClose, equipmentId }: ManageParameter
                               )}
                             </div>
                           </div>
-                          <button
-                            type="button"
-                            onClick={() => handleDeleteParameter(param.id)}
-                            disabled={isDeletingId === param.id}
-                            className="p-2 rounded-lg text-gray-400 hover:text-red-600 hover:bg-red-50/50 transition-all cursor-pointer opacity-0 group-hover:opacity-100 focus:opacity-100"
-                          >
-                            {isDeletingId === param.id ? (
-                              <Loader2 size={13} className="animate-spin" />
-                            ) : (
-                              <Trash2 size={13} />
-                            )}
-                          </button>
                         </div>
                       ))}
                     </div>
@@ -1267,139 +375,6 @@ function ManageParametersModal({ isOpen, onClose, equipmentId }: ManageParameter
               </>
             )}
           </div>
-
-          {/* Right Panel: Add Form */}
-          <div className="w-full md:w-2/5 p-6 bg-gray-50/50 overflow-y-auto">
-            <h3 className="text-[11px] font-black text-gray-900 uppercase tracking-widest mb-4">
-              Add Parameter
-            </h3>
-            
-            <form onSubmit={handleAddParameter} className="space-y-4">
-              {validationError && (
-                <div className="bg-red-50 border border-red-100 text-[11px] text-red-700 font-semibold p-3.5 rounded-xl flex items-start gap-2 animate-fade-in">
-                  <AlertCircle size={14} className="text-red-500 shrink-0 mt-0.5" />
-                  <span>{validationError}</span>
-                </div>
-              )}
-
-              {/* Parameter Name */}
-              <div>
-                <label className="block text-[10px] font-black text-gray-400 uppercase tracking-wider mb-1.5">
-                  Parameter Name
-                </label>
-                <input
-                  type="text"
-                  required
-                  value={parameterName}
-                  onChange={(e) => setParameterName(e.target.value)}
-                  placeholder="e.g. Serial Number, Humidity Set"
-                  className="w-full px-3.5 py-2.5 rounded-xl bg-white border border-gray-200 text-[12px] font-semibold text-gray-900 placeholder-gray-400 focus:outline-none focus:border-gray-400 transition-all"
-                />
-              </div>
-
-              {/* Data Type */}
-              <div>
-                <label className="block text-[10px] font-black text-gray-400 uppercase tracking-wider mb-1.5">
-                  Data Type
-                </label>
-                <Select value={dataType} onValueChange={(value) => setDataType(value as any)}>
-                  <SelectTrigger className="w-full h-11 bg-white border border-gray-200 rounded-xl text-[12px] font-semibold text-gray-900 focus:ring-1 focus:ring-gray-450 focus:border-gray-450">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent className="bg-white border border-gray-100 rounded-xl shadow-lg z-[10000]">
-                    <SelectItem value="number" className="text-[12px] font-semibold text-gray-900 cursor-pointer">Number</SelectItem>
-                    <SelectItem value="string" className="text-[12px] font-semibold text-gray-900 cursor-pointer">String</SelectItem>
-                    <SelectItem value="boolean" className="text-[12px] font-semibold text-gray-900 cursor-pointer">Boolean</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-
-              {/* Toggle: Is Constant */}
-              <div className="flex items-center justify-between py-2 border-b border-gray-100">
-                <div>
-                  <label className="block text-[11px] font-black text-gray-700 uppercase tracking-wider">
-                    Is Constant
-                  </label>
-                  <span className="text-[9px] text-gray-400 font-semibold">
-                    Set a fixed configuration value
-                  </span>
-                </div>
-                <input
-                  type="checkbox"
-                  checked={isConstant}
-                  onChange={(e) => {
-                    setIsConstant(e.target.checked);
-                    if (!e.target.checked) setConstantValue("");
-                  }}
-                  className="w-4 h-4 rounded text-red-600 focus:ring-red-500 border-gray-300"
-                />
-              </div>
-
-              {/* Constant Value (Only visible if isConstant is true) */}
-              {isConstant && (
-                <div className="animate-slide-down">
-                  <label className="block text-[10px] font-black text-gray-400 uppercase tracking-wider mb-1.5">
-                    Constant Value
-                  </label>
-                  <input
-                    type="text"
-                    required
-                    value={constantValue}
-                    onChange={(e) => setConstantValue(e.target.value)}
-                    placeholder={dataType === 'boolean' ? 'true or false' : dataType === 'number' ? 'e.g. 54.2' : 'e.g. SN-09874'}
-                    className="w-full px-3.5 py-2.5 rounded-xl bg-white border border-gray-200 text-[12px] font-semibold text-gray-900 placeholder-gray-400 focus:outline-none focus:border-gray-400 transition-all"
-                  />
-                </div>
-              )}
-
-              {/* Toggle: Is Graphable */}
-              <div className="flex items-center justify-between py-2 border-b border-gray-100">
-                <div>
-                  <label className="block text-[11px] font-black text-gray-700 uppercase tracking-wider">
-                    Is Graphable
-                  </label>
-                  <span className="text-[9px] text-gray-400 font-semibold">
-                    Enable charting and trend analysis
-                  </span>
-                </div>
-                <input
-                  type="checkbox"
-                  checked={isGraphable}
-                  onChange={(e) => setIsGraphable(e.target.checked)}
-                  className="w-4 h-4 rounded text-red-600 focus:ring-red-500 border-gray-300"
-                />
-              </div>
-
-              {/* Unit */}
-              <div>
-                <label className="block text-[10px] font-black text-gray-400 uppercase tracking-wider mb-1.5">
-                  Unit (Optional)
-                </label>
-                <input
-                  type="text"
-                  value={unit}
-                  onChange={(e) => setUnit(e.target.value)}
-                  placeholder="e.g. kW, V DC, °C, %"
-                  className="w-full px-3.5 py-2.5 rounded-xl bg-white border border-gray-200 text-[12px] font-semibold text-gray-900 placeholder-gray-400 focus:outline-none focus:border-gray-400 transition-all"
-                />
-              </div>
-
-              {/* Submit */}
-              <button
-                type="submit"
-                disabled={isSaving}
-                className="w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-gray-900 text-white text-[11px] font-black uppercase tracking-wider hover:bg-gray-700 active:scale-[0.98] transition-all cursor-pointer disabled:opacity-50 mt-2"
-              >
-                {isSaving ? (
-                  <Loader2 size={13} className="animate-spin" />
-                ) : (
-                  <Plus size={13} />
-                )}
-                <span>Add Parameter</span>
-              </button>
-            </form>
-          </div>
-          </div>  {/* end parameters + form side-by-side */}
         </div>
       </div>
     </div>
@@ -1414,12 +389,8 @@ export function AssetInventory() {
   const [query,          setQuery]          = useState("");
   const [filterCategory, setFilterCategory] = useState("");
   const [filterStatus,   setFilterStatus]   = useState("");
-  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
-  const [isAddRoomModalOpen, setIsAddRoomModalOpen] = useState(false);
   const [selectedAssetId, setSelectedAssetId] = useState<string | null>(null);
   const [isParamsModalOpen, setIsParamsModalOpen] = useState(false);
-  const [editingAsset, setEditingAsset] = useState<Asset | null>(null);
-  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   
   const [rooms, setRooms] = useState<any[]>([]);
   const [activeRoomId, setActiveRoomId] = useState<string | null>(null);
@@ -1439,38 +410,6 @@ export function AssetInventory() {
     }
   };
 
-  const handleDeleteRoom = async (roomId: string, roomName: string, assetCount: number) => {
-    if (assetCount > 0) {
-      alert(`Cannot delete room "${roomName}" because it contains ${assetCount} active asset(s). Please move or delete the assets first.`);
-      return;
-    }
-
-    const confirmed = window.confirm(`Are you sure you want to delete the room "${roomName}"? This action cannot be undone.`);
-    if (!confirmed) return;
-
-    try {
-      const { error } = await supabase
-        .from("rooms")
-        .delete()
-        .eq("id", roomId);
-
-      if (error) throw error;
-
-      // Update local state
-      setRooms((prev) => prev.filter((r) => r.id !== roomId));
-      
-      // If the deleted room was active, reset activeRoomId
-      if (activeRoomId === roomId) {
-        setActiveRoomId(null);
-      }
-      
-      alert(`Room "${roomName}" deleted successfully.`);
-    } catch (err: any) {
-      console.error("Error deleting room:", err);
-      alert(`Failed to delete room: ${err.message || "Unknown error"}`);
-    }
-  };
-
   const fetchAssets = async () => {
     if (!currentSite?.id) {
       setAssets([]);
@@ -1481,7 +420,6 @@ export function AssetInventory() {
         .from("equipment_registry")
         .select("*")
         .eq("site_uuid", currentSite.id)
-        .eq("is_active", true)
         .order("equipment_id", { ascending: true });
 
       if (error) throw error;
@@ -1557,8 +495,6 @@ export function AssetInventory() {
             metricUnit = "V AC";
           }
 
-          // Derive initial status from is_active; field technicians update
-          // this to DEGRADED/OFFLINE via the 3-way toggle on the checklist.
           const status: AssetStatus = row.is_active ? "ONLINE" : "DECOMMISSIONED";
 
           return {
@@ -1576,7 +512,8 @@ export function AssetInventory() {
             liveMetric:   liveMetric,
             metricUnit:   metricUnit,
             lastSeen:     row.is_active ? "Live" : "Offline",
-            room_id:      row.room_id
+            room_id:      row.room_id,
+            is_active:    row.is_active
           };
         });
         setAssets(mapped);
@@ -1649,29 +586,6 @@ export function AssetInventory() {
 
   return (
     <>
-      <AddAssetModal 
-        isOpen={isAddModalOpen} 
-        onClose={() => setIsAddModalOpen(false)} 
-        onSaveSuccess={fetchAssets} 
-        rooms={rooms}
-        assets={assets}
-      />
-      <AddRoomModal
-        isOpen={isAddRoomModalOpen}
-        onClose={() => setIsAddRoomModalOpen(false)}
-        onSaveSuccess={fetchRooms}
-        setRooms={setRooms}
-      />
-      <EditAssetModal
-        isOpen={isEditModalOpen}
-        onClose={() => {
-          setIsEditModalOpen(false);
-          setEditingAsset(null);
-        }}
-        onSaveSuccess={fetchAssets}
-        rooms={rooms}
-        asset={editingAsset}
-      />
       {selectedAssetId && (
         <ManageParametersModal
           isOpen={isParamsModalOpen}
@@ -1729,13 +643,7 @@ export function AssetInventory() {
               <h3 className="text-xs font-black text-gray-400 uppercase tracking-widest">
                 Physical Rooms
               </h3>
-              <button
-                onClick={() => setIsAddRoomModalOpen(true)}
-                className="p-1.5 rounded-lg bg-gray-50 border border-gray-200 text-gray-400 hover:text-gray-900 hover:bg-gray-100 transition-all cursor-pointer flex items-center justify-center"
-                title="Create New Room"
-              >
-                <Plus size={12} />
-              </button>
+              {/* Room creation disabled (defined in config blueprint) */}
             </div>
 
             <div className="space-y-1">
@@ -1774,21 +682,6 @@ export function AssetInventory() {
                     </button>
                     
                     <div className="flex items-center gap-1.5 flex-shrink-0 ml-2">
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleDeleteRoom(room.id, room.room_name, roomAssetCount);
-                        }}
-                        className={`p-1 rounded-lg transition-all md:opacity-0 group-hover:opacity-100 cursor-pointer ${
-                          isActive 
-                            ? "text-red-200 hover:text-white hover:bg-red-650" 
-                            : "text-gray-400 hover:text-red-500 hover:bg-red-50"
-                        }`}
-                        title="Delete Room"
-                      >
-                        <Trash2 size={12} />
-                      </button>
-
                       <span className={`text-[9px] px-1.5 py-0.5 rounded font-mono flex-shrink-0 ${
                         isActive 
                           ? "bg-red-600 text-white" 
@@ -1861,13 +754,7 @@ export function AssetInventory() {
               Export CSV
             </button>
 
-            {/* Add Equipment */}
-            <button
-              onClick={() => setIsAddModalOpen(true)}
-              className="flex items-center gap-2 h-9 px-4 rounded-xl bg-red-600 hover:bg-red-700 text-white text-[11px] font-black uppercase tracking-wider active:scale-[0.98] transition-all flex-shrink-0 cursor-pointer"
-            >
-              Add Equipment
-            </button>
+            {/* Equipment creation disabled (defined in config blueprint) */}
           </div>
 
           {/* Master Data Table */}
@@ -1992,37 +879,30 @@ export function AssetInventory() {
                         <td className="px-4 py-3.5 text-right whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
                           <div className="flex items-center justify-end gap-2">
                             <button
-                              onClick={() => {
-                                setEditingAsset(asset);
-                                setIsEditModalOpen(true);
-                              }}
-                              className="px-2.5 py-1.5 rounded-lg bg-white border border-gray-200 text-[10px] font-black uppercase tracking-wider text-slate-700 hover:text-slate-900 hover:bg-gray-50 transition-all cursor-pointer shadow-sm active:scale-95"
-                              title="Edit Equipment"
-                            >
-                              Edit
-                            </button>
-                            <button
-                              onClick={async () => {
-                                if (window.confirm(`Are you sure you want to decommission equipment ${asset.id}?`)) {
-                                  // Optimistic UI update
-                                  setAssets((prev) => prev.filter((a) => a.id !== asset.id));
+                              onClick={async (e) => {
+                                e.stopPropagation();
+                                const newActiveState = !asset.is_active;
+                                if (window.confirm(`Are you sure you want to ${newActiveState ? 'recommission' : 'decommission'} equipment ${asset.id}?`)) {
                                   try {
                                     const { error } = await supabase
                                       .from("equipment_registry")
-                                      .update({ is_active: false })
+                                      .update({ is_active: newActiveState })
                                       .eq("equipment_id", asset.id);
                                     if (error) throw error;
+                                    fetchAssets();
                                   } catch (err) {
-                                    console.error("Error decommissioning equipment:", err);
-                                    alert("Failed to decommission equipment. Rolling back.");
-                                    fetchAssets(); // rollback
+                                    console.error("Error updating equipment state:", err);
+                                    alert("Failed to update equipment state.");
                                   }
                                 }
                               }}
-                              className="p-1.5 rounded-lg bg-red-50 border border-red-100 text-red-500 hover:text-red-700 hover:bg-red-100/50 transition-all cursor-pointer active:scale-95 flex items-center justify-center"
-                              title="Decommission Equipment"
+                              className={`px-3 py-1.5 rounded-lg border text-[10px] font-black uppercase tracking-wider transition-all cursor-pointer shadow-sm active:scale-95 ${
+                                asset.is_active
+                                  ? "bg-red-50 border-red-100 text-red-500 hover:text-red-700 hover:bg-red-100/50"
+                                  : "bg-green-50 border-green-100 text-green-600 hover:text-green-800 hover:bg-green-100/50"
+                              }`}
                             >
-                              <Trash2 size={13} />
+                              {asset.is_active ? "Decommission" : "Recommission"}
                             </button>
                           </div>
                         </td>
