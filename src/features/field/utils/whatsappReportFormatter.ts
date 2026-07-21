@@ -1,0 +1,244 @@
+// src/features/field/utils/whatsappReportFormatter.ts
+
+export interface HistoryRecord {
+  timestamp: string;
+  date: string;
+  hour: string;
+  text: string;
+}
+
+/** Parses hour string (e.g. "12:00", "15:00", "09:30") into total minutes for numerical sorting */
+export const parseHourMinutes = (hStr: string): number => {
+  if (!hStr) return 0;
+  const match = hStr.match(/(\d{1,2})(?::(\d{2}))?/);
+  if (match) {
+    const hh = parseInt(match[1], 10);
+    const mm = match[2] ? parseInt(match[2], 10) : 0;
+    return hh * 60 + mm;
+  }
+  return 0;
+};
+
+/** Sorts history records in ascending numerical hour order */
+export const sortHistoryAscending = (records: HistoryRecord[]): HistoryRecord[] => {
+  return [...records].sort((a, b) => {
+    const minA = parseHourMinutes(a.hour);
+    const minB = parseHourMinutes(b.hour);
+    if (minA !== minB) return minA - minB;
+    return new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime();
+  });
+};
+
+interface ReportParams {
+  siteCode: string;
+  currentSiteName?: string;
+  employeeName?: string;
+  activePowerSource: 'ZESCO' | 'MAINS' | 'GENERATOR';
+  formData: Record<string, any>;
+}
+
+export const generateReportTexts = ({
+  siteCode,
+  currentSiteName,
+  employeeName,
+  activePowerSource,
+  formData
+}: ReportParams) => {
+  const getCleanValue = (key: string, fallback: string = "NA") => {
+    const val = formData[key];
+    if (val === undefined || val === null || String(val).trim() === "") return fallback;
+    return String(val).trim();
+  };
+
+  const technicianName = employeeName || "Unknown Tech";
+  const firstName = technicianName.trim().split(/\s+/)[0];
+  const powerSourceText = activePowerSource === 'GENERATOR' ? 'GENERATOR' : 'ZESCO MAINS';
+  const isGen = activePowerSource === 'GENERATOR';
+  const shareTime = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+  let whatsappPayload = "";
+  let internalPayload = "";
+
+  if (siteCode === "NTC") {
+    const voltageVal = isGen ? getCleanValue('dg_load_voltage_r') : getCleanValue('grid_voltage_r');
+    const ampsVal = isGen ? getCleanValue('dg_load_amps_r') : getCleanValue('grid_amps_r');
+    const pfVal = isGen ? "0.9" : getCleanValue('grid_power_factor', "0.9");
+    const voltageNum = parseFloat(voltageVal);
+    const ampsNum = parseFloat(ampsVal);
+    const pfNum = parseFloat(pfVal);
+    const calcKw = (isGen && !isNaN(voltageNum) && !isNaN(ampsNum))
+      ? Math.round((voltageNum * ampsNum * 1.732 * pfNum) / 1000)
+      : 0;
+
+    const kwVal = isGen ? calcKw.toString() : getCleanValue('grid_total_site_load');
+
+    const r1_v = getCleanValue('rectifier_1_dc_voltage', '54.2');
+    const r1_a = getCleanValue('rectifier_1_amps');
+    const r1_cap = getCleanValue('rectifier_1_used_percentage');
+
+    const r2_v = getCleanValue('rectifier_2_dc_voltage', '54.2');
+    const r2_a = getCleanValue('rectifier_2_amps');
+    const r2_cap = getCleanValue('rectifier_2_used_percentage');
+
+    const ups1_l1 = getCleanValue('ups_1_output_voltage_a', '230');
+    const ups1_l2 = getCleanValue('ups_1_output_voltage_b', '230');
+    const ups1_l3 = getCleanValue('ups_1_output_voltage_c', '230');
+    const ups1_a1 = getCleanValue('ups_1_load_amps_a');
+    const ups1_a2 = getCleanValue('ups_1_load_amps_b');
+    const ups1_a3 = getCleanValue('ups_1_load_amps_c');
+    const ups1_batt = getCleanValue('ups_1_battery_voltage');
+    const ups1_charge = getCleanValue('ups_1_battery_charge_percent', '100');
+    const ups1_used = getCleanValue('ups_1_used_capacity');
+    const ups1_load = getCleanValue('ups_1_output_load_kw');
+
+    const ups2_l1 = getCleanValue('ups_2_output_voltage_a', '230');
+    const ups2_l2 = getCleanValue('ups_2_output_voltage_b', '230');
+    const ups2_l3 = getCleanValue('ups_2_output_voltage_c', '230');
+    const ups2_a1 = getCleanValue('ups_2_load_amps_a');
+    const ups2_a2 = getCleanValue('ups_2_load_amps_b');
+    const ups2_a3 = getCleanValue('ups_2_load_amps_c');
+    const ups2_batt = getCleanValue('ups_2_battery_voltage');
+    const ups2_charge = getCleanValue('ups_2_battery_charge_percent', '100');
+    const ups2_used = getCleanValue('ups_2_used_capacity');
+    const ups2_load = getCleanValue('ups_2_output_load_kw');
+
+    const tempMain = getCleanValue('server_ambient_temp');
+    const tempPr1 = getCleanValue('pr1_ambient_temp');
+    const tempPr2 = getCleanValue('pr2_ambient_temp');
+    const tempIt1 = getCleanValue('it1_ambient_temp');
+    const tempIt2 = getCleanValue('it2_ambient_temp');
+    const humidityMain = getCleanValue('server_ambient_humidity');
+
+    whatsappPayload = `*NTC ZM 0874*
+*${firstName.toUpperCase()} ON DUTY*
+*TIME: ${shareTime}hrs*
+*LOAD ON:* ${powerSourceText}
+*Load voltage:* ${voltageVal}V
+*Load in Amps:* ${ampsVal}A
+
+*KW:* ${kwVal}
+*Power factor* ${pfVal}
+
+*VERTIV RECTIFIER 1*
+(Power room 1) ${r1_v}v/${r1_a}A/${r1_cap}%
+*VERTIV RECTIFIER 2*
+(Power room 2) ${r2_v}v/${r2_a}A/${r2_cap}%
+
+*VERTIV UPS 1 OUTPUT*
+(Power room_1)
+L1-${ups1_l1}/${ups1_a1}A
+L2-${ups1_l2}/${ups1_a2}A
+L3-${ups1_l3}/${ups1_a3}A
+
+Battery Voltage: ${ups1_batt}VDC
+Battery Charge: ${ups1_charge}%
+Used Capacity: ${ups1_used}%
+Load: ${ups1_load}KW
+
+*VERTIV UPS 2 OUTPUT*
+(Power room_2)
+L1-${ups2_l1}/${ups2_a1}A
+L2-${ups2_l2}/${ups2_a2}A
+L3-${ups2_l3}/${ups2_a3}A
+
+Battery voltage: ${ups2_batt}VDC
+Battery Charge:${ups2_charge}%
+Used Capacity:${ups2_used}%
+Load: ${ups2_load}KW
+
+*TEMPERATURE*
+Main Room_${tempMain}°C
+Power Room1_${tempPr1}°C
+Power Room2_${tempPr2}°C
+
+*FIRST FLOOR SERVER ROOM*
+ENTERPRISE  ROOM 1_${tempIt1}°C
+ENTERPRISE ROOM 2_${tempIt2}°C
+Humidity: ${humidityMain}%`;
+
+    const em1_temp = getCleanValue('pac_server_em1_return_temp_actual');
+    const em2_temp = getCleanValue('pac_server_em2_return_temp_actual');
+    const em3_temp = getCleanValue('pac_server_em3_return_temp_actual');
+    const em4_temp = getCleanValue('pac_server_em4_return_temp_actual');
+    const em5_temp = getCleanValue('pac_server_em5_return_temp_actual');
+    const em6_temp = getCleanValue('pac_server_em6_return_temp_actual');
+    const em7_temp = getCleanValue('pac_server_em7_return_temp_actual');
+
+    const vt1_temp = getCleanValue('pac_server_vt1_return_temp_actual');
+    const vt2_temp = getCleanValue('pac_server_vt2_return_temp_actual');
+    const vt3_temp = getCleanValue('pac_server_vt3_return_temp_actual');
+    const vt4_temp = getCleanValue('pac_server_vt4_return_temp_actual');
+    const vt5_temp = getCleanValue('pac_server_vt5_return_temp_actual');
+    const vt6_temp = getCleanValue('pac_data_vt6_return_temp_actual');
+
+    const v_r = isGen ? getCleanValue('dg_load_voltage_r') : getCleanValue('grid_voltage_r');
+    const v_y = isGen ? getCleanValue('dg_load_voltage_y') : getCleanValue('grid_voltage_y');
+    const v_b = isGen ? getCleanValue('dg_load_voltage_b') : getCleanValue('grid_voltage_b');
+
+    const v_rn = isGen ? "230" : getCleanValue('grid_phase_voltage_rn', '230');
+    const v_yn = isGen ? "230" : getCleanValue('grid_phase_voltage_yn', '230');
+    const v_bn = isGen ? "230" : getCleanValue('grid_phase_voltage_bn', '230');
+
+    const a_r = isGen ? getCleanValue('dg_load_amps_r') : getCleanValue('grid_amps_r');
+    const a_y = isGen ? getCleanValue('dg_load_amps_y') : getCleanValue('grid_amps_y');
+    const a_b = isGen ? getCleanValue('dg_load_amps_b') : getCleanValue('grid_amps_b');
+
+    internalPayload = `${whatsappPayload}
+
+Unit Temperatures
+Emerson 1 : ${em1_temp}
+Emerson 2 : ${em2_temp}
+Emerson 3 : ${em3_temp}
+Emerson 4 : ${em4_temp}
+Emerson 5 : ${em5_temp}
+Emerson 6 : ${em6_temp}
+Emerson 7 : ${em7_temp}
+
+Vertiv 1 : ${vt1_temp}
+Vertiv 2: ${vt2_temp}
+Vertiv 3: ${vt3_temp}
+Vertiv 4 : ${vt4_temp}
+Vertiv 5 : ${vt5_temp}
+Vertiv 6 : ${vt6_temp}
+
+VOLTAGE: ${v_r} ${v_b} ${v_y}
+VOLTAGE: ${v_rn} ${v_bn} ${v_yn}
+CURRENT: ${a_r} ${a_b} ${a_y}`;
+  } else {
+    const voltageVal = isGen ? getCleanValue('dg_load_voltage_r') : getCleanValue('grid_voltage_r');
+    const ampsVal = isGen ? getCleanValue('dg_load_amps_r') : getCleanValue('grid_amps_r');
+    const pfVal = isGen ? "0.9" : getCleanValue('grid_power_factor', "0.9");
+    const kwVal = getCleanValue('grid_total_site_load');
+
+    const tempMain = getCleanValue('server_ambient_temp');
+    const tempPr1 = getCleanValue('pr1_ambient_temp');
+    const tempIt1 = getCleanValue('it1_ambient_temp');
+
+    whatsappPayload = `*${siteCode} ${currentSiteName || ""}*
+*${firstName.toUpperCase()} ON DUTY*
+*TIME: ${shareTime}hrs*
+*LOAD ON ${powerSourceText}*
+Load voltage *${voltageVal}*V
+Load in Amps *${ampsVal}*A
+*KW:${kwVal}*KW
+Power factor *${pfVal}*
+
+*TEMPERATURE*
+Main Room *${tempMain}*°C
+Power Room1_*${tempPr1}*°C
+Enterprise Room 1 *${tempIt1}*°C`;
+
+    const em1_temp = getCleanValue('pac_server_em1_return_temp_actual');
+    const em2_temp = getCleanValue('pac_server_em2_return_temp_actual');
+    const em1_it_temp = getCleanValue('pac_it1_em1_return_temp_actual');
+
+    internalPayload = `${whatsappPayload}
+
+Unit Temperatures
+Emerson 1 : ${em1_temp}
+Emerson 2 : ${em2_temp}
+IT Room 1 AC 1 : ${em1_it_temp}`;
+  }
+
+  return { whatsappPayload, internalPayload };
+};

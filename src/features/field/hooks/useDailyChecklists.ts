@@ -26,7 +26,7 @@ export function useDailyChecklists() {
         .from("telemetry_logs")
         .select("*")
         .eq("frequency", "daily")
-        .eq("asset_id", "daily_checklist")
+        .in("asset_id", ["AIRTEL_DAILY_CHECKLIST", "daily_checklist"])
         .order("target_hour", { ascending: false });
 
       if (fetchError) throw fetchError;
@@ -69,7 +69,7 @@ export function useDailyChecklists() {
 
       const dbPayload = {
         target_hour: localDate.toISOString(),
-        asset_id: "daily_checklist",
+        asset_id: "AIRTEL_DAILY_CHECKLIST",
         frequency: "daily",
         technician_name: payload.technician_name,
         metrics: {

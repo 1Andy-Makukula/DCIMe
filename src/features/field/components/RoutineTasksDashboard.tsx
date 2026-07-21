@@ -1,7 +1,6 @@
 // src/features/field/components/RoutineTasksDashboard.tsx
 import { useState, useMemo, useEffect } from 'react';
-import { createPortal } from 'react-dom';
-import { Save, CheckCircle2, Loader2, Zap, AlertTriangle, ArrowLeft, Plug, ClipboardList, Share2, History, Copy, Trash2, X } from 'lucide-react';
+import { Save, CheckCircle2, Loader2, Zap, AlertTriangle, ArrowLeft, Plug, ClipboardList, Share2, History } from 'lucide-react';
 import { supabase } from '@/shared/api/supabaseClient';
 import { useAuth } from '@/shared/context/AuthContext';
 import { useCurrentSite } from '@/shared/context/SiteContext';
@@ -11,6 +10,9 @@ import { useSiteEquipment } from '../hooks/useSiteEquipment';
 import { useTelemetryMutation } from '../hooks/useTelemetryMutation';
 import { toast } from 'sonner';
 import { PathRenderer } from './PathRenderer';
+import { TelemetryHistoryModal } from './TelemetryHistoryModal';
+import { HistoryRecord, sortHistoryAscending, generateReportTexts } from '../utils/whatsappReportFormatter';
+import '../styles/telemetryHistory.css';
 
 interface RoutineTasksDashboardProps {
   targetHour: number;
@@ -30,11 +32,11 @@ function activeChecksLabel(isTwoHour: boolean, isFourHour: boolean, isDaily: boo
   return parts.join(' + ') + ' Checks';
 }
 
-export const RoutineTasksDashboard = ({ 
-  targetHour: propTargetHour, 
+export const RoutineTasksDashboard = ({
+  targetHour: propTargetHour,
   onComplete,
   onBack,
-  onSubmitSuccess 
+  onSubmitSuccess
 }: RoutineTasksDashboardProps) => {
   const targetHour = `${String(propTargetHour).padStart(2, '0')}:00`;
   const { employee } = useAuth();
@@ -51,14 +53,14 @@ export const RoutineTasksDashboard = ({
   }, []);
 
   // Consume the Telemetry Hook
-  const { 
-    formData, 
+  const {
+    formData,
     setFormData,
-    isLoading, 
-    isSubmitting, 
-    isEditMode, 
-    handleInputChange, 
-    handleSubmit, 
+    isLoading,
+    isSubmitting,
+    isEditMode,
+    handleInputChange,
+    handleSubmit,
     activePowerSource,
     isSuccess,
     submitError,
@@ -149,7 +151,7 @@ export const RoutineTasksDashboard = ({
       const next = prev.includes(dgId)
         ? prev.filter((id) => id !== dgId)
         : [...prev, dgId];
-      
+
       setFormData((prevForm: any) => {
         const updated = {
           ...prevForm,
@@ -182,9 +184,9 @@ export const RoutineTasksDashboard = ({
   }, [fsmMode, activeGenerators, generatorIds]);
 
   const numericHour = parseInt(targetHour.split(":")[0], 10);
-  const isTwoHour  = numericHour % 2 === 0;
+  const isTwoHour = numericHour % 2 === 0;
   const isFourHour = numericHour % 4 === 0;
-  const isDaily    = numericHour === 9;
+  const isDaily = numericHour === 9;
 
   // Filtering Logic
   const getVisibleMetrics = (assetId: string, metrics: any[]): any[] => {
@@ -197,8 +199,8 @@ export const RoutineTasksDashboard = ({
         if (fsmMode === 'DAILY_TEST') {
           // Hide electrical load parameters for No-Load test
           const isLoadMetric = metric.id.endsWith('_current_r') || metric.id.endsWith('_current_y') || metric.id.endsWith('_current_b') ||
-                               metric.id.endsWith('_voltage_ry') || metric.id.endsWith('_voltage_yb') || metric.id.endsWith('_voltage_br') ||
-                               metric.id.endsWith('_kwh_meter') || metric.id.endsWith('_frequency');
+            metric.id.endsWith('_voltage_ry') || metric.id.endsWith('_voltage_yb') || metric.id.endsWith('_voltage_br') ||
+            metric.id.endsWith('_kwh_meter') || metric.id.endsWith('_frequency');
           if (isLoadMetric) return false;
         }
         return activeGenerators.includes(assetId);
@@ -210,11 +212,11 @@ export const RoutineTasksDashboard = ({
       }
 
       switch (metric.frequency) {
-        case 'hourly':  return true;
-        case '2-hour':  return isTwoHour;
-        case '4-hour':  return isFourHour;
-        case 'daily':   return isDaily;
-        default:        return false;
+        case 'hourly': return true;
+        case '2-hour': return isTwoHour;
+        case '4-hour': return isFourHour;
+        case 'daily': return isDaily;
+        default: return false;
       }
     });
   };
@@ -238,7 +240,7 @@ export const RoutineTasksDashboard = ({
     return blueprint.walking_path.filter((step: any) => {
       // Always show the Generator Fleet & Fuel step so tests can be started/managed from it
       if (step.room_id === "room_fuel") return true;
-      
+
       return step.equipment_ids.some((eqId: string) => {
         if (!isEquipmentActive(eqId)) return false;
         const equipBp = blueprint.equipment.find((e: any) => e.id === eqId);
@@ -393,303 +395,36 @@ export const RoutineTasksDashboard = ({
 
   // WhatsApp Share & History
   const [historyOpen, setHistoryOpen] = useState(false);
-  const [whatsappHistory, setWhatsappHistory] = useState<{ timestamp: string, date: string, hour: string, text: string }[]>(() => {
+  const [whatsappHistory, setWhatsappHistory] = useState<HistoryRecord[]>(() => {
     try {
       const stored = localStorage.getItem('dcime_whatsapp_history');
-      return stored ? JSON.parse(stored) : [];
+      const parsed = stored ? JSON.parse(stored) : [];
+      return sortHistoryAscending(parsed);
     } catch {
       return [];
     }
   });
 
-  const getCleanValue = (key: string, fallback: string = "NA") => {
-    const val = formData[key];
-    if (val === undefined || val === null || String(val).trim() === "") return fallback;
-    return String(val).trim();
-  };
-
-  const generateReportTexts = () => {
-    const technicianName = employee?.full_name || "Unknown Tech";
-    const firstName = technicianName.trim().split(/\s+/)[0];
-    const powerSourceText = activePowerSource === 'GENERATOR' ? 'GENERATOR' : 'ZESCO MAINS';
-    const isGen = activePowerSource === 'GENERATOR';
-    const shareTime = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-
-    let whatsappPayload = "";
-    let internalPayload = "";
-
-    if (siteCode === "NTC") {
-      const voltageVal = isGen ? getCleanValue('dg_load_voltage_r') : getCleanValue('grid_voltage_r');
-      const ampsVal = isGen ? getCleanValue('dg_load_amps_r') : getCleanValue('grid_amps_r');
-      
-      const pfVal = isGen ? "0.9" : getCleanValue('grid_power_factor', "0.9");
-      const voltageNum = parseFloat(voltageVal);
-      const ampsNum = parseFloat(ampsVal);
-      const pfNum = parseFloat(pfVal);
-      const calcKw = (isGen && !isNaN(voltageNum) && !isNaN(ampsNum))
-        ? Math.round((voltageNum * ampsNum * 1.732 * pfNum) / 1000)
-        : 0;
-
-      const kwVal = isGen ? calcKw.toString() : getCleanValue('grid_total_site_load');
-
-      const r1_v = getCleanValue('rectifier_1_dc_voltage', '54.2');
-      const r1_a = getCleanValue('rectifier_1_amps');
-      const r1_cap = getCleanValue('rectifier_1_used_percentage');
-      
-      const r2_v = getCleanValue('rectifier_2_dc_voltage', '54.2');
-      const r2_a = getCleanValue('rectifier_2_amps');
-      const r2_cap = getCleanValue('rectifier_2_used_percentage');
-
-      const ups1_l1 = getCleanValue('ups_1_output_voltage_a', '230');
-      const ups1_l2 = getCleanValue('ups_1_output_voltage_b', '230');
-      const ups1_l3 = getCleanValue('ups_1_output_voltage_c', '230');
-      const ups1_a1 = getCleanValue('ups_1_load_amps_a');
-      const ups1_a2 = getCleanValue('ups_1_load_amps_b');
-      const ups1_a3 = getCleanValue('ups_1_load_amps_c');
-      const ups1_batt = getCleanValue('ups_1_battery_voltage');
-      const ups1_charge = getCleanValue('ups_1_battery_charge_percent', '100');
-      const ups1_used = getCleanValue('ups_1_used_capacity');
-      const ups1_load = getCleanValue('ups_1_output_load_kw');
-
-      const ups2_l1 = getCleanValue('ups_2_output_voltage_a', '230');
-      const ups2_l2 = getCleanValue('ups_2_output_voltage_b', '230');
-      const ups2_l3 = getCleanValue('ups_2_output_voltage_c', '230');
-      const ups2_a1 = getCleanValue('ups_2_load_amps_a');
-      const ups2_a2 = getCleanValue('ups_2_load_amps_b');
-      const ups2_a3 = getCleanValue('ups_2_load_amps_c');
-      const ups2_batt = getCleanValue('ups_2_battery_voltage');
-      const ups2_charge = getCleanValue('ups_2_battery_charge_percent', '100');
-      const ups2_used = getCleanValue('ups_2_used_capacity');
-      const ups2_load = getCleanValue('ups_2_output_load_kw');
-
-      // Additional Rectifier & UPS data
-      const r1_batt_status = getCleanValue('rectifier_1_battery_status');
-      const r1_daily_status = getCleanValue('rectifier_1_daily_status');
-      const r1_abnormality = getCleanValue('rectifier_1_daily_abnormality');
-
-      const r2_batt_status = getCleanValue('rectifier_2_battery_status');
-      const r2_daily_status = getCleanValue('rectifier_2_daily_status');
-      const r2_abnormality = getCleanValue('rectifier_2_daily_abnormality');
-
-      const ups1_ph_a = getCleanValue('ups_1_load_phase_percent_a');
-      const ups1_ph_b = getCleanValue('ups_1_load_phase_percent_b');
-      const ups1_ph_c = getCleanValue('ups_1_load_phase_percent_c');
-      const ups1_daily_status = getCleanValue('ups_1_daily_status');
-      const ups1_abnormality = getCleanValue('ups_1_daily_abnormality');
-
-      const ups2_ph_a = getCleanValue('ups_2_load_phase_percent_a');
-      const ups2_ph_b = getCleanValue('ups_2_load_phase_percent_b');
-      const ups2_ph_c = getCleanValue('ups_2_load_phase_percent_c');
-      const ups2_daily_status = getCleanValue('ups_2_daily_status');
-      const ups2_abnormality = getCleanValue('ups_2_daily_abnormality');
-
-      const tempMain = getCleanValue('server_ambient_temp');
-      const tempPr1 = getCleanValue('pr1_ambient_temp');
-      const tempPr2 = getCleanValue('pr2_ambient_temp');
-      const tempIt1 = getCleanValue('it1_ambient_temp');
-      const tempIt2 = getCleanValue('it2_ambient_temp');
-      const humidityMain = getCleanValue('server_ambient_humidity');
-
-      whatsappPayload = `*NTC ZM 0874*
-*${firstName.toUpperCase()} ON DUTY*
-*TIME: ${shareTime}hrs*
-*LOAD ON ${powerSourceText}*
-Load voltage *${voltageVal}*V
-Load in Amps *${ampsVal}*A
-
-*KW:${kwVal}*KW
-Power factor *${pfVal}*
-
-*VERTIV RECTIFIER 1*
-(Power room 1) *${r1_v}*v/*${r1_a}*A/*${r1_cap}*%
-*VERTIV RECTIFIER 2*
-(Power room 2)*${r2_v}*v/*${r2_a}*A/*${r2_cap}*%
-
-*UPS 1 out put*
-(Power room_1)
-L1-*${ups1_l1}*/*${ups1_a1}*A
-L2-*${ups1_l2}*/*${ups1_a2}*A
-L3-*${ups1_l3}*/*${ups1_a3}*A
-Battery voltage
-
-*${ups1_batt}*VDC
-Battery Charge:*${ups1_charge}*%
-Used Capacity:*${ups1_used}*%
-Load *${ups1_load}*KW
-
-*UPS 2 out put*
-(Power room_2)
-L1-*${ups2_l1}*/*${ups2_a1}*A
-L2-*${ups2_l2}*/*${ups2_a2}*A
-L3-*${ups2_l3}*/*${ups2_a3}*A
-Battery voltage
-
-*${ups2_batt}*VDC
-Battery Charge:*${ups2_charge}*%
-Used Capacity:*${ups2_used}*%
-Load *${ups2_load}*KW
-
-*TEMPERATURE*
-Main Room *${tempMain}*°C
-Power Room1_*${tempPr1}*°C
-Power Room2_ *${tempPr2}*°C
-First  Floor Server Room
-ENTERPRISE  ROOM 1 *${tempIt1}*°C
-ENTERPRISE ROOM 2 *${tempIt2}*°C
-Humidity *${humidityMain}*%`;
-
-      const em1_temp = getCleanValue('pac_server_em1_return_temp_actual');
-      const em2_temp = getCleanValue('pac_server_em2_return_temp_actual');
-      const em3_temp = getCleanValue('pac_server_em3_return_temp_actual');
-      const em4_temp = getCleanValue('pac_server_em4_return_temp_actual');
-      const em5_temp = getCleanValue('pac_server_em5_return_temp_actual');
-      const em6_temp = getCleanValue('pac_server_em6_return_temp_actual');
-      const em7_temp = getCleanValue('pac_server_em7_return_temp_actual');
-
-      const vt1_temp = getCleanValue('pac_server_vt1_return_temp_actual');
-      const vt2_temp = getCleanValue('pac_server_vt2_return_temp_actual');
-      const vt3_temp = getCleanValue('pac_server_vt3_return_temp_actual');
-      const vt4_temp = getCleanValue('pac_server_vt4_return_temp_actual');
-      const vt5_temp = getCleanValue('pac_server_vt5_return_temp_actual');
-      const vt6_temp = getCleanValue('pac_data_vt6_return_temp_actual');
-
-      const v_r = isGen ? getCleanValue('dg_load_voltage_r') : getCleanValue('grid_voltage_r');
-      const v_y = isGen ? getCleanValue('dg_load_voltage_y') : getCleanValue('grid_voltage_y');
-      const v_b = isGen ? getCleanValue('dg_load_voltage_b') : getCleanValue('grid_voltage_b');
-
-      const v_rn = isGen ? "230" : getCleanValue('grid_phase_voltage_rn', '230');
-      const v_yn = isGen ? "230" : getCleanValue('grid_phase_voltage_yn', '230');
-      const v_bn = isGen ? "230" : getCleanValue('grid_phase_voltage_bn', '230');
-
-      const a_r = isGen ? getCleanValue('dg_load_amps_r') : getCleanValue('grid_amps_r');
-      const a_y = isGen ? getCleanValue('dg_load_amps_y') : getCleanValue('grid_amps_y');
-      const a_b = isGen ? getCleanValue('dg_load_amps_b') : getCleanValue('grid_amps_b');
-
-      internalPayload = `${whatsappPayload}
-
-Unit Temperatures
-Emerson 1 : ${em1_temp}
-Emerson 2 : ${em2_temp}
-Emerson 3 : ${em3_temp}
-Emerson 4 : ${em4_temp}
-Emerson 5 : ${em5_temp}
-Emerson 6 : ${em6_temp}
-Emerson 7 : ${em7_temp}
-
-Vertiv 1 : ${vt1_temp}
-Vertiv 2: ${vt2_temp}
-Vertiv 3: ${vt3_temp}
-Vertiv 4 : ${vt4_temp}
-Vertiv 5 : ${vt5_temp}
-Vertiv 6 : ${vt6_temp}
-
-VOLTAGE: ${v_r} ${v_b} ${v_y}
-VOLTAGE: ${v_rn} ${v_bn} ${v_yn}
-CURRENT: ${a_r} ${a_b} ${a_y}
-
-Additional Rectifier & UPS Logs
-Rectifier 1 BB Status: ${r1_batt_status}
-Rectifier 1 Status: ${r1_daily_status} | Abnormality: ${r1_abnormality}
-Rectifier 2 BB Status: ${r2_batt_status}
-Rectifier 2 Status: ${r2_daily_status} | Abnormality: ${r2_abnormality}
-
-UPS 1 Load Phase: A:${ups1_ph_a}% B:${ups1_ph_b}% C:${ups1_ph_c}%
-UPS 1 Status: ${ups1_daily_status} | Abnormality: ${ups1_abnormality}
-UPS 2 Load Phase: A:${ups2_ph_a}% B:${ups2_ph_b}% C:${ups2_ph_c}%
-UPS 2 Status: ${ups2_daily_status} | Abnormality: ${ups2_abnormality}`;
-    } else {
-      const voltageVal = isGen ? getCleanValue('dg_load_voltage_r') : getCleanValue('grid_voltage_r');
-      const ampsVal = isGen ? getCleanValue('dg_load_amps_r') : getCleanValue('grid_amps_r');
-      const pfVal = isGen ? "0.9" : getCleanValue('grid_power_factor', "0.9");
-      const kwVal = getCleanValue('grid_total_site_load');
-
-      const tempMain = getCleanValue('server_ambient_temp');
-      const tempPr1 = getCleanValue('pr1_ambient_temp');
-      const tempIt1 = getCleanValue('it1_ambient_temp');
-
-      whatsappPayload = `*${siteCode} ${currentSite?.site_name || ""}*
-*${firstName.toUpperCase()} ON DUTY*
-*TIME: ${shareTime}hrs*
-*LOAD ON ${powerSourceText}*
-Load voltage *${voltageVal}*V
-Load in Amps *${ampsVal}*A
-*KW:${kwVal}*KW
-Power factor *${pfVal}*
-
-*TEMPERATURE*
-Main Room *${tempMain}*°C
-Power Room1_*${tempPr1}*°C
-Enterprise Room 1 *${tempIt1}*°C`;
-
-      const em1_temp = getCleanValue('pac_server_em1_return_temp_actual');
-      const em2_temp = getCleanValue('pac_server_em2_return_temp_actual');
-      const em1_it_temp = getCleanValue('pac_it1_em1_return_temp_actual');
-
-      const r1_v = getCleanValue('rectifier_1_dc_voltage', '54.2');
-      const r1_a = getCleanValue('rectifier_1_amps');
-      const r1_cap = getCleanValue('rectifier_1_used_percentage');
-      const r1_batt_status = getCleanValue('rectifier_1_battery_status');
-      const r1_daily_status = getCleanValue('rectifier_1_daily_status');
-      const r1_abnormality = getCleanValue('rectifier_1_daily_abnormality');
-
-      const ups1_l1 = getCleanValue('ups_1_output_voltage_a', '230');
-      const ups1_l2 = getCleanValue('ups_1_output_voltage_b', '230');
-      const ups1_l3 = getCleanValue('ups_1_output_voltage_c', '230');
-      const ups1_a1 = getCleanValue('ups_1_load_amps_a');
-      const ups1_a2 = getCleanValue('ups_1_load_amps_b');
-      const ups1_a3 = getCleanValue('ups_1_load_amps_c');
-      const ups1_batt = getCleanValue('ups_1_battery_voltage');
-      const ups1_charge = getCleanValue('ups_1_battery_charge_percent', '100');
-      const ups1_used = getCleanValue('ups_1_used_capacity');
-      const ups1_load = getCleanValue('ups_1_output_load_kw');
-      const ups1_ph_a = getCleanValue('ups_1_load_phase_percent_a');
-      const ups1_ph_b = getCleanValue('ups_1_load_phase_percent_b');
-      const ups1_ph_c = getCleanValue('ups_1_load_phase_percent_c');
-      const ups1_daily_status = getCleanValue('ups_1_daily_status');
-      const ups1_abnormality = getCleanValue('ups_1_daily_abnormality');
-
-      internalPayload = `${whatsappPayload}
-
-Unit Temperatures
-Emerson 1 : ${em1_temp}
-Emerson 2 : ${em2_temp}
-IT Room 1 AC 1 : ${em1_it_temp}
-
-VERTIV RECTIFIER 1
-(Power room 1) ${r1_v}v/${r1_a}A/${r1_cap}%
-BB Status: ${r1_batt_status}
-Status: ${r1_daily_status} | Abnormality: ${r1_abnormality}
-
-UPS 1 output
-(Power room_1)
-L1-${ups1_l1}/${ups1_a1}A
-L2-${ups1_l2}/${ups1_a2}A
-L3-${ups1_l3}/${ups1_a3}A
-Battery voltage: ${ups1_batt}VDC
-Battery Charge: ${ups1_charge}%
-Used Capacity: ${ups1_used}%
-Load: ${ups1_load}KW
-Load Phase: A:${ups1_ph_a}% B:${ups1_ph_b}% C:${ups1_ph_c}%
-Status: ${ups1_daily_status} | Abnormality: ${ups1_abnormality}`;
-    }
-
-    return { whatsappPayload, internalPayload };
-  };
-
   const handleShareAndSave = () => {
-    const { whatsappPayload, internalPayload } = generateReportTexts();
+    const { whatsappPayload, internalPayload } = generateReportTexts({
+      siteCode,
+      currentSiteName: currentSite?.site_name,
+      employeeName: employee?.full_name,
+      activePowerSource,
+      formData
+    });
     const dateStr = new Date().toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
-    const actualSentTime = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-    
-    const newRecord = {
+
+    const newRecord: HistoryRecord = {
       timestamp: new Date().toISOString(),
       date: dateStr,
-      hour: actualSentTime,
+      hour: targetHour,
       text: internalPayload
     };
 
     setWhatsappHistory((prev) => {
-      const updated = [newRecord, ...prev];
+      const filtered = prev.filter(r => r.hour !== targetHour);
+      const updated = sortHistoryAscending([newRecord, ...filtered]);
       localStorage.setItem('dcime_whatsapp_history', JSON.stringify(updated));
       return updated;
     });
@@ -710,7 +445,7 @@ Status: ${ups1_daily_status} | Abnormality: ${ups1_abnormality}`;
         .order('target_hour', { ascending: false });
 
       if (error) throw error;
-      
+
       if (data) {
         const lastLogWithDg = data.find((row: any) => {
           const m = row.metrics || {};
@@ -894,32 +629,30 @@ Status: ${ups1_daily_status} | Abnormality: ${ups1_abnormality}`;
           <span className="text-xs font-black text-gray-700 uppercase tracking-wider block">Facility Operating Mode</span>
           <span className="text-[10px] text-gray-400 font-semibold mt-0.5 block">Select active state of site grids and generators</span>
         </div>
-        
+
         <div className="grid grid-cols-4 gap-2 bg-slate-100 rounded-2xl p-1 border border-slate-200/50">
           <button
             type="button"
             onClick={() => setFsmMode('NORMAL')}
-            className={`py-2.5 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all cursor-pointer flex flex-col items-center justify-center gap-1 text-center ${
-              fsmMode === 'NORMAL'
+            className={`py-2.5 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all cursor-pointer flex flex-col items-center justify-center gap-1 text-center ${fsmMode === 'NORMAL'
                 ? "bg-white text-green-600 shadow-sm border border-slate-200/30"
                 : "text-slate-500 hover:text-slate-700"
-            }`}
+              }`}
           >
             <Plug size={14} />
             <span>Normal</span>
           </button>
-          
+
           <button
             type="button"
             disabled={isDailyTestDoneToday && fsmMode !== 'DAILY_TEST'}
             onClick={() => setFsmMode('DAILY_TEST')}
-            className={`py-2.5 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all cursor-pointer flex flex-col items-center justify-center gap-1 text-center ${
-              fsmMode === 'DAILY_TEST'
+            className={`py-2.5 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all cursor-pointer flex flex-col items-center justify-center gap-1 text-center ${fsmMode === 'DAILY_TEST'
                 ? "bg-amber-500 text-white shadow-sm"
                 : isDailyTestDoneToday
-                ? "opacity-50 cursor-not-allowed text-slate-400"
-                : "text-slate-500 hover:text-slate-700"
-            }`}
+                  ? "opacity-50 cursor-not-allowed text-slate-400"
+                  : "text-slate-500 hover:text-slate-700"
+              }`}
           >
             <Zap size={14} />
             <span>Daily Test</span>
@@ -928,11 +661,10 @@ Status: ${ups1_daily_status} | Abnormality: ${ups1_abnormality}`;
           <button
             type="button"
             onClick={() => setFsmMode('ON_LOAD_TEST')}
-            className={`py-2.5 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all cursor-pointer flex flex-col items-center justify-center gap-1 text-center ${
-              fsmMode === 'ON_LOAD_TEST'
+            className={`py-2.5 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all cursor-pointer flex flex-col items-center justify-center gap-1 text-center ${fsmMode === 'ON_LOAD_TEST'
                 ? "bg-amber-600 text-white shadow-sm"
                 : "text-slate-500 hover:text-slate-700"
-            }`}
+              }`}
           >
             <Zap size={14} />
             <span>On-Load</span>
@@ -941,11 +673,10 @@ Status: ${ups1_daily_status} | Abnormality: ${ups1_abnormality}`;
           <button
             type="button"
             onClick={() => setFsmMode('OUTAGE')}
-            className={`py-2.5 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all cursor-pointer flex flex-col items-center justify-center gap-1 text-center ${
-              fsmMode === 'OUTAGE'
+            className={`py-2.5 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all cursor-pointer flex flex-col items-center justify-center gap-1 text-center ${fsmMode === 'OUTAGE'
                 ? "bg-red-500 text-white shadow-sm"
                 : "text-slate-500 hover:text-slate-700"
-            }`}
+              }`}
           >
             <AlertTriangle size={14} />
             <span>Outage</span>
@@ -998,11 +729,10 @@ Status: ${ups1_daily_status} | Abnormality: ${ups1_abnormality}`;
                     key={dgId}
                     type="button"
                     onClick={() => toggleGenerator(dgId)}
-                    className={`px-3 py-2 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all cursor-pointer border ${
-                      isActive
+                    className={`px-3 py-2 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all cursor-pointer border ${isActive
                         ? "bg-slate-900 text-white border-slate-950 shadow-sm"
                         : "bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100"
-                    }`}
+                      }`}
                   >
                     {label}
                   </button>
@@ -1032,20 +762,20 @@ Status: ${ups1_daily_status} | Abnormality: ${ups1_abnormality}`;
             <p className="text-sm font-bold text-gray-400 uppercase tracking-wider">No active parameters for this hour.</p>
           </div>
         ) : (
-            <PathRenderer
-              currentStep={currentStep}
-              blueprint={blueprint}
-              formData={formData}
-              allEquipment={allEquipment}
-              fsmMode={fsmMode}
-              autoFilledFields={autoFilledFields}
-              prevGeneratorValues={prevGeneratorValues}
-              getVisibleMetrics={getVisibleMetrics}
-              isEquipmentActive={isEquipmentActive}
-              handleUserInputChange={handleUserInputChange}
-              handleToggleChange={handleToggleChange}
-              setFsmMode={setFsmMode}
-            />
+          <PathRenderer
+            currentStep={currentStep}
+            blueprint={blueprint}
+            formData={formData}
+            allEquipment={allEquipment}
+            fsmMode={fsmMode}
+            autoFilledFields={autoFilledFields}
+            prevGeneratorValues={prevGeneratorValues}
+            getVisibleMetrics={getVisibleMetrics}
+            isEquipmentActive={isEquipmentActive}
+            handleUserInputChange={handleUserInputChange}
+            handleToggleChange={handleToggleChange}
+            setFsmMode={setFsmMode}
+          />
         )}
       </div>
 
@@ -1082,15 +812,14 @@ Status: ${ups1_daily_status} | Abnormality: ${ups1_abnormality}`;
             <button
               onClick={handleDashboardSubmit}
               disabled={isSubmitting || isSuccess}
-              className={`flex-1 py-3.5 rounded-2xl text-white font-black text-xs tracking-widest uppercase transition-all shadow-lg flex items-center justify-center gap-2 ${
-                isSubmitting
+              className={`flex-1 py-3.5 rounded-2xl text-white font-black text-xs tracking-widest uppercase transition-all shadow-lg flex items-center justify-center gap-2 ${isSubmitting
                   ? "bg-gray-400 shadow-none cursor-not-allowed text-gray-100"
                   : isSuccess
-                  ? "bg-green-600 shadow-green-600/10 active:scale-[0.98]"
-                  : (fsmMode === 'OUTAGE' || fsmMode === 'ON_LOAD_TEST')
-                  ? "bg-red-600 hover:bg-red-700 shadow-red-600/10 active:scale-[0.98]"
-                  : "bg-red-600 hover:bg-red-700 shadow-red-600/10 active:scale-[0.98]"
-              }`}
+                    ? "bg-green-600 shadow-green-600/10 active:scale-[0.98]"
+                    : (fsmMode === 'OUTAGE' || fsmMode === 'ON_LOAD_TEST')
+                      ? "bg-red-600 hover:bg-red-700 shadow-red-600/10 active:scale-[0.98]"
+                      : "bg-red-600 hover:bg-red-700 shadow-red-600/10 active:scale-[0.98]"
+                }`}
             >
               {isSubmitting ? (
                 <>
@@ -1113,170 +842,19 @@ Status: ${ups1_daily_status} | Abnormality: ${ups1_abnormality}`;
         </div>
       </div>
 
-      {/* Floating buttons & History bottom sheet */}
-      <style dangerouslySetInnerHTML={{ __html: `
-        .dcime-float-container {
-          position: fixed;
-          bottom: 96px;
-          right: 24px;
-          z-index: 999;
-          display: flex;
-          flex-direction: column;
-          gap: 12px;
-          align-items: center;
-        }
-        .dcime-float-btn {
-          width: 46px;
-          height: 46px;
-          border-radius: 50%;
-          background: rgba(255, 255, 255, 0.75);
-          backdrop-filter: blur(10px);
-          -webkit-backdrop-filter: blur(10px);
-          border: 1px solid rgba(255, 255, 255, 0.4);
-          box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          color: #1e293b;
-          cursor: pointer;
-          transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
-          outline: none;
-        }
-        .dcime-float-btn:hover {
-          transform: translateY(-2px);
-          box-shadow: 0 6px 16px rgba(0, 0, 0, 0.12);
-          background: rgba(255, 255, 255, 0.85);
-          color: #0f172a;
-        }
-        .dcime-float-btn:active {
-          transform: scale(0.95);
-          background: rgba(255, 255, 255, 0.95);
-        }
-        .dcime-float-btn.share {
-          background: rgba(239, 68, 68, 0.9);
-          color: #ffffff;
-          border: 1px solid rgba(239, 68, 68, 0.2);
-        }
-        .dcime-float-btn.share:hover {
-          background: rgba(220, 38, 38, 1);
-          color: #ffffff;
-        }
-        .dcime-modal-overlay {
-          position: fixed;
-          top: 0;
-          left: 0;
-          width: 100vw;
-          height: 100vh;
-          background: rgba(0, 0, 0, 0.5);
-          backdrop-filter: blur(6px);
-          z-index: 999999;
-          display: flex;
-          justify-content: center;
-          align-items: stretch;
-        }
-        .dcime-modal-sheet {
-          width: 100%;
-          max-width: 100vw;
-          height: 100vh;
-          max-height: 100vh;
-          background: #ffffff;
-          display: flex;
-          flex-direction: column;
-          box-shadow: 0 -10px 25px rgba(0, 0, 0, 0.15);
-          border: none;
-          z-index: 1000000;
-          animation: slideUp 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
-        }
-        @keyframes slideUp {
-          from { transform: translateY(100%); }
-          to { transform: translateY(0); }
-        }
-        .dcime-modal-header {
-          padding: 16px 20px;
-          border-bottom: 1px solid rgba(0, 0, 0, 0.05);
-          display: flex;
-          justify-content: space-between;
-          align-items: center;
-        }
-        .dcime-modal-body {
-          padding: 20px;
-          overflow-y: auto;
-          flex: 1;
-        }
-        .dcime-history-group {
-          margin-bottom: 24px;
-        }
-        .dcime-history-header {
-          font-size: 11px;
-          font-weight: 800;
-          text-transform: uppercase;
-          letter-spacing: 0.05em;
-          color: #94a3b8;
-          margin-bottom: 12px;
-          display: flex;
-          justify-content: space-between;
-          align-items: center;
-        }
-        .dcime-history-card {
-          background: rgba(255, 255, 255, 0.6);
-          border: 1px solid rgba(0, 0, 0, 0.05);
-          border-radius: 16px;
-          padding: 14px;
-          margin-bottom: 12px;
-          display: flex;
-          flex-direction: column;
-          gap: 10px;
-        }
-        .dcime-history-text {
-          font-family: monospace;
-          font-size: 10px;
-          white-space: pre-wrap;
-          color: #334155;
-          background: rgba(248, 250, 252, 0.5);
-          padding: 10px;
-          border-radius: 8px;
-          max-height: 180px;
-          overflow-y: auto;
-          border: 1px solid rgba(0, 0, 0, 0.02);
-        }
-        .dcime-btn-action {
-          font-size: 10px;
-          font-weight: 700;
-          text-transform: uppercase;
-          padding: 6px 12px;
-          border-radius: 8px;
-          border: none;
-          cursor: pointer;
-          transition: all 0.15s ease;
-        }
-        .dcime-btn-action.copy {
-          background: rgba(15, 23, 42, 0.05);
-          color: #0f172a;
-        }
-        .dcime-btn-action.copy:hover {
-          background: rgba(15, 23, 42, 0.1);
-        }
-        .dcime-btn-action.delete {
-          background: rgba(239, 68, 68, 0.08);
-          color: #ef4444;
-        }
-        .dcime-btn-action.delete:hover {
-          background: rgba(239, 68, 68, 0.15);
-        }
-      `}} />
-
+      {/* Floating buttons & History modal */}
       <div className="dcime-float-container">
-        <button 
-          type="button" 
-          onClick={() => setHistoryOpen(true)} 
+        <button
+          type="button"
+          onClick={() => setHistoryOpen(true)}
           className="dcime-float-btn"
           title="View History Logs"
         >
           <History size={20} />
         </button>
-        <button 
-          type="button" 
-          onClick={handleShareAndSave} 
+        <button
+          type="button"
+          onClick={handleShareAndSave}
           className="dcime-float-btn share"
           title="Share to WhatsApp & Save Log"
         >
@@ -1284,63 +862,15 @@ Status: ${ups1_daily_status} | Abnormality: ${ups1_abnormality}`;
         </button>
       </div>
 
-      {historyOpen && createPortal(
-        <div className="dcime-modal-overlay" onClick={() => setHistoryOpen(false)}>
-          <div className="dcime-modal-sheet" onClick={(e) => e.stopPropagation()}>
-            <div className="dcime-modal-header">
-              <h4 className="text-xs font-black text-slate-800 uppercase tracking-widest">Saved Telemetry History</h4>
-              <button 
-                type="button"
-                onClick={() => setHistoryOpen(false)}
-                className="text-slate-400 hover:text-slate-600 outline-none"
-              >
-                <X size={18} />
-              </button>
-            </div>
-            <div className="dcime-modal-body">
-              {whatsappHistory.length === 0 ? (
-                <div className="text-center py-8 text-xs font-semibold text-slate-400 uppercase tracking-wider">
-                  No saved history found.
-                </div>
-              ) : (
-                whatsappHistory.map((item, idx) => (
-                  <div key={item.timestamp || idx} className="dcime-history-card">
-                    <div className="dcime-history-header">
-                      <span>{item.date} — {item.hour}hrs</span>
-                      <div className="flex gap-2">
-                        <button
-                          type="button"
-                          className="dcime-btn-action copy"
-                          onClick={() => {
-                            navigator.clipboard.writeText(item.text);
-                            toast.success("Report copied to clipboard!");
-                          }}
-                        >
-                          <Copy size={10} className="inline mr-1" /> Copy
-                        </button>
-                        <button
-                          type="button"
-                          className="dcime-btn-action delete"
-                          onClick={() => {
-                            const updated = whatsappHistory.filter((_, i) => i !== idx);
-                            setWhatsappHistory(updated);
-                            localStorage.setItem('dcime_whatsapp_history', JSON.stringify(updated));
-                            toast.success("History item deleted.");
-                          }}
-                        >
-                          <Trash2 size={10} className="inline mr-1" /> Delete
-                        </button>
-                      </div>
-                    </div>
-                    <div className="dcime-history-text">{item.text}</div>
-                  </div>
-                ))
-              )}
-            </div>
-          </div>
-        </div>,
-        document.body
-      )}
+      <TelemetryHistoryModal
+        isOpen={historyOpen}
+        history={whatsappHistory}
+        onClose={() => setHistoryOpen(false)}
+        onUpdateHistory={(updated) => {
+          setWhatsappHistory(updated);
+          localStorage.setItem('dcime_whatsapp_history', JSON.stringify(updated));
+        }}
+      />
     </div>
   );
 };

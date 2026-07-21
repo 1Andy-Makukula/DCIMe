@@ -1,16 +1,10 @@
 import React, { useState, useEffect, forwardRef } from "react";
-import { Printer, Shield, Info, ArrowLeft, Loader2, CheckSquare, ShieldCheck } from "lucide-react";
+import { Printer, Shield, Info, ArrowLeft, Loader2, CheckSquare, ShieldCheck, Save } from "lucide-react";
 import { useCurrentSite } from "@/shared/context/SiteContext";
 import { useTelemetryMutation } from "../hooks/useTelemetryMutation";
+import { useAuth } from "@/shared/context/AuthContext";
 import { supabase } from "@/shared/api/supabaseClient";
 import { toast } from "sonner";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/app/components/ui/select";
 
 interface Checkpoint {
   id: string;
@@ -102,21 +96,89 @@ const CHECKLIST_SECTIONS: Section[] = [
   }
 ];
 
+const StatusDropdown = ({
+  value,
+  onChange,
+  disabled,
+}: {
+  value: "OK" | "NOT OK" | "N/A";
+  onChange: (val: "OK" | "NOT OK" | "N/A") => void;
+  disabled?: boolean;
+}) => {
+  const [isOpen, setIsOpen] = useState(false);
+
+  const options = [
+    { label: "OK", value: "OK" as const, activeClass: "bg-emerald-600 text-white font-bold" },
+    { label: "NOT OK", value: "NOT OK" as const, activeClass: "bg-red-600 text-white font-bold" },
+    { label: "N/A", value: "N/A" as const, activeClass: "bg-slate-700 text-white font-bold" },
+  ];
+
+  return (
+    <div className="relative inline-block text-left w-[100px]">
+      <button
+        type="button"
+        disabled={disabled}
+        onClick={(e) => {
+          e.stopPropagation();
+          setIsOpen(!isOpen);
+        }}
+        className={`w-full flex items-center justify-between px-2.5 py-1 text-[10px] font-black uppercase tracking-wider rounded-lg border transition-all cursor-pointer ${
+          value === "OK"
+            ? "border-emerald-300 text-emerald-700 bg-emerald-50/40"
+            : value === "NOT OK"
+            ? "border-red-300 text-red-700 bg-red-50/40"
+            : "border-slate-300 text-slate-500 bg-slate-50/40"
+        } disabled:opacity-50`}
+      >
+        <span>{value}</span>
+        <span className="text-[8px] opacity-60">▼</span>
+      </button>
+
+      {isOpen && !disabled && (
+        <>
+          <div className="fixed inset-0 z-40" onClick={() => setIsOpen(false)} />
+          <div className="absolute right-0 mt-1 w-full rounded-lg bg-slate-900 border border-slate-800 shadow-xl z-50 overflow-hidden">
+            {options.map((opt) => (
+              <button
+                key={opt.value}
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onChange(opt.value);
+                  setIsOpen(false);
+                }}
+                className={`w-full text-left px-3 py-1.5 text-[10px] font-black uppercase tracking-wider transition-colors cursor-pointer ${
+                  value === opt.value
+                    ? opt.activeClass
+                    : "text-slate-300 hover:bg-slate-800 hover:text-white"
+                }`}
+              >
+                {opt.label}
+              </button>
+            ))}
+          </div>
+        </>
+      )}
+    </div>
+  );
+};
+
 export const PrintableChecklist = forwardRef<HTMLDivElement, any>((props, ref) => {
   const { currentSite } = useCurrentSite();
+  const { employee } = useAuth();
   const { submitTelemetryLog } = useTelemetryMutation();
 
   const { data: propData = {}, readOnly: forceReadOnly = false } = props;
-  const techName = propData.technicianName || "Field Tech";
+  const techName = propData.technicianName || employee?.full_name || "Field Tech";
 
   // Local editable/fillable form states
-  const [siteName, setSiteName] = useState(propData.siteName || currentSite?.site_name || "");
+  const [siteName, setSiteName] = useState(propData.siteName || currentSite?.site_name || "NTC-ZM-0874");
   const [date, setDate] = useState(() => {
     const d = new Date();
     const yy = String(d.getFullYear()).slice(-2);
     const mm = String(d.getMonth() + 1).padStart(2, "0");
     const dd = String(d.getDate()).padStart(2, "0");
-    return `${yy}/${mm}/${dd}`; // matches format in image: 23/06/26
+    return `${yy}/${mm}/${dd}`;
   });
 
   const [formValues, setFormValues] = useState<
@@ -131,10 +193,10 @@ export const PrintableChecklist = forwardRef<HTMLDivElement, any>((props, ref) =
     return initial;
   });
 
-  // Footer state
-  const [msName, setMsName] = useState("");
-  const [msSignature, setMsSignature] = useState("");
-  const [msDate, setMsDate] = useState("");
+  // Footer state prefilled from employee
+  const [msName, setMsName] = useState(employee?.full_name || "");
+  const [msSignature, setMsSignature] = useState(employee?.full_name ? `${employee.full_name.split(' ')[0]}_signed` : "");
+  const [msDate, setMsDate] = useState(() => new Date().toISOString().split('T')[0]);
 
   const [spocName, setSpocName] = useState("");
   const [spocSignature, setSpocSignature] = useState("");
@@ -206,7 +268,7 @@ export const PrintableChecklist = forwardRef<HTMLDivElement, any>((props, ref) =
     fetchHistory();
   }, [saveSuccess]);
 
-  // Sync state if history selected or if props override it
+  // Sync state ONLY when selectedHistory changes (e.g. clicking 'View & Print' or returning to new entry)
   useEffect(() => {
     if (selectedHistory) {
       setFormValues(selectedHistory.formValues || {});
@@ -218,16 +280,6 @@ export const PrintableChecklist = forwardRef<HTMLDivElement, any>((props, ref) =
       setSpocName(selectedHistory.airtelSpoc?.name || "");
       setSpocSignature(selectedHistory.airtelSpoc?.signature || "");
       setSpocDate(selectedHistory.airtelSpoc?.date || "");
-    } else if (forceReadOnly && propData.formValues) {
-      setFormValues(propData.formValues || {});
-      setSiteName(propData.siteName || "NTC ZM-0874");
-      setDate(propData.date || new Date().toISOString().split("T")[0]);
-      setMsName(propData.msPartner?.name || "");
-      setMsSignature(propData.msPartner?.signature || "");
-      setMsDate(propData.msPartner?.date || "");
-      setSpocName(propData.airtelSpoc?.name || "");
-      setSpocSignature(propData.airtelSpoc?.signature || "");
-      setSpocDate(propData.airtelSpoc?.date || "");
     } else {
       const initial: Record<string, { status: "OK" | "NOT OK" | "N/A"; comment: string }> = {};
       CHECKLIST_SECTIONS.forEach((section) => {
@@ -236,7 +288,7 @@ export const PrintableChecklist = forwardRef<HTMLDivElement, any>((props, ref) =
         });
       });
       setFormValues(initial);
-      setSiteName(propData.siteName || currentSite?.site_name || "");
+      setSiteName(currentSite?.site_name || "NTC-ZM-0874");
       setDate(() => {
         const d = new Date();
         const yy = String(d.getFullYear()).slice(-2);
@@ -244,16 +296,15 @@ export const PrintableChecklist = forwardRef<HTMLDivElement, any>((props, ref) =
         const dd = String(d.getDate()).padStart(2, "0");
         return `${yy}/${mm}/${dd}`;
       });
-      setMsName("");
-      setMsSignature("");
-      setMsDate("");
-      setSpocName("");
-      setSpocSignature("");
-      setSpocDate("");
+      if (employee?.full_name) {
+        setMsName(employee.full_name);
+        setMsSignature(`${employee.full_name.split(' ')[0]}_signed`);
+        setMsDate(new Date().toISOString().split('T')[0]);
+      }
     }
-  }, [selectedHistory, forceReadOnly, propData, currentSite]);
+  }, [selectedHistory]);
 
-  const handleSaveAndPrint = async () => {
+  const saveChecklistRecord = async (triggerPrint = false) => {
     setIsSaving(true);
     setSaveSuccess(false);
     try {
@@ -263,7 +314,7 @@ export const PrintableChecklist = forwardRef<HTMLDivElement, any>((props, ref) =
         shift: "DAY SHIFT (08:00 - 18:00)",
         formValues,
         msPartner: {
-          name: msName,
+          name: msName || techName,
           signature: msSignature,
           date: msDate,
         },
@@ -288,9 +339,11 @@ export const PrintableChecklist = forwardRef<HTMLDivElement, any>((props, ref) =
 
       if (success) {
         setSaveSuccess(true);
-        toast.success("Checklist saved successfully.");
+        toast.success("Airtel Daily Checklist saved & archived under AIRTEL_DAILY_CHECKLIST!");
         setTimeout(() => setSaveSuccess(false), 3000);
-        window.print();
+        if (triggerPrint) {
+          window.print();
+        }
       } else {
         toast.error("Failed to save checklist log.");
       }
@@ -307,29 +360,39 @@ export const PrintableChecklist = forwardRef<HTMLDivElement, any>((props, ref) =
       <style dangerouslySetInnerHTML={{
         __html: `
         @media print {
-          body {
-            background-color: white !important;
-            color: black !important;
-            font-family: Arial, sans-serif !important;
+          body * {
+            visibility: hidden;
+          }
+          #printable-checklist-area,
+          #printable-checklist-area * {
+            visibility: visible;
+          }
+          #printable-checklist-area {
+            position: absolute;
+            left: 0;
+            top: 0;
+            width: 100% !important;
+            max-width: 100% !important;
+            margin: 0 !important;
+            padding: 0 !important;
+            box-shadow: none !important;
+            border: none !important;
+            font-size: 10px !important;
+          }
+          #printable-checklist-area table {
+            width: 100% !important;
+            border-spacing: 0;
+          }
+          #printable-checklist-area td,
+          #printable-checklist-area th {
+            padding: 3px 5px !important;
           }
           @page {
             size: A4 portrait;
-            margin: 15mm 10mm 15mm 10mm;
+            margin: 10mm;
           }
           .print\\:hidden {
             display: none !important;
-          }
-          .print\\:border-none {
-            border: none !important;
-          }
-          .print\\:shadow-none {
-            box-shadow: none !important;
-          }
-          .print\\:p-0 {
-            padding: 0 !important;
-          }
-          .print\\:m-0 {
-            margin: 0 !important;
           }
         }
       `}} />
@@ -349,14 +412,13 @@ export const PrintableChecklist = forwardRef<HTMLDivElement, any>((props, ref) =
               </button>
             )}
             <div className="w-12 h-12 rounded-2xl bg-red-50 flex items-center justify-center text-red-500 shrink-0 border border-red-100">
-              <Printer size={22} />
+              <Shield size={22} />
             </div>
             <div>
               <h2 className="text-sm font-black text-slate-900 uppercase tracking-wider flex items-center gap-2">
                 Airtel Daily Checklist
                 <span className="bg-emerald-50 text-emerald-700 text-[9px] font-black uppercase tracking-wider px-2 py-0.5 rounded border border-emerald-100 flex items-center gap-1">
-                  <Shield size={10} />
-                  Database Connected
+                  AIRTEL_DAILY_CHECKLIST
                 </span>
                 {isReadOnly && (
                   <span className="bg-red-50 text-red-700 text-[9px] font-black uppercase tracking-wider px-2 py-0.5 rounded border border-red-100">
@@ -367,30 +429,48 @@ export const PrintableChecklist = forwardRef<HTMLDivElement, any>((props, ref) =
               <p className="text-xs text-slate-400 mt-1 max-w-xl leading-relaxed">
                 {isReadOnly
                   ? `Viewing saved checklist report submitted by ${selectedHistory?.technician_name || techName}.`
-                  : "Fill out the daily maintenance checks and click Submit & Print to save to the database and generate the PDF."}
+                  : "Select status for each checkpoint, add optional comments, and click Submit & Archive to record to database."}
               </p>
             </div>
           </div>
 
           <div className="flex items-center gap-2 shrink-0">
             {!isReadOnly && (
-              <button
-                onClick={handleSaveAndPrint}
-                disabled={isSaving}
-                className="flex items-center justify-center gap-2 px-6 py-3.5 rounded-2xl bg-red-500 hover:bg-red-600 active:bg-red-700 text-white text-xs font-black uppercase tracking-widest transition-all shadow-md active:scale-[0.98] cursor-pointer disabled:opacity-50"
-              >
-                {isSaving ? (
-                  <Loader2 size={16} className="animate-spin" />
-                ) : (
+              <>
+                <button
+                  onClick={() => saveChecklistRecord(false)}
+                  disabled={isSaving}
+                  type="button"
+                  className="flex items-center justify-center gap-2 px-5 py-3 rounded-2xl bg-red-600 hover:bg-red-700 active:bg-red-800 text-white text-xs font-black uppercase tracking-widest transition-all shadow-md active:scale-[0.98] cursor-pointer disabled:opacity-50"
+                >
+                  {isSaving ? (
+                    <>
+                      <Loader2 size={16} className="animate-spin" />
+                      <span>Archiving…</span>
+                    </>
+                  ) : (
+                    <>
+                      <Save size={16} />
+                      <span>Submit &amp; Archive</span>
+                    </>
+                  )}
+                </button>
+                <button
+                  onClick={() => saveChecklistRecord(true)}
+                  disabled={isSaving}
+                  type="button"
+                  className="flex items-center justify-center gap-2 px-4 py-3 rounded-2xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-black uppercase tracking-widest transition-all shadow-md active:scale-[0.98] cursor-pointer"
+                >
                   <Printer size={16} />
-                )}
-                <span>{saveSuccess ? "Saving & Printing..." : "Submit & Print"}</span>
-              </button>
+                  <span>Print</span>
+                </button>
+              </>
             )}
 
             {isReadOnly && (
               <button
                 onClick={() => window.print()}
+                type="button"
                 className="flex items-center justify-center gap-2 px-6 py-3.5 rounded-2xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-black uppercase tracking-widest transition-all shadow-md active:scale-[0.98] cursor-pointer"
               >
                 <Printer size={16} />
@@ -405,13 +485,13 @@ export const PrintableChecklist = forwardRef<HTMLDivElement, any>((props, ref) =
           <div className="bg-amber-50/40 border border-amber-100 rounded-2xl p-4 flex gap-3 mb-6 print:hidden items-start">
             <Info size={16} className="text-amber-600 shrink-0 mt-0.5" />
             <p className="text-[11px] font-semibold text-amber-900 leading-relaxed">
-              <strong>Database Archiving:</strong> Submitting this checklist logs the JSON record to telemetry table under asset id <code>AIRTEL_DAILY_CHECKLIST</code> for compliance tracking.
+              <strong>Database Compliance Archiving:</strong> Submitting this checklist logs the JSON record to the telemetry table under asset ID <code>AIRTEL_DAILY_CHECKLIST</code> for compliance tracking.
             </p>
           </div>
         )}
 
         {/* Printable Area Page Container */}
-        <div className="bg-white border border-slate-200 print:border-none shadow-xl print:shadow-none rounded-3xl print:rounded-none p-8 md:p-12 mx-auto w-full transition-all">
+        <div id="printable-checklist-area" className="bg-white border border-slate-200 print:border-none shadow-xl print:shadow-none rounded-3xl print:rounded-none p-8 md:p-12 mx-auto w-full transition-all">
 
           {/* Printable Document Header */}
           <div className="pb-4 mb-4">
@@ -463,13 +543,13 @@ export const PrintableChecklist = forwardRef<HTMLDivElement, any>((props, ref) =
             <table className="w-full border-collapse border border-slate-900 text-xs font-sans">
               <thead>
                 <tr className="bg-slate-50 print:bg-slate-100 text-slate-900">
-                  <th className="border border-slate-900 p-2.5 text-left font-black uppercase tracking-wider w-[55%]">
+                  <th className="border border-slate-900 p-2.5 text-left font-black uppercase tracking-wider w-[50%]">
                     Daily Maintenance Checkpoints
                   </th>
-                  <th className="border border-slate-900 p-2.5 text-center font-black uppercase tracking-wider w-[15%]">
+                  <th className="border border-slate-900 p-2.5 text-center font-black uppercase tracking-wider w-[22%]">
                     Status
                   </th>
-                  <th className="border border-slate-900 p-2.5 text-left font-black uppercase tracking-wider w-[30%]">
+                  <th className="border border-slate-900 p-2.5 text-left font-black uppercase tracking-wider w-[28%]">
                     Comment
                   </th>
                 </tr>
@@ -495,28 +575,14 @@ export const PrintableChecklist = forwardRef<HTMLDivElement, any>((props, ref) =
                             {cp.name}
                           </td>
 
-                          {/* Status Picker Column */}
-                          <td className="border border-slate-900 p-2 text-center">
+                          {/* Dropdown Status Selector */}
+                          <td className="border border-slate-900 p-1.5 text-center">
                             <div className="flex justify-center items-center print:hidden">
-                              <Select
+                              <StatusDropdown
                                 value={val.status}
                                 disabled={isReadOnly}
-                                onValueChange={(value) => handleStatusChange(cp.id, value as "OK" | "NOT OK" | "N/A")}
-                              >
-                                <SelectTrigger className={`w-[90px] h-7 bg-white border text-[10px] font-black rounded-md focus:ring-1 focus:ring-red-500/20 focus:border-red-500 transition-all ${val.status === "OK"
-                                    ? "border-emerald-300 text-emerald-700"
-                                    : val.status === "NOT OK"
-                                      ? "border-red-300 text-red-700"
-                                      : "border-slate-300 text-slate-500"
-                                  }`}>
-                                  <SelectValue />
-                                </SelectTrigger>
-                                <SelectContent className="bg-white border border-slate-200 rounded-lg shadow-lg z-[10000]">
-                                  <SelectItem value="OK" className="text-xs font-bold text-emerald-600 hover:bg-slate-50 cursor-pointer">OK</SelectItem>
-                                  <SelectItem value="NOT OK" className="text-xs font-bold text-red-600 hover:bg-slate-50 cursor-pointer">NOT OK</SelectItem>
-                                  <SelectItem value="N/A" className="text-xs font-bold text-slate-500 hover:bg-slate-50 cursor-pointer">N/A</SelectItem>
-                                </SelectContent>
-                              </Select>
+                                onChange={(value) => handleStatusChange(cp.id, value)}
+                              />
                             </div>
                             <span className="hidden print:inline font-bold text-xs uppercase tracking-wider">
                               {val.status}
@@ -530,8 +596,8 @@ export const PrintableChecklist = forwardRef<HTMLDivElement, any>((props, ref) =
                               value={val.comment}
                               disabled={isReadOnly}
                               onChange={(e) => handleCommentChange(cp.id, e.target.value)}
-                              placeholder="Add comments..."
-                              className="w-full bg-transparent border border-slate-200/50 rounded px-2 py-0.5 text-xs text-slate-800 focus:outline-none focus:border-red-400 print:hidden font-medium"
+                              placeholder="Add comment..."
+                              className="w-full bg-slate-50/50 border border-slate-200 rounded px-2 py-1 text-xs text-slate-800 focus:outline-none focus:border-red-500 print:hidden font-medium"
                             />
                             <p className="hidden print:block text-black font-semibold text-xs leading-normal break-words">
                               {val.comment || ""}

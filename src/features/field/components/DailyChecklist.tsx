@@ -1,6 +1,9 @@
 import React, { useState } from "react";
-import { Printer, Shield, Info } from "lucide-react";
+import { Printer, Shield, Info, Save, Loader2, CheckCircle } from "lucide-react";
 import { useCurrentSite } from "@/shared/context/SiteContext";
+import { useAuth } from "@/shared/context/AuthContext";
+import { useDailyChecklists } from "../hooks/useDailyChecklists";
+import { toast } from "sonner";
 import {
   Select,
   SelectContent,
@@ -101,6 +104,9 @@ const CHECKLIST_SECTIONS: Section[] = [
 
 export function DailyChecklist() {
   const { currentSite } = useCurrentSite();
+  const { employee } = useAuth();
+  const { saveChecklist } = useDailyChecklists();
+  const [isSaving, setIsSaving] = useState(false);
   
   // Fillable form state
   const [siteName, setSiteName] = useState(currentSite?.site_name || "NTC-ZM-0874");
@@ -109,7 +115,7 @@ export function DailyChecklist() {
     const yy = String(d.getFullYear()).slice(-2);
     const mm = String(d.getMonth() + 1).padStart(2, "0");
     const dd = String(d.getDate()).padStart(2, "0");
-    return `${yy}/${mm}/${dd}`; // matches format in image: 23/06/26
+    return `${yy}/${mm}/${dd}`;
   });
 
   // State to hold status and comment for each checkpoint
@@ -125,10 +131,10 @@ export function DailyChecklist() {
     return initial;
   });
 
-  // Footer state
-  const [msName, setMsName] = useState("");
-  const [msSignature, setMsSignature] = useState("");
-  const [msDate, setMsDate] = useState("");
+  // Footer state prefilled from employee
+  const [msName, setMsName] = useState(employee?.full_name || "");
+  const [msSignature, setMsSignature] = useState(employee?.full_name ? `${employee.full_name.split(' ')[0]}_signed` : "");
+  const [msDate, setMsDate] = useState(() => new Date().toISOString().split('T')[0]);
 
   const [spocName, setSpocName] = useState("");
   const [spocSignature, setSpocSignature] = useState("");
@@ -146,6 +152,36 @@ export function DailyChecklist() {
       ...prev,
       [id]: { ...prev[id], comment }
     }));
+  };
+
+  const handleMarkAllOk = () => {
+    setFormValues((prev) => {
+      const updated = { ...prev };
+      Object.keys(updated).forEach((key) => {
+        updated[key] = { ...updated[key], status: "OK" };
+      });
+      return updated;
+    });
+    toast.success("All checkpoints marked OK!");
+  };
+
+  const handleArchive = async () => {
+    setIsSaving(true);
+    try {
+      const todayIso = new Date().toISOString().split('T')[0];
+      await saveChecklist({
+        dateStr: todayIso,
+        shift: "DAY SHIFT (08:00 - 18:00)",
+        technician_name: msName || employee?.full_name || "Field Engineer",
+        technician_id: employee?.id || "EMP-TECH",
+        values: formValues
+      });
+      toast.success("Airtel Daily Checklist saved & archived to database under AIRTEL_DAILY_CHECKLIST!");
+    } catch (err: any) {
+      toast.error("Failed to archive checklist: " + (err.message || err));
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   return (
@@ -185,29 +221,58 @@ export function DailyChecklist() {
         <div className="bg-white border border-slate-100 rounded-3xl p-5 shadow-sm mb-6 flex flex-col md:flex-row items-center justify-between gap-4 print:hidden">
           <div className="flex items-start gap-3.5">
             <div className="w-12 h-12 rounded-2xl bg-red-50 flex items-center justify-center text-red-500 shrink-0 border border-red-100">
-              <Printer size={22} />
+              <Shield size={22} />
             </div>
             <div>
               <h2 className="text-sm font-black text-slate-900 uppercase tracking-wider flex items-center gap-2">
                 Airtel Daily Checklist
-                <span className="bg-amber-50 text-amber-700 text-[9px] font-black uppercase tracking-wider px-2 py-0.5 rounded border border-amber-100 flex items-center gap-1">
-                  <Shield size={10} />
-                  Print Preview Form
+                <span className="bg-emerald-50 text-emerald-700 text-[9px] font-black uppercase tracking-wider px-2 py-0.5 rounded border border-emerald-100 flex items-center gap-1">
+                  AIRTEL_DAILY_CHECKLIST
                 </span>
               </h2>
               <p className="text-xs text-slate-400 mt-1 max-w-xl leading-relaxed">
-                This verification check runs strictly client-side and is optimized for print. Fill out the fields and print to sign off.
+                Fill out the checkpoint statuses and comments below, then submit to archive the record to the database for compliance tracking.
               </p>
             </div>
           </div>
           
-          <button
-            onClick={() => window.print()}
-            className="flex items-center justify-center gap-2 px-6 py-3.5 rounded-2xl bg-red-500 hover:bg-red-600 active:bg-red-700 text-white text-xs font-black uppercase tracking-widest transition-all shadow-md active:scale-[0.98] cursor-pointer shrink-0"
-          >
-            <Printer size={16} />
-            <span>Print Checklist</span>
-          </button>
+          <div className="flex items-center gap-2 shrink-0">
+            <button
+              onClick={handleMarkAllOk}
+              type="button"
+              className="flex items-center justify-center gap-1.5 px-3.5 py-3 rounded-2xl bg-emerald-50 hover:bg-emerald-100 text-emerald-700 text-xs font-bold transition-all border border-emerald-200 cursor-pointer"
+              title="Set all checkpoint statuses to OK"
+            >
+              <CheckCircle size={15} />
+              <span>Mark All OK</span>
+            </button>
+            <button
+              onClick={handleArchive}
+              disabled={isSaving}
+              type="button"
+              className="flex items-center justify-center gap-2 px-5 py-3 rounded-2xl bg-red-600 hover:bg-red-700 active:bg-red-800 text-white text-xs font-black uppercase tracking-widest transition-all shadow-md active:scale-[0.98] cursor-pointer shrink-0 disabled:opacity-50"
+            >
+              {isSaving ? (
+                <>
+                  <Loader2 size={16} className="animate-spin" />
+                  <span>Archiving…</span>
+                </>
+              ) : (
+                <>
+                  <Save size={16} />
+                  <span>Submit & Archive</span>
+                </>
+              )}
+            </button>
+            <button
+              onClick={() => window.print()}
+              type="button"
+              className="flex items-center justify-center gap-2 px-4 py-3 rounded-2xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-black uppercase tracking-widest transition-all shadow-md active:scale-[0.98] cursor-pointer shrink-0"
+            >
+              <Printer size={16} />
+              <span>Print</span>
+            </button>
+          </div>
         </div>
 
         {/* Informational Warning Alert Box: screen-only */}
