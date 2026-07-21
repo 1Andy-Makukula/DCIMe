@@ -218,7 +218,7 @@ const ntcMappings: SiteMappings = {
   ...getAmbientMappings('server_ambient', 65, 8),
   ...getAmbientMappings('media_ambient', 67, 10),
   ...getAmbientMappings('pr1_ambient', 69, 12),
-  ...getAmbientMappings('battery_ambient', 71, 14),
+  ...getAmbientMappings('pr2_ambient', 71, 14),
   ...getAmbientMappings('it1_ambient', 73, 16),
   ...getAmbientMappings('it2_ambient', 75, 18),
   ...getAmbientMappings('hq_ambient', -1, 6),

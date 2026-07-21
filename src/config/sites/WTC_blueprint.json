@@ -22,8 +22,8 @@
       "room_id": "room_server",
       "sort_order": 0,
       "metrics": [
-        { "id": "server_ambient_temp", "label": "Temperature (°C)", "type": "number", "frequency": "4-hour" },
-        { "id": "server_ambient_humidity", "label": "Humidity (%)", "type": "number", "frequency": "4-hour" }
+        { "id": "server_ambient_temp", "label": "Temperature (°C)", "type": "number", "frequency": "hourly" },
+        { "id": "server_ambient_humidity", "label": "Humidity (%)", "type": "number", "frequency": "hourly" }
       ]
     },
     {
@@ -61,8 +61,8 @@
       "room_id": "room_pr1",
       "sort_order": 0,
       "metrics": [
-        { "id": "pr1_ambient_temp", "label": "Temperature (°C)", "type": "number", "frequency": "4-hour" },
-        { "id": "pr1_ambient_humidity", "label": "Humidity (%)", "type": "number", "frequency": "4-hour" }
+        { "id": "pr1_ambient_temp", "label": "Temperature (°C)", "type": "number", "frequency": "hourly" },
+        { "id": "pr1_ambient_humidity", "label": "Humidity (%)", "type": "number", "frequency": "hourly" }
       ]
     },
     {
@@ -125,8 +125,8 @@
       "room_id": "room_it1",
       "sort_order": 0,
       "metrics": [
-        { "id": "it1_ambient_temp", "label": "Temperature (°C)", "type": "number", "frequency": "4-hour" },
-        { "id": "it1_ambient_humidity", "label": "Humidity (%)", "type": "number", "frequency": "4-hour" }
+        { "id": "it1_ambient_temp", "label": "Temperature (°C)", "type": "number", "frequency": "hourly" },
+        { "id": "it1_ambient_humidity", "label": "Humidity (%)", "type": "number", "frequency": "hourly" }
       ]
     },
     {

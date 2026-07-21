@@ -462,6 +462,27 @@ export const RoutineTasksDashboard = ({
       const ups2_used = getCleanValue('ups_2_used_capacity');
       const ups2_load = getCleanValue('ups_2_output_load_kw');
 
+      // Additional Rectifier & UPS data
+      const r1_batt_status = getCleanValue('rectifier_1_battery_status');
+      const r1_daily_status = getCleanValue('rectifier_1_daily_status');
+      const r1_abnormality = getCleanValue('rectifier_1_daily_abnormality');
+
+      const r2_batt_status = getCleanValue('rectifier_2_battery_status');
+      const r2_daily_status = getCleanValue('rectifier_2_daily_status');
+      const r2_abnormality = getCleanValue('rectifier_2_daily_abnormality');
+
+      const ups1_ph_a = getCleanValue('ups_1_load_phase_percent_a');
+      const ups1_ph_b = getCleanValue('ups_1_load_phase_percent_b');
+      const ups1_ph_c = getCleanValue('ups_1_load_phase_percent_c');
+      const ups1_daily_status = getCleanValue('ups_1_daily_status');
+      const ups1_abnormality = getCleanValue('ups_1_daily_abnormality');
+
+      const ups2_ph_a = getCleanValue('ups_2_load_phase_percent_a');
+      const ups2_ph_b = getCleanValue('ups_2_load_phase_percent_b');
+      const ups2_ph_c = getCleanValue('ups_2_load_phase_percent_c');
+      const ups2_daily_status = getCleanValue('ups_2_daily_status');
+      const ups2_abnormality = getCleanValue('ups_2_daily_abnormality');
+
       const tempMain = getCleanValue('server_ambient_temp');
       const tempPr1 = getCleanValue('pr1_ambient_temp');
       const tempPr2 = getCleanValue('pr2_ambient_temp');
@@ -471,7 +492,7 @@ export const RoutineTasksDashboard = ({
 
       whatsappPayload = `*NTC ZM 0874*
 *${firstName.toUpperCase()} ON DUTY*
-*TIME: ${shareTime}hrs (Log Hour: ${targetHour}hrs)*
+*TIME: ${shareTime}hrs*
 *LOAD ON ${powerSourceText}*
 Load voltage *${voltageVal}*V
 Load in Amps *${ampsVal}*A
@@ -564,7 +585,18 @@ Vertiv 6 : ${vt6_temp}
 
 VOLTAGE: ${v_r} ${v_b} ${v_y}
 VOLTAGE: ${v_rn} ${v_bn} ${v_yn}
-CURRENT: ${a_r} ${a_b} ${a_y}`;
+CURRENT: ${a_r} ${a_b} ${a_y}
+
+Additional Rectifier & UPS Logs
+Rectifier 1 BB Status: ${r1_batt_status}
+Rectifier 1 Status: ${r1_daily_status} | Abnormality: ${r1_abnormality}
+Rectifier 2 BB Status: ${r2_batt_status}
+Rectifier 2 Status: ${r2_daily_status} | Abnormality: ${r2_abnormality}
+
+UPS 1 Load Phase: A:${ups1_ph_a}% B:${ups1_ph_b}% C:${ups1_ph_c}%
+UPS 1 Status: ${ups1_daily_status} | Abnormality: ${ups1_abnormality}
+UPS 2 Load Phase: A:${ups2_ph_a}% B:${ups2_ph_b}% C:${ups2_ph_c}%
+UPS 2 Status: ${ups2_daily_status} | Abnormality: ${ups2_abnormality}`;
     } else {
       const voltageVal = isGen ? getCleanValue('dg_load_voltage_r') : getCleanValue('grid_voltage_r');
       const ampsVal = isGen ? getCleanValue('dg_load_amps_r') : getCleanValue('grid_amps_r');
@@ -577,7 +609,7 @@ CURRENT: ${a_r} ${a_b} ${a_y}`;
 
       whatsappPayload = `*${siteCode} ${currentSite?.site_name || ""}*
 *${firstName.toUpperCase()} ON DUTY*
-*TIME: ${shareTime}hrs (Log Hour: ${targetHour}hrs)*
+*TIME: ${shareTime}hrs*
 *LOAD ON ${powerSourceText}*
 Load voltage *${voltageVal}*V
 Load in Amps *${ampsVal}*A
@@ -589,7 +621,56 @@ Main Room *${tempMain}*°C
 Power Room1_*${tempPr1}*°C
 Enterprise Room 1 *${tempIt1}*°C`;
 
-      internalPayload = whatsappPayload;
+      const em1_temp = getCleanValue('pac_server_em1_return_temp_actual');
+      const em2_temp = getCleanValue('pac_server_em2_return_temp_actual');
+      const em1_it_temp = getCleanValue('pac_it1_em1_return_temp_actual');
+
+      const r1_v = getCleanValue('rectifier_1_dc_voltage', '54.2');
+      const r1_a = getCleanValue('rectifier_1_amps');
+      const r1_cap = getCleanValue('rectifier_1_used_percentage');
+      const r1_batt_status = getCleanValue('rectifier_1_battery_status');
+      const r1_daily_status = getCleanValue('rectifier_1_daily_status');
+      const r1_abnormality = getCleanValue('rectifier_1_daily_abnormality');
+
+      const ups1_l1 = getCleanValue('ups_1_output_voltage_a', '230');
+      const ups1_l2 = getCleanValue('ups_1_output_voltage_b', '230');
+      const ups1_l3 = getCleanValue('ups_1_output_voltage_c', '230');
+      const ups1_a1 = getCleanValue('ups_1_load_amps_a');
+      const ups1_a2 = getCleanValue('ups_1_load_amps_b');
+      const ups1_a3 = getCleanValue('ups_1_load_amps_c');
+      const ups1_batt = getCleanValue('ups_1_battery_voltage');
+      const ups1_charge = getCleanValue('ups_1_battery_charge_percent', '100');
+      const ups1_used = getCleanValue('ups_1_used_capacity');
+      const ups1_load = getCleanValue('ups_1_output_load_kw');
+      const ups1_ph_a = getCleanValue('ups_1_load_phase_percent_a');
+      const ups1_ph_b = getCleanValue('ups_1_load_phase_percent_b');
+      const ups1_ph_c = getCleanValue('ups_1_load_phase_percent_c');
+      const ups1_daily_status = getCleanValue('ups_1_daily_status');
+      const ups1_abnormality = getCleanValue('ups_1_daily_abnormality');
+
+      internalPayload = `${whatsappPayload}
+
+Unit Temperatures
+Emerson 1 : ${em1_temp}
+Emerson 2 : ${em2_temp}
+IT Room 1 AC 1 : ${em1_it_temp}
+
+VERTIV RECTIFIER 1
+(Power room 1) ${r1_v}v/${r1_a}A/${r1_cap}%
+BB Status: ${r1_batt_status}
+Status: ${r1_daily_status} | Abnormality: ${r1_abnormality}
+
+UPS 1 output
+(Power room_1)
+L1-${ups1_l1}/${ups1_a1}A
+L2-${ups1_l2}/${ups1_a2}A
+L3-${ups1_l3}/${ups1_a3}A
+Battery voltage: ${ups1_batt}VDC
+Battery Charge: ${ups1_charge}%
+Used Capacity: ${ups1_used}%
+Load: ${ups1_load}KW
+Load Phase: A:${ups1_ph_a}% B:${ups1_ph_b}% C:${ups1_ph_c}%
+Status: ${ups1_daily_status} | Abnormality: ${ups1_abnormality}`;
     }
 
     return { whatsappPayload, internalPayload };
@@ -598,11 +679,12 @@ Enterprise Room 1 *${tempIt1}*°C`;
   const handleShareAndSave = () => {
     const { whatsappPayload, internalPayload } = generateReportTexts();
     const dateStr = new Date().toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+    const actualSentTime = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
     
     const newRecord = {
       timestamp: new Date().toISOString(),
       date: dateStr,
-      hour: targetHour,
+      hour: actualSentTime,
       text: internalPayload
     };
 

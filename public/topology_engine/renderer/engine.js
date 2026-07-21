@@ -186,11 +186,13 @@ class JSPowerMatrix {
 
     updateState(dt) {
         const SHIFT = JSPowerMatrix.DG_SHIFT_SECONDS;
+        const gridTxNode = this.nodes.find(n => n.id === "node-grid-tx");
+        const effectiveGridActive = this.grid_active && !(gridTxNode && gridTxNode.is_faulted);
 
         // ==========================================================
         // 1. DG PAIR ROTATION STATE MACHINE
         // ==========================================================
-        if (!this.grid_active && this.dg_auto && this.fuel_liters > 0 && !this.fire_alarm_active) {
+        if (!effectiveGridActive && this.dg_auto && this.fuel_liters > 0 && !this.fire_alarm_active) {
 
             if (this.dg_pair_status === "standby") {
                 this.dg_pair_status = "pair_a_starting";
@@ -249,7 +251,7 @@ class JSPowerMatrix {
                 this.pair_run_seconds = 0.0; this.gen_startup_timer = 0.0;
             }
 
-        } else if (this.grid_active || this.fire_alarm_active) {
+        } else if (effectiveGridActive || this.fire_alarm_active) {
             if (this.dg_pair_status !== "standby") {
                 this.dg_pair_status = "standby"; this.gen_status = "standby";
                 this.gen_startup_timer = 0.0; this.pair_run_seconds = 0.0;
@@ -260,7 +262,7 @@ class JSPowerMatrix {
         // 2. Battery SOC
         // ==========================================================
         const gen_running = (this.dg_pair_status === "pair_a_running" || this.dg_pair_status === "pair_b_running");
-        const charger_online = this.grid_active || gen_running;
+        const charger_online = effectiveGridActive || gen_running;
         if (!charger_online) {
             let ups_load = 0;
             this.nodes.forEach(n => { if (n.type === "ups" && n.is_active) ups_load += n.kw_load || 0; });
@@ -272,7 +274,7 @@ class JSPowerMatrix {
         // ==========================================================
         // 3. Thermal
         // ==========================================================
-        const cooling_on = this.cooling_active && (this.grid_active || gen_running) && !this.fire_alarm_active;
+        const cooling_on = this.cooling_active && (effectiveGridActive || gen_running) && !this.fire_alarm_active;
         if (!cooling_on) {
             let srv = 0;
             this.nodes.forEach(n => { if (n.type === "server" && n.is_active) srv += n.kw_load || 0; });
@@ -285,8 +287,10 @@ class JSPowerMatrix {
     }
 
     runMatrixUpdate() {
+        const gridTxNode = this.nodes.find(n => n.id === "node-grid-tx");
+        const effectiveGridActive = this.grid_active && !(gridTxNode && gridTxNode.is_faulted);
         const gen_running = (this.dg_pair_status === "pair_a_running" || this.dg_pair_status === "pair_b_running");
-        const power_available = this.grid_active || gen_running;
+        const power_available = effectiveGridActive || gen_running;
         let power_path_a_active = power_available;
         let power_path_b_active = power_available;
         if (this.fire_alarm_active) { power_path_a_active = false; power_path_b_active = false; }
@@ -304,9 +308,9 @@ class JSPowerMatrix {
             }
 
             if (node.type === "grid_tx") {
-                node.is_active = this.grid_active;
-                node.status = this.grid_active ? "ONLINE" : "OFFLINE";
-                node.kw_load = this.grid_active ? 450 : 0;
+                node.is_active = effectiveGridActive;
+                node.status = effectiveGridActive ? "ONLINE" : "OFFLINE";
+                node.kw_load = effectiveGridActive ? 450 : 0;
                 return;
             }
 
@@ -314,7 +318,7 @@ class JSPowerMatrix {
                 const isPairA = (node.id === "node-dg-1" || node.id === "node-dg-3");
                 const isPairB = (node.id === "node-dg-2" || node.id === "node-dg-4");
                 if (node.id === "node-dg-hq") {
-                    node.is_active = this.fuel_liters < 100 && !this.grid_active && gen_running;
+                    node.is_active = this.fuel_liters < 100 && !effectiveGridActive && gen_running;
                     node.status = node.is_active ? "EMERGENCY HQ" : "STANDBY"; node.kw_load = node.is_active ? 250 : 0; return;
                 }
                 if (isPairA) {
@@ -332,7 +336,7 @@ class JSPowerMatrix {
             }
 
             if (node.type === "tco") {
-                if (this.grid_active) { node.is_active = true; node.status = "MAINS FEED"; }
+                if (effectiveGridActive) { node.is_active = true; node.status = "MAINS FEED"; }
                 else if (gen_running) { node.is_active = true; node.status = "GENERATOR BACKUP"; }
                 else if (this.dg_pair_status.includes("starting")) { node.is_active = false; node.status = "GENERATORS STARTING..."; }
                 else { node.is_active = false; node.status = "NO VOLTAGE"; }
@@ -342,7 +346,7 @@ class JSPowerMatrix {
             if (node.type === "main_db") {
                 if (node.id === "node-main-main-db") {
                     node.is_active = power_available;
-                    node.status = node.is_active ? (this.grid_active ? "415V MAINS" : "415V GENERATOR") : "NO VOLTAGE"; return;
+                    node.status = node.is_active ? (effectiveGridActive ? "415V MAINS" : "415V GENERATOR") : "NO VOLTAGE"; return;
                 }
                 const mainDbActive = (this.getNode("node-main-main-db") || {}).is_active;
                 if (node.id.includes("-2") || node.id.includes("-db-a")) {
@@ -374,10 +378,15 @@ class JSPowerMatrix {
             if (node.type === "rectifier") {
                 const srcDb = node.id === "node-rectifier-2" ? this.getNode("node-dc-rect-db-a") : this.getNode("node-dc-rect-db-b");
                 const srcActive = srcDb && srcDb.is_active;
-                node.is_active = srcActive;
-                node.status = srcActive ? "ONLINE" : "NO VOLTAGE";
-                node.load_pct = srcActive ? (node.current / node.capacity) * 100.0 : 0;
-                node.kw_load = srcActive ? (node.voltage * node.current) / 1000.0 : 0;
+                if (!srcActive) {
+                    node.is_active = this.battery_soc > 0;
+                    node.status = node.is_active ? "-48V DC BATTERY BACKUP" : "BATTERY DRAINED";
+                } else {
+                    node.is_active = true;
+                    node.status = this.battery_soc < 100 ? "FLOAT CHARGING" : "ONLINE";
+                }
+                node.load_pct = node.is_active ? (node.current / node.capacity) * 100.0 : 0;
+                node.kw_load = node.is_active ? (node.voltage * node.current) / 1000.0 : 0;
                 return;
             }
 
@@ -390,11 +399,20 @@ class JSPowerMatrix {
             }
 
             if (node.type === "server") {
-                const has_ac = (this.getNode("node-ac-server-db") || {}).is_active;
-                const has_dc = (this.getNode("node-dc-server-db") || {}).is_active;
-                if (node.id === "node-vertiv-1" || node.id === "node-vertiv-2") { node.is_active = has_ac; }
-                else if (node.id === "node-dragor") { node.is_active = power_path_b_active && !(this.getNode("node-tco-2") || {}).is_faulted; }
-                else { node.is_active = has_dc; }
+                const rect1Active = (this.getNode("node-rectifier-1") || {}).is_active;
+                const rect2Active = (this.getNode("node-rectifier-2") || {}).is_active;
+                const ups1Active = (this.getNode("node-ups-1") || {}).is_active;
+                const ups2Active = (this.getNode("node-ups-2") || {}).is_active;
+
+                if (node.id === "node-vertiv-1" || node.id === "node-vertiv-2") {
+                    // AC Racks supplied exclusively by AC UPS 1 & 2
+                    node.is_active = ups1Active || ups2Active;
+                } else if (node.id === "node-dragor") {
+                    node.is_active = power_path_b_active && !(this.getNode("node-tco-2") || {}).is_faulted;
+                } else {
+                    // DC Racks (Vertiv 3, 4, 5, 6) supplied exclusively by DC Rectifiers 1 & 2 (-48V DC Battery String)
+                    node.is_active = rect1Active || rect2Active;
+                }
                 node.status = node.is_active ? "LOAD OK" : "BLACKOUT";
                 node.kw_load = node.is_active ? 8.5 : 0; return;
             }
@@ -581,7 +599,19 @@ class JSPowerMatrix {
         const activePaths = new Set();
         const activeDevs = new Set([nodeId]);
 
+        // Bi-directional generator downstream path tracing
+        if (nodeId.startsWith("node-dg-")) {
+            const dgKey = nodeId.replace("node-dg-", "");
+            activePaths.add(`dg-cable-${dgKey}`);
+            activePaths.add("dg-bus");
+            activePaths.add("dg-to-tco1");
+            activePaths.add("dg-to-tco2");
+            activeDevs.add("node-tco-1");
+            activeDevs.add("node-tco-2");
+        }
+
         const traverse = (currentId) => {
+            // Also traverse downstream if currentId is a TCO during DG trace
             const entry = directFeederMap[currentId];
             if (!entry) return;
 
@@ -620,7 +650,12 @@ class JSPowerMatrix {
             entry.paths.forEach(p => activePaths.add(p));
         };
 
-        traverse(nodeId);
+        if (nodeId.startsWith("node-dg-")) {
+            traverse("node-tco-1");
+            traverse("node-tco-2");
+        } else {
+            traverse(nodeId);
+        }
         return { devices: Array.from(activeDevs), paths: Array.from(activePaths) };
     };
 
@@ -777,6 +812,31 @@ class JSPowerMatrix {
             const svgNode = svg.querySelector(`#${node.id}`);
             if (!svgNode) return;
 
+            // WASM Override for Rectifiers on DC Battery Backup
+            if (node.type === "rectifier" && !node.is_faulted) {
+                const srcDbId = node.id === "node-rectifier-2" ? "node-dc-rect-db-a" : "node-dc-rect-db-b";
+                const srcDb = nodes.find(n => n.id === srcDbId);
+                const srcActive = srcDb && srcDb.is_active;
+                const batterySoc = typeof engine.getBatterySoc === "function" ? engine.getBatterySoc() : 100.0;
+                if (!srcActive && batterySoc > 0) {
+                    node.is_active = true;
+                    node.status = "-48V DC BATTERY BACKUP";
+                }
+            }
+
+            // WASM Override for Cooling Units (Enforce TCO 1 & TCO 2 Feed Isolation)
+            if (node.type === "cooling") {
+                const useDbA = node.id.includes("ac-1") || node.id.includes("ac-2") || node.id.includes("ac-6") || node.id.includes("ac-7");
+                const srcDbId = useDbA ? "node-aircon-db-a" : "node-aircon-db-b";
+                const srcDb = nodes.find(n => n.id === srcDbId);
+                const isCoolingEnabled = typeof engine.cooling_active === "boolean" ? engine.cooling_active : true;
+                const srcActive = srcDb && srcDb.is_active && isCoolingEnabled;
+                node.is_active = srcActive;
+                if (!srcActive) {
+                    node.status = "OFFLINE";
+                }
+            }
+
             const statusText = svgNode.querySelector(".node-status");
             const faces = svgNode.querySelectorAll(".cube-face");
 
@@ -802,20 +862,40 @@ class JSPowerMatrix {
                     statusText.style.fill = "#64748b";
                 }
             } else {
-                // Restore nominal colors
+                // Check if running on battery backup (AC source DB inactive)
+                const isUpsOnBattery = node.type === "ups" && node.status.includes("DISCHARGING");
+                const isRectOnBattery = node.type === "rectifier" && node.status.includes("BATTERY BACKUP");
+
                 faces.forEach(f => {
-                    f.style.stroke = "";
-                    f.style.fill = "";
-                    f.style.filter = "";
+                    if (isUpsOnBattery || isRectOnBattery) {
+                        f.style.stroke = "#f59e0b";
+                        f.style.fill = "rgba(245, 158, 11, 0.15)";
+                        f.style.filter = "drop-shadow(0 0 8px rgba(245, 158, 11, 0.6))";
+                    } else if (node.type === "server" && node.is_active) {
+                        f.style.stroke = "#00e5ff";
+                        f.style.fill = "rgba(0, 229, 255, 0.2)";
+                        f.style.filter = "drop-shadow(0 0 10px rgba(0, 229, 255, 0.7))";
+                    } else {
+                        f.style.stroke = "";
+                        f.style.fill = "";
+                        f.style.filter = "";
+                    }
                 });
 
                 if (statusText) {
-                    statusText.style.fill = "";
-                    if (node.type === "ups") {
+                    if (isUpsOnBattery) {
+                        const rm = typeof node.runtime_minutes === "number" ? node.runtime_minutes : 0.0;
+                        statusText.textContent = `DISCHARGING (${rm.toFixed(0)}m)`;
+                        statusText.style.fill = "#f59e0b";
+                    } else if (node.type === "ups") {
                         const lp = typeof node.load_pct === "number" ? node.load_pct : 0.0;
                         const rm = typeof node.runtime_minutes === "number" ? node.runtime_minutes : 0.0;
                         statusText.textContent = `${lp.toFixed(0)}% / ${rm.toFixed(0)}m`;
                         statusText.style.fill = "#00e5ff";
+                    } else if (isRectOnBattery) {
+                        const cur = typeof node.current === "number" ? node.current : 0.0;
+                        statusText.textContent = `DC BATTERY (${cur.toFixed(0)}A)`;
+                        statusText.style.fill = "#f59e0b";
                     } else if (node.type === "rectifier") {
                         const cur = typeof node.current === "number" ? node.current : 0.0;
                         const lp = typeof node.load_pct === "number" ? node.load_pct : 0.0;
@@ -829,6 +909,7 @@ class JSPowerMatrix {
                         statusText.style.fill = "#ff6d00";
                     } else {
                         statusText.textContent = node.status;
+                        statusText.style.fill = "";
                     }
                 }
             }
@@ -873,16 +954,32 @@ class JSPowerMatrix {
             }
 
             // Downstream specific branches
-            if (pathId === "ups2-to-acserverdb" && !engine.getNode("node-ups-2").is_active) isPathActive = false;
-            if (pathId === "rect2-to-dcserverdb" && !engine.getNode("node-rectifier-2").is_active) isPathActive = false;
-            if (pathId === "ups1-to-acserverdb" && !engine.getNode("node-ups-1").is_active) isPathActive = false;
-            if (pathId === "rect1-to-dcserverdb" && !engine.getNode("node-rectifier-1").is_active) isPathActive = false;
+            if (pathId === "rect2-to-dcserverdb") {
+                const r2 = nodes.find(n => n.id === "node-rectifier-2");
+                isPathActive = r2 && r2.is_active;
+            }
+            if (pathId === "rect1-to-dcserverdb") {
+                const r1 = nodes.find(n => n.id === "node-rectifier-1");
+                isPathActive = r1 && r1.is_active;
+            }
+            if (pathId === "ups2-to-acserverdb") {
+                const u2 = nodes.find(n => n.id === "node-ups-2");
+                isPathActive = u2 && u2.is_active;
+            }
+            if (pathId === "ups1-to-acserverdb") {
+                const u1 = nodes.find(n => n.id === "node-ups-1");
+                isPathActive = u1 && u1.is_active;
+            }
 
             if (pathId.startsWith("acserverdb-")) {
-                isPathActive = engine.getNode("node-ac-server-db").is_active;
+                const u1 = nodes.find(n => n.id === "node-ups-1");
+                const u2 = nodes.find(n => n.id === "node-ups-2");
+                isPathActive = (u1 && u1.is_active) || (u2 && u2.is_active);
             }
             if (pathId.startsWith("dcserverdb-")) {
-                isPathActive = engine.getNode("node-dc-server-db").is_active;
+                const r1 = nodes.find(n => n.id === "node-rectifier-1");
+                const r2 = nodes.find(n => n.id === "node-rectifier-2");
+                isPathActive = (r1 && r1.is_active) || (r2 && r2.is_active);
             }
             if (pathId === "tco2-to-dragor") {
                 isPathActive = engine.getNode("node-tco-2").is_active;
