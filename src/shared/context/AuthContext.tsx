@@ -38,6 +38,24 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [isLoading, setIsLoading] = useState(true);
   const { setCurrentSite } = useCurrentSite();
 
+  const getCachedProfile = (): EmployeeProfile | null => {
+    try {
+      const cached = localStorage.getItem('dcime_cached_profile');
+      return cached ? JSON.parse(cached) : null;
+    } catch {
+      return null;
+    }
+  };
+
+  const getCachedSite = (): any => {
+    try {
+      const cached = localStorage.getItem('dcime_cached_site');
+      return cached ? JSON.parse(cached) : null;
+    } catch {
+      return null;
+    }
+  };
+
   const fetchProfile = async (userId: string) => {
     try {
       const { data, error } = await supabase
@@ -47,23 +65,36 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         .maybeSingle();
 
       if (error) throw error;
+
       if (data) {
         setEmployee(data as EmployeeProfile);
+        localStorage.setItem('dcime_cached_profile', JSON.stringify(data));
+
         const joinedSites = data.sites;
         const siteData = Array.isArray(joinedSites) ? joinedSites[0] : joinedSites;
         if (siteData) {
           setCurrentSite(siteData as any);
+          localStorage.setItem('dcime_cached_site', JSON.stringify(siteData));
         } else {
           setCurrentSite(null);
         }
       } else {
-        setEmployee(null);
-        setCurrentSite(null);
+        // Fallback to cached profile if present
+        const cachedEmp = getCachedProfile();
+        const cachedSite = getCachedSite();
+        if (cachedEmp) setEmployee(cachedEmp);
+        if (cachedSite) setCurrentSite(cachedSite);
       }
     } catch (err) {
-      console.error("Error loading employee profile in AuthContext:", err);
-      setEmployee(null);
-      setCurrentSite(null);
+      console.warn("Network error loading profile in AuthContext, using offline cache:", err);
+      const cachedEmp = getCachedProfile();
+      const cachedSite = getCachedSite();
+      if (cachedEmp) {
+        setEmployee(cachedEmp);
+      }
+      if (cachedSite) {
+        setCurrentSite(cachedSite);
+      }
     }
   };
 
@@ -82,49 +113,51 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const initSession = async () => {
       setIsLoading(true);
       try {
-        const loadSessionAndProfile = async () => {
-          const { data: { session } } = await supabase.auth.getSession();
-          if (session?.user) {
-            // Fetch profile database entry
-            const { data, error } = await supabase
+        const { data: { session } } = await supabase.auth.getSession();
+        if (session?.user) {
+          setUser(session.user);
+
+          // Try loading fresh profile over network with timeout
+          try {
+            const profilePromise = supabase
               .from("employees")
               .select("id, auth_id, full_name, email, employee_id, phone_number, site_id, role, created_at, site_uuid, sites ( id, site_code, site_name )")
               .eq("auth_id", session.user.id)
               .maybeSingle();
 
-            if (error) throw error;
-            return { session, employee: data };
-          }
-          return { session: null, employee: null };
-        };
+            const timeoutPromise = new Promise<never>((_, reject) =>
+              setTimeout(() => reject(new Error("Profile query network timeout")), 4000)
+            );
 
-        const timeoutPromise = new Promise<never>((_, reject) =>
-          setTimeout(() => reject(new Error("Session initialization timed out")), 10000)
-        );
+            const res: any = await Promise.race([profilePromise, timeoutPromise]);
+            if (res?.data) {
+              const empData = res.data as EmployeeProfile;
+              setEmployee(empData);
+              localStorage.setItem('dcime_cached_profile', JSON.stringify(empData));
 
-        const { session, employee: empProfile } = await Promise.race([
-          loadSessionAndProfile(),
-          timeoutPromise
-        ]);
-
-        if (session?.user) {
-          setUser(session.user);
-          setEmployee(empProfile as EmployeeProfile);
-          const joinedSites = empProfile?.sites;
-          const siteData = Array.isArray(joinedSites) ? joinedSites[0] : joinedSites;
-          if (siteData) {
-            setCurrentSite(siteData);
-          } else {
-            setCurrentSite(null);
+              const joinedSites = empData.sites;
+              const siteData = Array.isArray(joinedSites) ? joinedSites[0] : joinedSites;
+              if (siteData) {
+                setCurrentSite(siteData);
+                localStorage.setItem('dcime_cached_site', JSON.stringify(siteData));
+              }
+            } else {
+              // Use offline cache
+              const cachedEmp = getCachedProfile();
+              const cachedSite = getCachedSite();
+              if (cachedEmp) setEmployee(cachedEmp);
+              if (cachedSite) setCurrentSite(cachedSite);
+            }
+          } catch (netErr) {
+            console.warn("[DCIMe] Network offline/timeout during profile fetch. Using cached session & profile.", netErr);
+            const cachedEmp = getCachedProfile();
+            const cachedSite = getCachedSite();
+            if (cachedEmp) setEmployee(cachedEmp);
+            if (cachedSite) setCurrentSite(cachedSite);
           }
         }
       } catch (err) {
-        console.error("[DCIMe] Error or timeout during initial session fetch:", err);
-        // Clear stuck/stale local state asynchronously (do NOT await it to keep finally reachable)
-        supabase.auth.signOut().catch(() => {});
-        setUser(null);
-        setEmployee(null);
-        setCurrentSite(null);
+        console.error("[DCIMe] Error checking local auth session:", err);
       } finally {
         setIsLoading(false);
       }
@@ -132,14 +165,28 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     initSession();
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
-      if (session?.user) {
-        setUser(session.user);
-        await fetchProfile(session.user.id);
-      } else {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+      if (event === 'SIGNED_OUT') {
         setUser(null);
         setEmployee(null);
         setCurrentSite(null);
+        localStorage.removeItem('dcime_cached_profile');
+        localStorage.removeItem('dcime_cached_site');
+        setIsLoading(false);
+        return;
+      }
+
+      if (session?.user) {
+        setUser(session.user);
+        await fetchProfile(session.user.id);
+      } else if (!session) {
+        // Fallback to offline session if token exists
+        const cachedEmp = getCachedProfile();
+        if (!cachedEmp) {
+          setUser(null);
+          setEmployee(null);
+          setCurrentSite(null);
+        }
       }
       setIsLoading(false);
     });
@@ -155,6 +202,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setUser(null);
     setEmployee(null);
     setCurrentSite(null);
+    localStorage.removeItem('dcime_cached_profile');
+    localStorage.removeItem('dcime_cached_site');
     setIsLoading(false);
   };
 
