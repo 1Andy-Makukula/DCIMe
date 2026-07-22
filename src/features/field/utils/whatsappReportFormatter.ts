@@ -60,17 +60,41 @@ export const generateReportTexts = ({
   let internalPayload = "";
 
   if (siteCode === "NTC") {
-    const voltageVal = isGen ? getCleanValue('dg_load_voltage_r') : getCleanValue('grid_voltage_r');
-    const ampsVal = isGen ? getCleanValue('dg_load_amps_r') : getCleanValue('grid_amps_r');
+    const v_r = isGen ? getCleanValue('dg_load_voltage_r') : getCleanValue('grid_voltage_r');
+    const v_y = isGen ? getCleanValue('dg_load_voltage_y') : getCleanValue('grid_voltage_y');
+    const v_b = isGen ? getCleanValue('dg_load_voltage_b') : getCleanValue('grid_voltage_b');
+
+    const v_rn = isGen ? "230" : getCleanValue('grid_phase_voltage_rn', '230');
+    const v_yn = isGen ? "230" : getCleanValue('grid_phase_voltage_yn', '230');
+    const v_bn = isGen ? "230" : getCleanValue('grid_phase_voltage_bn', '230');
+
+    const a_r = isGen ? getCleanValue('dg_load_amps_r') : getCleanValue('grid_amps_r');
+    const a_y = isGen ? getCleanValue('dg_load_amps_y') : getCleanValue('grid_amps_y');
+    const a_b = isGen ? getCleanValue('dg_load_amps_b') : getCleanValue('grid_amps_b');
+
+    const parseAvg = (...vals: string[]) => {
+      const nums = vals.map(v => parseFloat(v)).filter(n => !isNaN(n));
+      if (nums.length === 0) return 0;
+      return Math.round(nums.reduce((a, b) => a + b, 0) / nums.length);
+    };
+
+    const avgV_LL = parseAvg(v_r, v_y, v_b) || parseFloat(v_r) || 0;
+    const avgV_LN = parseAvg(v_rn, v_yn, v_bn) || 230;
+    const avgAmps = parseAvg(a_r, a_y, a_b) || parseFloat(a_r) || 0;
+
     const pfVal = isGen ? "0.9" : getCleanValue('grid_power_factor', "0.9");
-    const voltageNum = parseFloat(voltageVal);
-    const ampsNum = parseFloat(ampsVal);
     const pfNum = parseFloat(pfVal);
-    const calcKw = (isGen && !isNaN(voltageNum) && !isNaN(ampsNum))
-      ? Math.round((voltageNum * ampsNum * 1.732 * pfNum) / 1000)
+    const calcKw = (isGen && avgV_LL > 0 && avgAmps > 0)
+      ? Math.round((avgV_LL * avgAmps * 1.732 * pfNum) / 1000)
       : 0;
 
     const kwVal = isGen ? calcKw.toString() : getCleanValue('grid_total_site_load');
+
+    const sw1_val = getCleanValue('grid_energy_meter_1');
+    const sw2_val = getCleanValue('grid_energy_meter_2');
+    const swSection = (sw1_val !== "NA" || sw2_val !== "NA")
+      ? `\n*SWITCH METERS (4-HR)*\nSW 1: ${sw1_val} kWh | SW 2: ${sw2_val} kWh\n`
+      : "";
 
     const r1_v = getCleanValue('rectifier_1_dc_voltage', '54.2');
     const r1_a = getCleanValue('rectifier_1_amps');
@@ -119,12 +143,11 @@ export const generateReportTexts = ({
 *${firstName.toUpperCase()} ON DUTY*
 *TIME: ${shareTime}hrs*
 *LOAD ON:* ${powerSourceText}
-*Load voltage:* ${voltageVal}V
-*Load in Amps:* ${ampsVal}A
+*Load voltage:* ${avgV_LL}V
+*Load in Amps:* ${avgAmps}A
 
 *KW:* ${kwVal}
-*Power factor* ${pfVal}
-
+*Power factor* ${pfVal}${swSection}
 *VERTIV RECTIFIER 1*
 (Power room 1) ${r1_v}v/${r1_a}A/${r1_cap}%
 *VERTIV RECTIFIER 2*
@@ -190,18 +213,6 @@ Humidity: ${humidityMain}%`;
     const vt6_temp = getCleanValue('pac_data_vt6_return_temp_actual');
     const vt6_hum = getCleanValue('pac_data_vt6_humidity_actual');
 
-    const v_r = isGen ? getCleanValue('dg_load_voltage_r') : getCleanValue('grid_voltage_r');
-    const v_y = isGen ? getCleanValue('dg_load_voltage_y') : getCleanValue('grid_voltage_y');
-    const v_b = isGen ? getCleanValue('dg_load_voltage_b') : getCleanValue('grid_voltage_b');
-
-    const v_rn = isGen ? "230" : getCleanValue('grid_phase_voltage_rn', '230');
-    const v_yn = isGen ? "230" : getCleanValue('grid_phase_voltage_yn', '230');
-    const v_bn = isGen ? "230" : getCleanValue('grid_phase_voltage_bn', '230');
-
-    const a_r = isGen ? getCleanValue('dg_load_amps_r') : getCleanValue('grid_amps_r');
-    const a_y = isGen ? getCleanValue('dg_load_amps_y') : getCleanValue('grid_amps_y');
-    const a_b = isGen ? getCleanValue('dg_load_amps_b') : getCleanValue('grid_amps_b');
-
     internalPayload = `${whatsappPayload}
 
 *UNIT TEMPERATURES & HUMIDITY*
@@ -221,20 +232,44 @@ Vertiv 5  : ${vt5_temp}°C | ${vt5_hum}%
 Vertiv 6  : ${vt6_temp}°C | ${vt6_hum}%
 
 *GRID/POWER METRICS*
-VOLTAGE L-L : R:${v_r}V | Y:${v_y}V | B:${v_b}V
-VOLTAGE L-N : RN:${v_rn}V | YN:${v_yn}V | BN:${v_bn}V
-CURRENT     : R:${a_r}A | Y:${a_y}A | B:${a_b}A`;
+VOLTAGE L-L : R:${v_r}V | Y:${v_y}V | B:${v_b}V (AVG: ${avgV_LL}V)
+VOLTAGE L-N : RN:${v_rn}V | YN:${v_yn}V | BN:${v_bn}V (AVG: ${avgV_LN}V)
+CURRENT     : R:${a_r}A | Y:${a_y}A | B:${a_b}A (AVG: ${avgAmps}A)`;
   } else {
-    const voltageVal = isGen ? getCleanValue('dg_load_voltage_r') : getCleanValue('grid_voltage_r');
-    const ampsVal = isGen ? getCleanValue('dg_load_amps_r') : getCleanValue('grid_amps_r');
+    const v_r = isGen ? getCleanValue('dg_load_voltage_r') : getCleanValue('grid_voltage_r');
+    const v_y = isGen ? getCleanValue('dg_load_voltage_y') : getCleanValue('grid_voltage_y');
+    const v_b = isGen ? getCleanValue('dg_load_voltage_b') : getCleanValue('grid_voltage_b');
+
+    const v_rn = isGen ? "230" : getCleanValue('grid_phase_voltage_rn', '230');
+    const v_yn = isGen ? "230" : getCleanValue('grid_phase_voltage_yn', '230');
+    const v_bn = isGen ? "230" : getCleanValue('grid_phase_voltage_bn', '230');
+
+    const a_r = isGen ? getCleanValue('dg_load_amps_r') : getCleanValue('grid_amps_r');
+    const a_y = isGen ? getCleanValue('dg_load_amps_y') : getCleanValue('grid_amps_y');
+    const a_b = isGen ? getCleanValue('dg_load_amps_b') : getCleanValue('grid_amps_b');
+
+    const parseAvg = (...vals: string[]) => {
+      const nums = vals.map(v => parseFloat(v)).filter(n => !isNaN(n));
+      if (nums.length === 0) return 0;
+      return Math.round(nums.reduce((a, b) => a + b, 0) / nums.length);
+    };
+
+    const avgV_LL = parseAvg(v_r, v_y, v_b) || parseFloat(v_r) || 0;
+    const avgV_LN = parseAvg(v_rn, v_yn, v_bn) || 230;
+    const avgAmps = parseAvg(a_r, a_y, a_b) || parseFloat(a_r) || 0;
+
     const pfVal = isGen ? "0.9" : getCleanValue('grid_power_factor', "0.9");
-    const voltageNum = parseFloat(voltageVal);
-    const ampsNum = parseFloat(ampsVal);
     const pfNum = parseFloat(pfVal);
-    const calcKw = (isGen && !isNaN(voltageNum) && !isNaN(ampsNum))
-      ? Math.round((voltageNum * ampsNum * 1.732 * pfNum) / 1000)
+    const calcKw = (isGen && avgV_LL > 0 && avgAmps > 0)
+      ? Math.round((avgV_LL * avgAmps * 1.732 * pfNum) / 1000)
       : 0;
     const kwVal = isGen ? calcKw.toString() : getCleanValue('grid_total_site_load');
+
+    const sw1_val = getCleanValue('grid_energy_meter_1');
+    const sw2_val = getCleanValue('grid_energy_meter_2');
+    const swSection = (sw1_val !== "NA" || sw2_val !== "NA")
+      ? `\n*SWITCH METERS (4-HR)*\nSW 1: ${sw1_val} kWh | SW 2: ${sw2_val} kWh\n`
+      : "";
 
     const r1_v = getCleanValue('rectifier_1_dc_voltage', '54.2');
     const r1_a = getCleanValue('rectifier_1_amps');
@@ -255,11 +290,10 @@ CURRENT     : R:${a_r}A | Y:${a_y}A | B:${a_b}A`;
 *${firstName.toUpperCase()} ON DUTY*
 *TIME: ${shareTime}hrs*
 *LOAD ON ${powerSourceText}*
-Load voltage *${voltageVal}*V
-Load in Amps *${ampsVal}*A
+Load voltage *${avgV_LL}*V
+Load in Amps *${avgAmps}*A
 *KW:${kwVal}*KW
-Power factor *${pfVal}*
-
+Power factor *${pfVal}*${swSection}
 *RECTIFIER 1:* ${r1_v}V / ${r1_a}A / ${r1_cap}%
 *UPS 1:* L1:${ups1_l1}V / ${ups1_a1}A | Batt:${ups1_batt}V (${ups1_charge}%) | Capacity:${ups1_used}% | Load:${ups1_load}KW
 
@@ -275,6 +309,11 @@ Enterprise Room 1 *${tempIt1}*°C`;
     const em1_it_temp = getCleanValue('pac_it1_em1_return_temp_actual');
 
     internalPayload = `${whatsappPayload}
+
+*GRID/POWER METRICS*
+VOLTAGE L-L : R:${v_r}V | Y:${v_y}V | B:${v_b}V (AVG: ${avgV_LL}V)
+VOLTAGE L-N : RN:${v_rn}V | YN:${v_yn}V | BN:${v_bn}V (AVG: ${avgV_LN}V)
+CURRENT     : R:${a_r}A | Y:${a_y}A | B:${a_b}A (AVG: ${avgAmps}A)
 
 *UNIT TEMPERATURES & HUMIDITY*
 Emerson 1 : ${em1_temp}°C | ${em1_hum}%

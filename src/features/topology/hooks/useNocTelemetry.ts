@@ -11,10 +11,11 @@ export interface NocAlert {
   time:  string;
 }
 
-interface UseNocTelemetryResult {
+export interface UseNocTelemetryResult {
   loadChartData: NocLoadPoint[];
   thermalData:   NocThermalPoint[];
   phaseAlerts:   NocAlert[];
+  latestMetrics: Record<string, any>;
   lastSync:      string;
   isLoading:     boolean;
   hasData:       boolean;
@@ -50,6 +51,7 @@ export function useNocTelemetry(): UseNocTelemetryResult {
   const [loadChartData, setLoadChartData] = useState<NocLoadPoint[]>([]);
   const [thermalData,   setThermalData]   = useState<NocThermalPoint[]>([]);
   const [phaseAlerts,   setPhaseAlerts]   = useState<NocAlert[]>([]);
+  const [latestMetrics, setLatestMetrics] = useState<Record<string, any>>({});
   const [lastSync,      setLastSync]      = useState<string>("—");
   const [isLoading,     setIsLoading]     = useState<boolean>(true);
   const [hasData,       setHasData]       = useState<boolean>(false);
@@ -57,18 +59,12 @@ export function useNocTelemetry(): UseNocTelemetryResult {
   const fetchAll = useCallback(async () => {
     setIsLoading(true);
     try {
-      // ── Query 1: today's telemetry logs ──────────────────────────────────
-      const todayStart = new Date();
-      todayStart.setHours(0, 0, 0, 0);
-      const todayEnd = new Date();
-      todayEnd.setHours(23, 59, 59, 999);
-
+      // ── Query 1: telemetry logs (order by target_hour descending to get latest, then limit 50) ──
       const { data: telemetryRows, error: telemetryError } = await supabase
         .from("telemetry_logs")
         .select("target_hour, metrics")
-        .gte("target_hour", todayStart.toISOString())
-        .lte("target_hour", todayEnd.toISOString())
-        .order("target_hour", { ascending: true });
+        .order("target_hour", { ascending: true })
+        .limit(50);
 
       if (telemetryError) throw telemetryError;
 
@@ -76,21 +72,20 @@ export function useNocTelemetry(): UseNocTelemetryResult {
       const loadPoints: NocLoadPoint[] = (telemetryRows || []).map((row) => {
         const date = new Date(row.target_hour);
         const metrics = (row.metrics as Record<string, any>) || {};
-        // Try common load metric IDs; fallback to 0
         const kw =
-          parseFloat(metrics["ups_1_output_load_kw"] ?? metrics["ups_2_output_load_kw"] ?? metrics["grid_total_site_load"] ?? 0) || 0;
+          parseFloat(metrics["grid_total_site_load"] ?? metrics["ups_1_output_load_kw"] ?? metrics["ups_2_output_load_kw"] ?? metrics["total_active_power_kw"] ?? 0) || 0;
         return { t: toHourLabel(date), kw };
       });
 
-      // ── Build thermal data from the latest row ────────────────────────────
+      // ── Build thermal data & latest metrics from the latest row ────────────
       let thermalPoints: NocThermalPoint[] = [];
+      let latestM: Record<string, any> = {};
       if (telemetryRows && telemetryRows.length > 0) {
-        const latestMetrics =
-          (telemetryRows[telemetryRows.length - 1].metrics as Record<string, any>) || {};
+        latestM = (telemetryRows[telemetryRows.length - 1].metrics as Record<string, any>) || {};
         thermalPoints = THERMAL_ROOMS.map(({ id, room }) => {
-          const raw = parseFloat(latestMetrics[id] ?? 0);
+          const raw = parseFloat(latestM[id] ?? 0);
           return { room, temp: isNaN(raw) ? 0 : raw };
-        }).filter((p) => p.temp > 0); // hide rooms with no reading yet
+        }).filter((p) => p.temp > 0);
       }
 
       // ── Query 2: open incidents → phase alerts ───────────────────────────
@@ -114,11 +109,11 @@ export function useNocTelemetry(): UseNocTelemetryResult {
       setLoadChartData(loadPoints);
       setThermalData(thermalPoints);
       setPhaseAlerts(alerts);
+      setLatestMetrics(latestM);
       setHasData(loadPoints.length > 0 || thermalPoints.length > 0);
       setLastSync(toHHMM(new Date()));
     } catch (err: any) {
       console.error("[useNocTelemetry] fetch error:", err);
-      // Keep previous state on error so the UI doesn't go blank
     } finally {
       setIsLoading(false);
     }
@@ -126,12 +121,36 @@ export function useNocTelemetry(): UseNocTelemetryResult {
 
   useEffect(() => {
     fetchAll();
+
+    const channelLogs = supabase
+      .channel("noc_telemetry_logs_realtime")
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "telemetry_logs" },
+        () => fetchAll()
+      )
+      .subscribe();
+
+    const channelIncidents = supabase
+      .channel("noc_incidents_realtime")
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "incidents" },
+        () => fetchAll()
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channelLogs);
+      supabase.removeChannel(channelIncidents);
+    };
   }, [fetchAll]);
 
   return {
     loadChartData,
     thermalData,
     phaseAlerts,
+    latestMetrics,
     lastSync,
     isLoading,
     hasData,

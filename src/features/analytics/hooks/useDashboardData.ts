@@ -531,6 +531,33 @@ export function useDashboardData() {
     }
 
     fetchData();
+
+    const channelLogs = supabase
+      .channel('analytics_telemetry_logs_realtime')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'telemetry_logs' },
+        () => {
+          fetchData();
+        }
+      )
+      .subscribe();
+
+    const channelIncidents = supabase
+      .channel('analytics_incidents_realtime')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'incidents' },
+        () => {
+          fetchData();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channelLogs);
+      supabase.removeChannel(channelIncidents);
+    };
   }, []);
 
   return {

@@ -1,6 +1,7 @@
 import React, { useState, useMemo, useEffect } from "react";
 import { supabase } from "@/shared/api/supabaseClient";
 import { useCurrentSite } from "@/shared/context/SiteContext";
+import { toast } from "sonner";
 import { TelemetryChart } from "./TelemetryChart";
 import {
   Search,
@@ -884,15 +885,20 @@ export function AssetInventory() {
                                 const newActiveState = !asset.is_active;
                                 if (window.confirm(`Are you sure you want to ${newActiveState ? 'recommission' : 'decommission'} equipment ${asset.id}?`)) {
                                   try {
-                                    const { error } = await supabase
+                                    let query = supabase
                                       .from("equipment_registry")
                                       .update({ is_active: newActiveState })
                                       .eq("equipment_id", asset.id);
+                                    if (currentSite?.id) {
+                                      query = query.eq("site_uuid", currentSite.id);
+                                    }
+                                    const { error } = await query;
                                     if (error) throw error;
+                                    toast.success(`Equipment ${asset.id} ${newActiveState ? 'recommissioned' : 'decommissioned'}!`);
                                     fetchAssets();
-                                  } catch (err) {
+                                  } catch (err: any) {
                                     console.error("Error updating equipment state:", err);
-                                    alert("Failed to update equipment state.");
+                                    toast.error(err.message || "Failed to update equipment state (Permission denied).");
                                   }
                                 }
                               }}

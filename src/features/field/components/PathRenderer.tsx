@@ -191,8 +191,8 @@ export function PathRenderer({
           (eq) => eq.equipment_id.toLowerCase() === eqId.toLowerCase()
         );
         const dbParams = ((dbEquipment?.equipment_parameters || []) as EquipmentParameter[]).filter(
-          (p) => !visibleMetrics.some(
-            (m) => m.label.toLowerCase() === p.parameter_name.toLowerCase()
+          (p) => !equipBp.metrics.some(
+            (m) => m.label.toLowerCase() === p.parameter_name.toLowerCase() || m.id.toLowerCase() === p.parameter_name.toLowerCase()
           )
         );
 

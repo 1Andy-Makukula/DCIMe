@@ -65,9 +65,24 @@ export function useIncidents() {
     }
   }, []);
 
-  // Fetch on mount
+  // Fetch on mount and subscribe to realtime changes
   useEffect(() => {
     fetchIncidents();
+
+    const channel = supabase
+      .channel('incidents_realtime')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'incidents' },
+        () => {
+          fetchIncidents();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, [fetchIncidents]);
 
   // Report a new incident

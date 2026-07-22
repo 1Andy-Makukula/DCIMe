@@ -579,9 +579,13 @@ export function useTelemetryData(
   };
 
   // Compatibility helper: getVisibleMetrics
-  const isTwoHour = targetHour % 2 === 0;
-  const isFourHour = targetHour % 4 === 0;
-  const isDaily = targetHour === 9;
+  const numericHour = typeof targetHour === 'number'
+    ? targetHour
+    : parseInt(String(targetHour || '0').split(':')[0], 10);
+
+  const isTwoHour = !isNaN(numericHour) && numericHour % 2 === 0;
+  const isFourHour = !isNaN(numericHour) && numericHour % 4 === 0;
+  const isDaily = numericHour === 9;
 
   const getVisibleMetrics = (assetId: string, metrics: any[]): any[] => {
     return metrics.filter((metric) => {

@@ -43,9 +43,24 @@ export function useShiftReports() {
     }
   }, []);
 
-  // Fetch on mount
+  // Fetch on mount and subscribe to realtime changes
   useEffect(() => {
     fetchShiftReports();
+
+    const channel = supabase
+      .channel('shift_reports_realtime')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'shift_reports' },
+        () => {
+          fetchShiftReports();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, [fetchShiftReports]);
 
   // Submit a new shift report (Handover)

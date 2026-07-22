@@ -1,5 +1,5 @@
 // src/features/field/components/RoutineTasksDashboard.tsx
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect, useCallback } from 'react';
 import { Save, CheckCircle2, Loader2, Zap, AlertTriangle, ArrowLeft, Plug, ClipboardList, Share2, History } from 'lucide-react';
 import { supabase } from '@/shared/api/supabaseClient';
 import { useAuth } from '@/shared/context/AuthContext';
@@ -296,7 +296,7 @@ export const RoutineTasksDashboard = ({
     }
   }, [formData, targetHour]);
 
-  // WhatsApp Share & History
+  // WhatsApp Share & History (Synced across Database & Local Storage)
   const [historyOpen, setHistoryOpen] = useState(false);
   const [whatsappHistory, setWhatsappHistory] = useState<HistoryRecord[]>(() => {
     try {
@@ -308,7 +308,76 @@ export const RoutineTasksDashboard = ({
     }
   });
 
-  const handleShareAndSave = () => {
+  const fetchDatabaseHistory = useCallback(async () => {
+    try {
+      const { data, error } = await supabase
+        .from('telemetry_logs')
+        .select('target_hour, metrics, technician_name, submitted_at')
+        .order('target_hour', { ascending: false })
+        .limit(100);
+
+      if (error) throw error;
+
+      if (data && data.length > 0) {
+        const dbRecords: HistoryRecord[] = data.map((row: any) => {
+          const dateObj = new Date(row.target_hour || row.submitted_at);
+          const dateStr = isNaN(dateObj.getTime())
+            ? "Recent Log"
+            : dateObj.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+          const hourStr = isNaN(dateObj.getTime())
+            ? targetHour.toString()
+            : dateObj.getHours().toString().padStart(2, '0') + ':00';
+
+          const m = row.metrics || {};
+          let textContent = m._report_text;
+          if (!textContent) {
+            const generated = generateReportTexts({
+              siteCode,
+              currentSiteName: currentSite?.site_name,
+              employeeName: row.technician_name || employee?.full_name,
+              activePowerSource: m['fsm_mode'] === 'OUTAGE' || m['fsm_mode'] === 'ON_LOAD_TEST' || m['grid_status'] === 'OFF' ? 'GENERATOR' : 'MAINS',
+              formData: m
+            });
+            textContent = generated.internalPayload;
+          }
+
+          return {
+            timestamp: row.target_hour || row.submitted_at || new Date().toISOString(),
+            date: dateStr,
+            hour: hourStr,
+            text: textContent
+          };
+        });
+
+        const sorted = sortHistoryAscending(dbRecords);
+        setWhatsappHistory(sorted);
+        localStorage.setItem('dcime_whatsapp_history', JSON.stringify(sorted));
+      }
+    } catch (err) {
+      console.error("Error fetching telemetry history from database:", err);
+    }
+  }, [siteCode, currentSite?.site_name, employee?.full_name]);
+
+  useEffect(() => {
+    fetchDatabaseHistory();
+
+    const channel = supabase
+      .channel('telemetry_history_realtime')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'telemetry_logs' },
+        () => {
+          fetchDatabaseHistory();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [fetchDatabaseHistory]);
+
+  const handleShareAndSave = async () => {
     const { whatsappPayload, internalPayload } = generateReportTexts({
       siteCode,
       currentSiteName: currentSite?.site_name,
@@ -318,21 +387,32 @@ export const RoutineTasksDashboard = ({
     });
     const dateStr = new Date().toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
 
+    const hourStr = targetHour.toString().padStart(2, '0') + ':00';
     const newRecord: HistoryRecord = {
       timestamp: new Date().toISOString(),
       date: dateStr,
-      hour: targetHour,
+      hour: hourStr,
       text: internalPayload
     };
 
     setWhatsappHistory((prev) => {
-      const filtered = prev.filter(r => r.hour !== targetHour);
+      const filtered = prev.filter(r => r.hour !== hourStr);
       const updated = sortHistoryAscending([newRecord, ...filtered]);
       localStorage.setItem('dcime_whatsapp_history', JSON.stringify(updated));
       return updated;
     });
 
-    toast.success("Log saved locally to history!");
+    // Save report text to database via telemetry submission payload
+    try {
+      const payloadWithText = {
+        ...formData,
+        _report_text: internalPayload
+      };
+      await submitTelemetryLog("facility_wide", payloadWithText, targetHour);
+      toast.success("Log saved to shared database history!");
+    } catch {
+      toast.success("Log saved locally to history!");
+    }
 
     const waUrl = `https://api.whatsapp.com/send?text=${encodeURIComponent(whatsappPayload)}`;
     window.open(waUrl, '_blank');

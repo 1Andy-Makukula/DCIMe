@@ -70,8 +70,12 @@ export function NocOverview() {
     loadChartData,
     thermalData,
     phaseAlerts,
+    latestMetrics,
     isLoading,
   } = useNocTelemetry();
+
+  const isGen = latestMetrics['fsm_mode'] === 'OUTAGE' || latestMetrics['fsm_mode'] === 'ON_LOAD_TEST' || latestMetrics['grid_status'] === 'OFF';
+  const pfVal = latestMetrics['grid_power_factor'] || '0.98';
 
   const currentLoad = loadChartData.length > 0
     ? loadChartData[loadChartData.length - 1].kw
@@ -330,14 +334,16 @@ export function NocOverview() {
               <SectionLabel>Global Power State</SectionLabel>
               {/* Active source pill */}
               <div className="flex items-center gap-2 mt-2">
-                <div className="flex items-center gap-2 bg-green-50 border border-green-100 rounded-xl px-3 py-1.5">
-                  <GlowDot color="#19C853" />
-                  <span className="text-[13px] font-black text-green-700 tracking-tight">
-                    Mains Active
+                <div className={`flex items-center gap-2 border rounded-xl px-3 py-1.5 ${
+                  isGen ? "bg-amber-50 border-amber-200 text-amber-800" : "bg-green-50 border-green-100 text-green-700"
+                }`}>
+                  <GlowDot color={isGen ? "#F59E0B" : "#19C853"} />
+                  <span className="text-[13px] font-black tracking-tight">
+                    {isGen ? "Generator Active" : "Mains Active"}
                   </span>
                 </div>
                 <span className="text-[11px] font-semibold text-gray-400">
-                  ZESCO Grid · 230 V AC · PF 0.98
+                  {isGen ? "Diesel Generator Feed · 400 V AC" : `ZESCO Grid · 230 V AC · PF ${pfVal}`}
                 </span>
               </div>
             </div>
@@ -355,7 +361,7 @@ export function NocOverview() {
               </div>
               <div className="flex items-center gap-1 justify-end text-[11px] font-bold mt-1 text-green-600">
                 <Activity size={11} />
-                <span>+2.4% 24h</span>
+                <span>Live Data</span>
               </div>
             </div>
           </div>
@@ -395,7 +401,7 @@ export function NocOverview() {
                   tick={{ fontSize: 9, fill: "#bbb" }}
                   tickLine={false}
                   axisLine={false}
-                  domain={[400, 500]}
+                  domain={['auto', 'auto']}
                 />
                 <RechartsTooltip
                   contentStyle={darkTooltipStyle}
@@ -416,10 +422,10 @@ export function NocOverview() {
           {/* Footer meta strip */}
           <div className="flex items-center gap-6 mt-3 pt-3 border-t border-gray-50">
             {[
-              { label: "UPS Charge", value: "100%", color: "#19C853" },
-              { label: "Site Uptime", value: "99.97%", color: "#19C853" },
+              { label: "UPS Charge", value: `${latestMetrics.ups_1_battery_charge_percent || 100}%`, color: "#19C853" },
+              { label: "Site Uptime", value: isGen ? "Generator Mode" : "99.97%", color: isGen ? "#F59E0B" : "#19C853" },
               { label: "Phase Balance", value: "Monitoring", color: "#FFB020" },
-              { label: "DC Bus", value: "48.1 V", color: "#19C853" },
+              { label: "DC Bus", value: `${latestMetrics.rectifier_1_dc_voltage || 48.1} V`, color: "#19C853" },
             ].map((stat) => (
               <div key={stat.label}>
                 <div className="text-[9px] font-black text-gray-400 uppercase tracking-wider">
