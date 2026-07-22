@@ -32,68 +32,125 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
+const CACHE_TTL_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
+
+interface CachedEnvelope<T> {
+  timestamp: number;
+  version: number;
+  data: T;
+}
+
+const getCachedData = <T,>(key: string): T | null => {
+  try {
+    const item = localStorage.getItem(key);
+    if (!item) return null;
+    const parsed: CachedEnvelope<T> = JSON.parse(item);
+    if (parsed && parsed.version === 1 && parsed.timestamp) {
+      const age = Date.now() - parsed.timestamp;
+      if (age < CACHE_TTL_MS) {
+        return parsed.data;
+      }
+    }
+    return null;
+  } catch {
+    return null;
+  }
+};
+
+const setCachedData = <T,>(key: string, data: T) => {
+  try {
+    const envelope: CachedEnvelope<T> = {
+      timestamp: Date.now(),
+      version: 1,
+      data
+    };
+    localStorage.setItem(key, JSON.stringify(envelope));
+  } catch {
+    // Ignore storage write errors
+  }
+};
+
+const clearCachedAuthData = () => {
+  localStorage.removeItem('dcime_cached_profile');
+  localStorage.removeItem('dcime_cached_site');
+};
+
+const isNetworkError = (err: any): boolean => {
+  if (typeof navigator !== 'undefined' && !navigator.onLine) return true;
+  if (!err) return false;
+  const msg = String(err.message || err).toLowerCase();
+  return (
+    msg.includes('fetch') ||
+    msg.includes('network') ||
+    msg.includes('timeout') ||
+    msg.includes('failed to fetch') ||
+    err.name === 'AbortError'
+  );
+};
+
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<any>(null);
   const [employee, setEmployee] = useState<EmployeeProfile | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const { setCurrentSite } = useCurrentSite();
 
-  const getCachedProfile = (): EmployeeProfile | null => {
-    try {
-      const cached = localStorage.getItem('dcime_cached_profile');
-      return cached ? JSON.parse(cached) : null;
-    } catch {
-      return null;
+  const applyProfileAndSite = (empData: EmployeeProfile | null) => {
+    if (empData) {
+      setEmployee(empData);
+      setCachedData('dcime_cached_profile', empData);
+
+      const joinedSites = empData.sites;
+      const siteData = Array.isArray(joinedSites) ? joinedSites[0] : joinedSites;
+      if (siteData) {
+        setCurrentSite(siteData as any);
+        setCachedData('dcime_cached_site', siteData);
+      } else {
+        setCurrentSite(null);
+      }
+    } else {
+      setEmployee(null);
+      setCurrentSite(null);
+      clearCachedAuthData();
     }
   };
 
-  const getCachedSite = (): any => {
-    try {
-      const cached = localStorage.getItem('dcime_cached_site');
-      return cached ? JSON.parse(cached) : null;
-    } catch {
-      return null;
+  const restoreFromCache = (): boolean => {
+    const cachedEmp = getCachedData<EmployeeProfile>('dcime_cached_profile');
+    const cachedSite = getCachedData<any>('dcime_cached_site');
+    if (cachedEmp) {
+      setEmployee(cachedEmp);
+      if (cachedSite) setCurrentSite(cachedSite);
+      return true;
     }
+    return false;
+  };
+
+  const queryEmployeeProfile = async (userId: string) => {
+    return supabase
+      .from("employees")
+      .select("id, auth_id, full_name, email, employee_id, phone_number, site_id, role, created_at, site_uuid, sites ( id, site_code, site_name )")
+      .eq("auth_id", userId)
+      .maybeSingle();
   };
 
   const fetchProfile = async (userId: string) => {
     try {
-      const { data, error } = await supabase
-        .from("employees")
-        .select("id, auth_id, full_name, email, employee_id, phone_number, site_id, role, created_at, site_uuid, sites ( id, site_code, site_name )")
-        .eq("auth_id", userId)
-        .maybeSingle();
+      const { data, error } = await queryEmployeeProfile(userId);
 
       if (error) throw error;
 
       if (data) {
-        setEmployee(data as EmployeeProfile);
-        localStorage.setItem('dcime_cached_profile', JSON.stringify(data));
-
-        const joinedSites = data.sites;
-        const siteData = Array.isArray(joinedSites) ? joinedSites[0] : joinedSites;
-        if (siteData) {
-          setCurrentSite(siteData as any);
-          localStorage.setItem('dcime_cached_site', JSON.stringify(siteData));
-        } else {
-          setCurrentSite(null);
-        }
+        applyProfileAndSite(data as EmployeeProfile);
       } else {
-        // Fallback to cached profile if present
-        const cachedEmp = getCachedProfile();
-        const cachedSite = getCachedSite();
-        if (cachedEmp) setEmployee(cachedEmp);
-        if (cachedSite) setCurrentSite(cachedSite);
+        // No row found: Employee record was deleted or not assigned
+        applyProfileAndSite(null);
       }
-    } catch (err) {
-      console.warn("Network error loading profile in AuthContext, using offline cache:", err);
-      const cachedEmp = getCachedProfile();
-      const cachedSite = getCachedSite();
-      if (cachedEmp) {
-        setEmployee(cachedEmp);
-      }
-      if (cachedSite) {
-        setCurrentSite(cachedSite);
+    } catch (err: any) {
+      console.warn("Profile query error in AuthContext:", err);
+      if (isNetworkError(err)) {
+        restoreFromCache();
+      } else {
+        applyProfileAndSite(null);
       }
     }
   };
@@ -105,7 +162,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       await fetchProfile(session.user.id);
     } else {
       setUser(null);
-      setEmployee(null);
+      applyProfileAndSite(null);
     }
   };
 
@@ -117,44 +174,32 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         if (session?.user) {
           setUser(session.user);
 
-          // Try loading fresh profile over network with timeout
           try {
-            const profilePromise = supabase
-              .from("employees")
-              .select("id, auth_id, full_name, email, employee_id, phone_number, site_id, role, created_at, site_uuid, sites ( id, site_code, site_name )")
-              .eq("auth_id", session.user.id)
-              .maybeSingle();
-
+            const profilePromise = queryEmployeeProfile(session.user.id);
             const timeoutPromise = new Promise<never>((_, reject) =>
               setTimeout(() => reject(new Error("Profile query network timeout")), 4000)
             );
 
             const res: any = await Promise.race([profilePromise, timeoutPromise]);
             if (res?.data) {
-              const empData = res.data as EmployeeProfile;
-              setEmployee(empData);
-              localStorage.setItem('dcime_cached_profile', JSON.stringify(empData));
-
-              const joinedSites = empData.sites;
-              const siteData = Array.isArray(joinedSites) ? joinedSites[0] : joinedSites;
-              if (siteData) {
-                setCurrentSite(siteData);
-                localStorage.setItem('dcime_cached_site', JSON.stringify(siteData));
-              }
+              applyProfileAndSite(res.data as EmployeeProfile);
+            } else if (res?.error) {
+              throw res.error;
             } else {
-              // Use offline cache
-              const cachedEmp = getCachedProfile();
-              const cachedSite = getCachedSite();
-              if (cachedEmp) setEmployee(cachedEmp);
-              if (cachedSite) setCurrentSite(cachedSite);
+              // Row explicitly missing in DB
+              applyProfileAndSite(null);
             }
-          } catch (netErr) {
-            console.warn("[DCIMe] Network offline/timeout during profile fetch. Using cached session & profile.", netErr);
-            const cachedEmp = getCachedProfile();
-            const cachedSite = getCachedSite();
-            if (cachedEmp) setEmployee(cachedEmp);
-            if (cachedSite) setCurrentSite(cachedSite);
+          } catch (netErr: any) {
+            console.warn("[DCIMe] Profile fetch issue. Checking offline cache.", netErr);
+            if (isNetworkError(netErr)) {
+              restoreFromCache();
+            } else {
+              applyProfileAndSite(null);
+            }
           }
+        } else {
+          // No session in browser
+          applyProfileAndSite(null);
         }
       } catch (err) {
         console.error("[DCIMe] Error checking local auth session:", err);
@@ -168,10 +213,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
       if (event === 'SIGNED_OUT') {
         setUser(null);
-        setEmployee(null);
-        setCurrentSite(null);
-        localStorage.removeItem('dcime_cached_profile');
-        localStorage.removeItem('dcime_cached_site');
+        applyProfileAndSite(null);
         setIsLoading(false);
         return;
       }
@@ -180,12 +222,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setUser(session.user);
         await fetchProfile(session.user.id);
       } else if (!session) {
-        // Fallback to offline session if token exists
-        const cachedEmp = getCachedProfile();
-        if (!cachedEmp) {
+        const restored = restoreFromCache();
+        if (!restored) {
           setUser(null);
-          setEmployee(null);
-          setCurrentSite(null);
+          applyProfileAndSite(null);
         }
       }
       setIsLoading(false);
@@ -200,10 +240,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setIsLoading(true);
     await supabase.auth.signOut();
     setUser(null);
-    setEmployee(null);
-    setCurrentSite(null);
-    localStorage.removeItem('dcime_cached_profile');
-    localStorage.removeItem('dcime_cached_site');
+    applyProfileAndSite(null);
     setIsLoading(false);
   };
 

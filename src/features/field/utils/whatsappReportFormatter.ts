@@ -62,7 +62,9 @@ export const generateReportTexts = ({
   const firstName = technicianName.trim().split(/\s+/)[0];
   const powerSourceText = activePowerSource === 'GENERATOR' ? 'GENERATOR' : 'ZESCO MAINS';
   const isGen = activePowerSource === 'GENERATOR';
-  const shareTime = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  const shareTime = !isNaN(numericHour)
+    ? `${numericHour.toString().padStart(2, '0')}:00`
+    : new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false });
 
   let whatsappPayload = "";
   let internalPayload = "";
