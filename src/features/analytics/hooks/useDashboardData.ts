@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { supabase } from '@/shared/api/supabaseClient';
 
 export interface GridDataPoint {
@@ -244,8 +244,11 @@ export function useDashboardData() {
     incidents: { totalIncidents: 14, openTickets: 2, mttr: "2.4" }
   });
 
+  const fetchCountRef = useRef(0);
+
   useEffect(() => {
     async function fetchData() {
+      const fetchId = ++fetchCountRef.current;
       setIsLoading(true);
       try {
         // Fetch Telemetry Logs
@@ -264,6 +267,7 @@ export function useDashboardData() {
 
         if (telError) throw telError;
         if (incError) throw incError;
+        if (fetchId !== fetchCountRef.current) return;
 
         // Process Telemetry Logs if present
         if (telLogs && telLogs.length > 0) {

@@ -892,8 +892,11 @@ export function AssetInventory() {
                                     if (currentSite?.id) {
                                       query = query.eq("site_uuid", currentSite.id);
                                     }
-                                    const { error } = await query;
+                                    const { data, error } = await query.select();
                                     if (error) throw error;
+                                    if (!data || data.length === 0) {
+                                      throw new Error("No matching equipment record updated (Permission denied or record missing).");
+                                    }
                                     toast.success(`Equipment ${asset.id} ${newActiveState ? 'recommissioned' : 'decommissioned'}!`);
                                     fetchAssets();
                                   } catch (err: any) {

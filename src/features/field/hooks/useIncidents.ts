@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { supabase } from "@/shared/api/supabaseClient";
 
 export interface Incident {
@@ -38,8 +38,10 @@ export function useIncidents() {
   const [incidents, setIncidents] = useState<Incident[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
+  const fetchCountRef = useRef(0);
 
   const fetchIncidents = useCallback(async () => {
+    const fetchId = ++fetchCountRef.current;
     setIsLoading(true);
     setError(null);
     try {
@@ -50,7 +52,8 @@ export function useIncidents() {
 
       if (fetchError) throw fetchError;
       
-      // Standardize empty comments array
+      if (fetchId !== fetchCountRef.current) return;
+
       const sanitized = (data || []).map(item => ({
         ...item,
         comments: Array.isArray(item.comments) ? item.comments : []
@@ -58,10 +61,13 @@ export function useIncidents() {
       
       setIncidents(sanitized);
     } catch (err: any) {
+      if (fetchId !== fetchCountRef.current) return;
       console.error("Error fetching incidents:", err);
       setError(err.message || "Failed to load incidents.");
     } finally {
-      setIsLoading(false);
+      if (fetchId === fetchCountRef.current) {
+        setIsLoading(false);
+      }
     }
   }, []);
 

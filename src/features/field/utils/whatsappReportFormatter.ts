@@ -35,6 +35,7 @@ interface ReportParams {
   employeeName?: string;
   activePowerSource: 'ZESCO' | 'MAINS' | 'GENERATOR';
   formData: Record<string, any>;
+  targetHour?: string | number;
 }
 
 export const generateReportTexts = ({
@@ -42,13 +43,20 @@ export const generateReportTexts = ({
   currentSiteName,
   employeeName,
   activePowerSource,
-  formData
+  formData,
+  targetHour
 }: ReportParams) => {
   const getCleanValue = (key: string, fallback: string = "NA") => {
     const val = formData[key];
     if (val === undefined || val === null || String(val).trim() === "") return fallback;
     return String(val).trim();
   };
+
+  const rawHour = targetHour ?? formData.target_hour ?? formData.hour ?? new Date().getHours();
+  const numericHour = typeof rawHour === 'number'
+    ? rawHour
+    : parseInt(String(rawHour || '0').split(':')[0], 10);
+  const isFourHour = !isNaN(numericHour) && numericHour % 4 === 0;
 
   const technicianName = employeeName || "Unknown Tech";
   const firstName = technicianName.trim().split(/\s+/)[0];
@@ -72,15 +80,23 @@ export const generateReportTexts = ({
     const a_y = isGen ? getCleanValue('dg_load_amps_y') : getCleanValue('grid_amps_y');
     const a_b = isGen ? getCleanValue('dg_load_amps_b') : getCleanValue('grid_amps_b');
 
-    const parseAvg = (...vals: string[]) => {
-      const nums = vals.map(v => parseFloat(v)).filter(n => !isNaN(n));
-      if (nums.length === 0) return 0;
+    const parseAvg = (...vals: string[]): number | null => {
+      const nums = vals
+        .filter(v => v !== undefined && v !== null && String(v).trim() !== "" && String(v).trim() !== "NA")
+        .map(v => parseFloat(v))
+        .filter(n => !isNaN(n));
+      if (nums.length === 0) return null;
       return Math.round(nums.reduce((a, b) => a + b, 0) / nums.length);
     };
 
-    const avgV_LL = parseAvg(v_r, v_y, v_b) || parseFloat(v_r) || 0;
-    const avgV_LN = parseAvg(v_rn, v_yn, v_bn) || 230;
-    const avgAmps = parseAvg(a_r, a_y, a_b) || parseFloat(a_r) || 0;
+    const avgV_LL_num = parseAvg(v_r, v_y, v_b);
+    const avgV_LL = avgV_LL_num !== null ? avgV_LL_num : (parseFloat(v_r) || 0);
+
+    const avgV_LN_num = parseAvg(v_rn, v_yn, v_bn);
+    const avgV_LN = avgV_LN_num !== null ? avgV_LN_num : 230;
+
+    const avgAmps_num = parseAvg(a_r, a_y, a_b);
+    const avgAmps = avgAmps_num !== null ? avgAmps_num : (parseFloat(a_r) || 0);
 
     const pfVal = isGen ? "0.9" : getCleanValue('grid_power_factor', "0.9");
     const pfNum = parseFloat(pfVal);
@@ -92,7 +108,7 @@ export const generateReportTexts = ({
 
     const sw1_val = getCleanValue('grid_energy_meter_1');
     const sw2_val = getCleanValue('grid_energy_meter_2');
-    const swSection = (sw1_val !== "NA" || sw2_val !== "NA")
+    const swSection = (isFourHour && (sw1_val !== "NA" || sw2_val !== "NA"))
       ? `\n*SWITCH METERS (4-HR)*\nSW 1: ${sw1_val} kWh | SW 2: ${sw2_val} kWh\n`
       : "";
 
@@ -147,7 +163,8 @@ export const generateReportTexts = ({
 *Load in Amps:* ${avgAmps}A
 
 *KW:* ${kwVal}
-*Power factor* ${pfVal}${swSection}
+*Power factor* ${pfVal}
+
 *VERTIV RECTIFIER 1*
 (Power room 1) ${r1_v}v/${r1_a}A/${r1_cap}%
 *VERTIV RECTIFIER 2*
@@ -213,7 +230,7 @@ Humidity: ${humidityMain}%`;
     const vt6_temp = getCleanValue('pac_data_vt6_return_temp_actual');
     const vt6_hum = getCleanValue('pac_data_vt6_humidity_actual');
 
-    internalPayload = `${whatsappPayload}
+    internalPayload = `${whatsappPayload}${swSection}
 
 *UNIT TEMPERATURES & HUMIDITY*
 Emerson 1 : ${em1_temp}°C | ${em1_hum}%
@@ -248,15 +265,23 @@ CURRENT     : R:${a_r}A | Y:${a_y}A | B:${a_b}A (AVG: ${avgAmps}A)`;
     const a_y = isGen ? getCleanValue('dg_load_amps_y') : getCleanValue('grid_amps_y');
     const a_b = isGen ? getCleanValue('dg_load_amps_b') : getCleanValue('grid_amps_b');
 
-    const parseAvg = (...vals: string[]) => {
-      const nums = vals.map(v => parseFloat(v)).filter(n => !isNaN(n));
-      if (nums.length === 0) return 0;
+    const parseAvg = (...vals: string[]): number | null => {
+      const nums = vals
+        .filter(v => v !== undefined && v !== null && String(v).trim() !== "" && String(v).trim() !== "NA")
+        .map(v => parseFloat(v))
+        .filter(n => !isNaN(n));
+      if (nums.length === 0) return null;
       return Math.round(nums.reduce((a, b) => a + b, 0) / nums.length);
     };
 
-    const avgV_LL = parseAvg(v_r, v_y, v_b) || parseFloat(v_r) || 0;
-    const avgV_LN = parseAvg(v_rn, v_yn, v_bn) || 230;
-    const avgAmps = parseAvg(a_r, a_y, a_b) || parseFloat(a_r) || 0;
+    const avgV_LL_num = parseAvg(v_r, v_y, v_b);
+    const avgV_LL = avgV_LL_num !== null ? avgV_LL_num : (parseFloat(v_r) || 0);
+
+    const avgV_LN_num = parseAvg(v_rn, v_yn, v_bn);
+    const avgV_LN = avgV_LN_num !== null ? avgV_LN_num : 230;
+
+    const avgAmps_num = parseAvg(a_r, a_y, a_b);
+    const avgAmps = avgAmps_num !== null ? avgAmps_num : (parseFloat(a_r) || 0);
 
     const pfVal = isGen ? "0.9" : getCleanValue('grid_power_factor', "0.9");
     const pfNum = parseFloat(pfVal);
@@ -267,7 +292,7 @@ CURRENT     : R:${a_r}A | Y:${a_y}A | B:${a_b}A (AVG: ${avgAmps}A)`;
 
     const sw1_val = getCleanValue('grid_energy_meter_1');
     const sw2_val = getCleanValue('grid_energy_meter_2');
-    const swSection = (sw1_val !== "NA" || sw2_val !== "NA")
+    const swSection = (isFourHour && (sw1_val !== "NA" || sw2_val !== "NA"))
       ? `\n*SWITCH METERS (4-HR)*\nSW 1: ${sw1_val} kWh | SW 2: ${sw2_val} kWh\n`
       : "";
 
@@ -293,7 +318,7 @@ CURRENT     : R:${a_r}A | Y:${a_y}A | B:${a_b}A (AVG: ${avgAmps}A)`;
 Load voltage *${avgV_LL}*V
 Load in Amps *${avgAmps}*A
 *KW:${kwVal}*KW
-Power factor *${pfVal}*${swSection}
+Power factor *${pfVal}*
 *RECTIFIER 1:* ${r1_v}V / ${r1_a}A / ${r1_cap}%
 *UPS 1:* L1:${ups1_l1}V / ${ups1_a1}A | Batt:${ups1_batt}V (${ups1_charge}%) | Capacity:${ups1_used}% | Load:${ups1_load}KW
 
@@ -308,7 +333,7 @@ Enterprise Room 1 *${tempIt1}*°C`;
     const em2_hum = getCleanValue('pac_server_em2_humidity_actual');
     const em1_it_temp = getCleanValue('pac_it1_em1_return_temp_actual');
 
-    internalPayload = `${whatsappPayload}
+    internalPayload = `${whatsappPayload}${swSection}
 
 *GRID/POWER METRICS*
 VOLTAGE L-L : R:${v_r}V | Y:${v_y}V | B:${v_b}V (AVG: ${avgV_LL}V)

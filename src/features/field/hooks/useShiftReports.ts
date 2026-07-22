@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { supabase } from "@/shared/api/supabaseClient";
 
 export interface ShiftReport {
@@ -22,8 +22,10 @@ export function useShiftReports() {
   const [shiftReports, setShiftReports] = useState<ShiftReport[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
+  const fetchCountRef = useRef(0);
 
   const fetchShiftReports = useCallback(async () => {
+    const fetchId = ++fetchCountRef.current;
     setIsLoading(true);
     setError(null);
     try {
@@ -34,12 +36,16 @@ export function useShiftReports() {
 
       if (fetchError) throw fetchError;
 
+      if (fetchId !== fetchCountRef.current) return;
       setShiftReports(data || []);
     } catch (err: any) {
+      if (fetchId !== fetchCountRef.current) return;
       console.error("Error fetching shift reports:", err);
       setError(err.message || "Failed to load shift reports.");
     } finally {
-      setIsLoading(false);
+      if (fetchId === fetchCountRef.current) {
+        setIsLoading(false);
+      }
     }
   }, []);
 

@@ -310,11 +310,17 @@ export const RoutineTasksDashboard = ({
 
   const fetchDatabaseHistory = useCallback(async () => {
     try {
-      const { data, error } = await supabase
+      let query = supabase
         .from('telemetry_logs')
-        .select('target_hour, metrics, technician_name, submitted_at')
+        .select('target_hour, metrics, technician_name, submitted_at, site_id, site_uuid')
         .order('target_hour', { ascending: false })
         .limit(100);
+
+      if (currentSite?.id) {
+        query = query.or(`site_uuid.eq.${currentSite.id},site_id.eq.${siteCode}`);
+      }
+
+      const { data, error } = await query;
 
       if (error) throw error;
 
@@ -324,9 +330,13 @@ export const RoutineTasksDashboard = ({
           const dateStr = isNaN(dateObj.getTime())
             ? "Recent Log"
             : dateObj.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
-          const hourStr = isNaN(dateObj.getTime())
-            ? targetHour.toString()
-            : dateObj.getHours().toString().padStart(2, '0') + ':00';
+
+          let hourNum = isNaN(dateObj.getTime())
+            ? (typeof targetHour === 'number' ? targetHour : parseInt(String(targetHour || '0').split(':')[0], 10))
+            : dateObj.getHours();
+
+          if (isNaN(hourNum)) hourNum = 0;
+          const hourStr = `${hourNum.toString().padStart(2, '0')}:00`;
 
           const m = row.metrics || {};
           let textContent = m._report_text;
@@ -336,7 +346,8 @@ export const RoutineTasksDashboard = ({
               currentSiteName: currentSite?.site_name,
               employeeName: row.technician_name || employee?.full_name,
               activePowerSource: m['fsm_mode'] === 'OUTAGE' || m['fsm_mode'] === 'ON_LOAD_TEST' || m['grid_status'] === 'OFF' ? 'GENERATOR' : 'MAINS',
-              formData: m
+              formData: m,
+              targetHour: hourStr
             });
             textContent = generated.internalPayload;
           }
@@ -349,14 +360,18 @@ export const RoutineTasksDashboard = ({
           };
         });
 
-        const sorted = sortHistoryAscending(dbRecords);
-        setWhatsappHistory(sorted);
-        localStorage.setItem('dcime_whatsapp_history', JSON.stringify(sorted));
+        setWhatsappHistory((prev) => {
+          const dbHours = new Set(dbRecords.map((r) => r.hour));
+          const localOnly = prev.filter((r) => !dbHours.has(r.hour));
+          const merged = sortHistoryAscending([...dbRecords, ...localOnly]);
+          localStorage.setItem('dcime_whatsapp_history', JSON.stringify(merged));
+          return merged;
+        });
       }
     } catch (err) {
       console.error("Error fetching telemetry history from database:", err);
     }
-  }, [siteCode, currentSite?.site_name, employee?.full_name]);
+  }, [siteCode, currentSite?.site_name, currentSite?.id, employee?.full_name, targetHour]);
 
   useEffect(() => {
     fetchDatabaseHistory();
@@ -383,11 +398,17 @@ export const RoutineTasksDashboard = ({
       currentSiteName: currentSite?.site_name,
       employeeName: employee?.full_name,
       activePowerSource,
-      formData
+      formData,
+      targetHour
     });
     const dateStr = new Date().toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
 
-    const hourStr = targetHour.toString().padStart(2, '0') + ':00';
+    const targetNum = typeof targetHour === 'number'
+      ? targetHour
+      : parseInt(String(targetHour || '0').split(':')[0], 10);
+    const safeTargetNum = isNaN(targetNum) ? 0 : targetNum;
+    const hourStr = `${safeTargetNum.toString().padStart(2, '0')}:00`;
+
     const newRecord: HistoryRecord = {
       timestamp: new Date().toISOString(),
       date: dateStr,
@@ -410,8 +431,9 @@ export const RoutineTasksDashboard = ({
       };
       await submitTelemetryLog("facility_wide", payloadWithText, targetHour);
       toast.success("Log saved to shared database history!");
-    } catch {
-      toast.success("Log saved locally to history!");
+    } catch (err: any) {
+      console.warn("Telemetry DB save warning:", err);
+      toast.warning("Network warning: Log saved to local history only.");
     }
 
     const waUrl = `https://api.whatsapp.com/send?text=${encodeURIComponent(whatsappPayload)}`;

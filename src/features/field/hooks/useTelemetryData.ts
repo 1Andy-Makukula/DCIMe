@@ -514,7 +514,7 @@ export function useTelemetryData(
 
       const firstName = (technicianName || 'Field Tech').trim().split(/\s+/)[0];
 
-      // Upsert to telemetry_logs
+      // Upsert to telemetry_logs with site metadata
       const { error } = await supabase
         .from('telemetry_logs')
         .upsert(
@@ -524,7 +524,9 @@ export function useTelemetryData(
             metrics: payload,
             is_edited: isEditMode,
             asset_id: 'facility_wide',
-            technician_name: firstName
+            technician_name: firstName,
+            site_id: siteCode,
+            site_uuid: currentSite?.id || null
           },
           { onConflict: 'target_hour' }
         );

@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { supabase } from "@/shared/api/supabaseClient";
 
 // ── Output shape — drop-in replacement for all three mockData arrays ──────────
@@ -55,21 +55,27 @@ export function useNocTelemetry(): UseNocTelemetryResult {
   const [lastSync,      setLastSync]      = useState<string>("—");
   const [isLoading,     setIsLoading]     = useState<boolean>(true);
   const [hasData,       setHasData]       = useState<boolean>(false);
+  const fetchCountRef = useRef(0);
 
   const fetchAll = useCallback(async () => {
+    const fetchId = ++fetchCountRef.current;
     setIsLoading(true);
     try {
-      // ── Query 1: telemetry logs (order by target_hour descending to get latest, then limit 50) ──
+      // ── Query 1: telemetry logs (fetch newest 50 logs) ──
       const { data: telemetryRows, error: telemetryError } = await supabase
         .from("telemetry_logs")
         .select("target_hour, metrics")
-        .order("target_hour", { ascending: true })
+        .order("target_hour", { ascending: false })
         .limit(50);
 
       if (telemetryError) throw telemetryError;
+      if (fetchId !== fetchCountRef.current) return;
+
+      // Reverse array so load chart displays left-to-right chronologically
+      const chronologicalRows = (telemetryRows || []).slice().reverse();
 
       // ── Build load chart data ─────────────────────────────────────────────
-      const loadPoints: NocLoadPoint[] = (telemetryRows || []).map((row) => {
+      const loadPoints: NocLoadPoint[] = chronologicalRows.map((row) => {
         const date = new Date(row.target_hour);
         const metrics = (row.metrics as Record<string, any>) || {};
         const kw =
@@ -80,8 +86,8 @@ export function useNocTelemetry(): UseNocTelemetryResult {
       // ── Build thermal data & latest metrics from the latest row ────────────
       let thermalPoints: NocThermalPoint[] = [];
       let latestM: Record<string, any> = {};
-      if (telemetryRows && telemetryRows.length > 0) {
-        latestM = (telemetryRows[telemetryRows.length - 1].metrics as Record<string, any>) || {};
+      if (chronologicalRows.length > 0) {
+        latestM = (chronologicalRows[chronologicalRows.length - 1].metrics as Record<string, any>) || {};
         thermalPoints = THERMAL_ROOMS.map(({ id, room }) => {
           const raw = parseFloat(latestM[id] ?? 0);
           return { room, temp: isNaN(raw) ? 0 : raw };
@@ -97,6 +103,7 @@ export function useNocTelemetry(): UseNocTelemetryResult {
         .limit(20);
 
       if (incidentError) throw incidentError;
+      if (fetchId !== fetchCountRef.current) return;
 
       const alerts: NocAlert[] = (incidentRows || []).map((inc) => ({
         id:    inc.ticket_number ?? inc.id,
