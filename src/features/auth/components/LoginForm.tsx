@@ -159,11 +159,11 @@ export function LoginForm() {
           <div className="bg-white p-6 rounded-3xl shadow-2xl mb-8">
             <AirtelMark size={70} />
           </div>
-          <h1 className="text-5xl font-black text-white tracking-tight leading-tight">
-            NTC Infrastructure <br/> Management
+          <h1 className="text-4xl font-black text-white tracking-tight leading-tight uppercase">
+            DATA CENTER INFRASTRUCTURE <br/> MANAGEMENT ENGINE
           </h1>
-          <p className="mt-6 text-red-100 text-lg max-w-lg font-medium">
-            The Master Topology & Telemetry Ingestion Engine for Airtel NTC ZM-0874.
+          <p className="mt-4 text-red-100 text-2xl font-black tracking-widest uppercase">
+            DCIMe
           </p>
         </div>
       </div>
@@ -205,8 +205,8 @@ export function LoginForm() {
             <form onSubmit={handleLogin} className="bg-white rounded-[28px] p-8 sm:p-10 shadow-[0_40px_100px_rgba(0,0,0,0.55)] lg:shadow-xl lg:border lg:border-gray-100">
               <div className="flex flex-col items-center mb-8 lg:hidden">
                 <AirtelMark size={38} />
-                <h2 className="text-[17px] font-bold text-center text-gray-900 leading-snug mt-3">
-                  NTC Management
+                <h2 className="text-[17px] font-black uppercase text-center text-gray-900 leading-snug tracking-wider mt-3">
+                  DCIMe
                 </h2>
               </div>
 

@@ -289,109 +289,12 @@ export const RoutineTasksDashboard = ({
       changed = true;
     }
 
-    // Auto-calculate Room Ambient Temperature and Humidity Averages
-    const roomAverages = [
-      {
-        ambientTempKey: 'server_ambient_temp',
-        ambientHumKey: 'server_ambient_humidity',
-        pacPrefixes: [
-          'pac_server_em1', 'pac_server_em2', 'pac_server_em3', 'pac_server_em4', 'pac_server_em5', 'pac_server_em6', 'pac_server_em7',
-          'pac_server_vt1', 'pac_server_vt2', 'pac_server_vt3', 'pac_server_vt4', 'pac_server_vt5'
-        ]
-      },
-      {
-        ambientTempKey: 'media_ambient_temp',
-        ambientHumKey: 'media_ambient_humidity',
-        pacPrefixes: ['pac_data_vt6', 'pac_data_em1', 'pac_data_em2']
-      },
-      {
-        ambientTempKey: 'pr1_ambient_temp',
-        ambientHumKey: 'pr1_ambient_humidity',
-        pacPrefixes: ['pac_pr1_em1', 'pac_pr1_em2']
-      },
-      {
-        ambientTempKey: 'pr2_ambient_temp',
-        ambientHumKey: 'pr2_ambient_humidity',
-        pacPrefixes: ['pac_pr2_em1', 'pac_pr2_em2']
-      },
-      {
-        ambientTempKey: 'it1_ambient_temp',
-        ambientHumKey: 'it1_ambient_humidity',
-        pacPrefixes: ['pac_it1_em1', 'pac_it1_em2']
-      },
-      {
-        ambientTempKey: 'it2_ambient_temp',
-        ambientHumKey: 'it2_ambient_humidity',
-        pacPrefixes: ['pac_it2_em1', 'pac_it2_em2']
-      },
-      {
-        ambientTempKey: 'hq_ambient_temp',
-        ambientHumKey: 'hq_ambient_humidity',
-        pacPrefixes: ['pac_hq_em1', 'pac_hq_em2', 'pac_hq_em3']
-      }
-    ];
-
-    roomAverages.forEach(({ ambientTempKey, ambientHumKey, pacPrefixes }) => {
-      const temps: number[] = [];
-      const hums: number[] = [];
-
-      pacPrefixes.forEach((prefix) => {
-        const isOffline = formData[`status_${prefix}`] === 'OFFLINE';
-        if (isOffline) return;
-
-        const tempVal = parseFloat(formData[`${prefix}_return_temp_actual`]);
-        if (!isNaN(tempVal)) {
-          temps.push(tempVal);
-        }
-        const humVal = parseFloat(formData[`${prefix}_humidity_actual`]);
-        if (!isNaN(humVal)) {
-          hums.push(humVal);
-        }
-      });
-
-      if (temps.length > 0) {
-        const avgTemp = parseFloat((temps.reduce((a, b) => a + b, 0) / temps.length).toFixed(1));
-        const isCurrentlyEmpty = updated[ambientTempKey] === undefined || updated[ambientTempKey] === null || updated[ambientTempKey] === "";
-        const wasAutoFilled = autoFilledFields.has(ambientTempKey);
-
-        if (isCurrentlyEmpty || wasAutoFilled) {
-          if (updated[ambientTempKey] !== avgTemp) {
-            updated[ambientTempKey] = avgTemp;
-            setAutoFilledFields((prev) => {
-              const next = new Set(prev);
-              next.add(ambientTempKey);
-              return next;
-            });
-            changed = true;
-          }
-        }
-      }
-
-      if (hums.length > 0) {
-        const avgHum = parseFloat((hums.reduce((a, b) => a + b, 0) / hums.length).toFixed(1));
-        const isCurrentlyEmpty = updated[ambientHumKey] === undefined || updated[ambientHumKey] === null || updated[ambientHumKey] === "";
-        const wasAutoFilled = autoFilledFields.has(ambientHumKey);
-
-        if (isCurrentlyEmpty || wasAutoFilled) {
-          if (updated[ambientHumKey] !== avgHum) {
-            updated[ambientHumKey] = avgHum;
-            setAutoFilledFields((prev) => {
-              const next = new Set(prev);
-              next.add(ambientHumKey);
-              return next;
-            });
-            changed = true;
-          }
-        }
-      }
-    });
-
     if (changed && setFormData) {
       setFormData(updated);
       const cacheKey = `telemetry_cache_${targetHour}`;
       localStorage.setItem(cacheKey, JSON.stringify(updated));
     }
-  }, [formData, autoFilledFields, targetHour]);
+  }, [formData, targetHour]);
 
   // WhatsApp Share & History
   const [historyOpen, setHistoryOpen] = useState(false);
@@ -763,6 +666,7 @@ export const RoutineTasksDashboard = ({
           </div>
         ) : (
           <PathRenderer
+            targetHour={targetHour}
             currentStep={currentStep}
             blueprint={blueprint}
             formData={formData}

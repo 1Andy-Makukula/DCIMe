@@ -808,10 +808,9 @@ class JSPowerMatrix {
         } else {
             nodes = rawNodes;
         }
-        nodes.forEach(node => {
-            const svgNode = svg.querySelector(`#${node.id}`);
-            if (!svgNode) return;
 
+        // PASS 1: Pre-calculate independent source overrides (UPS & Rectifiers) to prevent loop order evaluation bugs
+        nodes.forEach(node => {
             // WASM Override for Rectifiers on DC Battery Backup
             if (node.type === "rectifier" && !node.is_faulted) {
                 const srcDbId = node.id === "node-rectifier-2" ? "node-dc-rect-db-a" : "node-dc-rect-db-b";
@@ -820,7 +819,54 @@ class JSPowerMatrix {
                 const batterySoc = typeof engine.getBatterySoc === "function" ? engine.getBatterySoc() : 100.0;
                 if (!srcActive && batterySoc > 0) {
                     node.is_active = true;
-                    node.status = "-48V DC BATTERY BACKUP";
+                    node.status = "BATTERY DISCHARGING";
+                }
+            }
+
+            // WASM Override for UPS on AC Battery Backup
+            if (node.type === "ups" && !node.is_faulted) {
+                const srcDbId = node.id === "node-ups-2" ? "node-ac-ups-db-a" : "node-ac-ups-db-b";
+                const srcDb = nodes.find(n => n.id === srcDbId);
+                const srcActive = srcDb && srcDb.is_active;
+                const batterySoc = typeof engine.getBatterySoc === "function" ? engine.getBatterySoc() : 100.0;
+                if (!srcActive && batterySoc > 0) {
+                    node.is_active = true;
+                    node.status = "BATTERY DISCHARGING";
+                }
+            }
+        });
+
+        // PASS 2: Redraw and evaluate dependent overrides
+        nodes.forEach(node => {
+            const svgNode = svg.querySelector(`#${node.id}`);
+            if (!svgNode) return;
+
+            // WASM Override for Server Distribution DBs to stay active during outages
+            if (node.id === "node-ac-server-db" && !node.is_faulted) {
+                const ups1 = nodes.find(n => n.id === "node-ups-1");
+                const ups2 = nodes.find(n => n.id === "node-ups-2");
+                node.is_active = (ups1 && ups1.is_active) || (ups2 && ups2.is_active);
+                node.status = node.is_active ? "ACTIVE" : "NO VOLTAGE";
+            }
+            if (node.id === "node-dc-server-db" && !node.is_faulted) {
+                const rect1 = nodes.find(n => n.id === "node-rectifier-1");
+                const rect2 = nodes.find(n => n.id === "node-rectifier-2");
+                node.is_active = (rect1 && rect1.is_active) || (rect2 && rect2.is_active);
+                node.status = node.is_active ? "ACTIVE" : "NO VOLTAGE";
+            }
+
+            // WASM Override for Vertiv 1-6 (enforce In-Row PAC cooling shutdown on outage)
+            if (node.id.startsWith("node-vertiv-")) {
+                const gridTx = nodes.find(n => n.id === "node-grid-tx");
+                const dgPairStatus = typeof engine.getDgPairStatus === "function" ? engine.getDgPairStatus() : "";
+                const dgGenRunning = dgPairStatus === "pair_a_running" || dgPairStatus === "pair_b_running";
+                const coolingPower = (gridTx && gridTx.is_active) || dgGenRunning;
+                const tco2 = nodes.find(n => n.id === "node-tco-2");
+                const isCoolingEnabled = typeof engine.cooling_active === "boolean" ? engine.cooling_active : true;
+                
+                node.is_active = coolingPower && tco2 && !tco2.is_faulted && isCoolingEnabled;
+                if (!node.is_active) {
+                    node.status = "OFFLINE";
                 }
             }
 
@@ -862,15 +908,21 @@ class JSPowerMatrix {
                     statusText.style.fill = "#64748b";
                 }
             } else {
-                // Check if running on battery backup (AC source DB inactive)
-                const isUpsOnBattery = node.type === "ups" && node.status.includes("DISCHARGING");
-                const isRectOnBattery = node.type === "rectifier" && node.status.includes("BATTERY BACKUP");
+                // Determine active glows
+                const isUpsActive = node.type === "ups" && node.is_active;
+                const isRectActive = node.type === "rectifier" && node.is_active;
+                const isAcServerActive = node.id === "node-ac-server-db" && node.is_active;
+                const isDcServerActive = node.id === "node-dc-server-db" && node.is_active;
 
                 faces.forEach(f => {
-                    if (isUpsOnBattery || isRectOnBattery) {
-                        f.style.stroke = "#f59e0b";
-                        f.style.fill = "rgba(245, 158, 11, 0.15)";
-                        f.style.filter = "drop-shadow(0 0 8px rgba(245, 158, 11, 0.6))";
+                    if (isUpsActive || isAcServerActive) {
+                        f.style.stroke = "#00e5ff";
+                        f.style.fill = "rgba(0, 229, 255, 0.2)";
+                        f.style.filter = "drop-shadow(0 0 10px rgba(0, 229, 255, 0.7))";
+                    } else if (isRectActive || isDcServerActive) {
+                        f.style.stroke = "#10b981";
+                        f.style.fill = "rgba(16, 185, 129, 0.2)";
+                        f.style.filter = "drop-shadow(0 0 10px rgba(16, 185, 129, 0.7))";
                     } else if (node.type === "server" && node.is_active) {
                         f.style.stroke = "#00e5ff";
                         f.style.fill = "rgba(0, 229, 255, 0.2)";
@@ -883,27 +935,34 @@ class JSPowerMatrix {
                 });
 
                 if (statusText) {
-                    if (isUpsOnBattery) {
+                    if (isUpsActive && node.status.includes("DISCHARGING")) {
                         const rm = typeof node.runtime_minutes === "number" ? node.runtime_minutes : 0.0;
                         statusText.textContent = `DISCHARGING (${rm.toFixed(0)}m)`;
-                        statusText.style.fill = "#f59e0b";
+                        statusText.style.fill = "#00e5ff";
                     } else if (node.type === "ups") {
                         const lp = typeof node.load_pct === "number" ? node.load_pct : 0.0;
                         const rm = typeof node.runtime_minutes === "number" ? node.runtime_minutes : 0.0;
                         statusText.textContent = `${lp.toFixed(0)}% / ${rm.toFixed(0)}m`;
                         statusText.style.fill = "#00e5ff";
-                    } else if (isRectOnBattery) {
+                    } else if (isRectActive && node.status.includes("BATTERY")) {
                         const cur = typeof node.current === "number" ? node.current : 0.0;
                         statusText.textContent = `DC BATTERY (${cur.toFixed(0)}A)`;
-                        statusText.style.fill = "#f59e0b";
+                        statusText.style.fill = "#10b981";
                     } else if (node.type === "rectifier") {
                         const cur = typeof node.current === "number" ? node.current : 0.0;
                         const lp = typeof node.load_pct === "number" ? node.load_pct : 0.0;
                         statusText.textContent = `${cur.toFixed(0)}A (${lp.toFixed(0)}%)`;
                         statusText.style.fill = "#10b981";
+                    } else if (node.id === "node-ac-server-db") {
+                        statusText.textContent = "ACTIVE";
+                        statusText.style.fill = "#00e5ff";
+                    } else if (node.id === "node-dc-server-db") {
+                        statusText.textContent = "ACTIVE";
+                        statusText.style.fill = "#10b981";
                     } else if (node.type === "cooling") {
                         const volt = typeof node.voltage === "number" ? node.voltage : 0.0;
                         statusText.textContent = `${volt.toFixed(1)}°C`;
+                        statusText.style.fill = "";
                     } else if (node.type === "generator") {
                         statusText.textContent = "RUNNING";
                         statusText.style.fill = "#ff6d00";

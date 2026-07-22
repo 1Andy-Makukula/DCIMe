@@ -86,6 +86,9 @@ export const generateReportTexts = ({
     const ups1_a1 = getCleanValue('ups_1_load_amps_a');
     const ups1_a2 = getCleanValue('ups_1_load_amps_b');
     const ups1_a3 = getCleanValue('ups_1_load_amps_c');
+    const ups1_p1 = getCleanValue('ups_1_load_phase_percent_a');
+    const ups1_p2 = getCleanValue('ups_1_load_phase_percent_b');
+    const ups1_p3 = getCleanValue('ups_1_load_phase_percent_c');
     const ups1_batt = getCleanValue('ups_1_battery_voltage');
     const ups1_charge = getCleanValue('ups_1_battery_charge_percent', '100');
     const ups1_used = getCleanValue('ups_1_used_capacity');
@@ -97,6 +100,9 @@ export const generateReportTexts = ({
     const ups2_a1 = getCleanValue('ups_2_load_amps_a');
     const ups2_a2 = getCleanValue('ups_2_load_amps_b');
     const ups2_a3 = getCleanValue('ups_2_load_amps_c');
+    const ups2_p1 = getCleanValue('ups_2_load_phase_percent_a');
+    const ups2_p2 = getCleanValue('ups_2_load_phase_percent_b');
+    const ups2_p3 = getCleanValue('ups_2_load_phase_percent_c');
     const ups2_batt = getCleanValue('ups_2_battery_voltage');
     const ups2_charge = getCleanValue('ups_2_battery_charge_percent', '100');
     const ups2_used = getCleanValue('ups_2_used_capacity');
@@ -126,9 +132,9 @@ export const generateReportTexts = ({
 
 *VERTIV UPS 1 OUTPUT*
 (Power room_1)
-L1-${ups1_l1}/${ups1_a1}A
-L2-${ups1_l2}/${ups1_a2}A
-L3-${ups1_l3}/${ups1_a3}A
+L1-${ups1_l1}V/${ups1_a1}A (${ups1_p1}%)
+L2-${ups1_l2}V/${ups1_a2}A (${ups1_p2}%)
+L3-${ups1_l3}V/${ups1_a3}A (${ups1_p3}%)
 
 Battery Voltage: ${ups1_batt}VDC
 Battery Charge: ${ups1_charge}%
@@ -137,11 +143,11 @@ Load: ${ups1_load}KW
 
 *VERTIV UPS 2 OUTPUT*
 (Power room_2)
-L1-${ups2_l1}/${ups2_a1}A
-L2-${ups2_l2}/${ups2_a2}A
-L3-${ups2_l3}/${ups2_a3}A
+L1-${ups2_l1}V/${ups2_a1}A (${ups2_p1}%)
+L2-${ups2_l2}V/${ups2_a2}A (${ups2_p2}%)
+L3-${ups2_l3}V/${ups2_a3}A (${ups2_p3}%)
 
-Battery voltage: ${ups2_batt}VDC
+Battery Voltage: ${ups2_batt}VDC
 Battery Charge:${ups2_charge}%
 Used Capacity:${ups2_used}%
 Load: ${ups2_load}KW
@@ -157,19 +163,32 @@ ENTERPRISE ROOM 2_${tempIt2}°C
 Humidity: ${humidityMain}%`;
 
     const em1_temp = getCleanValue('pac_server_em1_return_temp_actual');
+    const em1_hum = getCleanValue('pac_server_em1_humidity_actual');
     const em2_temp = getCleanValue('pac_server_em2_return_temp_actual');
+    const em2_hum = getCleanValue('pac_server_em2_humidity_actual');
     const em3_temp = getCleanValue('pac_server_em3_return_temp_actual');
+    const em3_hum = getCleanValue('pac_server_em3_humidity_actual');
     const em4_temp = getCleanValue('pac_server_em4_return_temp_actual');
+    const em4_hum = getCleanValue('pac_server_em4_humidity_actual');
     const em5_temp = getCleanValue('pac_server_em5_return_temp_actual');
+    const em5_hum = getCleanValue('pac_server_em5_humidity_actual');
     const em6_temp = getCleanValue('pac_server_em6_return_temp_actual');
+    const em6_hum = getCleanValue('pac_server_em6_humidity_actual');
     const em7_temp = getCleanValue('pac_server_em7_return_temp_actual');
+    const em7_hum = getCleanValue('pac_server_em7_humidity_actual');
 
     const vt1_temp = getCleanValue('pac_server_vt1_return_temp_actual');
+    const vt1_hum = getCleanValue('pac_server_vt1_humidity_actual');
     const vt2_temp = getCleanValue('pac_server_vt2_return_temp_actual');
+    const vt2_hum = getCleanValue('pac_server_vt2_humidity_actual');
     const vt3_temp = getCleanValue('pac_server_vt3_return_temp_actual');
+    const vt3_hum = getCleanValue('pac_server_vt3_humidity_actual');
     const vt4_temp = getCleanValue('pac_server_vt4_return_temp_actual');
+    const vt4_hum = getCleanValue('pac_server_vt4_humidity_actual');
     const vt5_temp = getCleanValue('pac_server_vt5_return_temp_actual');
+    const vt5_hum = getCleanValue('pac_server_vt5_humidity_actual');
     const vt6_temp = getCleanValue('pac_data_vt6_return_temp_actual');
+    const vt6_hum = getCleanValue('pac_data_vt6_humidity_actual');
 
     const v_r = isGen ? getCleanValue('dg_load_voltage_r') : getCleanValue('grid_voltage_r');
     const v_y = isGen ? getCleanValue('dg_load_voltage_y') : getCleanValue('grid_voltage_y');
@@ -185,30 +204,42 @@ Humidity: ${humidityMain}%`;
 
     internalPayload = `${whatsappPayload}
 
-Unit Temperatures
-Emerson 1 : ${em1_temp}
-Emerson 2 : ${em2_temp}
-Emerson 3 : ${em3_temp}
-Emerson 4 : ${em4_temp}
-Emerson 5 : ${em5_temp}
-Emerson 6 : ${em6_temp}
-Emerson 7 : ${em7_temp}
+*UNIT TEMPERATURES & HUMIDITY*
+Emerson 1 : ${em1_temp}°C | ${em1_hum}%
+Emerson 2 : ${em2_temp}°C | ${em2_hum}%
+Emerson 3 : ${em3_temp}°C | ${em3_hum}%
+Emerson 4 : ${em4_temp}°C | ${em4_hum}%
+Emerson 5 : ${em5_temp}°C | ${em5_hum}%
+Emerson 6 : ${em6_temp}°C | ${em6_hum}%
+Emerson 7 : ${em7_temp}°C | ${em7_hum}%
 
-Vertiv 1 : ${vt1_temp}
-Vertiv 2: ${vt2_temp}
-Vertiv 3: ${vt3_temp}
-Vertiv 4 : ${vt4_temp}
-Vertiv 5 : ${vt5_temp}
-Vertiv 6 : ${vt6_temp}
+Vertiv 1  : ${vt1_temp}°C | ${vt1_hum}%
+Vertiv 2  : ${vt2_temp}°C | ${vt2_hum}%
+Vertiv 3  : ${vt3_temp}°C | ${vt3_hum}%
+Vertiv 4  : ${vt4_temp}°C | ${vt4_hum}%
+Vertiv 5  : ${vt5_temp}°C | ${vt5_hum}%
+Vertiv 6  : ${vt6_temp}°C | ${vt6_hum}%
 
-VOLTAGE: ${v_r} ${v_b} ${v_y}
-VOLTAGE: ${v_rn} ${v_bn} ${v_yn}
-CURRENT: ${a_r} ${a_b} ${a_y}`;
+*GRID/POWER METRICS*
+VOLTAGE L-L : R:${v_r}V | Y:${v_y}V | B:${v_b}V
+VOLTAGE L-N : RN:${v_rn}V | YN:${v_yn}V | BN:${v_bn}V
+CURRENT     : R:${a_r}A | Y:${a_y}A | B:${a_b}A`;
   } else {
     const voltageVal = isGen ? getCleanValue('dg_load_voltage_r') : getCleanValue('grid_voltage_r');
     const ampsVal = isGen ? getCleanValue('dg_load_amps_r') : getCleanValue('grid_amps_r');
     const pfVal = isGen ? "0.9" : getCleanValue('grid_power_factor', "0.9");
     const kwVal = getCleanValue('grid_total_site_load');
+
+    const r1_v = getCleanValue('rectifier_1_dc_voltage', '54.2');
+    const r1_a = getCleanValue('rectifier_1_amps');
+    const r1_cap = getCleanValue('rectifier_1_used_percentage');
+
+    const ups1_l1 = getCleanValue('ups_1_output_voltage_a', '230');
+    const ups1_a1 = getCleanValue('ups_1_load_amps_a');
+    const ups1_batt = getCleanValue('ups_1_battery_voltage');
+    const ups1_charge = getCleanValue('ups_1_battery_charge_percent', '100');
+    const ups1_used = getCleanValue('ups_1_used_capacity');
+    const ups1_load = getCleanValue('ups_1_output_load_kw');
 
     const tempMain = getCleanValue('server_ambient_temp');
     const tempPr1 = getCleanValue('pr1_ambient_temp');
@@ -223,21 +254,26 @@ Load in Amps *${ampsVal}*A
 *KW:${kwVal}*KW
 Power factor *${pfVal}*
 
+*RECTIFIER 1:* ${r1_v}V / ${r1_a}A / ${r1_cap}%
+*UPS 1:* L1:${ups1_l1}V / ${ups1_a1}A | Batt:${ups1_batt}V (${ups1_charge}%) | Load:${ups1_load}KW (${ups1_used}%)
+
 *TEMPERATURE*
 Main Room *${tempMain}*°C
 Power Room1_*${tempPr1}*°C
 Enterprise Room 1 *${tempIt1}*°C`;
 
     const em1_temp = getCleanValue('pac_server_em1_return_temp_actual');
+    const em1_hum = getCleanValue('pac_server_em1_humidity_actual');
     const em2_temp = getCleanValue('pac_server_em2_return_temp_actual');
+    const em2_hum = getCleanValue('pac_server_em2_humidity_actual');
     const em1_it_temp = getCleanValue('pac_it1_em1_return_temp_actual');
 
     internalPayload = `${whatsappPayload}
 
-Unit Temperatures
-Emerson 1 : ${em1_temp}
-Emerson 2 : ${em2_temp}
-IT Room 1 AC 1 : ${em1_it_temp}`;
+*UNIT TEMPERATURES & HUMIDITY*
+Emerson 1 : ${em1_temp}°C | ${em1_hum}%
+Emerson 2 : ${em2_temp}°C | ${em2_hum}%
+IT Room 1 AC 1 : ${em1_it_temp}°C`;
   }
 
   return { whatsappPayload, internalPayload };

@@ -222,6 +222,24 @@
   border-top: 1px solid rgba(255, 255, 255, 0.08);
 }
 
+.dcime-date-selector-bar {
+  background: #080d1a;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.dcime-hour-selector-bar {
+  background: #0b1326;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
 .dcime-dot {
   width: 8px;
   height: 8px;

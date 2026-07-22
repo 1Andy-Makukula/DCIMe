@@ -231,10 +231,20 @@ export function useTelemetryData(
           });
         });
 
-        // Carry forward all asset status values (e.g. status_pac_server_em1 = 'OFFLINE')
+        // Carry forward all asset status values & persistent comments (e.g. status_pac_server_em1 = 'OFFLINE', comment_pac_server_em1 = 'Compressor failure')
         Object.keys(previousMetrics).forEach((key) => {
-          if (key.startsWith('status_')) {
+          if (key.startsWith('status_') || key.startsWith('comment_')) {
             newFormState[key] = previousMetrics[key];
+          }
+        });
+
+        // Ensure background constant remarks for PACs default to "OK" if unspecified
+        blueprint.equipment.forEach((equip: any) => {
+          if (equip.category === 'AIRCON') {
+            const remarkKey = `${equip.id}_remark`;
+            if (newFormState[remarkKey] === undefined) {
+              newFormState[remarkKey] = 'OK';
+            }
           }
         });
 
@@ -288,9 +298,10 @@ export function useTelemetryData(
     };
   }, [targetHour, siteCode]);
 
-  // Dynamic Ambient Average Temperature Calculations
+  // Dynamic Ambient Average Temperature & Humidity Calculations (Even Hours Only)
   useEffect(() => {
-    if (formData && Object.keys(formData).length > 0) {
+    const isEvenHour = targetHour % 2 === 0;
+    if (isEvenHour && formData && Object.keys(formData).length > 0) {
       const updated = { ...formData };
       let changed = false;
 
@@ -298,14 +309,16 @@ export function useTelemetryData(
         const envEquip = blueprint.equipment.find(
           (eq: any) => eq.room_id === room.id && eq.category === 'ENVIRONMENT'
         );
-        const ambientMetric = envEquip?.metrics.find((m: any) => m.id.endsWith('_ambient_temp'));
-        if (!ambientMetric) return;
+        const tempMetric = envEquip?.metrics.find((m: any) => m.id.endsWith('_ambient_temp'));
+        const humMetric = envEquip?.metrics.find((m: any) => m.id.endsWith('_ambient_humidity'));
 
         const roomAircons = blueprint.equipment.filter(
           (eq: any) => eq.room_id === room.id && eq.category === 'AIRCON'
         );
 
         const temperatures: number[] = [];
+        const humidities: number[] = [];
+
         roomAircons.forEach((ac: any) => {
           const status = formData[`status_${ac.id}`] || 'ONLINE';
           if (status !== 'OFFLINE') {
@@ -313,13 +326,25 @@ export function useTelemetryData(
             if (!isNaN(tempVal)) {
               temperatures.push(tempVal);
             }
+            const humVal = parseFloat(formData[`${ac.id}_humidity_actual`]);
+            if (!isNaN(humVal)) {
+              humidities.push(humVal);
+            }
           }
         });
 
-        if (temperatures.length > 0) {
-          const avg = parseFloat((temperatures.reduce((a, b) => a + b, 0) / temperatures.length).toFixed(1));
-          if (formData[ambientMetric.id] !== avg) {
-            updated[ambientMetric.id] = avg;
+        if (tempMetric && temperatures.length > 0) {
+          const avgTemp = parseFloat((temperatures.reduce((a, b) => a + b, 0) / temperatures.length).toFixed(1));
+          if (updated[tempMetric.id] !== avgTemp) {
+            updated[tempMetric.id] = avgTemp;
+            changed = true;
+          }
+        }
+
+        if (humMetric && humidities.length > 0) {
+          const avgHum = parseFloat((humidities.reduce((a, b) => a + b, 0) / humidities.length).toFixed(1));
+          if (updated[humMetric.id] !== avgHum) {
+            updated[humMetric.id] = avgHum;
             changed = true;
           }
         }
@@ -331,7 +356,7 @@ export function useTelemetryData(
         localStorage.setItem(cacheKey, JSON.stringify(updated));
       }
     }
-  }, [formData, siteCode]);
+  }, [formData, siteCode, targetHour]);
 
   // The Input Handler
   const handleInputChange = (id: string, value: any) => {

@@ -32,6 +32,7 @@ interface EquipmentBlueprint {
 }
 
 interface PathRendererProps {
+  targetHour?: string | number;
   currentStep: {
     step_number: number;
     name: string;
@@ -54,6 +55,7 @@ interface PathRendererProps {
 }
 
 export function PathRenderer({
+  targetHour,
   currentStep,
   blueprint,
   formData,
@@ -68,6 +70,11 @@ export function PathRenderer({
   setFsmMode,
 }: PathRendererProps) {
   const currentStepEquipmentIds = currentStep.equipment_ids;
+
+  const numericHour = typeof targetHour === 'number'
+    ? targetHour
+    : parseInt(String(targetHour || '0').split(':')[0], 10);
+  const isOddHour = !isNaN(numericHour) && numericHour % 2 !== 0;
 
   const categoryIcon = (category: string) => {
     switch (category?.toUpperCase()) {
@@ -275,7 +282,7 @@ export function PathRenderer({
               >
                 <div className="grid grid-cols-2 gap-3">
                   {visibleMetrics.map((metric) => {
-                    const isConst = metric.is_constant === true;
+                    const isConst = metric.is_constant === true && !metric.id.endsWith('_humidity_actual');
                     if (isConst) return null;
                     const isAutoFilled = autoFilledFields.has(metric.id);
 
@@ -299,10 +306,11 @@ export function PathRenderer({
                         </div>
                         <div className="relative">
                           {(() => {
+                            const isAmbientField = metric.id.endsWith("_ambient_temp") || metric.id.endsWith("_ambient_humidity");
                             const isReadOnlyField =
                               metric.id.endsWith("_cumulative_hrs") ||
                               metric.id === "fuel_balance" ||
-                              metric.id.endsWith("_ambient_temp");
+                              (isAmbientField && !isOddHour);
 
                             // Dynamic Boolean Toggle for Compliance Checks
                             if (metric.type === "boolean") {
@@ -344,7 +352,11 @@ export function PathRenderer({
                                   handleUserInputChange(metric.id, e.target.value)
                                 }
                                 placeholder={
-                                  metric.id.endsWith("_ambient_temp") ? "Derived avg" : "—"
+                                  isAmbientField
+                                    ? isOddHour
+                                      ? "Enter reading..."
+                                      : "Derived avg"
+                                    : "—"
                                 }
                                 className={`w-full px-3 py-2 rounded-lg border text-xs font-semibold focus:outline-none focus:ring-1 transition-all ${
                                   isReadOnlyField
