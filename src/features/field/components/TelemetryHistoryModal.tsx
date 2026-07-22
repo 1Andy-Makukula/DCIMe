@@ -164,7 +164,7 @@ export const TelemetryHistoryModal = ({
                     }`}
                   >
                     <span>{date}</span>
-                    <span className={`text-[10px] px-1.5 py-0.2 rounded-full ${isActive ? 'bg-slate-950/20 text-slate-900 font-extrabold' : 'bg-slate-800 text-slate-400'}`}>
+                    <span className={`text-[10px] px-1.5 py-0.5 rounded-full ${isActive ? 'bg-slate-950/20 text-slate-900 font-extrabold' : 'bg-slate-800 text-slate-400'}`}>
                       {count}
                     </span>
                   </button>

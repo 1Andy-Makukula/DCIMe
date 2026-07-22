@@ -228,7 +228,13 @@ CURRENT     : R:${a_r}A | Y:${a_y}A | B:${a_b}A`;
     const voltageVal = isGen ? getCleanValue('dg_load_voltage_r') : getCleanValue('grid_voltage_r');
     const ampsVal = isGen ? getCleanValue('dg_load_amps_r') : getCleanValue('grid_amps_r');
     const pfVal = isGen ? "0.9" : getCleanValue('grid_power_factor', "0.9");
-    const kwVal = getCleanValue('grid_total_site_load');
+    const voltageNum = parseFloat(voltageVal);
+    const ampsNum = parseFloat(ampsVal);
+    const pfNum = parseFloat(pfVal);
+    const calcKw = (isGen && !isNaN(voltageNum) && !isNaN(ampsNum))
+      ? Math.round((voltageNum * ampsNum * 1.732 * pfNum) / 1000)
+      : 0;
+    const kwVal = isGen ? calcKw.toString() : getCleanValue('grid_total_site_load');
 
     const r1_v = getCleanValue('rectifier_1_dc_voltage', '54.2');
     const r1_a = getCleanValue('rectifier_1_amps');
@@ -255,7 +261,7 @@ Load in Amps *${ampsVal}*A
 Power factor *${pfVal}*
 
 *RECTIFIER 1:* ${r1_v}V / ${r1_a}A / ${r1_cap}%
-*UPS 1:* L1:${ups1_l1}V / ${ups1_a1}A | Batt:${ups1_batt}V (${ups1_charge}%) | Load:${ups1_load}KW (${ups1_used}%)
+*UPS 1:* L1:${ups1_l1}V / ${ups1_a1}A | Batt:${ups1_batt}V (${ups1_charge}%) | Capacity:${ups1_used}% | Load:${ups1_load}KW
 
 *TEMPERATURE*
 Main Room *${tempMain}*°C
