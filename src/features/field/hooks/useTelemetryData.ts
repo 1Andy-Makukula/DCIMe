@@ -160,17 +160,30 @@ export function useTelemetryData(
     setIsSuccess(false);
 
     // Step B (Date Construction)
+    const numericTargetH = typeof targetHour === 'number'
+      ? targetHour
+      : parseInt(String(targetHour || '0').split(':')[0], 10);
+    const safeH = isNaN(numericTargetH) ? 0 : numericTargetH;
+
     const today = new Date();
-    today.setHours(targetHour, 0, 0, 0);
+    today.setHours(safeH, 0, 0, 0);
     const targetHourISO = today.toISOString();
 
     const fetchTelemetryData = async () => {
       try {
         // Step C (Supabase Query 1 - Current Hour)
+        if (!currentSite?.id) {
+          // Do not read database using default/fallback NTC site identity if site context is not loaded yet
+          setIsLoading(false);
+          return;
+        }
+
+        // Step C (Supabase Query 1 - Current Hour scoped to current site)
         const { data: currentData, error: currentError } = await supabase
           .from('telemetry_logs')
           .select('*')
           .eq('target_hour', targetHourISO)
+          .or(`metrics->>site_uuid.eq.${currentSite.id},metrics->>site_id.eq.${siteCode}`)
           .maybeSingle();
 
         if (!active) return;
@@ -202,11 +215,12 @@ export function useTelemetryData(
           return;
         }
 
-        // Step D (Supabase Query 2 - Carry-Forward)
+        // Step D (Supabase Query 2 - Carry-Forward scoped to current site)
         const { data: previousData, error: prevError } = await supabase
           .from('telemetry_logs')
           .select('*')
           .lt('target_hour', targetHourISO)
+          .or(`metrics->>site_uuid.eq.${currentSite.id},metrics->>site_id.eq.${siteCode}`)
           .order('target_hour', { ascending: false })
           .limit(1)
           .maybeSingle();
@@ -281,7 +295,7 @@ export function useTelemetryData(
             setIsEditMode(false);
           } else {
             const metrics = payload.new?.metrics as Record<string, any>;
-            if (metrics) {
+            if (metrics && (metrics.site_id === siteCode || metrics.site_uuid === currentSite?.id)) {
               setFormData(metrics);
               setIsEditMode(true);
               localStorage.setItem(cacheKey, JSON.stringify(metrics));
@@ -406,8 +420,13 @@ export function useTelemetryData(
     }
 
     try {
+      const numericTargetH = typeof targetHour === 'number'
+        ? targetHour
+        : parseInt(String(targetHour || '0').split(':')[0], 10);
+      const safeH = isNaN(numericTargetH) ? 0 : numericTargetH;
+
       const today = new Date();
-      today.setHours(targetHour, 0, 0, 0);
+      today.setHours(safeH, 0, 0, 0);
       const targetHourISO = today.toISOString();
 
       // Fetch all parameters to map parameter_id to equipment_id

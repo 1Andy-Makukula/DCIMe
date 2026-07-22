@@ -47,9 +47,9 @@ export function TechDashboard() {
     const fetchCompletedHours = async () => {
       try {
         const startOfDay = new Date();
-        startOfDay.setHours(0, 0, 0, 0);
+        startOfDay.setHours(-6, 0, 0, 0);
         const endOfDay = new Date();
-        endOfDay.setHours(23, 59, 59, 999);
+        endOfDay.setHours(30, 0, 0, 0);
 
         const { data, error } = await supabase
           .from("telemetry_logs")

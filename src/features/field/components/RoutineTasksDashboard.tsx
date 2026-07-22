@@ -309,24 +309,23 @@ export const RoutineTasksDashboard = ({
   });
 
   const fetchDatabaseHistory = useCallback(async () => {
+    if (!currentSite?.id) {
+      // Skip query to avoid persisting NTC fallback when site context is loading
+      return;
+    }
+
     try {
       const { data, error } = await supabase
         .from('telemetry_logs')
         .select('target_hour, metrics, technician_name, submitted_at')
+        .or(`metrics->>site_uuid.eq.${currentSite.id},metrics->>site_id.eq.${siteCode}`)
         .order('target_hour', { ascending: false })
         .limit(100);
 
       if (error) throw error;
 
       if (data && data.length > 0) {
-        // Filter by site_id/site_uuid stored inside metrics JSONB
-        const filteredData = data.filter((row: any) => {
-          const m = row.metrics || {};
-          if (!m.site_id && !m.site_uuid) return true; // Legacy entries
-          return m.site_id === siteCode || m.site_uuid === currentSite?.id;
-        });
-
-        const dbRecords: HistoryRecord[] = filteredData.map((row: any) => {
+        const dbRecords: HistoryRecord[] = data.map((row: any) => {
           const dateObj = new Date(row.target_hour || row.submitted_at);
           const dateStr = isNaN(dateObj.getTime())
             ? "Recent Log"
@@ -362,8 +361,8 @@ export const RoutineTasksDashboard = ({
         });
 
         setWhatsappHistory((prev) => {
-          const dbHours = new Set(dbRecords.map((r) => r.hour));
-          const localOnly = prev.filter((r) => !dbHours.has(r.hour));
+          const dbKeys = new Set(dbRecords.map((r) => `${r.date}_${r.hour}`));
+          const localOnly = prev.filter((r) => !dbKeys.has(`${r.date}_${r.hour}`));
           const merged = sortHistoryAscending([...dbRecords, ...localOnly]);
           localStorage.setItem('dcime_whatsapp_history', JSON.stringify(merged));
           return merged;
@@ -382,8 +381,12 @@ export const RoutineTasksDashboard = ({
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'telemetry_logs' },
-        () => {
-          fetchDatabaseHistory();
+        (payload) => {
+          const m = (payload.new as any)?.metrics || {};
+          // Only fetch history if the changed record belongs to the current site
+          if (!payload.new || m.site_id === siteCode || m.site_uuid === currentSite?.id) {
+            fetchDatabaseHistory();
+          }
         }
       )
       .subscribe();
@@ -391,7 +394,7 @@ export const RoutineTasksDashboard = ({
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [fetchDatabaseHistory]);
+  }, [fetchDatabaseHistory, siteCode, currentSite?.id]);
 
   const handleShareAndSave = async () => {
     const { whatsappPayload, internalPayload } = generateReportTexts({
@@ -418,7 +421,8 @@ export const RoutineTasksDashboard = ({
     };
 
     setWhatsappHistory((prev) => {
-      const filtered = prev.filter(r => r.hour !== hourStr);
+      const recordKey = `${dateStr}_${hourStr}`;
+      const filtered = prev.filter(r => `${r.date}_${r.hour}` !== recordKey);
       const updated = sortHistoryAscending([newRecord, ...filtered]);
       localStorage.setItem('dcime_whatsapp_history', JSON.stringify(updated));
       return updated;
