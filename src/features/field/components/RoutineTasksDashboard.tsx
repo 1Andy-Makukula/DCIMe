@@ -310,22 +310,23 @@ export const RoutineTasksDashboard = ({
 
   const fetchDatabaseHistory = useCallback(async () => {
     try {
-      let query = supabase
+      const { data, error } = await supabase
         .from('telemetry_logs')
-        .select('target_hour, metrics, technician_name, submitted_at, site_id, site_uuid')
+        .select('target_hour, metrics, technician_name, submitted_at')
         .order('target_hour', { ascending: false })
         .limit(100);
-
-      if (currentSite?.id) {
-        query = query.or(`site_uuid.eq.${currentSite.id},site_id.eq.${siteCode}`);
-      }
-
-      const { data, error } = await query;
 
       if (error) throw error;
 
       if (data && data.length > 0) {
-        const dbRecords: HistoryRecord[] = data.map((row: any) => {
+        // Filter by site_id/site_uuid stored inside metrics JSONB
+        const filteredData = data.filter((row: any) => {
+          const m = row.metrics || {};
+          if (!m.site_id && !m.site_uuid) return true; // Legacy entries
+          return m.site_id === siteCode || m.site_uuid === currentSite?.id;
+        });
+
+        const dbRecords: HistoryRecord[] = filteredData.map((row: any) => {
           const dateObj = new Date(row.target_hour || row.submitted_at);
           const dateStr = isNaN(dateObj.getTime())
             ? "Recent Log"

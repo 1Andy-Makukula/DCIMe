@@ -115,6 +115,12 @@ export const generateReportTexts = ({
       ? `\n*SWITCH METERS (4-HR)*\nSW 1: ${sw1_val} kWh | SW 2: ${sw2_val} kWh\n`
       : "";
 
+    const tempHq = getCleanValue('hq_ambient_temp');
+    const humHq = getCleanValue('hq_ambient_humidity');
+    const hqSection = (isFourHour && (tempHq !== "NA" || humHq !== "NA"))
+      ? `*HQ POWER ROOM (4-HR)*\nTemp: ${tempHq}°C | Humidity: ${humHq}%\n`
+      : "";
+
     const r1_v = getCleanValue('rectifier_1_dc_voltage', '54.2');
     const r1_a = getCleanValue('rectifier_1_amps');
     const r1_cap = getCleanValue('rectifier_1_used_percentage');
@@ -237,7 +243,7 @@ Humidity: ${humidityMain}%`;
       ? getCleanValue('dg_1_frequency', getCleanValue('dg_frequency', '50.0'))
       : getCleanValue('grid_frequency', '50.0');
 
-    internalPayload = `${whatsappPayload}${swSection}
+    internalPayload = `${whatsappPayload}${swSection}${hqSection}
 
 *UNIT TEMPERATURES & HUMIDITY*
 Emerson 1 : ${em1_temp}°C | ${em1_hum}%
@@ -305,6 +311,12 @@ CURRENT     : R:${a_r}A | Y:${a_y}A | B:${a_b}A (AVG: ${avgAmps}A)`;
       ? `\n*SWITCH METERS (4-HR)*\nSW 1: ${sw1_val} kWh | SW 2: ${sw2_val} kWh\n`
       : "";
 
+    const tempHq = getCleanValue('hq_ambient_temp');
+    const humHq = getCleanValue('hq_ambient_humidity');
+    const hqSection = (isFourHour && (tempHq !== "NA" || humHq !== "NA"))
+      ? `*HQ POWER ROOM (4-HR)*\nTemp: ${tempHq}°C | Humidity: ${humHq}%\n`
+      : "";
+
     const r1_v = getCleanValue('rectifier_1_dc_voltage', '54.2');
     const r1_a = getCleanValue('rectifier_1_amps');
     const r1_cap = getCleanValue('rectifier_1_used_percentage');
@@ -346,7 +358,7 @@ Enterprise Room 1 *${tempIt1}*°C`;
       ? getCleanValue('dg_1_frequency', getCleanValue('dg_frequency', '50.0'))
       : getCleanValue('grid_frequency', '50.0');
 
-    internalPayload = `${whatsappPayload}${swSection}
+    internalPayload = `${whatsappPayload}${swSection}${hqSection}
 
 *GRID/POWER METRICS*
 FREQUENCY   : ${gridFreq} Hz
