@@ -298,65 +298,7 @@ export function useTelemetryData(
     };
   }, [targetHour, siteCode]);
 
-  // Dynamic Ambient Average Temperature & Humidity Calculations (Even Hours Only)
-  useEffect(() => {
-    const isEvenHour = targetHour % 2 === 0;
-    if (isEvenHour && formData && Object.keys(formData).length > 0) {
-      const updated = { ...formData };
-      let changed = false;
-
-      blueprint.rooms.forEach((room: any) => {
-        const envEquip = blueprint.equipment.find(
-          (eq: any) => eq.room_id === room.id && eq.category === 'ENVIRONMENT'
-        );
-        const tempMetric = envEquip?.metrics.find((m: any) => m.id.endsWith('_ambient_temp'));
-        const humMetric = envEquip?.metrics.find((m: any) => m.id.endsWith('_ambient_humidity'));
-
-        const roomAircons = blueprint.equipment.filter(
-          (eq: any) => eq.room_id === room.id && eq.category === 'AIRCON'
-        );
-
-        const temperatures: number[] = [];
-        const humidities: number[] = [];
-
-        roomAircons.forEach((ac: any) => {
-          const status = formData[`status_${ac.id}`] || 'ONLINE';
-          if (status !== 'OFFLINE') {
-            const tempVal = parseFloat(formData[`${ac.id}_return_temp_actual`]);
-            if (!isNaN(tempVal)) {
-              temperatures.push(tempVal);
-            }
-            const humVal = parseFloat(formData[`${ac.id}_humidity_actual`]);
-            if (!isNaN(humVal)) {
-              humidities.push(humVal);
-            }
-          }
-        });
-
-        if (tempMetric && temperatures.length > 0) {
-          const avgTemp = parseFloat((temperatures.reduce((a, b) => a + b, 0) / temperatures.length).toFixed(1));
-          if (updated[tempMetric.id] !== avgTemp) {
-            updated[tempMetric.id] = avgTemp;
-            changed = true;
-          }
-        }
-
-        if (humMetric && humidities.length > 0) {
-          const avgHum = parseFloat((humidities.reduce((a, b) => a + b, 0) / humidities.length).toFixed(1));
-          if (updated[humMetric.id] !== avgHum) {
-            updated[humMetric.id] = avgHum;
-            changed = true;
-          }
-        }
-      });
-
-      if (changed) {
-        setFormData(updated);
-        const cacheKey = getCacheKey(targetHour);
-        localStorage.setItem(cacheKey, JSON.stringify(updated));
-      }
-    }
-  }, [formData, siteCode, targetHour]);
+  // Ambient temperature & humidity inputs are preserved directly as raw values
 
   // The Input Handler
   const handleInputChange = (id: string, value: any) => {

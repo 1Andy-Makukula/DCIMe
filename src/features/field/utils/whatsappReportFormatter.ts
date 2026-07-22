@@ -88,7 +88,8 @@ export const generateReportTexts = ({
         .map(v => parseFloat(v))
         .filter(n => !isNaN(n));
       if (nums.length === 0) return null;
-      return Math.round(nums.reduce((a, b) => a + b, 0) / nums.length);
+      const rawAvg = nums.reduce((a, b) => a + b, 0) / nums.length;
+      return Math.round(rawAvg / 10) * 10;
     };
 
     const avgV_LL_num = parseAvg(v_r, v_y, v_b);
@@ -232,6 +233,10 @@ Humidity: ${humidityMain}%`;
     const vt6_temp = getCleanValue('pac_data_vt6_return_temp_actual');
     const vt6_hum = getCleanValue('pac_data_vt6_humidity_actual');
 
+    const gridFreq = isGen
+      ? getCleanValue('dg_1_frequency', getCleanValue('dg_frequency', '50.0'))
+      : getCleanValue('grid_frequency', '50.0');
+
     internalPayload = `${whatsappPayload}${swSection}
 
 *UNIT TEMPERATURES & HUMIDITY*
@@ -251,6 +256,7 @@ Vertiv 5  : ${vt5_temp}°C | ${vt5_hum}%
 Vertiv 6  : ${vt6_temp}°C | ${vt6_hum}%
 
 *GRID/POWER METRICS*
+FREQUENCY   : ${gridFreq} Hz
 VOLTAGE L-L : R:${v_r}V | Y:${v_y}V | B:${v_b}V (AVG: ${avgV_LL}V)
 VOLTAGE L-N : RN:${v_rn}V | YN:${v_yn}V | BN:${v_bn}V (AVG: ${avgV_LN}V)
 CURRENT     : R:${a_r}A | Y:${a_y}A | B:${a_b}A (AVG: ${avgAmps}A)`;
@@ -273,7 +279,8 @@ CURRENT     : R:${a_r}A | Y:${a_y}A | B:${a_b}A (AVG: ${avgAmps}A)`;
         .map(v => parseFloat(v))
         .filter(n => !isNaN(n));
       if (nums.length === 0) return null;
-      return Math.round(nums.reduce((a, b) => a + b, 0) / nums.length);
+      const rawAvg = nums.reduce((a, b) => a + b, 0) / nums.length;
+      return Math.round(rawAvg / 10) * 10;
     };
 
     const avgV_LL_num = parseAvg(v_r, v_y, v_b);
@@ -335,9 +342,14 @@ Enterprise Room 1 *${tempIt1}*°C`;
     const em2_hum = getCleanValue('pac_server_em2_humidity_actual');
     const em1_it_temp = getCleanValue('pac_it1_em1_return_temp_actual');
 
+    const gridFreq = isGen
+      ? getCleanValue('dg_1_frequency', getCleanValue('dg_frequency', '50.0'))
+      : getCleanValue('grid_frequency', '50.0');
+
     internalPayload = `${whatsappPayload}${swSection}
 
 *GRID/POWER METRICS*
+FREQUENCY   : ${gridFreq} Hz
 VOLTAGE L-L : R:${v_r}V | Y:${v_y}V | B:${v_b}V (AVG: ${avgV_LL}V)
 VOLTAGE L-N : RN:${v_rn}V | YN:${v_yn}V | BN:${v_bn}V (AVG: ${avgV_LN}V)
 CURRENT     : R:${a_r}A | Y:${a_y}A | B:${a_b}A (AVG: ${avgAmps}A)
