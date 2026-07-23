@@ -89,3 +89,28 @@ CREATE POLICY "Equipment: admin update"
       AND role = 'ADMIN'
     )
   );
+
+-- 5. Recursion-safe role helper and employee select policy hardening
+CREATE OR REPLACE FUNCTION public.get_my_role()
+RETURNS text
+LANGUAGE sql
+STABLE
+SECURITY DEFINER
+SET search_path = public
+AS $$
+  SELECT role FROM public.employees WHERE auth_id = auth.uid() LIMIT 1;
+$$;
+
+DROP POLICY IF EXISTS "Employees: site-scoped read" ON public.employees;
+DROP POLICY IF EXISTS "Employees: read access" ON public.employees;
+
+CREATE POLICY "Employees: read access"
+  ON public.employees FOR SELECT
+  USING (
+    auth.role() = 'authenticated'
+    AND (
+      auth_id = auth.uid()
+      OR site_uuid = public.get_my_site_uuid()
+      OR public.get_my_role() = 'ADMIN'
+    )
+  );

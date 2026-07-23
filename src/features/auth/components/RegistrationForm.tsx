@@ -51,45 +51,64 @@ export function RegistrationForm({ onClose, onSaveSuccess }: RegistrationFormPro
   const [password, setPassword] = useState("");
   const [badgeId, setBadgeId] = useState("");
   const [phone, setPhone] = useState("");
-  const [site, setSite] = useState("NTC ZM 0874");
+  const [site, setSite] = useState("");
   const [role, setRole] = useState<"ADMIN" | "FIELD_TECH">("FIELD_TECH");
+  
+  const [sites, setSites] = useState<any[]>([]);
+  const [selectedSiteUuid, setSelectedSiteUuid] = useState("");
+
+  useEffect(() => {
+    const fetchSites = async () => {
+      try {
+        const { data, error } = await supabase
+          .from("sites")
+          .select("*")
+          .order("site_name", { ascending: true });
+        if (!error && data) {
+          setSites(data);
+          const defaultSite = data.find((s: any) => s.site_code === "NTC") || data[0];
+          if (defaultSite) {
+            setSelectedSiteUuid(defaultSite.id);
+            setSite(defaultSite.site_code);
+          }
+        }
+      } catch (err) {
+        console.error("Error loading sites for registration:", err);
+      }
+    };
+    fetchSites();
+  }, []);
   
   const [showPw, setShowPw] = useState(false);
   const [isRegistering, setIsRegistering] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
 
-  // Bootstrapping State
-  const [hasAdmins, setHasAdmins] = useState<boolean | null>(null);
+  // Bootstrapping State — Disabled as Admin accounts are now successfully set up
+  // const [hasAdmins, setHasAdmins] = useState<boolean | null>(null);
+  // useEffect(() => {
+  //   const checkAdmins = async () => {
+  //     try {
+  //       const { count, error: countError } = await supabase
+  //         .from("employees")
+  //         .select("*", { count: "exact", head: true })
+  //         .eq("role", "ADMIN");
+  //       
+  //       if (!countError) {
+  //         setHasAdmins((count || 0) > 0);
+  //       } else {
+  //         setHasAdmins(true);
+  //       }
+  //     } catch (err) {
+  //       setHasAdmins(true);
+  //     }
+  //   };
+  //   checkAdmins();
+  // }, []);
+  // const isBootstrapMode = hasAdmins === false;
 
-  useEffect(() => {
-    const checkAdmins = async () => {
-      try {
-        const { count, error: countError } = await supabase
-          .from("employees")
-          .select("*", { count: "exact", head: true })
-          .eq("role", "ADMIN");
-        
-        if (!countError) {
-          setHasAdmins((count || 0) > 0);
-        } else {
-          setHasAdmins(true); // Default to secure if database query fails
-        }
-      } catch (err) {
-        setHasAdmins(true);
-      }
-    };
-    checkAdmins();
-  }, []);
-
-  const isBootstrapMode = hasAdmins === false;
-
-  // Force role to ADMIN during first-time bootstrapping
-  useEffect(() => {
-    if (isBootstrapMode) {
-      setRole("ADMIN");
-    }
-  }, [isBootstrapMode]);
+  const hasAdmins = true;
+  const isBootstrapMode = false;
 
   // 1. Guard Check: Only authenticated users with ADMIN role can access, 
   // EXCEPT when the database is completely uninitialized (Bootstrap mode).
@@ -151,7 +170,8 @@ export function RegistrationForm({ onClose, onSaveSuccess }: RegistrationFormPro
           phone_number: phone.trim(),
           employee_id: badgeId.trim().toUpperCase(),
           role: role,
-          site_id: site
+          site_id: site,
+          site_uuid: selectedSiteUuid || null
         }]);
 
       if (dbError) {
@@ -314,16 +334,29 @@ export function RegistrationForm({ onClose, onSaveSuccess }: RegistrationFormPro
             </label>
             <div className="relative">
               <MapPin size={13} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400 z-10" />
-              <Select value={site} onValueChange={setSite}>
+              <Select 
+                value={selectedSiteUuid} 
+                onValueChange={(uuid) => {
+                  setSelectedSiteUuid(uuid);
+                  const matched = sites.find((s) => s.id === uuid);
+                  if (matched) {
+                    setSite(matched.site_code);
+                  }
+                }}
+              >
                 <SelectTrigger className="w-full h-[46px] pl-9 bg-gray-50 border border-gray-200 rounded-xl text-[12px] font-semibold text-gray-900 focus:ring-1 focus:ring-gray-450 focus:border-gray-450">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent className="bg-white border border-gray-100 rounded-xl shadow-lg z-[10000]">
-                  <SelectItem value="NTC ZM 0874" className="text-[12px] font-semibold text-gray-900 cursor-pointer">NTC ZM 0874 (Main Hub)</SelectItem>
-                  <SelectItem value="Generator Room" className="text-[12px] font-semibold text-gray-900 cursor-pointer">Generator Room</SelectItem>
-                  <SelectItem value="Power Room 1" className="text-[12px] font-semibold text-gray-900 cursor-pointer">Power Room 1</SelectItem>
-                  <SelectItem value="Power Room 2" className="text-[12px] font-semibold text-gray-900 cursor-pointer">Power Room 2</SelectItem>
-                  <SelectItem value="Server Room 1" className="text-[12px] font-semibold text-gray-900 cursor-pointer">Server Room 1</SelectItem>
+                  {sites.map((s) => (
+                    <SelectItem 
+                      key={s.id} 
+                      value={s.id} 
+                      className="text-[12px] font-semibold text-gray-900 cursor-pointer"
+                    >
+                      {s.site_name} ({s.site_code})
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>

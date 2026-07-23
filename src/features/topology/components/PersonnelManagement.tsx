@@ -42,6 +42,7 @@ interface Personnel {
   phone:      string;
   role:       Role;
   zone:       string;
+  siteUuid:   string | null;
   shift:      string;
   shiftDays:  string;
   lastActive: string;
@@ -125,17 +126,46 @@ function EditPersonnelModal({ isOpen, onClose, onSaveSuccess, person }: EditPers
   const [fullName, setFullName] = useState("");
   const [phone, setPhone] = useState("");
   const [role, setRole] = useState<"ADMIN" | "FIELD_TECH">("FIELD_TECH");
-  const [siteId, setSiteId] = useState("NTC ZM 0874");
+  const [siteId, setSiteId] = useState("");
   const [isSaving, setIsSaving] = useState(false);
+
+  const [sites, setSites] = useState<any[]>([]);
+  const [selectedSiteUuid, setSelectedSiteUuid] = useState("");
+
+  useEffect(() => {
+    const fetchSites = async () => {
+      try {
+        const { data, error } = await supabase
+          .from("sites")
+          .select("*")
+          .order("site_name", { ascending: true });
+        if (!error && data) {
+          setSites(data);
+        }
+      } catch (err) {
+        console.error("Error loading sites for editor:", err);
+      }
+    };
+    fetchSites();
+  }, []);
 
   useEffect(() => {
     if (person) {
       setFullName(person.name || "");
       setPhone(person.phone || "");
       setRole(person.role === "NOC Admin" ? "ADMIN" : "FIELD_TECH");
-      setSiteId(person.zone || "NTC ZM 0874");
+      
+      let pSiteUuid = person.siteUuid || "";
+      if (!pSiteUuid && sites.length > 0) {
+        const matched = sites.find((s) => s.site_code === person.zone || s.site_name === person.zone);
+        if (matched) {
+          pSiteUuid = matched.id;
+        }
+      }
+      setSelectedSiteUuid(pSiteUuid);
+      setSiteId(person.zone || "");
     }
-  }, [person]);
+  }, [person, sites]);
 
   if (!isOpen || !person) return null;
 
@@ -149,7 +179,8 @@ function EditPersonnelModal({ isOpen, onClose, onSaveSuccess, person }: EditPers
           full_name: fullName.trim(),
           phone_number: phone.trim(),
           role: role,
-          site_id: siteId
+          site_id: siteId,
+          site_uuid: selectedSiteUuid || null
         })
         .eq("id", person.id);
 
@@ -242,16 +273,29 @@ function EditPersonnelModal({ isOpen, onClose, onSaveSuccess, person }: EditPers
               <label className="block text-[10px] font-black text-gray-400 uppercase tracking-[0.12em] mb-1.5">
                 Primary Site Location
               </label>
-              <Select value={siteId} onValueChange={setSiteId}>
+              <Select 
+                value={selectedSiteUuid} 
+                onValueChange={(uuid) => {
+                  setSelectedSiteUuid(uuid);
+                  const matched = sites.find((s) => s.id === uuid);
+                  if (matched) {
+                    setSiteId(matched.site_code);
+                  }
+                }}
+              >
                 <SelectTrigger className="w-full h-11 bg-gray-50 border border-gray-200 rounded-xl text-[12px] font-semibold text-gray-900 focus:ring-1 focus:ring-gray-450 focus:border-gray-450">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent className="bg-white border border-gray-100 rounded-xl shadow-lg z-[10000]">
-                  <SelectItem value="NTC ZM 0874" className="text-[12px] font-semibold text-gray-900 cursor-pointer">NTC ZM 0874 (Main Hub)</SelectItem>
-                  <SelectItem value="Generator Room" className="text-[12px] font-semibold text-gray-900 cursor-pointer">Generator Room</SelectItem>
-                  <SelectItem value="Power Room 1" className="text-[12px] font-semibold text-gray-900 cursor-pointer">Power Room 1</SelectItem>
-                  <SelectItem value="Power Room 2" className="text-[12px] font-semibold text-gray-900 cursor-pointer">Power Room 2</SelectItem>
-                  <SelectItem value="Server Room 1" className="text-[12px] font-semibold text-gray-900 cursor-pointer">Server Room 1</SelectItem>
+                  {sites.map((s) => (
+                    <SelectItem 
+                      key={s.id} 
+                      value={s.id} 
+                      className="text-[12px] font-semibold text-gray-900 cursor-pointer"
+                    >
+                      {s.site_name} ({s.site_code})
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>
@@ -456,6 +500,7 @@ export function PersonnelManagement() {
       phone:       row.phone_number || "+260 97 000 0000",
       role:        mapRole(row.role),
       zone:        row.site_id || "Global (All Rooms)",
+      siteUuid:    row.site_uuid || null,
       shift:       row.role === "ADMIN" ? "08:00 – 18:00" : (row.employee_id && /\d/.test(row.employee_id) ? (parseInt(row.employee_id.replace(/\D/g, ""), 10) % 2 === 0 ? "08:00 – 18:00" : "18:00 – 08:00") : "08:00 – 18:00"),
       shiftDays:   "Mon – Fri",
       lastActive:  isRevoked ? "Suspended" : "Just now",
