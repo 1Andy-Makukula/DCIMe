@@ -263,8 +263,8 @@ export function LoginForm() {
                 </button>
               </div>
 
-              {/* Secure Bootstrapping Trigger */}
-              {hasAdmins === false && (
+              {/* Secure Bootstrapping Trigger — Hidden behind ?setup=true query parameter */}
+              {hasAdmins === false && new URLSearchParams(window.location.search).get("setup") === "true" && (
                 <div className="mt-6 p-4 rounded-2xl border border-dashed border-red-200 bg-red-50/30 text-center space-y-3 animate-pulse">
                   <div className="flex items-center gap-2 justify-center text-red-600">
                     <ShieldAlert size={16} />

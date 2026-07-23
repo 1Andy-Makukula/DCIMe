@@ -343,7 +343,7 @@ function EditPersonnelModal({ isOpen, onClose, onSaveSuccess, person }: EditPers
             </button>
             <button
               type="submit"
-              disabled={isSaving}
+              disabled={isSaving || !selectedSiteUuid}
               className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-gray-900 text-white text-[11px] font-black uppercase tracking-wider hover:bg-gray-700 active:scale-[0.98] transition-all cursor-pointer disabled:opacity-50"
             >
               {isSaving && <Loader2 size={12} className="animate-spin" />}

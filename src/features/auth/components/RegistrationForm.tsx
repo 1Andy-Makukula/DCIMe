@@ -84,31 +84,40 @@ export function RegistrationForm({ onClose, onSaveSuccess }: RegistrationFormPro
   const [error, setError] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
 
-  // Bootstrapping State — Disabled as Admin accounts are now successfully set up
-  // const [hasAdmins, setHasAdmins] = useState<boolean | null>(null);
-  // useEffect(() => {
-  //   const checkAdmins = async () => {
-  //     try {
-  //       const { count, error: countError } = await supabase
-  //         .from("employees")
-  //         .select("*", { count: "exact", head: true })
-  //         .eq("role", "ADMIN");
-  //       
-  //       if (!countError) {
-  //         setHasAdmins((count || 0) > 0);
-  //       } else {
-  //         setHasAdmins(true);
-  //       }
-  //     } catch (err) {
-  //       setHasAdmins(true);
-  //     }
-  //   };
-  //   checkAdmins();
-  // }, []);
-  // const isBootstrapMode = hasAdmins === false;
+  // Bootstrapping State — Require both zero admin count and ?setup=true query param
+  const [hasAdmins, setHasAdmins] = useState<boolean | null>(null);
+  
+  const queryParams = new URLSearchParams(window.location.search);
+  const isSetupParam = queryParams.get("setup") === "true";
 
-  const hasAdmins = true;
-  const isBootstrapMode = false;
+  useEffect(() => {
+    const checkAdmins = async () => {
+      try {
+        const { count, error: countError } = await supabase
+          .from("employees")
+          .select("*", { count: "exact", head: true })
+          .eq("role", "ADMIN");
+        
+        if (!countError) {
+          setHasAdmins((count || 0) > 0);
+        } else {
+          setHasAdmins(true);
+        }
+      } catch (err) {
+        setHasAdmins(true);
+      }
+    };
+    checkAdmins();
+  }, []);
+
+  const isBootstrapMode = hasAdmins === false && isSetupParam;
+
+  // Force role to ADMIN during first-time bootstrapping
+  useEffect(() => {
+    if (isBootstrapMode) {
+      setRole("ADMIN");
+    }
+  }, [isBootstrapMode]);
 
   // 1. Guard Check: Only authenticated users with ADMIN role can access, 
   // EXCEPT when the database is completely uninitialized (Bootstrap mode).
@@ -147,6 +156,12 @@ export function RegistrationForm({ onClose, onSaveSuccess }: RegistrationFormPro
     setIsRegistering(true);
     setError(null);
     setSuccessMsg(null);
+
+    if (!selectedSiteUuid) {
+      setError("A site must be selected before provisioning an account.");
+      setIsRegistering(false);
+      return;
+    }
 
     try {
       // Step A: Register User in Supabase Auth via the temporary non-persistent client
@@ -422,7 +437,7 @@ export function RegistrationForm({ onClose, onSaveSuccess }: RegistrationFormPro
           )}
           <button
             type="submit"
-            disabled={isRegistering}
+            disabled={isRegistering || !selectedSiteUuid}
             className="flex items-center gap-2 px-6 py-3 rounded-xl bg-gray-900 text-white text-[12px] font-black uppercase tracking-wider hover:bg-gray-700 active:scale-[0.98] transition-all disabled:opacity-50 cursor-pointer shadow-lg shadow-gray-900/10"
           >
             <UserPlus size={14} />
