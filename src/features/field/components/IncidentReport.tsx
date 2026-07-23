@@ -325,11 +325,11 @@ export function IncidentReport() {
 
         const newRoutineVisit = {
           ticket_number: ticketNum,
-          status: "RESOLVED",
+          status: "RESOLVED" as const,
           site_name: currentSite?.site_name || "NTC ZM 0874",
           site_uuid: currentSite?.id || null,
           asset_id: "GENERAL_SITE",
-          severity: "low",
+          severity: "low" as const,
           notes: `[Routine Visit] Contractor: ${contractorName}. Work Done: ${actionNotes}`,
           photo_url: actionPhoto || null,
           comments: [

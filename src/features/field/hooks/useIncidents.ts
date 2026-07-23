@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { supabase } from "@/shared/api/supabaseClient";
+import { useCurrentSite } from "@/shared/context/SiteContext";
 
 export interface Incident {
   id: string;
@@ -34,7 +35,24 @@ export interface Incident {
   site_uuid?: string | null;
 }
 
+function sanitizeIncident(item: any): Incident {
+  return {
+    ...item,
+    status: (item.status as "OPEN" | "RESOLVED") || "OPEN",
+    notes: item.notes || "",
+    site_name: item.site_name || "",
+    asset_id: item.asset_id || "",
+    severity: item.severity || "medium",
+    created_at: item.created_at || new Date().toISOString(),
+    raised_by_name: item.raised_by_name || "",
+    raised_by_id: item.raised_by_id || "",
+    occurred_at: item.occurred_at || new Date().toISOString(),
+    comments: Array.isArray(item.comments) ? (item.comments as Incident['comments']) : []
+  };
+}
+
 export function useIncidents() {
+  const { currentSite } = useCurrentSite();
   const [incidents, setIncidents] = useState<Incident[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
@@ -45,20 +63,24 @@ export function useIncidents() {
     setIsLoading(true);
     setError(null);
     try {
-      const { data, error: fetchError } = await supabase
+      // H-6: scope fetch to current site; M-9: add limit 200 for query performance
+      const query = supabase
         .from("incidents")
         .select("*")
-        .order("created_at", { ascending: false });
+        .order("created_at", { ascending: false })
+        .limit(200);
+
+      if (currentSite?.id) {
+        query.eq("site_uuid", currentSite.id);
+      }
+
+      const { data, error: fetchError } = await query;
 
       if (fetchError) throw fetchError;
       
       if (fetchId !== fetchCountRef.current) return;
 
-      const sanitized = (data || []).map(item => ({
-        ...item,
-        comments: Array.isArray(item.comments) ? item.comments : []
-      }));
-      
+      const sanitized = (data || []).map(sanitizeIncident);
       setIncidents(sanitized);
     } catch (err: any) {
       if (fetchId !== fetchCountRef.current) return;
@@ -69,17 +91,25 @@ export function useIncidents() {
         setIsLoading(false);
       }
     }
-  }, []);
+  }, [currentSite?.id]);
 
   // Fetch on mount and subscribe to realtime changes
   useEffect(() => {
     fetchIncidents();
 
+    const siteId = currentSite?.id;
+
+    // H-6 FIX: filter realtime subscription by site_uuid.
     const channel = supabase
-      .channel('incidents_realtime')
+      .channel(`incidents_realtime_${siteId ?? 'global'}`)
       .on(
         'postgres_changes',
-        { event: '*', schema: 'public', table: 'incidents' },
+        {
+          event: '*',
+          schema: 'public',
+          table: 'incidents',
+          ...(siteId ? { filter: `site_uuid=eq.${siteId}` } : {})
+        },
         () => {
           fetchIncidents();
         }
@@ -89,7 +119,7 @@ export function useIncidents() {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [fetchIncidents]);
+  }, [fetchIncidents, currentSite?.id]);
 
   // Report a new incident
   const reportIncident = async (payload: {
@@ -105,17 +135,22 @@ export function useIncidents() {
   }) => {
     setError(null);
     try {
-      const ticketNum = `INC-2026-${Math.floor(1000 + Math.random() * 9000)}`;
+      // H-4 FIX: High-entropy ticket number (Year-TimestampBase36-RandomHex)
+      const currentYear = new Date().getFullYear();
+      const tsBase36 = Date.now().toString(36).toUpperCase();
+      const randStr = Math.random().toString(36).substring(2, 6).toUpperCase();
+      const ticketNum = `INC-${currentYear}-${tsBase36}-${randStr}`;
+
       const newIncident = {
         ticket_number: ticketNum,
-        status: "OPEN",
+        status: "OPEN" as const,
         site_name: payload.site_name || "NTC ZM 0874",
         site_uuid: payload.site_uuid || null,
         asset_id: payload.asset_id,
-        severity: payload.severity.toLowerCase(),
+        severity: (payload.severity.toLowerCase() as "low" | "medium" | "critical") || "medium",
         notes: payload.notes,
         photo_url: payload.photo_url || null,
-        comments: [],
+        comments: [] as any[],
         occurred_at: payload.occurred_at || new Date().toISOString(),
         raised_by_name: payload.raised_by_name || "",
         raised_by_id: payload.raised_by_id || "",
@@ -130,13 +165,9 @@ export function useIncidents() {
 
       if (insertError) throw insertError;
 
-      // Optimistic state update or refetch
-      const sanitized = {
-        ...data,
-        comments: Array.isArray(data.comments) ? data.comments : []
-      };
+      const sanitized = sanitizeIncident(data);
       setIncidents((prev) => [sanitized, ...prev]);
-      return sanitized as Incident;
+      return sanitized;
     } catch (err: any) {
       console.error("Error reporting incident:", err);
       setError(err.message || "Failed to submit incident report.");
@@ -173,22 +204,19 @@ export function useIncidents() {
 
       const { data, error: updateError } = await supabase
         .from("incidents")
-        .update({ comments: updatedComments })
+        .update({ comments: updatedComments as any })
         .eq("id", id)
         .select()
         .single();
 
       if (updateError) throw updateError;
 
-      const sanitized = {
-        ...data,
-        comments: Array.isArray(data.comments) ? data.comments : []
-      };
+      const sanitized = sanitizeIncident(data);
 
       setIncidents((prev) =>
         prev.map((item) => (item.id === id ? sanitized : item))
       );
-      return sanitized as Incident;
+      return sanitized;
     } catch (err: any) {
       console.error("Error adding comment to incident:", err);
       setError(err.message || "Failed to add comment.");
@@ -217,7 +245,7 @@ export function useIncidents() {
       const receiptNumber = `REC-${currentYear}-${randomCode}`;
 
       const updateData = {
-        status: "RESOLVED",
+        status: "RESOLVED" as const,
         resolved_at: payload.resolved_at || new Date().toISOString(),
         resolved_by_name: payload.resolved_by_name || "",
         resolved_by_id: payload.resolved_by_id || "",
@@ -237,15 +265,12 @@ export function useIncidents() {
 
       if (updateError) throw updateError;
 
-      const sanitized = {
-        ...data,
-        comments: Array.isArray(data.comments) ? data.comments : []
-      };
+      const sanitized = sanitizeIncident(data);
 
       setIncidents((prev) =>
         prev.map((item) => (item.id === id ? sanitized : item))
       );
-      return sanitized as Incident;
+      return sanitized;
     } catch (err: any) {
       console.error("Error resolving incident:", err);
       setError(err.message || "Failed to resolve incident.");

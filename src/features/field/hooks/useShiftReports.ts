@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { supabase } from "@/shared/api/supabaseClient";
+import { useCurrentSite } from "@/shared/context/SiteContext";
 
 export interface ShiftReport {
   log_id: string;
@@ -18,7 +19,25 @@ export interface ShiftReport {
   site_uuid?: string | null;
 }
 
+function sanitizeShiftReport(item: any): ShiftReport {
+  return {
+    ...item,
+    timestamp: item.timestamp || new Date().toISOString(),
+    notes: item.notes || "",
+    active_power_source: item.active_power_source || "MAINS",
+    site_id: item.site_id || "",
+    certified: !!item.certified,
+    technician_name: item.technician_name || "",
+    technician_id: item.technician_id || "",
+    signature_id: item.signature_id || "",
+    shift_duration: item.shift_duration || "",
+    routine_logs_completed: Number(item.routine_logs_completed || 0),
+    incidents_filed: Number(item.incidents_filed || 0)
+  };
+}
+
 export function useShiftReports() {
+  const { currentSite } = useCurrentSite();
   const [shiftReports, setShiftReports] = useState<ShiftReport[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
@@ -29,15 +48,25 @@ export function useShiftReports() {
     setIsLoading(true);
     setError(null);
     try {
-      const { data, error: fetchError } = await supabase
+      // H-6: Site isolation on query; M-9: Limit 200 for bounded memory footprint
+      const siteId = currentSite?.id;
+      const query = supabase
         .from("shift_reports")
         .select("*")
-        .order("timestamp", { ascending: false });
+        .order("timestamp", { ascending: false })
+        .limit(200);
+
+      if (siteId) {
+        query.eq("site_uuid", siteId);
+      }
+
+      const { data, error: fetchError } = await query;
 
       if (fetchError) throw fetchError;
 
       if (fetchId !== fetchCountRef.current) return;
-      setShiftReports(data || []);
+      const sanitized = (data || []).map(sanitizeShiftReport);
+      setShiftReports(sanitized);
     } catch (err: any) {
       if (fetchId !== fetchCountRef.current) return;
       console.error("Error fetching shift reports:", err);
@@ -47,17 +76,23 @@ export function useShiftReports() {
         setIsLoading(false);
       }
     }
-  }, []);
+  }, [currentSite?.id]);
 
-  // Fetch on mount and subscribe to realtime changes
+  // Fetch on mount and subscribe to realtime changes (H-6 site isolation)
   useEffect(() => {
     fetchShiftReports();
 
+    const siteId = currentSite?.id;
     const channel = supabase
-      .channel('shift_reports_realtime')
+      .channel(`shift_reports_realtime_${siteId ?? 'global'}`)
       .on(
         'postgres_changes',
-        { event: '*', schema: 'public', table: 'shift_reports' },
+        {
+          event: '*',
+          schema: 'public',
+          table: 'shift_reports',
+          ...(siteId ? { filter: `site_uuid=eq.${siteId}` } : {})
+        },
         () => {
           fetchShiftReports();
         }
@@ -67,7 +102,7 @@ export function useShiftReports() {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [fetchShiftReports]);
+  }, [fetchShiftReports, currentSite?.id]);
 
   // Submit a new shift report (Handover)
   const submitShiftReport = async (payload: {
@@ -94,9 +129,9 @@ export function useShiftReports() {
         shift_duration: payload.shift_duration,
         routine_logs_completed: payload.routine_logs_completed,
         incidents_filed: payload.incidents_filed,
-        active_power_source: payload.active_power_source || "MAINS",
+        active_power_source: (payload.active_power_source || "MAINS") as "MAINS" | "GENERATOR" | "BLACKOUT",
         site_id: payload.site_id || "NTC ZM 0874",
-        site_uuid: payload.site_uuid || null,
+        site_uuid: payload.site_uuid || currentSite?.id || null,
         timestamp: new Date().toISOString()
       };
 
@@ -108,8 +143,9 @@ export function useShiftReports() {
 
       if (insertError) throw insertError;
 
-      setShiftReports((prev) => [data, ...prev]);
-      return data as ShiftReport;
+      const sanitized = sanitizeShiftReport(data);
+      setShiftReports((prev) => [sanitized, ...prev]);
+      return sanitized;
     } catch (err: any) {
       console.error("Error submitting shift report:", err);
       setError(err.message || "Failed to submit shift handover.");

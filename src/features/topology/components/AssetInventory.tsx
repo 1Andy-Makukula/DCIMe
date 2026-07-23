@@ -237,7 +237,15 @@ function ManageParametersModal({ isOpen, onClose, equipmentId }: ManageParameter
         .order("created_at", { ascending: true });
 
       if (error) throw error;
-      setParameters(data || []);
+
+      const sanitized: EquipmentParameter[] = (data || []).map((p: any) => ({
+        ...p,
+        is_constant: !!p.is_constant,
+        data_type: (p.data_type as any) || "string",
+        is_graphable: !!p.is_graphable,
+        created_at: p.created_at || new Date().toISOString()
+      }));
+      setParameters(sanitized);
     } catch (err) {
       console.error("Error loading parameters:", err);
     } finally {

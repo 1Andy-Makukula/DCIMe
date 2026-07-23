@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { supabase } from '@/shared/api/supabaseClient';
+import { useCurrentSite } from '@/shared/context/SiteContext';
 
 export interface GridDataPoint {
   time: string;
@@ -219,6 +220,7 @@ const defaultTickets: TicketPoint[] = [
 ];
 
 export function useDashboardData() {
+  const { currentSite } = useCurrentSite();
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [isUsingMockData, setIsUsingMockData] = useState<boolean>(true);
   const [latestGridStatus, setLatestGridStatus] = useState<string>('ONLINE');
@@ -251,19 +253,24 @@ export function useDashboardData() {
       const fetchId = ++fetchCountRef.current;
       setIsLoading(true);
       try {
-        // Fetch Telemetry Logs
-        const { data: telLogs, error: telError } = await supabase
+        // Fetch Telemetry Logs (scoped to site)
+        const siteId = currentSite?.id;
+        const telQuery = supabase
           .from('telemetry_logs')
           .select('*')
           .order('target_hour', { ascending: false })
           .limit(50);
+        if (siteId) telQuery.eq('site_uuid', siteId);
+        const { data: telLogs, error: telError } = await telQuery;
 
-        // Fetch Incidents
-        const { data: incData, error: incError } = await supabase
+        // Fetch Incidents (scoped to site)
+        const incQuery = supabase
           .from('incidents')
           .select('*')
           .order('created_at', { ascending: false })
           .limit(30);
+        if (siteId) incQuery.eq('site_uuid', siteId);
+        const { data: incData, error: incError } = await incQuery;
 
         if (telError) throw telError;
         if (incError) throw incError;
@@ -278,7 +285,7 @@ export function useDashboardData() {
 
           // 1. Grid Mapping
           const mappedGrid = sortedLogs.map(row => {
-            const m = row.metrics || {};
+            const m = (row.metrics || {}) as Record<string, any>;
             const time = new Date(row.target_hour).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false });
             return {
               time,
@@ -292,26 +299,30 @@ export function useDashboardData() {
           setGridChartData(mappedGrid);
 
           // Grid Real-Time status
-          const latestGridVal = telLogs[0]?.metrics?.grid_status || 'ONLINE';
+          const latestGridVal = (telLogs[0]?.metrics as Record<string, any> | null)?.grid_status || 'ONLINE';
           setLatestGridStatus(latestGridVal);
 
           // Grid KPIs
           const totalLogs = telLogs.length;
           const offlineLogs = telLogs.filter(row => {
-            const status = (row.metrics?.grid_status || '').toUpperCase();
-            const outageType = row.metrics?.outage_type || '';
+            const m = (row.metrics || {}) as Record<string, any>;
+            const status = (m.grid_status || '').toUpperCase();
+            const outageType = m.outage_type || '';
             const isOffline = status === 'OFFLINE' || status === 'OFF';
             return isOffline && outageType !== 'planned_test';
           }).length;
           const uptimePct = totalLogs > 0 ? (((totalLogs - offlineLogs) / totalLogs) * 100).toFixed(1) : "100.0";
           const blackoutHours = (offlineLogs * 1).toFixed(1); // Hourly resolution
           
-          const maxLoadVal = Math.max(...telLogs.map(row => parseFloat(row.metrics?.grid_total_site_load ?? row.metrics?.total_active_power_kw ?? 0)));
+          const maxLoadVal = Math.max(...telLogs.map(row => {
+            const m = (row.metrics || {}) as Record<string, any>;
+            return parseFloat(m.grid_total_site_load ?? m.total_active_power_kw ?? 0);
+          }));
           const peakLoad = (isNaN(maxLoadVal) || maxLoadVal === -Infinity || maxLoadVal === Infinity) ? "0.0" : maxLoadVal.toFixed(1);
 
           // 2. Fuel Mapping
           const mappedFuel = sortedLogs.map(row => {
-            const m = row.metrics || {};
+            const m = (row.metrics || {}) as Record<string, any>;
             const date = new Date(row.target_hour).toLocaleDateString([], { month: 'short', day: '2-digit' });
             const result: any = { date };
 
@@ -324,7 +335,7 @@ export function useDashboardData() {
               let run_hrs = Math.max(0, stop - start);
               if (!run_hrs) run_hrs = parseFloat(m[`${prefix}_run_hrs`] ?? (id === 'hq' ? 1.5 : 2.5));
               const fuel_consumed = parseFloat(m[`${prefix}_calculated_fuel_burn`] ?? String(run_hrs * 150));
-              
+
               const keyName = id === 'hq' ? 'dghq' : `dg${id}`;
               result[`${keyName}_run_hrs`] = run_hrs;
               result[`${keyName}_fuel_consumed`] = fuel_consumed;
@@ -342,19 +353,19 @@ export function useDashboardData() {
           let sumRunHours = 0;
           let sumFuelConsumed = 0;
           telLogs.forEach(row => {
-            const m = row.metrics || {};
+            const m = (row.metrics || {}) as Record<string, any>;
             const start = parseFloat(m.dg_1_hr_meter_start ?? 0);
             const stop = parseFloat(m.dg_1_hr_meter_stop ?? 0);
             let run_hrs = Math.max(0, stop - start);
             if (!run_hrs) run_hrs = parseFloat(m.dg_1_run_hrs ?? m.dg_hq_run_hrs ?? 0);
-            
+
             sumRunHours += run_hrs;
             sumFuelConsumed += parseFloat(m.dg_1_calculated_fuel_burn ?? String(run_hrs * 150));
           });
 
           // Engine Health Scatter Mapping - read dynamic prefixes from the latest log
           const latestLogObj = telLogs[0];
-          const latestM = latestLogObj.metrics || {};
+          const latestM = (latestLogObj.metrics || {}) as Record<string, any>;
           const generatorIds = ['1', '2', '3', '4', 'hq'];
           const mappedHealth = generatorIds.map(id => {
             const name = id === 'hq' ? 'DG-HQ' : `DG-${id}`;
@@ -362,7 +373,7 @@ export function useDashboardData() {
             const oil_pressure = parseFloat(latestM[`${prefix}_oil_pressure`] ?? 4.5);
             const water_temp = parseFloat(latestM[`${prefix}_water_temp`] ?? 82);
             const batt_voltage = parseFloat(latestM[`${prefix}_batt_voltage`] ?? 26.8);
-            
+
             let status = "OK";
             if (water_temp > 95 || oil_pressure < 2.5) status = "CRITICAL";
             else if (water_temp > 90 || oil_pressure < 3.5) status = "WARNING";
@@ -373,7 +384,7 @@ export function useDashboardData() {
 
           // 3. UPS Mapping
           const mappedUps = sortedLogs.map(row => {
-            const m = row.metrics || {};
+            const m = (row.metrics || {}) as Record<string, any>;
             const time = new Date(row.target_hour).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false });
             return {
               time,
@@ -383,7 +394,7 @@ export function useDashboardData() {
           });
           setUpsChartData(mappedUps);
 
-          const latestMetrics = telLogs[0].metrics || {};
+          const latestMetrics = (telLogs[0].metrics || {}) as Record<string, any>;
           const ups1AmpsA = parseFloat(latestMetrics.ups_1_load_amps_a ?? 152);
           const ups1AmpsB = parseFloat(latestMetrics.ups_1_load_amps_b ?? 148);
           const ups1AmpsC = parseFloat(latestMetrics.ups_1_load_amps_c ?? 150);
@@ -403,7 +414,7 @@ export function useDashboardData() {
 
           // 4. Thermal Mapping
           const mappedThermal = sortedLogs.map(row => {
-            const m = row.metrics || {};
+            const m = (row.metrics || {}) as Record<string, any>;
             const time = new Date(row.target_hour).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false });
             return {
               time,
@@ -426,7 +437,10 @@ export function useDashboardData() {
           setZoneData(mappedZones);
 
           // Thermal KPIs
-          const maxTempVal = Math.max(...telLogs.map(row => parseFloat(row.metrics?.server_ambient_temp ?? 0)));
+          const maxTempVal = Math.max(...telLogs.map(row => {
+            const m = (row.metrics || {}) as Record<string, any>;
+            return parseFloat(m.server_ambient_temp ?? 0);
+          }));
           const peakTemp = (isNaN(maxTempVal) || maxTempVal === -Infinity || maxTempVal === Infinity) ? "22.4" : maxTempVal.toFixed(1);
           const avgHumidity = parseFloat(latestMetrics.server_ambient_humidity ?? 48.2);
 
@@ -451,7 +465,7 @@ export function useDashboardData() {
 
           if (incData && incData.length > 0) {
             totalIncidents = incData.length;
-            openTickets = incData.filter(t => t.status === "OPEN" || t.status === "RAISED").length;
+            openTickets = incData.filter(t => (t.status as string) === "OPEN" || (t.status as string) === "RAISED").length;
 
             ticketsLedgerData = incData.map(inc => ({
               id: inc.ticket_number || `INC-${String(inc.id).substring(0, 4)}`,
@@ -459,7 +473,7 @@ export function useDashboardData() {
               tech: inc.raised_by_name || 'NOC Operator',
               severity: inc.severity || 'medium',
               status: inc.status === "RESOLVED" ? "Resolved" : "Open",
-              date: new Date(inc.created_at).toLocaleDateString([], { month: 'short', day: '2-digit' }),
+              date: new Date(inc.created_at || Date.now()).toLocaleDateString([], { month: 'short', day: '2-digit' }),
               desc: inc.notes || 'No description provided.',
               resolution: inc.resolution_details || 'Pending resolution details.'
             }));
@@ -467,16 +481,16 @@ export function useDashboardData() {
             incidentBubblesData = incData.slice(0, 10).map((inc, idx) => {
               let severityVal = 100;
               if (inc.severity === 'critical') severityVal = 500;
-              else if (inc.severity === 'high') severityVal = 300;
+              else if ((inc.severity as string) === 'high') severityVal = 300;
               else if (inc.severity === 'medium') severityVal = 150;
 
               return {
-                dayIndex: new Date(inc.created_at).getTime(),
+                dayIndex: new Date(inc.created_at || Date.now()).getTime(),
                 yValue: (idx % 5) + 1,
                 severity: severityVal,
                 name: inc.notes ? inc.notes.substring(0, 20) + "..." : inc.ticket_number,
                 status: inc.status === "RESOLVED" ? "Resolved" : "Open",
-                date: new Date(inc.created_at).toLocaleDateString([], { month: 'short', day: '2-digit' })
+                date: new Date(inc.created_at || Date.now()).toLocaleDateString([], { month: 'short', day: '2-digit' })
               };
             });
 
@@ -484,7 +498,7 @@ export function useDashboardData() {
             const resolvedIncidents = incData.filter(t => t.status === "RESOLVED" && t.resolved_at && t.occurred_at);
             if (resolvedIncidents.length > 0) {
               const totalDurationMs = resolvedIncidents.reduce((sum, current) => {
-                const diff = new Date(current.resolved_at).getTime() - new Date(current.occurred_at).getTime();
+                const diff = new Date(current.resolved_at!).getTime() - new Date(current.occurred_at!).getTime();
                 return sum + diff;
               }, 0);
               const avgDurationHours = (totalDurationMs / (1000 * 60 * 60 * resolvedIncidents.length)).toFixed(1);
@@ -536,11 +550,18 @@ export function useDashboardData() {
 
     fetchData();
 
+    const siteId = currentSite?.id;
+
     const channelLogs = supabase
-      .channel('analytics_telemetry_logs_realtime')
+      .channel(`analytics_telemetry_logs_realtime_${siteId ?? 'global'}`)
       .on(
         'postgres_changes',
-        { event: '*', schema: 'public', table: 'telemetry_logs' },
+        {
+          event: '*',
+          schema: 'public',
+          table: 'telemetry_logs',
+          ...(siteId ? { filter: `site_uuid=eq.${siteId}` } : {})
+        },
         () => {
           fetchData();
         }
@@ -548,10 +569,15 @@ export function useDashboardData() {
       .subscribe();
 
     const channelIncidents = supabase
-      .channel('analytics_incidents_realtime')
+      .channel(`analytics_incidents_realtime_${siteId ?? 'global'}`)
       .on(
         'postgres_changes',
-        { event: '*', schema: 'public', table: 'incidents' },
+        {
+          event: '*',
+          schema: 'public',
+          table: 'incidents',
+          ...(siteId ? { filter: `site_uuid=eq.${siteId}` } : {})
+        },
         () => {
           fetchData();
         }
@@ -562,7 +588,7 @@ export function useDashboardData() {
       supabase.removeChannel(channelLogs);
       supabase.removeChannel(channelIncidents);
     };
-  }, []);
+  }, [currentSite?.id]);
 
   return {
     isLoading,

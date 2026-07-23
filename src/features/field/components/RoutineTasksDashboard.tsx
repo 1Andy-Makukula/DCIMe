@@ -458,12 +458,12 @@ export const RoutineTasksDashboard = ({
 
       if (data) {
         const lastLogWithDg = data.find((row: any) => {
-          const m = row.metrics || {};
+          const m = (row.metrics || {}) as Record<string, any>;
           return m[`${dgId}_hr_meter_stop`] !== undefined && m[`${dgId}_hr_meter_stop`] !== null && m[`${dgId}_hr_meter_stop`] !== "";
         });
 
         if (lastLogWithDg) {
-          const m = lastLogWithDg.metrics;
+          const m = (lastLogWithDg.metrics || {}) as Record<string, any>;
           return {
             hr_meter_stop: m[`${dgId}_hr_meter_stop`],
             cumulative_hrs: m[`${dgId}_cumulative_hrs`],

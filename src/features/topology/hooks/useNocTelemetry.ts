@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { supabase } from "@/shared/api/supabaseClient";
+import { useCurrentSite } from "@/shared/context/SiteContext";
 
 // ── Output shape — drop-in replacement for all three mockData arrays ──────────
 export interface NocLoadPoint  { t: string; kw: number }
@@ -48,6 +49,7 @@ function toAlertLevel(severity: string): "warn" | "crit" {
 }
 
 export function useNocTelemetry(): UseNocTelemetryResult {
+  const { currentSite } = useCurrentSite();
   const [loadChartData, setLoadChartData] = useState<NocLoadPoint[]>([]);
   const [thermalData,   setThermalData]   = useState<NocThermalPoint[]>([]);
   const [phaseAlerts,   setPhaseAlerts]   = useState<NocAlert[]>([]);
@@ -61,10 +63,20 @@ export function useNocTelemetry(): UseNocTelemetryResult {
     const fetchId = ++fetchCountRef.current;
     setIsLoading(true);
     try {
-      // ── Query 1: telemetry logs (fetch newest 50 logs) ──
+      // H-5 FIX: scope telemetry fetch to the current site.
+      // Previously fetched the 50 newest logs across ALL sites, causing the
+      // NOC dashboard to show blended multi-site data in charts and thermals.
+      const siteId = currentSite?.id;
+      if (!siteId) {
+        setIsLoading(false);
+        return;
+      }
+
+      // ── Query 1: site-scoped telemetry logs ──
       const { data: telemetryRows, error: telemetryError } = await supabase
         .from("telemetry_logs")
         .select("target_hour, metrics")
+        .eq("site_uuid", siteId)
         .order("target_hour", { ascending: false })
         .limit(50);
 
@@ -94,10 +106,11 @@ export function useNocTelemetry(): UseNocTelemetryResult {
         }).filter((p) => p.temp > 0);
       }
 
-      // ── Query 2: open incidents → phase alerts ───────────────────────────
+      // ── Query 2: site-scoped open incidents → phase alerts ───────────────
       const { data: incidentRows, error: incidentError } = await supabase
         .from("incidents")
         .select("id, ticket_number, severity, notes, created_at")
+        .eq("site_uuid", siteId)
         .eq("status", "OPEN")
         .order("created_at", { ascending: false })
         .limit(20);
@@ -109,7 +122,7 @@ export function useNocTelemetry(): UseNocTelemetryResult {
         id:    inc.ticket_number ?? inc.id,
         msg:   inc.notes ?? "Alert",
         level: toAlertLevel(inc.severity),
-        time:  toHHMM(new Date(inc.created_at)),
+        time:  toHHMM(new Date(inc.created_at || Date.now())),
       }));
 
       // ── Commit state ──────────────────────────────────────────────────────
@@ -124,25 +137,42 @@ export function useNocTelemetry(): UseNocTelemetryResult {
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  // H-6 FIX: dependency on currentSite?.id so subscriptions re-register
+  // when the site changes (e.g. admin switching between sites).
+  }, [currentSite?.id]);
 
   useEffect(() => {
     fetchAll();
 
+    const siteId = currentSite?.id;
+
+    // H-6 FIX: filter realtime subscriptions by site_uuid.
+    // Without this, every client receives all-site change events for these
+    // tables and triggers a full refetch — both wasteful and a data leak risk.
     const channelLogs = supabase
-      .channel("noc_telemetry_logs_realtime")
+      .channel(`noc_telemetry_logs_realtime_${siteId ?? 'global'}`)
       .on(
         "postgres_changes",
-        { event: "*", schema: "public", table: "telemetry_logs" },
+        {
+          event: "*",
+          schema: "public",
+          table: "telemetry_logs",
+          ...(siteId ? { filter: `site_uuid=eq.${siteId}` } : {})
+        },
         () => fetchAll()
       )
       .subscribe();
 
     const channelIncidents = supabase
-      .channel("noc_incidents_realtime")
+      .channel(`noc_incidents_realtime_${siteId ?? 'global'}`)
       .on(
         "postgres_changes",
-        { event: "*", schema: "public", table: "incidents" },
+        {
+          event: "*",
+          schema: "public",
+          table: "incidents",
+          ...(siteId ? { filter: `site_uuid=eq.${siteId}` } : {})
+        },
         () => fetchAll()
       )
       .subscribe();
@@ -151,7 +181,7 @@ export function useNocTelemetry(): UseNocTelemetryResult {
       supabase.removeChannel(channelLogs);
       supabase.removeChannel(channelIncidents);
     };
-  }, [fetchAll]);
+  }, [fetchAll, currentSite?.id]);
 
   return {
     loadChartData,

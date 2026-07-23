@@ -37,6 +37,9 @@ public:
 
     // Simulation controls
     void updateState(double dt);
+    // Two-pass topological update (C-4 fix — see PowerMatrix.cpp for details).
+    // Pass 1: source-tier nodes (grid_tx, generator, tco, main_db).
+    // Pass 2: consumer-tier nodes (ups, rectifier, cooling, server).
     void runMatrixUpdate();
 
     // Setters & Getters
@@ -61,8 +64,12 @@ public:
     // ── New DG pair rotation getters ──────────────────────────────────────────
     // Returns "standby", "pair_a_starting", "pair_a_running", "pair_b_starting", "pair_b_running"
     std::string getDgPairStatus() const { return dg_pair_status; }
-    // Returns accumulated run-hours for DG index 0-3
+    // Returns accumulated run-hours for DG unit by index.
+    // C-5: dg_run_hours is declared as double[4] — valid indices are 0, 1, 2, 3
+    //      (DG1=0, DG2=1, DG3=2, DG4=3).  Any other value returns 0.0 safely.
+    //      JS/WASM callers must validate idx before calling: 0 <= idx <= 3.
     double getDgRunHours(int idx) const {
+        // Explicit contract: [0,3] are the only valid indices for dg_run_hours[4]
         if (idx < 0 || idx > 3) return 0.0;
         return dg_run_hours[idx];
     }
@@ -94,6 +101,11 @@ private:
     // Shift length (seconds). Default = 28800 (8 real hours).
     // For demo/simulation, change to e.g. 480 (8 sim-minutes).
     static const double DG_SHIFT_SECONDS;
+
+    // M-10: Fuel drain rates (L/s) — authoritative definitions are in PowerMatrix.cpp.
+    // Declared here for visibility; defined as file-scope constexpr in the .cpp.
+    //   PAIR     : 2 generators running simultaneously  (steady-state) ≈ 140 L/hr
+    //   HANDOVER : 3-generator overlap during pair rotation            ≈ 162 L/hr
 };
 
 } // namespace Topology

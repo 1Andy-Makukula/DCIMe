@@ -84,6 +84,7 @@ export function useFacilityState() {
   // Subscribe to real-time changes
   useEffect(() => {
     if (!currentSite?.id) return;
+    let active = true;
 
     const channel = supabase
       .channel(`facility_states_realtime_${currentSite.id}`)
@@ -96,6 +97,7 @@ export function useFacilityState() {
           filter: `site_uuid=eq.${currentSite.id}`
         },
         (payload) => {
+          if (!active) return;
           if (payload.new && (payload.new as any).fsm_mode) {
             setFsmModeState((payload.new as any).fsm_mode as FsmMode);
           }
@@ -104,6 +106,7 @@ export function useFacilityState() {
       .subscribe();
 
     return () => {
+      active = false;
       supabase.removeChannel(channel);
     };
   }, [currentSite?.id]);

@@ -79,8 +79,6 @@ export function useTelemetryData(
                 keysToRemove.push(key);
               }
             }
-          } else {
-            keysToRemove.push(key);
           }
         }
       }
@@ -94,6 +92,10 @@ export function useTelemetryData(
   useEffect(() => {
     const checkDailyTest = async () => {
       try {
+        // M-2: scope to current site — without this filter, any site's daily
+        // test would mark THIS site's isDailyTestDoneToday as true
+        if (!currentSite?.id) return;
+
         const todayStart = new Date();
         todayStart.setHours(0, 0, 0, 0);
         const todayEnd = new Date();
@@ -102,6 +104,7 @@ export function useTelemetryData(
         const { data, error } = await supabase
           .from('telemetry_logs')
           .select('metrics, technician_name, target_hour')
+          .eq('site_uuid', currentSite.id)
           .gte('target_hour', todayStart.toISOString())
           .lte('target_hour', todayEnd.toISOString());
 
@@ -160,14 +163,22 @@ export function useTelemetryData(
     setIsSuccess(false);
 
     // Step B (Date Construction)
+    // H-1 FIX: Build targetHourISO in pure UTC to avoid timezone drift.
+    // The old approach used setHours() (local time) then toISOString() (UTC),
+    // which produced the wrong timestamp for users in non-UTC zones and would
+    // silently break during DST transitions (off by ±1 hour).
     const numericTargetH = typeof targetHour === 'number'
       ? targetHour
       : parseInt(String(targetHour || '0').split(':')[0], 10);
     const safeH = isNaN(numericTargetH) ? 0 : numericTargetH;
 
-    const today = new Date();
-    today.setHours(safeH, 0, 0, 0);
-    const targetHourISO = today.toISOString();
+    const now = new Date();
+    const targetHourISO = new Date(Date.UTC(
+      now.getUTCFullYear(),
+      now.getUTCMonth(),
+      now.getUTCDate(),
+      safeH, 0, 0, 0
+    )).toISOString();
 
     const fetchTelemetryData = async () => {
       try {
@@ -194,7 +205,7 @@ export function useTelemetryData(
 
         if (currentData && currentData.metrics) {
           setIsEditMode(true);
-          const metrics = { ...currentData.metrics } as Record<string, any>;
+          const metrics = { ...(currentData.metrics as Record<string, any>) };
 
           // Self-heal: ensure all constants from blueprint are populated if blank/missing
           blueprint.equipment.forEach((equip: any) => {
@@ -277,16 +288,25 @@ export function useTelemetryData(
 
     fetchTelemetryData();
 
-    // Subscribe to realtime updates for the current target hour
+    // H-3 FIX: Add site_uuid to the realtime subscription filter.
+    // The previous filter only narrowed by target_hour — every client received
+    // every site's telemetry changes for that hour, with site isolation done
+    // purely in JS. With RLS now enforcing site scope server-side (Phase 1),
+    // adding site_uuid here also prevents unnecessary cross-site WS traffic.
+    const siteUuid = currentSite?.id;
+    const realtimeFilter = siteUuid
+      ? `target_hour=eq.${targetHourISO},site_uuid=eq.${siteUuid}`
+      : `target_hour=eq.${targetHourISO}`;
+
     const channel = supabase
-      .channel(`telemetry_logs_realtime_${targetHourISO}`)
+      .channel(`telemetry_logs_realtime_${targetHourISO}_${siteUuid ?? 'global'}`)
       .on(
         'postgres_changes',
         {
           event: '*',
           schema: 'public',
           table: 'telemetry_logs',
-          filter: `target_hour=eq.${targetHourISO}`
+          filter: realtimeFilter
         },
         (payload) => {
           if (!active) return;
@@ -295,7 +315,9 @@ export function useTelemetryData(
             setIsEditMode(false);
           } else {
             const metrics = payload.new?.metrics as Record<string, any>;
-            if (metrics && (metrics.site_id === siteCode || metrics.site_uuid === currentSite?.id)) {
+            // Secondary JS-side guard — defence-in-depth in case filter isn't
+            // supported on this Supabase plan (some plans don't allow multi-column filters)
+            if (metrics && (metrics.site_id === siteCode || metrics.site_uuid === siteUuid)) {
               setFormData(metrics);
               setIsEditMode(true);
               localStorage.setItem(cacheKey, JSON.stringify(metrics));
@@ -310,7 +332,9 @@ export function useTelemetryData(
       active = false;
       supabase.removeChannel(channel);
     };
-  }, [targetHour, siteCode]);
+  // M-1 FIX: add currentSite?.id to deps — if the site UUID changes (admin
+  // switches sites), the subscription must re-register with the new filter.
+  }, [targetHour, siteCode, currentSite?.id]);
 
   // Ambient temperature & humidity inputs are preserved directly as raw values
 
@@ -420,14 +444,19 @@ export function useTelemetryData(
     }
 
     try {
+      // H-1 FIX: same UTC-based construction as the fetch effect above
       const numericTargetH = typeof targetHour === 'number'
         ? targetHour
         : parseInt(String(targetHour || '0').split(':')[0], 10);
       const safeH = isNaN(numericTargetH) ? 0 : numericTargetH;
 
-      const today = new Date();
-      today.setHours(safeH, 0, 0, 0);
-      const targetHourISO = today.toISOString();
+      const now = new Date();
+      const targetHourISO = new Date(Date.UTC(
+        now.getUTCFullYear(),
+        now.getUTCMonth(),
+        now.getUTCDate(),
+        safeH, 0, 0, 0
+      )).toISOString();
 
       // Fetch all parameters to map parameter_id to equipment_id
       const { data: allParams } = await supabase
@@ -480,6 +509,8 @@ export function useTelemetryData(
       payload['site_uuid'] = currentSite?.id || null;
 
       // Upsert to telemetry_logs
+      // C-1: Use the composite conflict key (target_hour, site_uuid) so that
+      // each site has its own unique slot per hour — prevents cross-site overwrites.
       const { error } = await supabase
         .from('telemetry_logs')
         .upsert(
@@ -489,9 +520,11 @@ export function useTelemetryData(
             metrics: payload,
             is_edited: isEditMode,
             asset_id: 'facility_wide',
-            technician_name: firstName
+            technician_name: firstName,
+            technician_id: employee?.id || null,
+            site_uuid: currentSite?.id || null
           },
-          { onConflict: 'target_hour' }
+          { onConflict: 'target_hour,site_uuid' }
         );
 
       if (error) {
@@ -512,12 +545,20 @@ export function useTelemetryData(
       }
       
       if (!targetShiftLogId) {
-        const { data } = await supabase
+        // H-7 FIX: scope fallback query to current site.
+        // Without the site_uuid filter, this returns the most recent shift
+        // report across ALL sites, then updates that report's power source —
+        // potentially overwriting another site's shift record.
+        const siteId = currentSite?.id;
+        const shiftQuery = supabase
           .from('shift_reports')
           .select('log_id')
           .order('timestamp', { ascending: false })
-          .limit(1)
-          .maybeSingle();
+          .limit(1);
+        if (siteId) {
+          shiftQuery.eq('site_uuid', siteId);
+        }
+        const { data } = await shiftQuery.maybeSingle();
         if (data) targetShiftLogId = data.log_id;
       }
 

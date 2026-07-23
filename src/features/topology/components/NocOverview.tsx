@@ -176,8 +176,23 @@ export function NocOverview() {
         .from("incidents")
         .select("*")
         .order("created_at", { ascending: false });
+
       if (error) throw error;
-      setIncidents(data || []);
+
+      const sanitized: IncidentLog[] = (data || []).map((item: any) => ({
+        ...item,
+        status: item.status || "OPEN",
+        notes: item.notes || "",
+        site_name: item.site_name || "",
+        asset_id: item.asset_id || "",
+        severity: item.severity || "medium",
+        created_at: item.created_at || new Date().toISOString(),
+        raised_by_name: item.raised_by_name || "",
+        raised_by_id: item.raised_by_id || "",
+        occurred_at: item.occurred_at || new Date().toISOString(),
+        comments: Array.isArray(item.comments) ? item.comments : []
+      }));
+      setIncidents(sanitized);
     } catch (err) {
       console.error("Error fetching incidents for NOC:", err);
     }

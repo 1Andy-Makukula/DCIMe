@@ -50,14 +50,17 @@ export const generateMonthlyReport = async (
   const dailyTemplatePath = blueprint.templates?.daily_canvas || "/template_daily_canvas.xlsx";
   const commercialTemplatePath = blueprint.templates?.commercial_logbook || "/template_commercial_logbook.xlsx";
 
-  // Fetch Templates concurrently
+  // Fetch Templates concurrently (M-7: report explicit HTTP status or path on failure)
   const [dailyRes, commRes] = await Promise.all([
-    fetch(dailyTemplatePath).catch(() => null),
-    fetch(commercialTemplatePath).catch(() => null)
+    fetch(dailyTemplatePath).catch((err) => ({ ok: false, statusText: err.message } as Response)),
+    fetch(commercialTemplatePath).catch((err) => ({ ok: false, statusText: err.message } as Response))
   ]);
 
-  if (!dailyRes || !commRes || !dailyRes.ok || !commRes.ok) {
-    throw new Error(`Failed to fetch templates (${dailyTemplatePath}, ${commercialTemplatePath}). Ensure they are in the /public folder.`);
+  if (!dailyRes.ok) {
+    throw new Error(`Failed to fetch daily template (${dailyTemplatePath}): ${dailyRes.statusText || dailyRes.status}`);
+  }
+  if (!commRes.ok) {
+    throw new Error(`Failed to fetch commercial template (${commercialTemplatePath}): ${commRes.statusText || commRes.status}`);
   }
 
   // Load them into separate ExcelJS.Workbook instances
@@ -83,6 +86,8 @@ export const generateMonthlyReport = async (
   });
 
   // Determine number of days in the month
+  // M-6 Note: month is 1-indexed (1=Jan, 12=Dec). In JS Date constructor (year, month, 0),
+  // day 0 of month N returns the last day of month N-1, giving total days for 1-indexed month.
   const numDays = new Date(parseInt(year, 10), parseInt(month, 10), 0).getDate();
 
   // Stateful carry-forward trackers
@@ -320,7 +325,7 @@ export const generateMonthlyReport = async (
       
       const checkItems = [
         { key: "g5", defaultText: "Check engine oil level" },
-        { key: "g5", defaultText: "Check radiator coolant level" },
+        { key: "g6", defaultText: "Check radiator coolant level" }, // H-8 FIX: g6 for radiator coolant
         { key: "g3", defaultText: "Check starting batteries" },
         { key: "g1", defaultText: "Check for active alarms on control panel" },
         { key: "g4", defaultText: "Verify fuel tank levels" },
