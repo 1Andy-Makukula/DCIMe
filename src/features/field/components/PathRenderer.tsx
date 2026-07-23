@@ -309,8 +309,7 @@ export function PathRenderer({
                             const isAmbientField = metric.id.endsWith("_ambient_temp") || metric.id.endsWith("_ambient_humidity");
                             const isReadOnlyField =
                               metric.id.endsWith("_cumulative_hrs") ||
-                              metric.id === "fuel_balance" ||
-                              (isAmbientField && !isOddHour);
+                              metric.id === "fuel_balance";
 
                             // Dynamic Boolean Toggle for Compliance Checks
                             if (metric.type === "boolean") {
@@ -354,13 +353,7 @@ export function PathRenderer({
                                   handleUserInputChange(metric.id, e.target.value)
                                 }
                                 placeholder={
-                                  isAmbientField && !isOddHour
-                                    ? (formData[metric.id] !== undefined && formData[metric.id] !== "")
-                                      ? ""
-                                      : "No prior reading"
-                                    : isOddHour && isAmbientField
-                                    ? "Enter reading..."
-                                    : "—"
+                                  isAmbientField ? "Enter reading..." : "—"
                                 }
                                 className={`w-full px-3 py-2 rounded-lg border text-xs font-semibold focus:outline-none focus:ring-1 transition-all ${
                                   isReadOnlyField

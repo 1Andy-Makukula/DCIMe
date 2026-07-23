@@ -26,10 +26,22 @@ export const TelemetryHistoryModal = ({
       if (!groups[d]) groups[d] = [];
       groups[d].push(record);
     });
+    // Sort records within each date by hour ascending (00:00 → 23:00)
+    Object.keys(groups).forEach((d) => {
+      groups[d].sort((a, b) => (a.hour || '').localeCompare(b.hour || ''));
+    });
     return groups;
   }, [history]);
 
-  const uniqueDates = useMemo(() => Object.keys(groupedByDate), [groupedByDate]);
+  // Newest date first
+  const uniqueDates = useMemo(() =>
+    Object.keys(groupedByDate).sort((a, b) => {
+      const da = new Date(a).getTime();
+      const db = new Date(b).getTime();
+      if (!isNaN(da) && !isNaN(db)) return db - da;
+      return b.localeCompare(a); // fallback for non-parseable strings
+    }),
+  [groupedByDate]);
 
   const [selectedDate, setSelectedDate] = useState<string>('');
   const [selectedHourIndex, setSelectedHourIndex] = useState<number>(0);
