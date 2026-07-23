@@ -149,9 +149,12 @@ class JSPowerMatrix {
     setGridActive(active) {
         this.grid_active = active;
         if (active) {
-            this.dg_pair_status = "standby"; this.gen_status = "standby";
-            this.gen_startup_timer = 0.0; this.pair_run_seconds = 0.0;
-            this.active_dg_pair = 0; this.dg_run_hours = [0.0, 0.0, 0.0, 0.0];
+            this.dg_pair_status = "standby";
+            this.gen_status = "standby";
+            this.gen_startup_timer = 0.0;
+            this.pair_run_seconds = 0.0;
+            this.active_dg_pair = 0;
+            // NOTE: dg_run_hours is NOT reset here (preserves cumulative run hours across grid events, matching C++)
         }
     }
     setFireAlarmActive(active) { this.fire_alarm_active = active; }
@@ -159,12 +162,18 @@ class JSPowerMatrix {
     setDgAuto(active) { this.dg_auto = active; }
 
     resetAll() {
-        this.grid_active = true; this.fire_alarm_active = false;
-        this.cooling_active = true; this.dg_auto = true;
-        this.fuel_liters = 1000.0; this.ambient_temp = 21.0;
-        this.gen_status = "standby"; this.gen_startup_timer = 0.0;
-        this.battery_soc = 100.0; this.dg_pair_status = "standby";
-        this.active_dg_pair = 0; this.pair_run_seconds = 0.0;
+        this.grid_active = true;
+        this.fire_alarm_active = false;
+        this.cooling_active = true;
+        this.dg_auto = true;
+        this.fuel_liters = 1000.0;
+        this.ambient_temp = 21.0;
+        this.gen_status = "standby";
+        this.gen_startup_timer = 0.0;
+        this.battery_soc = 100.0;
+        this.dg_pair_status = "standby";
+        this.active_dg_pair = 0;
+        this.pair_run_seconds = 0.0;
         this.dg_run_hours = [0.0, 0.0, 0.0, 0.0];
         this.clearAllFaults();
     }
@@ -213,7 +222,7 @@ class JSPowerMatrix {
                 this.pair_run_seconds += dt;
                 this.dg_run_hours[0] += dt / 3600.0; // DG1
                 this.dg_run_hours[2] += dt / 3600.0; // DG3
-                this.fuel_liters = Math.max(0, this.fuel_liters - dt * (0.030 + 180.0 * 0.00005));
+                this.fuel_liters = Math.max(0, this.fuel_liters - dt * 0.039); // Match C++ FUEL_DRAIN_PAIR_LPS (0.039)
                 if (this.pair_run_seconds >= SHIFT && this.fuel_liters > 0) {
                     this.dg_pair_status = "pair_b_starting";
                     this.active_dg_pair = 1;
@@ -224,7 +233,7 @@ class JSPowerMatrix {
                 this.gen_startup_timer += dt;
                 this.dg_run_hours[0] += dt / 3600.0; // Pair A still running during handover
                 this.dg_run_hours[2] += dt / 3600.0;
-                this.fuel_liters = Math.max(0, this.fuel_liters - dt * 0.045); // 3 gens
+                this.fuel_liters = Math.max(0, this.fuel_liters - dt * 0.045); // Match C++ FUEL_DRAIN_HANDOVER_LPS (0.045)
                 if (this.gen_startup_timer >= 3.5) {
                     this.dg_pair_status = "pair_b_running";
                     this.gen_status = "running";
@@ -236,7 +245,7 @@ class JSPowerMatrix {
                 this.pair_run_seconds += dt;
                 this.dg_run_hours[1] += dt / 3600.0; // DG2
                 this.dg_run_hours[3] += dt / 3600.0; // DG4
-                this.fuel_liters = Math.max(0, this.fuel_liters - dt * (0.030 + 180.0 * 0.00005));
+                this.fuel_liters = Math.max(0, this.fuel_liters - dt * 0.039); // Match C++ FUEL_DRAIN_PAIR_LPS (0.039)
                 if (this.pair_run_seconds >= SHIFT && this.fuel_liters > 0) {
                     this.dg_pair_status = "pair_a_starting";
                     this.active_dg_pair = 0;
@@ -266,9 +275,9 @@ class JSPowerMatrix {
         if (!charger_online) {
             let ups_load = 0;
             this.nodes.forEach(n => { if (n.type === "ups" && n.is_active) ups_load += n.kw_load || 0; });
-            this.battery_soc = Math.max(0, this.battery_soc - dt * (0.025 + ups_load * 0.0005));
+            this.battery_soc = Math.max(0, this.battery_soc - dt * (0.02 + ups_load * 0.0005)); // Match C++ base discharge factor (0.02)
         } else {
-            if (this.battery_soc < 100) this.battery_soc = Math.min(100, this.battery_soc + dt * 0.08);
+            if (this.battery_soc < 100) this.battery_soc = Math.min(100, this.battery_soc + dt * 0.05); // Match C++ charge rate (0.05)
         }
 
         // ==========================================================
@@ -295,7 +304,14 @@ class JSPowerMatrix {
         let power_path_b_active = power_available;
         if (this.fire_alarm_active) { power_path_a_active = false; power_path_b_active = false; }
 
+        // PASS 1: Source tier (excluding dependent server DBs)
         this.nodes.forEach(node => {
+            if (node.type === "ups"      || node.type === "rectifier" ||
+                node.type === "cooling"  || node.type === "server"    ||
+                node.id === "node-ac-server-db" || node.id === "node-dc-server-db") {
+                return;
+            }
+
             node.is_active = true; node.status = "ONLINE";
 
             if (this.fire_alarm_active) {
@@ -356,6 +372,22 @@ class JSPowerMatrix {
                 }
                 node.status = node.is_active ? "415V AC" : "NO VOLTAGE"; return;
             }
+        });
+
+        // PASS 2A: UPS & Rectifiers (resolve first)
+        this.nodes.forEach(node => {
+            if (node.type !== "ups" && node.type !== "rectifier") return;
+
+            node.is_active = true; node.status = "ONLINE";
+
+            if (this.fire_alarm_active) {
+                node.is_active = false; node.status = "EMERGENCY SHUTDOWN";
+                node.load_pct = 0; node.kw_load = 0; return;
+            }
+            if (node.is_faulted) {
+                node.is_active = false; node.status = "FAULTED";
+                node.load_pct = 0; node.kw_load = 0; return;
+            }
 
             if (node.type === "ups") {
                 const srcDb = node.id === "node-ups-2" ? this.getNode("node-ac-ups-db-a") : this.getNode("node-ac-ups-db-b");
@@ -378,16 +410,69 @@ class JSPowerMatrix {
             if (node.type === "rectifier") {
                 const srcDb = node.id === "node-rectifier-2" ? this.getNode("node-dc-rect-db-a") : this.getNode("node-dc-rect-db-b");
                 const srcActive = srcDb && srcDb.is_active;
-                if (!srcActive) {
-                    node.is_active = this.battery_soc > 0;
-                    node.status = node.is_active ? "-48V DC BATTERY BACKUP" : "BATTERY DRAINED";
-                } else {
+                if (srcActive) {
                     node.is_active = true;
                     node.status = this.battery_soc < 100 ? "FLOAT CHARGING" : "ONLINE";
+                    node.load_pct = (node.current / node.capacity) * 100.0;
+                    node.kw_load = (node.voltage * node.current) / 1000.0;
+                } else {
+                    if (this.battery_soc > 0) {
+                        node.is_active = true;
+                        node.status = "-48V DC BATTERY BACKUP";
+                        node.load_pct = (node.current / node.capacity) * 100.0;
+                        node.kw_load = (node.voltage * node.current) / 1000.0;
+                    } else {
+                        node.is_active = false;
+                        node.status = "BATTERY DRAINED";
+                        node.load_pct = 0;
+                        node.kw_load = 0;
+                    }
                 }
-                node.load_pct = node.is_active ? (node.current / node.capacity) * 100.0 : 0;
-                node.kw_load = node.is_active ? (node.voltage * node.current) / 1000.0 : 0;
                 return;
+            }
+        });
+
+        // PASS 2B: Dependent Server Distribution Boards (node-ac-server-db & node-dc-server-db)
+        this.nodes.forEach(node => {
+            if (node.id !== "node-ac-server-db" && node.id !== "node-dc-server-db") return;
+
+            node.is_active = true; node.status = "ONLINE";
+
+            if (this.fire_alarm_active) {
+                node.is_active = false; node.status = "EMERGENCY SHUTDOWN";
+                node.load_pct = 0; node.kw_load = 0; return;
+            }
+            if (node.is_faulted) {
+                node.is_active = false; node.status = "FAULTED";
+                node.load_pct = 0; node.kw_load = 0; return;
+            }
+
+            if (node.id === "node-ac-server-db") {
+                const ups1Active = (this.getNode("node-ups-1") || {}).is_active;
+                const ups2Active = (this.getNode("node-ups-2") || {}).is_active;
+                node.is_active = ups1Active || ups2Active;
+                node.status = node.is_active ? "415V AC" : "NO VOLTAGE";
+            } else if (node.id === "node-dc-server-db") {
+                const rect1Active = (this.getNode("node-rectifier-1") || {}).is_active;
+                const rect2Active = (this.getNode("node-rectifier-2") || {}).is_active;
+                node.is_active = rect1Active || rect2Active;
+                node.status = node.is_active ? "-48V DC" : "NO VOLTAGE";
+            }
+        });
+
+        // PASS 2C: Servers & Cooling (resolve last)
+        this.nodes.forEach(node => {
+            if (node.type !== "server" && node.type !== "cooling") return;
+
+            node.is_active = true; node.status = "ONLINE";
+
+            if (this.fire_alarm_active) {
+                node.is_active = false; node.status = "EMERGENCY SHUTDOWN";
+                node.load_pct = 0; node.kw_load = 0; return;
+            }
+            if (node.is_faulted) {
+                node.is_active = false; node.status = "FAULTED";
+                node.load_pct = 0; node.kw_load = 0; return;
             }
 
             if (node.type === "cooling") {
@@ -399,19 +484,15 @@ class JSPowerMatrix {
             }
 
             if (node.type === "server") {
-                const rect1Active = (this.getNode("node-rectifier-1") || {}).is_active;
-                const rect2Active = (this.getNode("node-rectifier-2") || {}).is_active;
-                const ups1Active = (this.getNode("node-ups-1") || {}).is_active;
-                const ups2Active = (this.getNode("node-ups-2") || {}).is_active;
+                const has_ac_power = (this.getNode("node-ac-server-db") || {}).is_active;
+                const has_dc_power = (this.getNode("node-dc-server-db") || {}).is_active;
 
                 if (node.id === "node-vertiv-1" || node.id === "node-vertiv-2") {
-                    // AC Racks supplied exclusively by AC UPS 1 & 2
-                    node.is_active = ups1Active || ups2Active;
+                    node.is_active = has_ac_power;
                 } else if (node.id === "node-dragor") {
                     node.is_active = power_path_b_active && !(this.getNode("node-tco-2") || {}).is_faulted;
                 } else {
-                    // DC Racks (Vertiv 3, 4, 5, 6) supplied exclusively by DC Rectifiers 1 & 2 (-48V DC Battery String)
-                    node.is_active = rect1Active || rect2Active;
+                    node.is_active = has_dc_power;
                 }
                 node.status = node.is_active ? "LOAD OK" : "BLACKOUT";
                 node.kw_load = node.is_active ? 8.5 : 0; return;
@@ -809,51 +890,10 @@ class JSPowerMatrix {
             nodes = rawNodes;
         }
 
-        // PASS 1: Pre-calculate independent source overrides (UPS & Rectifiers) to prevent loop order evaluation bugs
-        nodes.forEach(node => {
-            // WASM Override for Rectifiers on DC Battery Backup
-            if (node.type === "rectifier" && !node.is_faulted) {
-                const srcDbId = node.id === "node-rectifier-2" ? "node-dc-rect-db-a" : "node-dc-rect-db-b";
-                const srcDb = nodes.find(n => n.id === srcDbId);
-                const srcActive = srcDb && srcDb.is_active;
-                const batterySoc = typeof engine.getBatterySoc === "function" ? engine.getBatterySoc() : 100.0;
-                if (!srcActive && batterySoc > 0) {
-                    node.is_active = true;
-                    node.status = "BATTERY DISCHARGING";
-                }
-            }
-
-            // WASM Override for UPS on AC Battery Backup
-            if (node.type === "ups" && !node.is_faulted) {
-                const srcDbId = node.id === "node-ups-2" ? "node-ac-ups-db-a" : "node-ac-ups-db-b";
-                const srcDb = nodes.find(n => n.id === srcDbId);
-                const srcActive = srcDb && srcDb.is_active;
-                const batterySoc = typeof engine.getBatterySoc === "function" ? engine.getBatterySoc() : 100.0;
-                if (!srcActive && batterySoc > 0) {
-                    node.is_active = true;
-                    node.status = "BATTERY DISCHARGING";
-                }
-            }
-        });
-
-        // PASS 2: Redraw and evaluate dependent overrides
+        // Redraw and evaluate overrides
         nodes.forEach(node => {
             const svgNode = svg.querySelector(`#${node.id}`);
             if (!svgNode) return;
-
-            // WASM Override for Server Distribution DBs to stay active during outages
-            if (node.id === "node-ac-server-db" && !node.is_faulted) {
-                const ups1 = nodes.find(n => n.id === "node-ups-1");
-                const ups2 = nodes.find(n => n.id === "node-ups-2");
-                node.is_active = (ups1 && ups1.is_active) || (ups2 && ups2.is_active);
-                node.status = node.is_active ? "ACTIVE" : "NO VOLTAGE";
-            }
-            if (node.id === "node-dc-server-db" && !node.is_faulted) {
-                const rect1 = nodes.find(n => n.id === "node-rectifier-1");
-                const rect2 = nodes.find(n => n.id === "node-rectifier-2");
-                node.is_active = (rect1 && rect1.is_active) || (rect2 && rect2.is_active);
-                node.status = node.is_active ? "ACTIVE" : "NO VOLTAGE";
-            }
 
             // WASM Override for Vertiv 1-6 (enforce In-Row PAC cooling shutdown on outage)
             if (node.id.startsWith("node-vertiv-")) {

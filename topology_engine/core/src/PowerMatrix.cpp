@@ -286,12 +286,6 @@ void PowerMatrix::updateState(double dt) {
 //
 // FIX: Two-pass strategy + O(1) index map.
 //   Pass 1: Source tier  — grid_tx, generator, tco, main_db
-//           These have no inter-node dependencies (only external state vars).
-//   Pass 2: Consumer tier — ups, rectifier, cooling, server
-//           These depend on main_db nodes, which are fully resolved in Pass 1.
-//   getActiveFor() / getFaultedFor() use the pre-built index map for O(1)
-//   access and always read the *current-frame* updated value.
-// =============================================================================
 void PowerMatrix::runMatrixUpdate() {
 
     // ── Pre-pass: build O(1) index map ───────────────────────────────────────
@@ -322,13 +316,14 @@ void PowerMatrix::runMatrixUpdate() {
     bool power_path_b_active = power_available && !fire_alarm_active;
 
     // ── PASS 1: Source tier ───────────────────────────────────────────────────
-    // Types: grid_tx, generator, tco, main_db
+    // Types: grid_tx, generator, tco, main_db (excluding server DBs)
     // These depend ONLY on external state (grid_active, dg_pair_status, etc.)
     // and are safe to update in any order within this pass.
     for (auto& node : nodes) {
-        // Skip consumer-tier nodes — handled in Pass 2
+        // Skip consumer-tier nodes and dependent server DBs — handled in Pass 2
         if (node.type == "ups"      || node.type == "rectifier" ||
-            node.type == "cooling"  || node.type == "server") {
+            node.type == "cooling"  || node.type == "server"    ||
+            node.id == "node-ac-server-db" || node.id == "node-dc-server-db") {
             continue;
         }
 
@@ -428,13 +423,6 @@ void PowerMatrix::runMatrixUpdate() {
             }
 
             // Path A DBs (fed via TCO-1 → Main DB-2 branch)
-            // NOTE: getFaultedFor reads is_faulted (set externally, not changed this frame).
-            //       getActiveFor("node-main-main-db") reads the value just written above
-            //       in the SAME pass — zero-lag because main-main-db precedes child DBs
-            //       in the iteration only IF the nodes[] vector is ordered that way.
-            //       To guarantee correctness regardless of vector order, node-main-main-db
-            //       is resolved by direct bool (power_available) rather than re-reading
-            //       the vector, ensuring child DBs always get the right answer.
             const bool main_db_active = power_available; // resolved above, no re-read needed
             if (node.id.find("-2") != std::string::npos ||
                 node.id.find("-db-a") != std::string::npos) {
@@ -451,13 +439,11 @@ void PowerMatrix::runMatrixUpdate() {
         }
     }
 
-    // ── PASS 2: Consumer tier ─────────────────────────────────────────────────
-    // Types: ups, rectifier, cooling, server
-    // All source-tier nodes (DBs, TCOs, etc.) are fully resolved above.
-    // getActiveFor() now returns accurate, current-frame values — no lag.
+    // ── PASS 2: Consumer tier & Dependent DBs ──────────────────────────────────
+    
+    // Sub-pass 2A: UPS & Rectifiers (resolve first)
     for (auto& node : nodes) {
-        if (node.type != "ups"      && node.type != "rectifier" &&
-            node.type != "cooling"  && node.type != "server") {
+        if (node.type != "ups" && node.type != "rectifier") {
             continue;
         }
 
@@ -482,7 +468,6 @@ void PowerMatrix::runMatrixUpdate() {
 
         // --- 5. UPS Modules ---
         if (node.type == "ups") {
-            // C-4: getActiveFor() is O(1) and reads the current-frame value
             const bool source_db_active = (node.id == "node-ups-2")
                 ? getActiveFor("node-ac-ups-db-a")
                 : getActiveFor("node-ac-ups-db-b");
@@ -524,27 +509,98 @@ void PowerMatrix::runMatrixUpdate() {
 
             if (source_db_active) {
                 node.is_active = true;
-                node.status    = "ONLINE";
+                node.status    = (battery_soc < 100.0) ? "FLOAT CHARGING" : "ONLINE";
                 node.load_pct  = (node.current / node.capacity) * 100.0;
                 node.kw_load   = (node.voltage * node.current) / 1000.0;
             } else {
-                node.is_active = false;
-                node.status    = "NO VOLTAGE";
-                node.load_pct  = 0.0;
-                node.kw_load   = 0.0;
+                // DC Battery String Backup (rectifiers share the DC battery bus in parallel)
+                if (battery_soc > 0.0) {
+                    node.is_active = true;
+                    node.status    = "-48V DC BATTERY BACKUP";
+                    node.load_pct  = (node.current / node.capacity) * 100.0;
+                    node.kw_load   = (node.voltage * node.current) / 1000.0;
+                } else {
+                    node.is_active = false;
+                    node.status    = "BATTERY DRAINED";
+                    node.load_pct  = 0.0;
+                    node.kw_load   = 0.0;
+                }
             }
+            continue;
+        }
+    }
+
+    // Sub-pass 2B: Dependent Server Distribution Boards (node-ac-server-db & node-dc-server-db)
+    for (auto& node : nodes) {
+        if (node.id != "node-ac-server-db" && node.id != "node-dc-server-db") {
+            continue;
+        }
+
+        node.is_active = true;
+        node.status    = "ONLINE";
+
+        if (fire_alarm_active) {
+            node.is_active = false;
+            node.status    = "EMERGENCY SHUTDOWN";
+            node.load_pct  = 0.0;
+            node.kw_load   = 0.0;
+            continue;
+        }
+
+        if (node.is_faulted) {
+            node.is_active = false;
+            node.status    = "FAULTED";
+            node.load_pct  = 0.0;
+            node.kw_load   = 0.0;
+            continue;
+        }
+
+        if (node.id == "node-ac-server-db") {
+            const bool ups1_active = getActiveFor("node-ups-1");
+            const bool ups2_active = getActiveFor("node-ups-2");
+            node.is_active = ups1_active || ups2_active;
+            node.status    = node.is_active ? "415V AC" : "NO VOLTAGE";
+        } else if (node.id == "node-dc-server-db") {
+            const bool rect1_active = getActiveFor("node-rectifier-1");
+            const bool rect2_active = getActiveFor("node-rectifier-2");
+            node.is_active = rect1_active || rect2_active;
+            node.status    = node.is_active ? "-48V DC" : "NO VOLTAGE";
+        }
+    }
+
+    // Sub-pass 2C: Servers & Cooling (resolve last, depending on sub-pass 2A/2B states)
+    for (auto& node : nodes) {
+        if (node.type != "server" && node.type != "cooling") {
+            continue;
+        }
+
+        node.is_active = true;
+        node.status    = "ONLINE";
+
+        if (fire_alarm_active) {
+            node.is_active = false;
+            node.status    = "EMERGENCY SHUTDOWN";
+            node.load_pct  = 0.0;
+            node.kw_load   = 0.0;
+            continue;
+        }
+
+        if (node.is_faulted) {
+            node.is_active = false;
+            node.status    = "FAULTED";
+            node.load_pct  = 0.0;
+            node.kw_load   = 0.0;
             continue;
         }
 
         // --- 7. Cooling / Air-Con Systems ---
         if (node.type == "cooling") {
-            // AC units ac-1, ac-2, ac-6, ac-7 are on Path A DB;
-            // all others are on Path B DB.
-            const bool source_db_active =
+            const bool useDbA =
                 (node.id.find("ac-1") != std::string::npos ||
                  node.id.find("ac-2") != std::string::npos ||
                  node.id.find("ac-6") != std::string::npos ||
-                 node.id.find("ac-7") != std::string::npos)
+                 node.id.find("ac-7") != std::string::npos);
+            const bool source_db_active = useDbA
                 ? getActiveFor("node-aircon-db-a")
                 : getActiveFor("node-aircon-db-b");
 

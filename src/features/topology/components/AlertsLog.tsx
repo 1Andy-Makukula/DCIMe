@@ -1,5 +1,6 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/shared/api/supabaseClient";
+import { useCurrentSite } from "@/shared/context/SiteContext";
 import {
   AlertTriangle,
   AlertCircle,
@@ -423,6 +424,7 @@ function ResolvedCard({ incident }: { incident: Incident }) {
 
 // ── Main Component ────────────────────────────────────────────────────────────
 export function AlertsLog() {
+  const { currentSite } = useCurrentSite();
   const [view,         setView]         = useState<View>("active");
   const [rawIncidents, setRawIncidents] = useState<any[]>([]);
   const [isLoading,    setIsLoading]    = useState(true);
@@ -525,12 +527,18 @@ export function AlertsLog() {
   const activeAlerts = incidents.filter((i) => !i.resolvedAt);
   const resolved = incidents.filter((i) => !!i.resolvedAt);
 
-  const fetchIncidents = async () => {
+  const fetchIncidents = useCallback(async () => {
     try {
-      const { data, error } = await supabase
+      const query = supabase
         .from("incidents")
         .select("*")
         .order("created_at", { ascending: false });
+
+      if (currentSite?.id) {
+        query.eq("site_uuid", currentSite.id);
+      }
+
+      const { data, error } = await query;
 
       if (error) throw error;
 
@@ -543,17 +551,24 @@ export function AlertsLog() {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [currentSite?.id]);
 
   useEffect(() => {
     fetchIncidents();
 
-    // Subscribe to realtime changes
+    const siteId = currentSite?.id;
+
+    // Subscribe to realtime changes filtered by site_uuid
     const channel = supabase
-      .channel("incidents-realtime")
+      .channel(`incidents_realtime_${siteId ?? 'global'}`)
       .on(
         "postgres_changes",
-        { event: "*", schema: "public", table: "incidents" },
+        {
+          event: "*",
+          schema: "public",
+          table: "incidents",
+          ...(siteId ? { filter: `site_uuid=eq.${siteId}` } : {})
+        },
         () => {
           fetchIncidents();
         }
@@ -563,7 +578,7 @@ export function AlertsLog() {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, []);
+  }, [fetchIncidents, currentSite?.id]);
 
   // ── Counters ──────────────────────────────────────────────────────────────
   const criticalCount = activeAlerts.filter((a) => a.severity === "critical").length;

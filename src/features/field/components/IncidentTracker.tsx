@@ -451,31 +451,49 @@ export function IncidentTracker() {
                     
                     {selectedIncident.comments && selectedIncident.comments.length > 0 ? (
                       <div className="relative pl-4 border-l border-gray-100 space-y-4 ml-1.5">
-                        {selectedIncident.comments.map((cmt, idx) => (
-                          <div key={`${cmt.timestamp}_${cmt.author_id}_${idx}`} className="relative space-y-1.5">
-                            {/* Timeline dot */}
-                            <div className="absolute -left-[21.5px] top-1 w-2.5 h-2.5 rounded-full bg-gray-300 border-2 border-white" />
-                            
-                            <div className="flex items-center justify-between gap-2">
-                              <span className={`text-[8px] font-black uppercase tracking-wider px-1.5 py-0.5 rounded ${
-                                cmt.type === "correction"
-                                  ? "bg-red-50 text-red-600 border border-red-100"
-                                  : "bg-blue-50 text-blue-600 border border-blue-100"
-                              }`}>
-                                {cmt.type === "correction" ? "Correction" : "Additional"}
-                              </span>
-                              <span className="text-[9px] font-mono text-gray-400">{formatDate(cmt.timestamp)}</span>
-                            </div>
+                        {selectedIncident.comments.map((rawCmt, idx) => {
+                          const cmt = typeof rawCmt === "string" 
+                            ? {
+                                comment_text: rawCmt,
+                                author_name: "System",
+                                author_id: "SYS",
+                                timestamp: selectedIncident.created_at || new Date().toISOString(),
+                                type: "addition"
+                              }
+                            : {
+                                comment_text: rawCmt?.comment_text || "",
+                                author_name: rawCmt?.author_name || "Unknown Tech",
+                                author_id: rawCmt?.author_id || "—",
+                                timestamp: rawCmt?.timestamp || selectedIncident.created_at || new Date().toISOString(),
+                                type: rawCmt?.type || "addition"
+                              };
+                          
+                          return (
+                            <div key={`${cmt.timestamp}_${cmt.author_id}_${idx}`} className="relative space-y-1.5">
+                              {/* Timeline dot */}
+                              <div className="absolute -left-[21.5px] top-1 w-2.5 h-2.5 rounded-full bg-gray-300 border-2 border-white" />
+                              
+                              <div className="flex items-center justify-between gap-2">
+                                <span className={`text-[8px] font-black uppercase tracking-wider px-1.5 py-0.5 rounded ${
+                                  cmt.type === "correction"
+                                    ? "bg-red-50 text-red-600 border border-red-100"
+                                    : "bg-blue-50 text-blue-600 border border-blue-100"
+                                }`}>
+                                  {cmt.type === "correction" ? "Correction" : "Additional"}
+                                </span>
+                                <span className="text-[9px] font-mono text-gray-400">{formatDate(cmt.timestamp)}</span>
+                              </div>
 
-                            <p className="text-xs text-gray-700 font-medium leading-relaxed">
-                              {cmt.comment_text}
-                            </p>
-                            
-                            <div className="text-[9px] text-gray-400 font-semibold">
-                              — {cmt.author_name} ({cmt.author_id})
+                              <p className="text-xs text-gray-700 font-medium leading-relaxed">
+                                {cmt.comment_text}
+                              </p>
+                              
+                              <div className="text-[9px] text-gray-400 font-semibold">
+                                — {cmt.author_name} ({cmt.author_id})
+                              </div>
                             </div>
-                          </div>
-                        ))}
+                          );
+                        })}
                       </div>
                     ) : (
                       <div className="text-[11px] text-gray-400 italic bg-gray-50/50 p-3 rounded-xl border border-dashed border-gray-100 text-center">
