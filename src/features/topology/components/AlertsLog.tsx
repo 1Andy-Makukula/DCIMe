@@ -528,17 +528,18 @@ export function AlertsLog() {
   const resolved = incidents.filter((i) => !!i.resolvedAt);
 
   const fetchIncidents = useCallback(async () => {
+    if (!currentSite?.id) {
+      setRawIncidents([]);
+      setIsLoading(false);
+      return;
+    }
+
     try {
-      const query = supabase
+      const { data, error } = await supabase
         .from("incidents")
         .select("*")
-        .order("created_at", { ascending: false });
-
-      if (currentSite?.id) {
-        query.eq("site_uuid", currentSite.id);
-      }
-
-      const { data, error } = await query;
+        .order("created_at", { ascending: false })
+        .eq("site_uuid", currentSite.id);
 
       if (error) throw error;
 

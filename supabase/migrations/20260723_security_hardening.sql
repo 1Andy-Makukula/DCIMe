@@ -13,11 +13,27 @@ AS $$
 $$;
 
 -- 2. Clean nulls and enforce NOT NULL on telemetry_logs.site_uuid for composite upsert integrity
+-- Dynamically resolve site_uuid from metrics JSON site_id/site_uuid
+UPDATE public.telemetry_logs t
+SET site_uuid = s.id
+FROM public.sites s
+WHERE (
+  t.metrics->>'site_id' = s.site_code 
+  OR t.metrics->>'site_uuid' = s.id::text
+) AND t.site_uuid IS NULL;
+
+-- Dynamically resolve from technician's assigned site
+UPDATE public.telemetry_logs t
+SET site_uuid = e.site_uuid
+FROM public.employees e
+WHERE t.technician_id = e.id 
+  AND t.site_uuid IS NULL;
+
+-- Safety fallback: default to first site only for any remaining unresolved rows to satisfy NOT NULL
 DO $$
 DECLARE
   v_default_site_uuid uuid;
 BEGIN
-  -- Get any valid site_uuid to backfill existing records if they lack site metadata
   SELECT id INTO v_default_site_uuid FROM public.sites LIMIT 1;
   
   IF v_default_site_uuid IS NOT NULL THEN

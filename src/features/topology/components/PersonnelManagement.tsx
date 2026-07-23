@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { supabase } from "@/shared/api/supabaseClient";
+import { useCurrentSite } from "@/shared/context/SiteContext";
 import { RegistrationForm } from "@/features/auth/components/RegistrationForm";
 import {
   Select,
@@ -374,6 +375,7 @@ function ConfirmDialog({
 // ── Mapper helper ─────────────────────────────────────────────────────────────
 // ── Main Component ────────────────────────────────────────────────────────────
 export function PersonnelManagement() {
+  const { currentSite } = useCurrentSite();
   const [rawEmployees, setRawEmployees] = useState<any[]>([]);
   const [isLoading,    setIsLoading]    = useState(true);
   const [showAddModal, setShowAddModal] = useState(false);
@@ -593,7 +595,7 @@ export function PersonnelManagement() {
               Personnel &amp; Security Access
             </h1>
             <p className="text-[12px] font-semibold text-gray-400 mt-1">
-              Manage IAM, shift rosters, and zone clearances · Site NTC ZM-0874
+              Manage IAM, shift rosters, and zone clearances · Site {currentSite?.site_name || "NTC ZM-0874"}
             </p>
           </div>
 
