@@ -346,16 +346,20 @@ export function PathRenderer({
                                 inputMode={metric.type === "number" ? "decimal" : "text"}
                                 disabled={isOffline || isGridLocked || isReadOnlyField}
                                 value={
-                                  isOffline || isGridLocked ? "" : formData[metric.id] ?? ""
+                                  isOffline || isGridLocked
+                                    ? ""
+                                    : formData[metric.id] ?? ""
                                 }
                                 onChange={(e) =>
                                   handleUserInputChange(metric.id, e.target.value)
                                 }
                                 placeholder={
-                                  isAmbientField
-                                    ? isOddHour
-                                      ? "Enter reading..."
-                                      : "Derived avg"
+                                  isAmbientField && !isOddHour
+                                    ? (formData[metric.id] !== undefined && formData[metric.id] !== "")
+                                      ? ""
+                                      : "No prior reading"
+                                    : isOddHour && isAmbientField
+                                    ? "Enter reading..."
                                     : "—"
                                 }
                                 className={`w-full px-3 py-2 rounded-lg border text-xs font-semibold focus:outline-none focus:ring-1 transition-all ${

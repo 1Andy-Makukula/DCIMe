@@ -163,22 +163,23 @@ export function useTelemetryData(
     setIsSuccess(false);
 
     // Step B (Date Construction)
-    // H-1 FIX: Build targetHourISO in pure UTC to avoid timezone drift.
-    // The old approach used setHours() (local time) then toISOString() (UTC),
-    // which produced the wrong timestamp for users in non-UTC zones and would
-    // silently break during DST transitions (off by ±1 hour).
+    // Build targetHourISO from LOCAL date components so that the stored UTC
+    // timestamp round-trips back to the correct local clock hour.
+    // e.g. UTC+2: local 00:00 → stored as 2026-07-22T22:00:00Z → displays as 00:00 ✓
+    // The previous UTC-based approach stored local 00:00 as 2026-07-23T00:00:00Z
+    // which displayed as 02:00 in UTC+2. ✗
     const numericTargetH = typeof targetHour === 'number'
       ? targetHour
       : parseInt(String(targetHour || '0').split(':')[0], 10);
     const safeH = isNaN(numericTargetH) ? 0 : numericTargetH;
 
     const now = new Date();
-    const targetHourISO = new Date(Date.UTC(
-      now.getUTCFullYear(),
-      now.getUTCMonth(),
-      now.getUTCDate(),
+    const targetHourISO = new Date(
+      now.getFullYear(),
+      now.getMonth(),
+      now.getDate(),
       safeH, 0, 0, 0
-    )).toISOString();
+    ).toISOString();
 
     const fetchTelemetryData = async () => {
       try {
@@ -444,19 +445,19 @@ export function useTelemetryData(
     }
 
     try {
-      // H-1 FIX: same UTC-based construction as the fetch effect above
+      // Same local-time construction as the fetch effect above
       const numericTargetH = typeof targetHour === 'number'
         ? targetHour
         : parseInt(String(targetHour || '0').split(':')[0], 10);
       const safeH = isNaN(numericTargetH) ? 0 : numericTargetH;
 
       const now = new Date();
-      const targetHourISO = new Date(Date.UTC(
-        now.getUTCFullYear(),
-        now.getUTCMonth(),
-        now.getUTCDate(),
+      const targetHourISO = new Date(
+        now.getFullYear(),
+        now.getMonth(),
+        now.getDate(),
         safeH, 0, 0, 0
-      )).toISOString();
+      ).toISOString();
 
       // Fetch all parameters to map parameter_id to equipment_id
       const { data: allParams } = await supabase
