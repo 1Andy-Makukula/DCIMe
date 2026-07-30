@@ -390,7 +390,8 @@ export function useTelemetryData(
       if (id.includes('freq')) return [40, 70];
       if (id.includes('volt') || id.includes('vdc')) return [0, 1000];
       if (id.includes('current') || id.includes('_amp')) return [0, 2000];
-      if (id.includes('load') || id.includes('charge') || id.includes('capacity')) return [0, 100];
+      if (id.includes('load')) return [0, 999];
+      if (id.includes('charge') || id.includes('capacity')) return [0, 100];
       if (id.includes('fuel') || id.includes('meter') || id.includes('hrs') || id.includes('kwh')) return [0, 1000000];
       return [-1000000, 1000000];
     };
