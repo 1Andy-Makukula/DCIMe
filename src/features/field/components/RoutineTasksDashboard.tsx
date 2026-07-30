@@ -68,7 +68,9 @@ export const RoutineTasksDashboard = ({
     fsmMode,
     setFsmMode,
     isDailyTestDoneToday,
-    dailyTestCompletedInfo
+    dailyTestCompletedInfo,
+    // Carried-forward tracking
+    carriedFields
   } = useTelemetryData(targetHour, onComplete, onSubmitSuccess);
 
   const { groupedEquipment } = useSiteEquipment();
@@ -795,6 +797,7 @@ export const RoutineTasksDashboard = ({
             allEquipment={allEquipment}
             fsmMode={fsmMode}
             autoFilledFields={autoFilledFields}
+            carriedFields={carriedFields}
             prevGeneratorValues={prevGeneratorValues}
             getVisibleMetrics={getVisibleMetrics}
             isEquipmentActive={isEquipmentActive}

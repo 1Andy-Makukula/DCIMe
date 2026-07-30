@@ -798,236 +798,299 @@ export function NocOverview() {
             </div>
           </div>
 
-          {/* Table Container */}
-          <div className="overflow-x-auto rounded-xl border border-gray-100">
-            <table className="w-full text-left border-collapse text-xs">
-              <thead>
-                <tr className="bg-gray-50/75 border-b border-gray-100 text-[10px] uppercase font-black text-gray-400 tracking-wider">
-                  <th className="p-4">Ticket & Asset</th>
-                  <th className="p-4">Status & Severity</th>
-                  <th className="p-4">Reporter Audit</th>
-                  <th className="p-4">Resolution Audit</th>
-                  <th className="p-4">Duration / Aging</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-50">
-                {isLoading && incidents.length === 0 ? (
-                  <tr>
-                    <td colSpan={5} className="p-8 text-center text-gray-400 font-semibold">
-                      Loading incident audit logs from Supabase...
-                    </td>
-                  </tr>
-                ) : filteredIncidents.length === 0 ? (
-                  <tr>
-                    <td colSpan={5} className="p-8 text-center text-gray-400 font-semibold">
-                      No incidents found matching current filters.
-                    </td>
-                  </tr>
-                ) : (
-                  filteredIncidents.map((incident) => {
-                    const isResolved = incident.status === "RESOLVED";
-                    return (
-                      <tr key={incident.id} className="hover:bg-gray-50/40 transition-colors">
-                        {/* Ticket & Asset */}
-                        <td className="p-4">
-                          <div className="flex items-center gap-2">
-                            <span className="font-mono font-black text-gray-900">{incident.ticket_number}</span>
-                            {incident.ticket_number?.startsWith("VISIT-") ? (
-                              <span className="inline-block bg-emerald-50 text-emerald-700 border border-emerald-100 text-[8px] font-black uppercase tracking-wider px-1.5 py-0.5 rounded">
-                                👷‍♂️ Visit Log
-                              </span>
-                            ) : (
-                              <span className="inline-block bg-red-50 text-red-700 border border-red-100 text-[8px] font-black uppercase tracking-wider px-1.5 py-0.5 rounded">
-                                🚨 Fault Alert
-                              </span>
-                            )}
-                            {incident.comments && incident.comments.length > 0 && (
-                              <span className="inline-block bg-amber-50 text-amber-700 border border-amber-100 text-[8px] font-black uppercase tracking-wider px-1.5 py-0.5 rounded" title={`${incident.comments.length} appended updates`}>
-                                {incident.comments.length} {incident.comments.length === 1 ? "Update" : "Updates"}
-                              </span>
-                            )}
+          {/* Incident Feed */}
+          <div className="space-y-3">
+            {isLoading && incidents.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-12 text-gray-400">
+                <RefreshCw size={20} className="animate-spin mb-2 text-red-400" />
+                <span className="text-xs font-semibold">Loading incident audit logs from Supabase...</span>
+              </div>
+            ) : filteredIncidents.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-12 text-gray-400">
+                <CheckCircle2 size={20} className="mb-2 text-green-400" />
+                <span className="text-xs font-semibold">No incidents found matching current filters.</span>
+              </div>
+            ) : (
+              filteredIncidents.map((incident) => {
+                const isResolved = incident.status === "RESOLVED";
+                const visits = (incident.comments || []).filter(c => c.type === 'contractor_visit');
+                const remarks = (incident.comments || []).filter(c => c.type === 'addition' || c.type === 'correction');
+                const resCmt = (incident.comments || []).find(c => c.type === 'resolution');
+
+                return (
+                  <div
+                    key={incident.id}
+                    className="relative rounded-xl border overflow-hidden transition-all hover:shadow-md"
+                    style={{
+                      borderColor: isResolved ? "#dcfce7" : "#fee2e2",
+                      background: isResolved
+                        ? "linear-gradient(90deg, #f0fdf4 0%, #ffffff 3%)"
+                        : "linear-gradient(90deg, #fef2f2 0%, #ffffff 3%)"
+                    }}
+                  >
+                    {/* Left accent strip */}
+                    <div
+                      className="absolute left-0 top-0 bottom-0 w-1 rounded-l-xl"
+                      style={{ backgroundColor: isResolved ? "#22c55e" : "#ef4444" }}
+                    />
+
+                    {/* ── Card Header ──────────────────────────────────────── */}
+                    <div className="flex flex-wrap items-center gap-2 px-5 pt-4 pb-2">
+                      {/* Ticket number */}
+                      <span className="font-mono font-black text-[13px] text-gray-900 tracking-tight">
+                        {incident.ticket_number}
+                      </span>
+
+                      {/* Type badge */}
+                      {incident.ticket_number?.startsWith("VISIT-") ? (
+                        <span className="inline-flex items-center gap-1 bg-emerald-50 text-emerald-700 border border-emerald-100 text-[8px] font-black uppercase tracking-wider px-1.5 py-0.5 rounded">
+                          👷‍♂️ Visit Log
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center gap-1 bg-red-50 text-red-700 border border-red-100 text-[8px] font-black uppercase tracking-wider px-1.5 py-0.5 rounded">
+                          🚨 Fault Alert
+                        </span>
+                      )}
+
+                      {/* Status badge */}
+                      <span className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-[9px] font-black uppercase tracking-wider ${
+                        isResolved
+                          ? "bg-green-50 text-green-700 border border-green-100"
+                          : "bg-red-50 text-red-700 border border-red-100 animate-pulse"
+                      }`}>
+                        <span className={`w-1.5 h-1.5 rounded-full ${isResolved ? "bg-green-500" : "bg-red-500"}`} />
+                        {incident.status}
+                      </span>
+
+                      {/* Severity badge */}
+                      <span className={`text-[9px] font-black uppercase tracking-wider px-2 py-0.5 rounded border ${
+                        incident.severity === "critical"
+                          ? "bg-red-50 text-red-600 border-red-100"
+                          : incident.severity === "medium"
+                          ? "bg-amber-50 text-amber-600 border-amber-100"
+                          : "bg-blue-50 text-blue-600 border-blue-100"
+                      }`}>
+                        {incident.severity}
+                      </span>
+
+                      {/* Updates count */}
+                      {incident.comments && incident.comments.length > 0 && (
+                        <span className="inline-flex items-center gap-1 bg-amber-50 text-amber-700 border border-amber-100 text-[8px] font-black uppercase tracking-wider px-1.5 py-0.5 rounded">
+                          {incident.comments.length} {incident.comments.length === 1 ? "Update" : "Updates"}
+                        </span>
+                      )}
+
+                      {/* Duration/Aging — pushed to the right */}
+                      <span className={`ml-auto font-bold font-mono px-2.5 py-1 rounded-full text-[10px] border ${
+                        isResolved
+                          ? "bg-green-50 text-green-700 border-green-100"
+                          : "bg-amber-50 text-amber-700 border-amber-100 animate-pulse"
+                      }`}>
+                        {isResolved
+                          ? incident.resolved_at
+                            ? getDurationText(incident.occurred_at, incident.resolved_at)
+                            : "Cleared"
+                          : getAgingText(incident.occurred_at)
+                        }
+                      </span>
+                    </div>
+
+                    {/* Asset ID */}
+                    <div className="px-5 pb-2">
+                      <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">
+                        Asset: <span className="text-gray-600">{incident.asset_id}</span>
+                      </span>
+                    </div>
+
+                    {/* ── Card Body — 2-column grid ────────────────────────── */}
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 px-5 pb-4">
+
+                      {/* Left Column: Reporter + Notes + Photos + Visits/Remarks */}
+                      <div className="space-y-3">
+
+                        {/* Reporter info */}
+                        <div className="flex items-start gap-3 bg-gray-50/70 rounded-lg p-3 border border-gray-100">
+                          <div className="w-8 h-8 rounded-full bg-gray-200 flex items-center justify-center flex-shrink-0 mt-0.5">
+                            <User size={14} className="text-gray-500" />
                           </div>
-                          <div className="text-[10px] font-bold text-gray-400 uppercase mt-0.5">{incident.asset_id}</div>
-                        </td>
-
-
-                        {/* Status & Severity */}
-                        <td className="p-4">
-                          <div className="flex flex-col gap-1">
-                            <span className={`inline-block w-fit px-2 py-0.5 rounded text-[9px] font-black uppercase tracking-wider ${
-                              isResolved 
-                                ? "bg-green-50 text-green-700 border border-green-100" 
-                                : "bg-red-50 text-red-700 border border-red-100 animate-pulse"
-                            }`}>
-                              {incident.status}
-                            </span>
-                            <span className={`inline-block w-fit text-[9px] font-bold capitalize ${
-                              incident.severity === "critical"
-                                ? "text-red-600 font-black"
-                                : incident.severity === "medium"
-                                ? "text-amber-600"
-                                : "text-blue-600"
-                            }`}>
-                              {incident.severity}
-                            </span>
+                          <div className="flex-1 min-w-0">
+                            <div className="text-[9px] font-black text-gray-400 uppercase tracking-wider mb-0.5">Reported By</div>
+                            <div className="text-xs font-bold text-gray-800">{incident.raised_by_name}</div>
+                            <div className="text-[9px] text-gray-400 font-mono">{incident.raised_by_id}</div>
+                            <div className="text-[10px] font-semibold text-gray-400 font-mono mt-1">
+                              <Clock size={9} className="inline mr-1" />{formatDateTime(incident.occurred_at)}
+                            </div>
                           </div>
-                        </td>
+                        </div>
 
-                        {/* Reporter Audit */}
-                        <td className="p-4 space-y-3">
-                          <div className="space-y-1">
-                            <div className="flex items-center gap-1.5">
-                              <User size={12} className="text-gray-400 shrink-0" />
-                              <span className="font-bold text-gray-800">{incident.raised_by_name}</span>
-                              <span className="text-[9px] text-gray-400">({incident.raised_by_id})</span>
+                        {/* Notes */}
+                        {incident.notes && (
+                          <div className="bg-gray-50 border border-gray-100 rounded-lg p-3">
+                            <div className="text-[8px] font-black text-gray-400 uppercase tracking-wider mb-1">Fault Description</div>
+                            <div className="text-[11px] text-gray-700 font-semibold italic leading-relaxed">
+                              "{incident.notes}"
                             </div>
-                            <div className="text-[10px] font-semibold text-gray-400 font-mono">
-                              {formatDateTime(incident.occurred_at)}
-                            </div>
-                            {incident.notes && (
-                              <div className="text-[10px] text-gray-600 font-semibold italic bg-gray-50 border border-gray-100 rounded p-1.5 max-w-xs">
-                                "{incident.notes}"
+                          </div>
+                        )}
+
+                        {/* Photos row — fault photo + resolution photo side by side */}
+                        {(incident.photo_url || resCmt?.photo_url) && (
+                          <div className="flex items-start gap-3">
+                            {incident.photo_url && (
+                              <div>
+                                <div className="text-[8px] font-black text-red-400 uppercase tracking-wider mb-1">📷 Fault Photo</div>
+                                <button
+                                  onClick={() => setActivePhotoUrl(incident.photo_url)}
+                                  className="block rounded-lg overflow-hidden border-2 border-red-100 hover:border-red-300 transition-all shadow-sm active:scale-95"
+                                  style={{ maxWidth: 100 }}
+                                >
+                                  <img src={incident.photo_url} alt="Fault Evidence" className="w-full h-auto object-cover" />
+                                </button>
+                              </div>
+                            )}
+                            {resCmt?.photo_url && (
+                              <div>
+                                <div className="text-[8px] font-black text-green-500 uppercase tracking-wider mb-1">📷 Resolution Photo</div>
+                                <button
+                                  onClick={() => setActivePhotoUrl(resCmt.photo_url || null)}
+                                  className="block rounded-lg overflow-hidden border-2 border-green-100 hover:border-green-300 transition-all shadow-sm active:scale-95"
+                                  style={{ maxWidth: 100 }}
+                                >
+                                  <img src={resCmt.photo_url} alt="Resolution" className="w-full h-auto object-cover" />
+                                </button>
                               </div>
                             )}
                           </div>
+                        )}
 
-                          {/* Reported Photo Thumbnail */}
-                          {incident.photo_url && (
-                            <div className="mt-1">
-                              <div className="text-[8px] font-black text-gray-450 uppercase tracking-wider mb-1">Fault Photo</div>
-                              <button 
-                                onClick={() => setActivePhotoUrl(incident.photo_url)}
-                                className="block rounded-lg overflow-hidden border border-gray-200 hover:border-blue-400 transition-all max-w-[100px] shadow-sm active:scale-95"
-                              >
-                                <img src={incident.photo_url} alt="Fault Evidence" className="w-full h-auto object-cover" />
-                              </button>
+                        {/* Contractor Visits */}
+                        {visits.length > 0 && (
+                          <div className="space-y-1.5 pl-3 border-l-2 border-emerald-300">
+                            <div className="text-[8px] font-black text-emerald-600 uppercase tracking-widest">
+                              👷‍♂️ Contractor Visits ({visits.length})
                             </div>
-                          )}
-
-                          {/* Contractor Visits Section */}
-                          {(() => {
-                            const visits = (incident.comments || []).filter(c => c.type === 'contractor_visit');
-                            if (visits.length === 0) return null;
-                            return (
-                              <div className="mt-2 space-y-1.5 pl-2 border-l border-emerald-300">
-                                <div className="text-[8px] font-black text-emerald-600 uppercase tracking-widest">👷‍♂️ Contractor Visits ({visits.length})</div>
-                                {visits.map((cmt, idx) => (
-                                  <div key={idx} className="text-[10px] text-gray-700 leading-normal bg-emerald-50/30 p-1 rounded border border-emerald-100/40">
-                                    <div className="font-semibold">{cmt.comment_text}</div>
-                                    <div className="text-[8px] text-gray-400 font-mono mt-0.5">{formatDateTime(cmt.timestamp)}</div>
-                                    {cmt.photo_url && (
-                                      <button 
-                                        onClick={() => setActivePhotoUrl(cmt.photo_url || null)}
-                                        className="mt-1 block rounded overflow-hidden border border-slate-200 max-w-[60px] active:scale-95 hover:border-blue-400 transition-colors"
-                                      >
-                                        <img src={cmt.photo_url} alt="Progress" className="w-full h-auto" />
-                                      </button>
-                                    )}
-                                  </div>
-                                ))}
+                            {visits.map((cmt, idx) => (
+                              <div key={idx} className="text-[10px] text-gray-700 leading-normal bg-emerald-50/40 p-2 rounded border border-emerald-100/40">
+                                <div className="font-semibold">{cmt.comment_text}</div>
+                                <div className="text-[8px] text-gray-400 font-mono mt-0.5">{formatDateTime(cmt.timestamp)}</div>
+                                {cmt.photo_url && (
+                                  <button
+                                    onClick={() => setActivePhotoUrl(cmt.photo_url || null)}
+                                    className="mt-1 block rounded overflow-hidden border border-slate-200 max-w-[60px] active:scale-95 hover:border-blue-400 transition-colors"
+                                  >
+                                    <img src={cmt.photo_url} alt="Progress" className="w-full h-auto" />
+                                  </button>
+                                )}
                               </div>
-                            );
-                          })()}
+                            ))}
+                          </div>
+                        )}
 
-                          {/* Technician Remarks Section */}
-                          {(() => {
-                            const remarks = (incident.comments || []).filter(c => c.type === 'addition' || c.type === 'correction');
-                            if (remarks.length === 0) return null;
-                            return (
-                              <div className="mt-2 space-y-1 pl-2 border-l border-slate-300">
-                                <div className="text-[8px] font-black text-slate-500 uppercase tracking-widest">📝 Technician Updates ({remarks.length})</div>
-                                {remarks.map((cmt, idx) => (
-                                  <div key={idx} className="text-[10px] text-gray-600 leading-normal">
-                                    <span className={`font-black ${cmt.type === 'correction' ? 'text-red-500' : 'text-blue-500'}`}>
-                                      {cmt.type === 'correction' ? 'Correction: ' : 'Remark: '}
-                                    </span>
-                                    {cmt.comment_text} <span className="text-[8px] text-gray-400 font-mono">({formatDateTime(cmt.timestamp)})</span>
-                                  </div>
-                                ))}
-                              </div>
-                            );
-                          })()}
-                        </td>
-
-                        {/* Resolution Audit */}
-                        <td className="p-4">
-                          {isResolved ? (
-                            <div className="space-y-2">
-                              <div className="flex items-center gap-1.5 flex-wrap">
-                                <span className="font-bold text-green-700 font-mono text-[9px] bg-green-50 px-1.5 py-0.5 rounded border border-green-100">
-                                  {incident.receipt_number}
+                        {/* Technician Remarks */}
+                        {remarks.length > 0 && (
+                          <div className="space-y-1 pl-3 border-l-2 border-slate-300">
+                            <div className="text-[8px] font-black text-slate-500 uppercase tracking-widest">
+                              📝 Technician Updates ({remarks.length})
+                            </div>
+                            {remarks.map((cmt, idx) => (
+                              <div key={idx} className="text-[10px] text-gray-600 leading-normal">
+                                <span className={`font-black ${cmt.type === 'correction' ? 'text-red-500' : 'text-blue-500'}`}>
+                                  {cmt.type === 'correction' ? 'Correction: ' : 'Remark: '}
                                 </span>
-                                <span className="text-[9px] text-gray-400">by {incident.resolved_by_name} ({incident.resolved_by_id})</span>
+                                {cmt.comment_text}{" "}
+                                <span className="text-[8px] text-gray-400 font-mono">({formatDateTime(cmt.timestamp)})</span>
                               </div>
-                              
-                              <div className="text-[10px] font-semibold text-gray-450 font-mono">
-                                {incident.resolved_at ? formatDateTime(incident.resolved_at) : ""}
-                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
 
-                              <div className="text-[10px] text-gray-700 leading-relaxed bg-gray-50 border border-gray-150 p-2 rounded max-w-sm">
-                                <span className="font-extrabold text-gray-500 block text-[8px] uppercase tracking-wider mb-0.5">Resolution Details</span>
+                      {/* Right Column: Resolution Details */}
+                      <div>
+                        {isResolved ? (
+                          <div className="bg-green-50/50 border border-green-100 rounded-xl p-4 space-y-3 h-full">
+                            <div className="text-[9px] font-black text-green-600 uppercase tracking-wider flex items-center gap-1.5">
+                              <CheckCircle2 size={12} />
+                              Resolution Details
+                            </div>
+
+                            {/* Resolved by + receipt */}
+                            <div className="flex items-start gap-3">
+                              <div className="w-7 h-7 rounded-full bg-green-100 flex items-center justify-center flex-shrink-0">
+                                <User size={12} className="text-green-600" />
+                              </div>
+                              <div>
+                                <div className="text-xs font-bold text-green-800">{incident.resolved_by_name}</div>
+                                <div className="text-[9px] text-green-600 font-mono">{incident.resolved_by_id}</div>
+                                {incident.receipt_number && (
+                                  <div className="mt-1">
+                                    <span className="font-bold text-green-700 font-mono text-[9px] bg-green-100 px-1.5 py-0.5 rounded border border-green-200">
+                                      {incident.receipt_number}
+                                    </span>
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+
+                            {/* Resolved timestamp */}
+                            {incident.resolved_at && (
+                              <div className="text-[10px] font-semibold text-green-600/80 font-mono">
+                                <Clock size={9} className="inline mr-1" />{formatDateTime(incident.resolved_at)}
+                              </div>
+                            )}
+
+                            {/* Resolution description */}
+                            {incident.resolution_details && (
+                              <div className="text-[11px] text-green-900 leading-relaxed bg-white/60 border border-green-100 p-2.5 rounded-lg">
                                 {incident.resolution_details}
                               </div>
+                            )}
 
-                              <div className="flex flex-wrap items-center gap-2 text-[9px] font-bold">
-                                <span className="text-gray-450">Impact:</span>
-                                <span className="bg-gray-150 text-gray-700 px-1.5 py-0.5 rounded uppercase">{incident.impact}</span>
-                                <span className="text-gray-450">Contractor:</span>
-                                <span className="bg-gray-150 text-gray-700 px-1.5 py-0.5 rounded">{incident.contractor_engaged}</span>
-                              </div>
-
-                              {/* Resolution Photo Preview */}
-                              {(() => {
-                                const resCmt = (incident.comments || []).find(c => c.type === 'resolution');
-                                if (!resCmt?.photo_url) return null;
-                                return (
-                                  <div className="mt-1">
-                                    <div className="text-[8px] font-black text-gray-450 uppercase tracking-wider mb-1">Resolution Photo</div>
-                                    <button 
-                                      onClick={() => setActivePhotoUrl(resCmt.photo_url || null)}
-                                      className="block rounded-lg overflow-hidden border border-gray-200 hover:border-blue-400 transition-all max-w-[100px] shadow-sm active:scale-95"
-                                    >
-                                      <img src={resCmt.photo_url} alt="Resolution Details" className="w-full h-auto object-cover" />
-                                    </button>
-                                  </div>
-                                );
-                              })()}
+                            {/* Impact + Contractor metadata */}
+                            <div className="flex flex-wrap items-center gap-2 text-[9px] font-bold pt-1 border-t border-green-100">
+                              {incident.impact && (
+                                <>
+                                  <span className="text-green-600">Impact:</span>
+                                  <span className="bg-green-100 text-green-800 px-1.5 py-0.5 rounded uppercase">{incident.impact}</span>
+                                </>
+                              )}
+                              {incident.contractor_engaged && (
+                                <>
+                                  <span className="text-green-600 ml-1">Contractor:</span>
+                                  <span className="bg-green-100 text-green-800 px-1.5 py-0.5 rounded">{incident.contractor_engaged}</span>
+                                </>
+                              )}
                             </div>
-                          ) : incident.contractor_engaged ? (
-                            <div className="space-y-1.5">
-                              <span className="inline-flex items-center gap-1.5 bg-blue-50 text-blue-700 border border-blue-100 rounded-lg px-2 py-0.5 text-[9px] font-black uppercase tracking-wider">
-                                👷‍♂️ Contractor Active
-                              </span>
-                              <div className="text-[10px] text-gray-700 font-bold">
-                                Engaged: <span className="text-gray-900 font-black">{incident.contractor_engaged}</span>
-                              </div>
+                          </div>
+                        ) : incident.contractor_engaged ? (
+                          <div className="bg-blue-50/50 border border-blue-100 rounded-xl p-4 space-y-2 h-full">
+                            <div className="text-[9px] font-black text-blue-600 uppercase tracking-wider flex items-center gap-1.5">
+                              👷‍♂️ Contractor Engaged
                             </div>
-                          ) : (
-                            <span className="text-gray-400 italic font-semibold">Awaiting Field Clearance</span>
-                          )}
-                        </td>
-
-                        {/* Duration / Aging */}
-                        <td className="p-4">
-                          <span className={`font-bold font-mono px-2 py-1 rounded-full text-[10px] border ${
-                            isResolved
-                              ? "bg-green-50 text-green-700 border-green-100"
-                              : "bg-amber-50 text-amber-700 border-amber-100 animate-pulse"
-                          }`}>
-                            {isResolved 
-                              ? incident.resolved_at 
-                                ? getDurationText(incident.occurred_at, incident.resolved_at)
-                                : "Cleared"
-                              : getAgingText(incident.occurred_at)
-                            }
-                          </span>
-                        </td>
-                      </tr>
-                    );
-                  })
-                )}
-              </tbody>
-            </table>
+                            <div className="text-sm font-black text-blue-900">
+                              {incident.contractor_engaged}
+                            </div>
+                            <div className="text-[10px] text-blue-600 font-semibold">
+                              Awaiting resolution sign-off
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="bg-gray-50/50 border border-gray-100 rounded-xl p-4 flex flex-col items-center justify-center h-full text-center">
+                            <AlertTriangle size={18} className="text-amber-400 mb-2" />
+                            <div className="text-[10px] font-black text-gray-400 uppercase tracking-wider">
+                              Awaiting Field Clearance
+                            </div>
+                            <div className="text-[9px] text-gray-400 font-semibold mt-1">
+                              No resolution submitted yet
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                );
+              })
+            )}
           </div>
         </Card>
       </div>

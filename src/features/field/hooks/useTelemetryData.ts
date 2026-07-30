@@ -23,6 +23,7 @@ export function useTelemetryData(
 
   // Exhaustive State Initialization
   const [formData, setFormData] = useState<Record<string, any>>({});
+  const [carriedFields, setCarriedFields] = useState<Set<string>>(new Set());
   const [activePowerSource, setActivePowerSource] = useState<'MAINS' | 'GENERATOR'>('MAINS');
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
@@ -221,6 +222,8 @@ export function useTelemetryData(
           });
 
           setFormData(metrics);
+          // Hour already submitted — no fields are "carried", all are confirmed
+          setCarriedFields(new Set());
           localStorage.setItem(cacheKey, JSON.stringify(metrics));
           setIsLoading(false);
           setActivePowerSource(metrics['fsm_mode'] === 'OUTAGE' || metrics['fsm_mode'] === 'ON_LOAD_TEST' || metrics['grid_status'] === 'OFF' ? 'GENERATOR' : 'MAINS');
@@ -249,27 +252,44 @@ export function useTelemetryData(
 
         const newFormState: Record<string, any> = {};
         const previousMetrics = (previousData?.metrics as Record<string, any>) || {};
+        const newCarried = new Set<string>();
 
         blueprint.equipment.forEach((equip: any) => {
           equip.metrics.forEach((metric: any) => {
             if (metric.default_value !== undefined) {
               newFormState[metric.id] = metric.default_value;
             }
-            // Honor the blueprint's carry_forward flag: only cumulative
-            // state (run-hours, meter readings, fuel balances) rolls into
-            // the next hour. Point-in-time readings (temps, voltages) must
-            // be re-measured, not silently copied.
-            if (metric.carry_forward === true && previousMetrics[metric.id] !== undefined) {
-              newFormState[metric.id] = previousMetrics[metric.id];
+            // Pre-fill ALL metrics from the previous hour so the tech
+            // can confirm-or-tweak rather than re-entering from scratch.
+            // Fields flagged carry_forward are treated identically but
+            // won't get the "unverified" visual cue (they're cumulative
+            // values like meter readings that roll over by design).
+            const prevVal = previousMetrics[metric.id];
+            if (prevVal !== undefined && prevVal !== null && prevVal !== '') {
+              newFormState[metric.id] = prevVal;
+              // Only mark point-in-time readings as "carried" (needing
+              // visual confirmation). Cumulative carry_forward fields and
+              // constants don't need the cue.
+              if (!metric.carry_forward && !metric.is_constant) {
+                newCarried.add(metric.id);
+              }
             }
           });
         });
 
+        setCarriedFields(newCarried);
 
-        // Carry forward all asset status values & persistent comments (e.g. status_pac_server_em1 = 'OFFLINE', comment_pac_server_em1 = 'Compressor failure')
+
+        // Carry forward all asset status values, persistent comments, and dynamic parameters
         Object.keys(previousMetrics).forEach((key) => {
           if (key.startsWith('status_') || key.startsWith('comment_')) {
             newFormState[key] = previousMetrics[key];
+          } else if (key.startsWith('param_')) {
+            const prevVal = previousMetrics[key];
+            if (prevVal !== undefined && prevVal !== null && prevVal !== '') {
+              newFormState[key] = prevVal;
+              newCarried.add(key);
+            }
           }
         });
 
@@ -356,6 +376,15 @@ export function useTelemetryData(
       localStorage.setItem(cacheKey, JSON.stringify(updated));
       return updated;
     });
+    // Once a tech touches a field, it's no longer "carried / unverified"
+    setCarriedFields((prev) => {
+      if (prev.has(id)) {
+        const next = new Set(prev);
+        next.delete(id);
+        return next;
+      }
+      return prev;
+    });
     setSubmitError(null);
   };
 
@@ -389,11 +418,11 @@ export function useTelemetryData(
       if (id.includes('humidity')) return [0, 100];
       if (id.includes('freq')) return [40, 70];
       if (id.includes('volt') || id.includes('vdc')) return [0, 1000];
-      if (id.includes('current') || id.includes('_amp')) return [0, 2000];
+      if (id.includes('current') || id.includes('_amp')) return [0, 9999];
       if (id.includes('load')) return [0, 999];
       if (id.includes('charge') || id.includes('capacity')) return [0, 100];
-      if (id.includes('fuel') || id.includes('meter') || id.includes('hrs') || id.includes('kwh')) return [0, 1000000];
-      return [-1000000, 1000000];
+      if (id.includes('fuel') || id.includes('meter') || id.includes('hrs') || id.includes('kwh')) return [0, 99999999];
+      return [-1000000, 99999999];
     };
 
     const offlineForValidation = new Set<string>();
@@ -706,6 +735,9 @@ export function useTelemetryData(
     isGridOff,
     activePowerSource,
     setActivePowerSource,
+
+    // Carried-forward field tracking
+    carriedFields,
 
     // FSM exports
     fsmMode,

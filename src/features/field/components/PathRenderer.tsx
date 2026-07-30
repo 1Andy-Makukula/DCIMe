@@ -46,6 +46,7 @@ interface PathRendererProps {
   allEquipment: any[];
   fsmMode: string;
   autoFilledFields: Set<string>;
+  carriedFields: Set<string>;
   prevGeneratorValues: Record<string, any>;
   getVisibleMetrics: (assetId: string, metrics: Metric[]) => Metric[];
   isEquipmentActive: (equipmentId: string) => boolean;
@@ -63,6 +64,7 @@ export function PathRenderer({
   allEquipment,
   fsmMode,
   autoFilledFields,
+  carriedFields,
   prevGeneratorValues,
   getVisibleMetrics,
   isEquipmentActive,
@@ -300,6 +302,11 @@ export function PathRenderer({
                               </span>
                             </span>
                           )}
+                          {!isDg && carriedFields.has(metric.id) && (
+                            <span className="text-[8px] font-black text-blue-500 bg-blue-50 px-1.5 py-0.5 rounded-md border border-blue-100 uppercase tracking-wider">
+                              Prev Hr
+                            </span>
+                          )}
                         </div>
                         <div className="relative">
                           {(() => {
@@ -307,6 +314,7 @@ export function PathRenderer({
                             const isReadOnlyField =
                               metric.id.endsWith("_cumulative_hrs") ||
                               metric.id === "fuel_balance";
+                            const isCarried = carriedFields.has(metric.id);
 
                             // Dynamic Boolean Toggle for Compliance Checks
                             if (metric.type === "boolean") {
@@ -357,6 +365,8 @@ export function PathRenderer({
                                     ? "bg-slate-100 border-gray-200 text-slate-500 cursor-not-allowed"
                                     : isAutoFilled && isDg
                                     ? "bg-emerald-50/10 border-emerald-200 text-emerald-700 focus:border-emerald-500 focus:ring-emerald-500/20"
+                                    : isCarried
+                                    ? "bg-blue-50/40 border-blue-200 text-gray-800 border-l-[3px] border-l-blue-400 focus:border-blue-500 focus:ring-blue-400/30"
                                     : "bg-white border-gray-200 text-gray-800 focus:border-red-400 focus:ring-red-400"
                                 }`}
                               />
@@ -372,14 +382,23 @@ export function PathRenderer({
                     const isConst = param.is_constant;
                     if (isConst) return null;
                     const inputKey = `param_${param.id}`;
+                    const isCarried = carriedFields.has(inputKey);
+
                     return (
                       <div key={param.id} className="space-y-1">
-                        <label
-                          htmlFor={inputKey}
-                          className="flex items-center gap-1 text-[10px] font-bold text-gray-400 uppercase tracking-wider"
-                        >
-                          <span>{param.parameter_name}</span>
-                        </label>
+                        <div className="flex items-center justify-between text-[10px] mb-1">
+                          <label
+                            htmlFor={inputKey}
+                            className="flex items-center gap-1 text-[10px] font-bold text-gray-400 uppercase tracking-wider"
+                          >
+                            <span>{param.parameter_name}</span>
+                          </label>
+                          {isCarried && (
+                            <span className="text-[8px] font-black text-blue-500 bg-blue-50 px-1.5 py-0.5 rounded-md border border-blue-100 uppercase tracking-wider">
+                              Prev Hr
+                            </span>
+                          )}
+                        </div>
 
                         {param.data_type === "boolean" ? (
                           <div className="flex items-center h-9 pl-1">
@@ -412,7 +431,11 @@ export function PathRenderer({
                               value={isOffline || isGridLocked ? "" : formData[inputKey] ?? ""}
                               onChange={(e) => handleUserInputChange(inputKey, e.target.value)}
                               placeholder={param.unit ? `[${param.unit}]` : "—"}
-                              className="w-full px-3 py-2 rounded-lg border border-gray-200 bg-white text-xs font-semibold text-gray-800 focus:outline-none focus:border-red-400 focus:ring-1 focus:ring-red-400 transition-all"
+                              className={`w-full px-3 py-2 rounded-lg border text-xs font-semibold focus:outline-none focus:ring-1 transition-all ${
+                                isCarried
+                                  ? "bg-blue-50/40 border-blue-200 text-gray-800 border-l-[3px] border-l-blue-400 focus:border-blue-500 focus:ring-blue-400/30"
+                                  : "bg-white border-gray-200 text-gray-800 focus:border-red-400 focus:ring-red-400"
+                              }`}
                             />
                             {param.unit && (
                               <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] text-gray-400 font-bold uppercase pointer-events-none">
