@@ -1,6 +1,8 @@
 import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/shared/api/supabaseClient";
 import { useCurrentSite } from "@/shared/context/SiteContext";
+import { useAuth } from "@/shared/context/AuthContext";
+
 import {
   AlertTriangle,
   AlertCircle,
@@ -425,28 +427,13 @@ function ResolvedCard({ incident }: { incident: Incident }) {
 // ── Main Component ────────────────────────────────────────────────────────────
 export function AlertsLog() {
   const { currentSite } = useCurrentSite();
+  const { employee } = useAuth();
   const [view,         setView]         = useState<View>("active");
   const [rawIncidents, setRawIncidents] = useState<any[]>([]);
   const [isLoading,    setIsLoading]    = useState(true);
   const [expandedId,   setExpandedId]   = useState<string | null>(null);
   const [lastSync,     setLastSync]     = useState<string>("");
 
-  const [acknowledgedList, setAcknowledgedList] = useState<{ id: string; by: string; at: string }[]>(() => {
-    try {
-      const stored = localStorage.getItem("dcime_acknowledged_incidents");
-      return stored ? JSON.parse(stored) : [];
-    } catch (e) {
-      return [];
-    }
-  });
-
-  useEffect(() => {
-    try {
-      localStorage.setItem("dcime_acknowledged_incidents", JSON.stringify(acknowledgedList));
-    } catch (e) {
-      console.error("Failed to save acknowledged list to localStorage:", e);
-    }
-  }, [acknowledgedList]);
 
   const mapRowToIncident = (row: any): Incident => {
     const mapSeverity = (sev: string): Severity => {
@@ -498,9 +485,15 @@ export function AlertsLog() {
       else if (row.asset_id.startsWith("COMP-")) categoryStr = "Compute / Server";
     }
 
-    const localAck = acknowledgedList.find((item) => item.id === row.id);
+    // Acknowledgments live in the incident's comments array (type:
+    // 'acknowledgment') — persisted in the database so they survive
+    // across devices, browsers, and sites. The latest one wins.
+    const ackEntry = Array.isArray(row.comments)
+      ? [...row.comments].reverse().find((c: any) => c?.type === "acknowledgment")
+      : undefined;
 
     return {
+
       id:             row.ticket_number || row.id,
       dbId:           row.id,
       severity:       mapSeverity(row.severity),
@@ -513,9 +506,10 @@ export function AlertsLog() {
       category:       categoryStr,
       photoUrl:       row.photo_url,
       raisedByName:   row.raised_by_name || "Unknown Technician",
-      acknowledged:   !!localAck,
-      acknowledgedBy: localAck?.by,
-      acknowledgedAt: localAck ? formatShortTime(localAck.at) : undefined,
+      acknowledged:   !!ackEntry,
+      acknowledgedBy: ackEntry?.author_name,
+      acknowledgedAt: ackEntry ? formatShortTime(ackEntry.timestamp) : undefined,
+
       resolvedBy:     row.resolved_by_name,
       resolvedAt:     row.resolved_at ? formatShortTime(row.resolved_at) : undefined,
       resolution:     row.resolution_details,
@@ -587,12 +581,30 @@ export function AlertsLog() {
   const unackedCount  = activeAlerts.filter((a) => !a.acknowledged).length;
 
   // ── Actions ───────────────────────────────────────────────────────────────
+  const operatorName = employee?.full_name || "NOC Operator";
+  const operatorId = employee?.employee_id || "EMP-UNKNOWN";
+
   const handleAck = async (dbId: string) => {
-    const nowStr = new Date().toISOString();
-    setAcknowledgedList((prev) => [
-      ...prev,
-      { id: dbId, by: "Ndabane Anderson M.", at: nowStr }
-    ]);
+    try {
+      // Atomic server-side append — no read-modify-write race, and the
+      // acknowledgment is attributed to the ACTUAL logged-in operator.
+      const { error } = await supabase.rpc("append_incident_comment", {
+        p_incident_id: dbId,
+        p_comment: {
+          author_name: operatorName,
+          author_id: operatorId,
+          comment_text: "Incident acknowledged.",
+          type: "acknowledgment",
+          timestamp: new Date().toISOString(),
+          photo_url: null,
+        } as any,
+      });
+      if (error) throw error;
+      fetchIncidents();
+    } catch (err) {
+      console.error("Error acknowledging incident:", err);
+      alert("Failed to acknowledge incident.");
+    }
   };
 
   const handleResolve = async (dbId: string) => {
@@ -607,12 +619,12 @@ export function AlertsLog() {
         .update({
           status: "RESOLVED",
           resolved_at: now,
-          resolved_by_name: "Ndabane Anderson M.",
-          resolved_by_id: "EMP-0874-AM",
+          resolved_by_name: operatorName,
+          resolved_by_id: operatorId,
           receipt_number: receiptNumber,
           impact: "Minimal operational impact, resolved by operator.",
           contractor_engaged: "None",
-          resolution_details: "Manually resolved via NOC dashboard by operator.",
+          resolution_details: `Manually resolved via NOC dashboard by ${operatorName}.`,
         })
         .eq("id", dbId);
 
@@ -624,6 +636,7 @@ export function AlertsLog() {
       alert("Failed to resolve incident.");
     }
   };
+
 
   function toggleExpand(id: string) {
     setExpandedId((prev) => (prev === id ? null : id));
@@ -659,8 +672,9 @@ export function AlertsLog() {
             System Alerts &amp; Triage
           </h1>
           <p className="text-[11px] font-semibold text-gray-400 mt-1">
-            Site NTC ZM-0874 · Real-time fault queue
+            Site {currentSite?.site_name || "—"} · Real-time fault queue
           </p>
+
         </div>
 
         {/* Summary badges */}
@@ -839,7 +853,8 @@ export function AlertsLog() {
             ? `${activeAlerts.length} active incident${activeAlerts.length !== 1 ? "s" : ""} · Last sync: ${lastSync} UTC+2`
             : `${resolved.length} resolved incidents in history`}
         </span>
-        <span className="font-mono">Site NTC ZM-0874</span>
+        <span className="font-mono">Site {currentSite?.site_name || "—"}</span>
+
       </div>
     </div>
   );

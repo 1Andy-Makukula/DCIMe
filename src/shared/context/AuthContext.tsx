@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect } from "react";
+import React, { createContext, useContext, useState, useEffect, useRef } from "react";
 import { supabase } from "@/shared/api/supabaseClient";
 import { useCurrentSite } from "./SiteContext";
 
@@ -11,6 +11,7 @@ export interface EmployeeProfile {
   phone_number: string;  // phone number
   site_id: string;       // primary site location (e.g. NTC ZM 0874)
   role: "ADMIN" | "FIELD_TECH";
+  status: "Active" | "Revoked";
   created_at: string;
   site_uuid?: string | null;
   sites?: {
@@ -26,6 +27,13 @@ interface AuthContextType {
   siteId: string;        // mapped from employee.site_id
   employeeId: string;    // mapped from employee.employee_id
   isLoading: boolean;
+  /**
+   * True ONLY when the live profile fetch failed due to a genuine
+   * network outage and we are showing the locally cached profile.
+   * Cached data must NEVER be used to authorize privileged screens —
+   * consumers should treat this as "read-only offline mode".
+   */
+  isOfflineFallback: boolean;
   logout: () => Promise<void>;
   refreshProfile: () => Promise<void>;
 }
@@ -92,23 +100,39 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<any>(null);
   const [employee, setEmployee] = useState<EmployeeProfile | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [isOfflineFallback, setIsOfflineFallback] = useState(false);
   const { setCurrentSite } = useCurrentSite();
 
-  const applyProfileAndSite = (empData: EmployeeProfile | null) => {
+  // Monotonic sequence counter. Every auth event (initial session check,
+  // SIGNED_IN, TOKEN_REFRESHED, SIGNED_OUT, manual refresh) bumps this.
+  // Async continuations capture the value at start and bail out if it has
+  // moved on — guaranteeing the LAST auth event wins, eliminating the
+  // startup race between initSession() and onAuthStateChange().
+  const authSeqRef = useRef(0);
+
+  const applyProfileAndSite = (empData: EmployeeProfile | null, opts?: { offline?: boolean }) => {
     if (empData) {
       setEmployee(empData);
-      setCachedData('dcime_cached_profile', empData);
+      setIsOfflineFallback(opts?.offline === true);
+      // Only cache FRESH, server-verified profiles. Never re-cache a
+      // cache-restored profile (that would extend the TTL indefinitely).
+      if (opts?.offline !== true) {
+        setCachedData('dcime_cached_profile', empData);
+      }
 
       const joinedSites = empData.sites;
       const siteData = Array.isArray(joinedSites) ? joinedSites[0] : joinedSites;
       if (siteData) {
         setCurrentSite(siteData as any);
-        setCachedData('dcime_cached_site', siteData);
+        if (opts?.offline !== true) {
+          setCachedData('dcime_cached_site', siteData);
+        }
       } else {
         setCurrentSite(null);
       }
     } else {
       setEmployee(null);
+      setIsOfflineFallback(false);
       setCurrentSite(null);
       clearCachedAuthData();
     }
@@ -118,7 +142,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const cachedEmp = getCachedData<EmployeeProfile>('dcime_cached_profile');
     const cachedSite = getCachedData<any>('dcime_cached_site');
     if (cachedEmp) {
-      setEmployee(cachedEmp);
+      applyProfileAndSite(cachedEmp, { offline: true });
       if (cachedSite) setCurrentSite(cachedSite);
       return true;
     }
@@ -128,26 +152,51 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const queryEmployeeProfile = async (userId: string) => {
     return supabase
       .from("employees")
-      .select("id, auth_id, full_name, email, employee_id, phone_number, site_id, role, created_at, site_uuid, sites ( id, site_code, site_name )")
+      .select("id, auth_id, full_name, email, employee_id, phone_number, site_id, role, status, created_at, site_uuid, sites ( id, site_code, site_name )")
       .eq("auth_id", userId)
       .maybeSingle();
   };
 
-  const fetchProfile = async (userId: string) => {
+  // Returns true if the profile was applied (or explicitly cleared),
+  // false if the attempt was superseded by a newer auth event.
+  const handleProfileResult = async (
+    data: EmployeeProfile | null,
+    seq: number
+  ): Promise<void> => {
+    if (seq !== authSeqRef.current) return;
+
+    if (!data) {
+      // No row found: Employee record was deleted or not assigned
+      applyProfileAndSite(null);
+      return;
+    }
+
+    if (data.status === "Revoked") {
+      // Access was revoked server-side. Kill the session immediately —
+      // never let a cached or in-flight profile keep this user in.
+      applyProfileAndSite(null);
+      setUser(null);
+      await supabase.auth.signOut();
+      return;
+    }
+
+    applyProfileAndSite(data);
+  };
+
+  const fetchProfile = async (userId: string, seq: number) => {
     try {
       const { data, error } = await queryEmployeeProfile(userId);
 
+      if (seq !== authSeqRef.current) return;
       if (error) throw error;
 
-      if (data) {
-        applyProfileAndSite(data as EmployeeProfile);
-      } else {
-        // No row found: Employee record was deleted or not assigned
-        applyProfileAndSite(null);
-      }
+      await handleProfileResult((data as EmployeeProfile) || null, seq);
     } catch (err: any) {
+      if (seq !== authSeqRef.current) return;
       console.warn("Profile query error in AuthContext:", err);
       if (isNetworkError(err)) {
+        // Offline: show cached profile as READ-ONLY fallback only.
+        // isOfflineFallback=true tells privileged screens to lock down.
         restoreFromCache();
       } else {
         applyProfileAndSite(null);
@@ -156,10 +205,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const refreshProfile = async () => {
+    const seq = ++authSeqRef.current;
     const { data: { session } } = await supabase.auth.getSession();
+    if (seq !== authSeqRef.current) return;
     if (session?.user) {
       setUser(session.user);
-      await fetchProfile(session.user.id);
+      await fetchProfile(session.user.id, seq);
     } else {
       setUser(null);
       applyProfileAndSite(null);
@@ -168,9 +219,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     const initSession = async () => {
+      const seq = ++authSeqRef.current;
       setIsLoading(true);
       try {
         const { data: { session } } = await supabase.auth.getSession();
+        if (seq !== authSeqRef.current) return;
+
         if (session?.user) {
           setUser(session.user);
 
@@ -181,15 +235,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             );
 
             const res: any = await Promise.race([profilePromise, timeoutPromise]);
-            if (res?.data) {
-              applyProfileAndSite(res.data as EmployeeProfile);
-            } else if (res?.error) {
+            if (seq !== authSeqRef.current) return;
+
+            if (res?.error) {
               throw res.error;
-            } else {
-              // Row explicitly missing in DB
-              applyProfileAndSite(null);
             }
+            await handleProfileResult((res?.data as EmployeeProfile) || null, seq);
           } catch (netErr: any) {
+            if (seq !== authSeqRef.current) return;
             console.warn("[DCIMe] Profile fetch issue. Checking offline cache.", netErr);
             if (isNetworkError(netErr)) {
               restoreFromCache();
@@ -198,19 +251,24 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             }
           }
         } else {
-          // No session in browser
+          // No session in browser — logged out. Never restore from cache:
+          // a missing session means signed out, not "maybe offline".
           applyProfileAndSite(null);
         }
       } catch (err) {
         console.error("[DCIMe] Error checking local auth session:", err);
       } finally {
-        setIsLoading(false);
+        if (seq === authSeqRef.current) {
+          setIsLoading(false);
+        }
       }
     };
 
     initSession();
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+      const seq = ++authSeqRef.current;
+
       if (event === 'SIGNED_OUT') {
         setUser(null);
         applyProfileAndSite(null);
@@ -220,15 +278,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       if (session?.user) {
         setUser(session.user);
-        await fetchProfile(session.user.id);
-      } else if (!session) {
-        const restored = restoreFromCache();
-        if (!restored) {
-          setUser(null);
-          applyProfileAndSite(null);
-        }
+        await fetchProfile(session.user.id, seq);
+      } else {
+        // Missing session = logged out. Do NOT fall back to the cached
+        // profile here — that path was what let revoked/demoted users
+        // keep privileged access for up to a week.
+        setUser(null);
+        applyProfileAndSite(null);
       }
-      setIsLoading(false);
+      if (seq === authSeqRef.current) {
+        setIsLoading(false);
+      }
     });
 
     return () => {
@@ -237,8 +297,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const logout = async () => {
+    const seq = ++authSeqRef.current;
     setIsLoading(true);
     await supabase.auth.signOut();
+    if (seq !== authSeqRef.current) return;
     setUser(null);
     applyProfileAndSite(null);
     setIsLoading(false);
@@ -255,6 +317,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         siteId,
         employeeId,
         isLoading,
+        isOfflineFallback,
         logout,
         refreshProfile,
       }}

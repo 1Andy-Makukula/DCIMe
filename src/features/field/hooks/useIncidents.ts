@@ -188,9 +188,6 @@ export function useIncidents() {
   ) => {
     setError(null);
     try {
-      const existing = incidents.find((item) => item.id === id);
-      const currentComments = existing?.comments || [];
-
       const newComment = {
         author_name: payload.author_name || "",
         author_id: payload.author_id || "",
@@ -200,18 +197,20 @@ export function useIncidents() {
         photo_url: payload.photo_url || null,
       };
 
-      const updatedComments = [...currentComments, newComment];
+      // Atomic server-side append. The old read-modify-write took the
+      // locally cached comment list and wrote the whole array back — two
+      // people commenting at once meant the second write erased the
+      // first person's comment. The RPC does comments || new_comment
+      // inside a single UPDATE, so no interleaving is possible.
+      const { data, error: rpcError } = await supabase.rpc("append_incident_comment", {
+        p_incident_id: id,
+        p_comment: newComment as any,
+      });
 
-      const { data, error: updateError } = await supabase
-        .from("incidents")
-        .update({ comments: updatedComments as any })
-        .eq("id", id)
-        .select()
-        .single();
-
-      if (updateError) throw updateError;
+      if (rpcError) throw rpcError;
 
       const sanitized = sanitizeIncident(data);
+
 
       setIncidents((prev) =>
         prev.map((item) => (item.id === id ? sanitized : item))

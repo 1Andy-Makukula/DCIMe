@@ -71,8 +71,11 @@ export function NocOverview() {
     thermalData,
     phaseAlerts,
     latestMetrics,
+    lastSync,
+    uptimePct,
     isLoading,
   } = useNocTelemetry();
+
 
   const isGen = latestMetrics['fsm_mode'] === 'OUTAGE' || latestMetrics['fsm_mode'] === 'ON_LOAD_TEST' || latestMetrics['grid_status'] === 'OFF';
   const pfVal = latestMetrics['grid_power_factor'] || '0.98';
@@ -172,12 +175,21 @@ export function NocOverview() {
 
   const fetchIncidents = async () => {
     try {
-      const { data, error } = await supabase
+      const query = supabase
         .from("incidents")
         .select("*")
         .order("created_at", { ascending: false });
 
+      // Site-scope the audit feed — without this the NOC sees (and leaks)
+      // every site's incidents.
+      if (currentSite?.id) {
+        query.eq("site_uuid", currentSite.id);
+      }
+
+      const { data, error } = await query;
+
       if (error) throw error;
+
 
       const sanitized: IncidentLog[] = (data || []).map((item: any) => ({
         ...item,
@@ -200,7 +212,28 @@ export function NocOverview() {
 
   React.useEffect(() => {
     fetchIncidents();
-  }, []);
+
+    // Live-refresh the incident feed, scoped to this site.
+    const siteId = currentSite?.id;
+    const channel = supabase
+      .channel(`noc_overview_incidents_${siteId ?? "global"}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "incidents",
+          ...(siteId ? { filter: `site_uuid=eq.${siteId}` } : {}),
+        },
+        () => fetchIncidents()
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [currentSite?.id]);
+
 
   // Filter and search logic
   const filteredIncidents = incidents.filter((incident) => {
@@ -270,50 +303,18 @@ export function NocOverview() {
           <div className="flex items-center gap-2 mt-1.5">
             <GlowDot color="#19C853" />
             <span className="text-[11px] font-bold text-gray-400 uppercase tracking-[0.12em]">
-              Site NTC ZM-0874 · Live
+              Site {currentSite?.site_name || "—"} · Live
             </span>
             <span className="text-[10px] text-gray-300 font-mono ml-2">
-              Last sync: 14:31 UTC+2
+              Last sync: {lastSync} CAT
             </span>
           </div>
         </div>
 
-        {/* Seed Database buttons */}
+        {/* Header actions (database seed/wipe buttons were removed from the
+            live dashboard — one accidental click would destroy pilot data.
+            Seeding is a SQL Editor / service_role operation now.) */}
         <div className="flex items-center gap-3">
-          <button
-            onClick={async () => {
-              if (window.confirm("Are you sure you want to seed WTC database from legacy schema? This will clean up existing WTC rooms and parameters.")) {
-                const { seedWtcData } = await import("@/shared/utils/seedDatabase");
-                const res = await seedWtcData();
-                if (res.success) {
-                  alert(res.message);
-                } else {
-                  alert("Error: " + res.message);
-                }
-              }
-            }}
-            className="bg-white border border-gray-250 rounded-xl px-3 py-2 text-[10px] font-black uppercase tracking-wider text-slate-700 hover:text-red-500 hover:border-red-100 hover:bg-red-50/20 active:scale-95 transition-all shadow-sm flex items-center gap-2 cursor-pointer"
-          >
-            🌱 Seed WTC DB
-          </button>
-
-          <button
-            onClick={async () => {
-              if (window.confirm("Are you sure you want to seed NTC database from legacy schema? This will clean up existing NTC rooms and parameters.")) {
-                const { seedNtcData } = await import("@/shared/utils/seedDatabase");
-                const res = await seedNtcData();
-                if (res.success) {
-                  alert(res.message);
-                } else {
-                  alert("Error: " + res.message);
-                }
-              }
-            }}
-            className="bg-white border border-gray-250 rounded-xl px-3 py-2 text-[10px] font-black uppercase tracking-wider text-slate-700 hover:text-red-500 hover:border-red-100 hover:bg-red-50/20 active:scale-95 transition-all shadow-sm flex items-center gap-2 cursor-pointer"
-          >
-            🌱 Seed NTC DB
-          </button>
-
           <button
             onClick={() => {
               const role = employee?.role || "ADMIN";
@@ -324,18 +325,31 @@ export function NocOverview() {
             📊 View Visual Topology
           </button>
 
-          {/* Live pulse badge */}
-          <div className="flex items-center gap-2 bg-green-50 border border-green-100 rounded-xl px-3 py-2">
-            <span
-              className="w-2 h-2 rounded-full bg-green-500 flex-shrink-0"
-              style={{ animation: "pulse 2s infinite" }}
-            />
-            <span className="text-[11px] font-black text-green-700 uppercase tracking-wider">
-              All Systems Nominal
-            </span>
-          </div>
+          {/* Live status badge — reacts to the actual open-alarm count */}
+          {openAlarmCount > 0 ? (
+            <div className="flex items-center gap-2 bg-red-50 border border-red-200 rounded-xl px-3 py-2">
+              <span
+                className="w-2 h-2 rounded-full bg-red-500 flex-shrink-0"
+                style={{ animation: "pulse 2s infinite" }}
+              />
+              <span className="text-[11px] font-black text-red-700 uppercase tracking-wider">
+                {openAlarmCount} Open Alarm{openAlarmCount === 1 ? "" : "s"}
+              </span>
+            </div>
+          ) : (
+            <div className="flex items-center gap-2 bg-green-50 border border-green-100 rounded-xl px-3 py-2">
+              <span
+                className="w-2 h-2 rounded-full bg-green-500 flex-shrink-0"
+                style={{ animation: "pulse 2s infinite" }}
+              />
+              <span className="text-[11px] font-black text-green-700 uppercase tracking-wider">
+                All Systems Nominal
+              </span>
+            </div>
+          )}
         </div>
       </div>
+
 
       {/* ── Main 12-column grid ─────────────────────────────────────────────── */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
@@ -438,7 +452,8 @@ export function NocOverview() {
           <div className="flex items-center gap-6 mt-3 pt-3 border-t border-gray-50">
             {[
               { label: "UPS Charge", value: `${latestMetrics.ups_1_battery_charge_percent || 100}%`, color: "#19C853" },
-              { label: "Site Uptime", value: isGen ? "Generator Mode" : "99.97%", color: isGen ? "#F59E0B" : "#19C853" },
+              { label: "Site Uptime", value: isGen ? "Generator Mode" : (uptimePct === "—" ? "—" : `${uptimePct}%`), color: isGen ? "#F59E0B" : "#19C853" },
+
               { label: "Phase Balance", value: "Monitoring", color: "#FFB020" },
               { label: "DC Bus", value: `${latestMetrics.rectifier_1_dc_voltage || 48.1} V`, color: "#19C853" },
             ].map((stat) => (

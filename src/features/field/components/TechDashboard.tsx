@@ -15,13 +15,17 @@ import { ShiftTimeline } from "./ShiftTimeline";
 import { RoutineTasksDashboard } from "./RoutineTasksDashboard";
 import { PrintableChecklist } from "./PrintableChecklist";
 import { supabase } from "@/shared/api/supabaseClient";
+import { useCurrentSite } from "@/shared/context/SiteContext";
 import { useShiftReports } from "../hooks/useShiftReports";
+
 import { TechUser } from "./TechLayout";
 import { useOfflineSync } from "../hooks/useOfflineSync";
 
 export function TechDashboard() {
   useOfflineSync();
   const { user } = useOutletContext<{ user: TechUser | null }>();
+  const { currentSite } = useCurrentSite();
+
   const [selectedTargetHour, setSelectedTargetHour] = useState<number | null>(null);
   const [completedHours, setCompletedHours] = useState<number[]>([]);
   const [currentTime, setCurrentTime] = useState(new Date());
@@ -46,23 +50,35 @@ export function TechDashboard() {
   useEffect(() => {
     const fetchCompletedHours = async () => {
       try {
-        const startOfDay = new Date();
-        startOfDay.setHours(-6, 0, 0, 0);
-        const endOfDay = new Date();
-        endOfDay.setHours(30, 0, 0, 0);
+        // Query a generous window, but only count logs whose target_hour
+        // falls on TODAY (local date). A slot may only turn green for work
+        // logged today — yesterday's 20:00 log must not pre-fill today's
+        // 20:00 slot.
+        const windowStart = new Date();
+        windowStart.setHours(-12, 0, 0, 0);
+        const windowEnd = new Date();
+        windowEnd.setHours(36, 0, 0, 0);
 
-        const { data, error } = await supabase
+        let query = supabase
           .from("telemetry_logs")
           .select("target_hour")
-          .gte("target_hour", startOfDay.toISOString())
-          .lte("target_hour", endOfDay.toISOString());
+          .gte("target_hour", windowStart.toISOString())
+          .lte("target_hour", windowEnd.toISOString());
+        if (currentSite?.id) query = query.eq("site_uuid", currentSite.id);
+        const { data, error } = await query;
 
         if (error) throw error;
 
         if (data) {
-          const hours = data.map((row: any) => {
-            return new Date(row.target_hour).getHours();
-          });
+          const now = new Date();
+          const hours = data
+            .map((row: any) => new Date(row.target_hour))
+            .filter((d: Date) =>
+              d.getFullYear() === now.getFullYear() &&
+              d.getMonth() === now.getMonth() &&
+              d.getDate() === now.getDate()
+            )
+            .map((d: Date) => d.getHours());
           const uniqueHours = Array.from(new Set(hours));
           setCompletedHours(uniqueHours);
         }
@@ -72,7 +88,8 @@ export function TechDashboard() {
     };
 
     fetchCompletedHours();
-  }, [selectedTargetHour]);
+  }, [selectedTargetHour, currentSite?.id]);
+
 
   const formatDate = (dateStr: string) => {
     const d = new Date(dateStr);

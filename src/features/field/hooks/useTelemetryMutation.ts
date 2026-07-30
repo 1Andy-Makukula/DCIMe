@@ -46,12 +46,21 @@ export function useTelemetryMutation() {
       const technicianName = employee.full_name || "Unknown Tech";
       const firstName = technicianName.trim().split(/\s+/)[0];
 
+      // Stamp site identity onto the metrics payload itself (toggle saves
+      // used to skip this — leaving rows that later reads couldn't
+      // attribute to any site).
+      const stampedMetrics = {
+        ...metricsJson,
+        site_id: currentSite.site_code,
+        site_uuid: currentSite.id,
+      };
+
       // Offline Interceptor
       if (!navigator.onLine) {
         const payload = {
           target_hour: targetHourISO,
           frequency: "hourly",
-          metrics: metricsJson,
+          metrics: stampedMetrics,
           is_edited: false, // will resolve status on sync
           last_edited_at: null,
           asset_id: assetId || "facility_wide",
@@ -59,6 +68,7 @@ export function useTelemetryMutation() {
           technician_name: firstName,
           site_uuid: currentSite.id
         };
+
 
         const pending: any[] = (await localforage.getItem("pending_telemetry")) || [];
         // Prevent duplicate offline logs for the same target hour and asset
@@ -75,24 +85,32 @@ export function useTelemetryMutation() {
         return true;
       }
 
-      // Determine if this is an edit by checking for existing log
+      // Determine if this is an edit by checking for an existing log —
+      // filtered by REAL database columns (target_hour + site_uuid), not
+      // by peeking inside the metrics payload. Without the site filter a
+      // same-hour row from another site (or an unmatched row) corrupts
+      // the is_edited flag and the conflict target below.
       const { data: existingLog, error: fetchError } = await supabase
         .from("telemetry_logs")
         .select("id")
         .eq("target_hour", targetHourISO)
+        .eq("site_uuid", currentSite.id)
         .maybeSingle();
 
       if (fetchError) throw fetchError;
 
       const isEdited = !!existingLog;
 
+      // The live unique constraint is (target_hour, site_uuid) — the
+      // conflict target MUST name both columns or Postgres rejects the
+      // upsert outright and the save silently fails.
       const { error: upsertError } = await supabase
         .from("telemetry_logs")
         .upsert(
           {
             target_hour: targetHourISO,
             frequency: "hourly",
-            metrics: metricsJson,
+            metrics: stampedMetrics,
             is_edited: isEdited,
             last_edited_at: isEdited ? new Date().toISOString() : null,
             asset_id: assetId || "facility_wide",
@@ -100,8 +118,9 @@ export function useTelemetryMutation() {
             technician_name: firstName,
             site_uuid: currentSite.id
           },
-          { onConflict: "target_hour" }
+          { onConflict: "target_hour,site_uuid" }
         );
+
 
       if (upsertError) throw upsertError;
       return true;

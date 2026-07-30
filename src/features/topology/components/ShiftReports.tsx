@@ -340,10 +340,13 @@ export function ShiftReports() {
 
   const fetchDbReports = async () => {
     try {
-      const { data, error } = await supabase
+      let query = supabase
         .from("shift_reports")
         .select("*")
         .order("timestamp", { ascending: false });
+      if (currentSite?.id) query = query.eq("site_uuid", currentSite.id);
+      const { data, error } = await query;
+
 
       if (error) throw error;
 
@@ -393,7 +396,8 @@ export function ShiftReports() {
 
   useEffect(() => {
     fetchDbReports();
-  }, []);
+  }, [currentSite?.id]);
+
 
   const allShiftLogs = [...dbReports];
 
@@ -408,12 +412,17 @@ export function ShiftReports() {
       const monthName = now.toLocaleString("en-US", { month: "long" });
       const yearStr   = String(now.getFullYear());
 
-      const { data: telemetryRows, error: telemetryError } = await supabase
+      let telemetryQuery = supabase
         .from("telemetry_logs")
         .select("*")
         .gte("target_hour", monthStart.toISOString())
         .lte("target_hour", monthEnd.toISOString())
         .order("target_hour", { ascending: true });
+      // Scope the monthly export to the current site — without this the
+      // spreadsheet silently blends telemetry from every site.
+      if (currentSite?.id) telemetryQuery = telemetryQuery.eq("site_uuid", currentSite.id);
+      const { data: telemetryRows, error: telemetryError } = await telemetryQuery;
+
 
       if (telemetryError) throw telemetryError;
 
@@ -423,11 +432,13 @@ export function ShiftReports() {
         return;
       }
 
-      // Flatten each row: { target_hour (or created_at), ...metrics }
+      // Flatten each row: { target_hour, created_at, frequency, asset_id, technician_name, ...metrics }
       const flatData = telemetryRows.map((row: any) => ({
-        created_at: row.target_hour ?? row.created_at,
+        target_hour: row.target_hour,
+        created_at: row.created_at,
         frequency: row.frequency,
         asset_id: row.asset_id,
+        technician_name: row.technician_name,
         ...(row.metrics as Record<string, any> || {}),
       }));
 
@@ -446,8 +457,10 @@ export function ShiftReports() {
 
   const activeDateLabel = DATE_RANGES.find((r) => r.id === dateRange)?.label ?? "Last 7 Days";
 
-  // Audit CSV/PDF export handler
-  function handleAuditExport(format: "csv" | "pdf") {
+  // Audit CSV export handler (for a PDF, use the Print / PDF button — the
+  // page is print-optimised and the browser produces a real PDF).
+  function handleAuditExport(format: "csv") {
+
     const rows = allShiftLogs.map((l) =>
       [l.id, l.author, l.badgeId, l.date, l.time, l.shiftLabel, l.zone, l.verificationStatus, l.alertsAcked].join(",")
     );
@@ -484,8 +497,9 @@ export function ShiftReports() {
             </h1>
             <p className="text-[12px] font-semibold text-gray-400 mt-1">
               {activeTab === "shifts"
-                ? "Immutable field technician reports · Site NTC ZM-0874"
+                ? `Immutable field technician reports · Site ${currentSite?.site_name || "—"}`
                 : "Browse and print official daily checklists submitted by technicians."}
+
             </p>
           </div>
 
@@ -568,12 +582,13 @@ export function ShiftReports() {
                   Export CSV
                 </button>
                 <button
-                  onClick={() => handleAuditExport("pdf")}
+                  onClick={() => window.print()}
                   className="flex items-center gap-1.5 h-9 px-3.5 rounded-xl border border-gray-200 bg-white text-[11px] font-black text-gray-700 uppercase tracking-wider hover:border-gray-300 hover:bg-gray-50 active:scale-[0.98] transition-all cursor-pointer"
                 >
                   <FileText size={13} />
-                  PDF
+                  Print / PDF
                 </button>
+
               </div>
             </div>
 
@@ -668,8 +683,9 @@ export function ShiftReports() {
               <div className="flex items-center gap-1.5">
                 <Shield size={11} className="text-gray-300" />
                 <span>
-                  All logs are immutable cryptographic records · NTC ZM-0874 Audit System
+                  All logs are immutable cryptographic records · {currentSite?.site_name || "—"} Audit System
                 </span>
+
               </div>
               <span className="font-mono">
                 {allShiftLogs.length} records · {activeDateLabel}
@@ -682,10 +698,11 @@ export function ShiftReports() {
               readOnly={true} 
               showLogList={true} 
               data={{
-                siteName: "NTC ZM-0874",
+                siteName: currentSite?.site_name || "—",
                 technicianName: "Admin Operator",
                 technicianId: "EMP-ADMIN"
               }}
+
             />
           </div>
         )}

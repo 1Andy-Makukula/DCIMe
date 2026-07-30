@@ -18,10 +18,12 @@ export interface UseNocTelemetryResult {
   phaseAlerts:   NocAlert[];
   latestMetrics: Record<string, any>;
   lastSync:      string;
+  uptimePct:     string;
   isLoading:     boolean;
   hasData:       boolean;
   refresh:       () => void;
 }
+
 
 // ── Room temperature metric IDs → display labels ──────────────────────────────
 // These keys must match what useTelemetryData writes into metrics JSONB
@@ -55,6 +57,8 @@ export function useNocTelemetry(): UseNocTelemetryResult {
   const [phaseAlerts,   setPhaseAlerts]   = useState<NocAlert[]>([]);
   const [latestMetrics, setLatestMetrics] = useState<Record<string, any>>({});
   const [lastSync,      setLastSync]      = useState<string>("—");
+  const [uptimePct,     setUptimePct]     = useState<string>("—");
+
   const [isLoading,     setIsLoading]     = useState<boolean>(true);
   const [hasData,       setHasData]       = useState<boolean>(false);
   const fetchCountRef = useRef(0);
@@ -125,6 +129,22 @@ export function useNocTelemetry(): UseNocTelemetryResult {
         time:  toHHMM(new Date(inc.created_at || Date.now())),
       }));
 
+      // ── Real grid uptime over the fetched window ─────────────────────────
+      // Same formula as the analytics engine (useDashboardData): hours the
+      // grid was live ÷ total logged hours, excluding planned tests.
+      const totalLogs = (telemetryRows || []).length;
+      const offlineLogs = (telemetryRows || []).filter((row) => {
+        const m = (row.metrics as Record<string, any>) || {};
+        const status = String(m.grid_status || "").toUpperCase();
+        const isOffline = status === "OFFLINE" || status === "OFF";
+        return isOffline && m.outage_type !== "planned_test";
+      }).length;
+      setUptimePct(
+        totalLogs > 0
+          ? (((totalLogs - offlineLogs) / totalLogs) * 100).toFixed(1)
+          : "—"
+      );
+
       // ── Commit state ──────────────────────────────────────────────────────
       setLoadChartData(loadPoints);
       setThermalData(thermalPoints);
@@ -132,6 +152,7 @@ export function useNocTelemetry(): UseNocTelemetryResult {
       setLatestMetrics(latestM);
       setHasData(loadPoints.length > 0 || thermalPoints.length > 0);
       setLastSync(toHHMM(new Date()));
+
     } catch (err: any) {
       console.error("[useNocTelemetry] fetch error:", err);
     } finally {
@@ -189,8 +210,10 @@ export function useNocTelemetry(): UseNocTelemetryResult {
     phaseAlerts,
     latestMetrics,
     lastSync,
+    uptimePct,
     isLoading,
     hasData,
     refresh: fetchAll,
   };
+
 }

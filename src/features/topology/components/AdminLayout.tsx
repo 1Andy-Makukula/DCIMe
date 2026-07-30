@@ -29,31 +29,69 @@ const NAV_TABS = [
 // ── AdminLayout ───────────────────────────────────────────────────────────────
 export function AdminLayout() {
   const navigate = useNavigate();
-  const { employee, logout, isLoading } = useAuth();
+  const { employee, logout, isLoading, isOfflineFallback } = useAuth();
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const { currentSite } = useCurrentSite();
 
   useEffect(() => {
-    if (!isLoading && (!employee || employee.role !== "ADMIN")) {
+    if (!isLoading && !isOfflineFallback && (!employee || employee.role !== "ADMIN")) {
       navigate("/");
     }
-  }, [employee, isLoading, navigate]);
+  }, [employee, isLoading, isOfflineFallback, navigate]);
 
   const handleLogout = async () => {
     await logout();
     navigate("/");
   };
 
+  // Hold the loading screen until the role is confirmed against the LIVE
+  // database — never render the admin shell (or fire its data loads) for
+  // an unverified user, even for a frame.
   if (isLoading) {
     return (
       <div className="h-screen w-full flex items-center justify-center bg-gray-50">
         <div className="flex flex-col items-center gap-3">
           <div className="w-8 h-8 rounded-full border-2 border-red-500 border-t-transparent animate-spin" />
-          <span className="text-xs font-bold text-gray-400 uppercase tracking-widest">Loading Admin Session...</span>
+          <span className="text-xs font-bold text-gray-400 uppercase tracking-widest">Verifying Admin Clearance...</span>
         </div>
       </div>
     );
   }
+
+  // The profile on screen came from the local cache because the network is
+  // down. Cached data is display-only: it must NEVER unlock admin screens
+  // (a revoked/demoted user could otherwise ride the cache for days).
+  if (isOfflineFallback) {
+    return (
+      <div className="h-screen w-full flex items-center justify-center bg-gray-50 p-6">
+        <div className="max-w-sm text-center flex flex-col items-center gap-4">
+          <div className="w-14 h-14 rounded-2xl bg-amber-50 border border-amber-200 flex items-center justify-center">
+            <AlertTriangle size={26} className="text-amber-500" />
+          </div>
+          <div>
+            <h2 className="text-[15px] font-black text-gray-900 uppercase tracking-tight">You're Offline</h2>
+            <p className="text-[12px] font-semibold text-gray-500 mt-2 leading-relaxed">
+              The Admin Portal requires a live connection to verify your clearance.
+              Reconnect to the network and try again.
+            </p>
+          </div>
+          <button
+            onClick={handleLogout}
+            className="px-5 py-2.5 rounded-xl bg-gray-900 text-white text-[11px] font-black uppercase tracking-wider hover:bg-gray-700 transition-all cursor-pointer"
+          >
+            Back to Login
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  // Role confirmed non-admin: the effect above is already navigating away.
+  // Render nothing rather than flashing the dashboard.
+  if (!employee || employee.role !== "ADMIN") {
+    return null;
+  }
+
 
   const name = employee?.full_name || "Admin User";
   const parts = name.trim().split(/\s+/);

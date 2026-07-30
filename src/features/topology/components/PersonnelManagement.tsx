@@ -173,7 +173,7 @@ function EditPersonnelModal({ isOpen, onClose, onSaveSuccess, person }: EditPers
     e.preventDefault();
     setIsSaving(true);
     try {
-      const { error } = await supabase
+      const { data, error } = await supabase
         .from("employees")
         .update({
           full_name: fullName.trim(),
@@ -182,18 +182,26 @@ function EditPersonnelModal({ isOpen, onClose, onSaveSuccess, person }: EditPers
           site_id: siteId,
           site_uuid: selectedSiteUuid || null
         })
-        .eq("id", person.id);
+        .eq("id", person.id)
+        .select("id");
 
       if (error) throw error;
+      // RLS silently drops rows the caller isn't allowed to touch and
+      // returns 0 rows with NO error — treat that as a hard failure
+      // instead of faking success.
+      if (!data || data.length === 0) {
+        throw new Error("Update was rejected by database security policy (0 rows affected).");
+      }
       onSaveSuccess();
       onClose();
-    } catch (err) {
+    } catch (err: any) {
       console.error("Error updating employee profile:", err);
-      alert("Failed to update personnel profile.");
+      alert(err?.message || "Failed to update personnel profile.");
     } finally {
       setIsSaving(false);
     }
   };
+
 
   return (
     <div
@@ -427,23 +435,8 @@ export function PersonnelManagement() {
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [confirm,      setConfirm]      = useState<{ person: Personnel; action: "revoke" | "reinstate" } | null>(null);
   const [expandedRow,  setExpandedRow]  = useState<string | null>(null);
+  const [isToggling,   setIsToggling]   = useState(false);
 
-  const [revokedIds, setRevokedIds] = useState<string[]>(() => {
-    try {
-      const stored = localStorage.getItem("dcime_revoked_employees");
-      return stored ? JSON.parse(stored) : [];
-    } catch (e) {
-      return [];
-    }
-  });
-
-  useEffect(() => {
-    try {
-      localStorage.setItem("dcime_revoked_employees", JSON.stringify(revokedIds));
-    } catch (e) {
-      console.error("Failed to save revoked IDs to localStorage:", e);
-    }
-  }, [revokedIds]);
 
   const mapRowToPersonnel = (row: any): Personnel => {
     const getInitials = (name: string) => {
@@ -486,10 +479,13 @@ export function PersonnelManagement() {
       return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
     };
 
-    const isRevoked = revokedIds.includes(row.id);
+    // Revocation is a real database column now (employees.status),
+    // enforced by RLS helpers — not browser localStorage.
+    const isRevoked = row.status === "Revoked";
     const status: Status = isRevoked
       ? "Revoked"
       : (row.role === "ADMIN" ? "On-Shift" : "Active");
+
 
     return {
       id:          row.id,
@@ -548,15 +544,33 @@ export function PersonnelManagement() {
   }
 
   async function confirmToggle() {
-    if (!confirm) return;
+    if (!confirm || isToggling) return;
     const { person, action } = confirm;
-    if (action === "revoke") {
-      setRevokedIds((prev) => [...prev, person.id]);
-    } else {
-      setRevokedIds((prev) => prev.filter((id) => id !== person.id));
+    const newStatus = action === "revoke" ? "Revoked" : "Active";
+    setIsToggling(true);
+    try {
+      const { data, error } = await supabase
+        .from("employees")
+        .update({ status: newStatus })
+        .eq("id", person.id)
+        .select("id");
+
+      if (error) throw error;
+      // Same RLS silent-drop guard as the edit flow: 0 rows = blocked.
+      if (!data || data.length === 0) {
+        throw new Error(`${action === "revoke" ? "Revocation" : "Reinstatement"} was rejected by database security policy (0 rows affected).`);
+      }
+
+      setConfirm(null);
+      await fetchRoster();
+    } catch (err: any) {
+      console.error(`Failed to ${action} access for ${person.name}:`, err);
+      alert(err?.message || `Failed to ${action} access. No changes were made.`);
+    } finally {
+      setIsToggling(false);
     }
-    setConfirm(null);
   }
+
 
   // ── Summary card data ────────────────────────────────────────────────────
   const SUMMARY_CARDS = [

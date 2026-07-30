@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useNavigate, useOutletContext } from "react-router";
 import { 
   Clock, 
@@ -7,6 +7,7 @@ import {
   CheckCircle2, 
   ArrowLeft
 } from "lucide-react";
+import { supabase } from "@/shared/api/supabaseClient";
 import { useShiftReports } from "../hooks/useShiftReports";
 import { TechUser } from "./TechLayout";
 import { useCurrentSite } from "@/shared/context/SiteContext";
@@ -22,8 +23,44 @@ export function ShiftHandover() {
   const [isSuccess, setIsSuccess] = useState(false);
   const [generatedSig, setGeneratedSig] = useState("");
 
+  // Real shift stats — fetched live, never hardcoded
+  const [logsCompleted, setLogsCompleted] = useState<number | null>(null);
+  const [incidentsFiled, setIncidentsFiled] = useState<number | null>(null);
+
   const hour = new Date().getHours();
   const currentShiftHours = (hour >= 8 && hour < 18) ? "08:00 - 18:00" : "18:00 - 08:00";
+
+  useEffect(() => {
+    const fetchShiftStats = async () => {
+      if (!currentSite?.id) return;
+      try {
+        const todayStart = new Date();
+        todayStart.setHours(0, 0, 0, 0);
+
+        const [logsRes, incidentsRes] = await Promise.all([
+          supabase
+            .from("telemetry_logs")
+            .select("id", { count: "exact", head: true })
+            .eq("site_uuid", currentSite.id)
+            .eq("asset_id", "facility_wide")
+            .gte("target_hour", todayStart.toISOString()),
+          supabase
+            .from("incidents")
+            .select("id", { count: "exact", head: true })
+            .eq("site_uuid", currentSite.id)
+            .gte("created_at", todayStart.toISOString()),
+        ]);
+
+        setLogsCompleted(logsRes.count ?? 0);
+        setIncidentsFiled(incidentsRes.count ?? 0);
+      } catch (err) {
+        console.error("Failed to load shift stats:", err);
+        setLogsCompleted(0);
+        setIncidentsFiled(0);
+      }
+    };
+    fetchShiftStats();
+  }, [currentSite?.id]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -36,7 +73,9 @@ export function ShiftHandover() {
     setIsSubmitting(true);
     
     try {
-      const sigId = `SHA256:${Math.random().toString(16).substring(2, 10)}${Math.random().toString(16).substring(2, 10)}`;
+      // Opaque signature reference — NOT labeled as a cryptographic hash,
+      // because it isn't one.
+      const sigId = `SIG-${Date.now().toString(36).toUpperCase()}-${Math.random().toString(36).substring(2, 8).toUpperCase()}`;
       setGeneratedSig(sigId);
 
       await submitShiftReport({
@@ -46,8 +85,8 @@ export function ShiftHandover() {
         technician_id: user?.id || "EMP-UNKNOWN",
         signature_id: sigId,
         shift_duration: currentShiftHours,
-        routine_logs_completed: 4,
-        incidents_filed: 0,
+        routine_logs_completed: logsCompleted ?? 0,
+        incidents_filed: incidentsFiled ?? 0,
         site_id: currentSite?.site_name || "NTC ZM 0874",
         site_uuid: currentSite?.id || null
       });
@@ -59,6 +98,7 @@ export function ShiftHandover() {
       setIsSubmitting(false);
     }
   };
+
 
   if (isSuccess) {
     return (
@@ -85,8 +125,9 @@ export function ShiftHandover() {
           </div>
           <div className="flex justify-between border-b border-gray-800 pb-1.5">
             <span className="text-gray-500">Routine Check:</span>
-            <span className="text-green-400 font-bold">4/4 Logs Saved</span>
+            <span className="text-green-400 font-bold">{logsCompleted ?? 0} Logs Saved</span>
           </div>
+
           <div className="flex justify-between">
             <span className="text-gray-500">Signature ID:</span>
             <span className="text-red-400 font-bold font-mono truncate max-w-[200px]">{generatedSig}</span>
@@ -139,13 +180,18 @@ export function ShiftHandover() {
           <div className="grid grid-cols-2 gap-3 pt-3 border-t border-gray-100">
             <div className="bg-gray-50 rounded-2xl p-3 border border-gray-100 text-center space-y-1">
               <p className="text-[9px] text-gray-400 font-bold uppercase tracking-wider">Routine Logs</p>
-              <p className="text-base font-black text-green-600">4 / 4 Complete</p>
+              <p className="text-base font-black text-green-600">
+                {logsCompleted === null ? "…" : `${logsCompleted} Saved`}
+              </p>
             </div>
             
             <div className="bg-gray-50 rounded-2xl p-3 border border-gray-100 text-center space-y-1">
               <p className="text-[9px] text-gray-400 font-bold uppercase tracking-wider">Incidents Filed</p>
-              <p className="text-base font-black text-gray-500">0 Reported</p>
+              <p className="text-base font-black text-gray-500">
+                {incidentsFiled === null ? "…" : `${incidentsFiled} Reported`}
+              </p>
             </div>
+
           </div>
         </div>
 

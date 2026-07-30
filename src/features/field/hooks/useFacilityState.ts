@@ -61,12 +61,19 @@ export function useFacilityState() {
     try {
       const { error } = await supabase
         .from("facility_states")
-        .upsert({
-          site_uuid: currentSite.id,
-          fsm_mode: mode,
-          updated_at: new Date().toISOString(),
-          updated_by: employee?.id || null
-        });
+        .upsert(
+          {
+            site_uuid: currentSite.id,
+            fsm_mode: mode,
+            updated_at: new Date().toISOString(),
+            updated_by: employee?.id || null
+          },
+          // Explicit duplicate handling: site_uuid is the PRIMARY KEY —
+          // without naming it, the upsert's conflict behavior is implicit
+          // and a mismatch fails silently.
+          { onConflict: "site_uuid" }
+        );
+
 
       if (error) throw error;
     } catch (err: any) {

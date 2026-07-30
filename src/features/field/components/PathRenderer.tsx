@@ -55,8 +55,9 @@ interface PathRendererProps {
 }
 
 export function PathRenderer({
-  targetHour,
+  targetHour: _targetHour,
   currentStep,
+
   blueprint,
   formData,
   allEquipment,
@@ -71,10 +72,6 @@ export function PathRenderer({
 }: PathRendererProps) {
   const currentStepEquipmentIds = currentStep.equipment_ids;
 
-  const numericHour = typeof targetHour === 'number'
-    ? targetHour
-    : parseInt(String(targetHour || '0').split(':')[0], 10);
-  const isOddHour = !isNaN(numericHour) && numericHour % 2 !== 0;
 
   const categoryIcon = (category: string) => {
     switch (category?.toUpperCase()) {

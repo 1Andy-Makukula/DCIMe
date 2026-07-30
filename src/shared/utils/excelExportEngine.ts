@@ -88,7 +88,14 @@ export const generateMonthlyReport = async (
   // Determine number of days in the month
   // M-6 Note: month is 1-indexed (1=Jan, 12=Dec). In JS Date constructor (year, month, 0),
   // day 0 of month N returns the last day of month N-1, giving total days for 1-indexed month.
-  const numDays = new Date(parseInt(year, 10), parseInt(month, 10), 0).getDate();
+  // Support both numeric ("7") and full-name ("July") month strings.
+  // parseInt("July", 10) returns NaN which silently kills the day loop.
+  const rawMonthNum = parseInt(month, 10);
+  const numericMonth = !isNaN(rawMonthNum)
+    ? rawMonthNum
+    : new Date(`${month} 1, ${year}`).getMonth() + 1;
+
+  const numDays = new Date(parseInt(year, 10), numericMonth, 0).getDate();
 
   // Stateful carry-forward trackers
   const lastEnteredValues: Record<string, any> = {};
@@ -262,7 +269,7 @@ export const generateMonthlyReport = async (
       const cpSheet = getWorksheetCaseInsensitive(commWb, "Commercial Power Log");
       if (cpSheet) {
         const cpRow = 7 + ((day - 1) * 6) + Math.floor(hour / 4);
-        const logDateStr = new Date(parseInt(year, 10), parseInt(month, 10) - 1, day).toLocaleDateString("en-US");
+        const logDateStr = new Date(parseInt(year, 10), numericMonth - 1, day).toLocaleDateString("en-US");
         cpSheet.getCell("A" + cpRow).value = logDateStr;
         cpSheet.getCell("R" + cpRow).value = lastTechName;
       }
@@ -270,7 +277,7 @@ export const generateMonthlyReport = async (
       const trSheet = getWorksheetCaseInsensitive(commWb, "Temp Record");
       if (trSheet) {
         const trRow = 7 + ((day - 1) * 6) + Math.floor(hour / 4);
-        const logDateStr = new Date(parseInt(year, 10), parseInt(month, 10) - 1, day).toLocaleDateString("en-US");
+        const logDateStr = new Date(parseInt(year, 10), numericMonth - 1, day).toLocaleDateString("en-US");
         trSheet.getCell("A" + trRow).value = logDateStr;
         trSheet.getCell("V" + trRow).value = lastTechName;
       }
@@ -279,7 +286,7 @@ export const generateMonthlyReport = async (
       dgNames.forEach(name => {
         const sheet = getWorksheetCaseInsensitive(commWb, name);
         if (sheet) {
-          const logDateStr = new Date(parseInt(year, 10), parseInt(month, 10) - 1, day).toLocaleDateString("en-US");
+          const logDateStr = new Date(parseInt(year, 10), numericMonth - 1, day).toLocaleDateString("en-US");
           sheet.getCell("A" + (2 + day)).value = logDateStr;
           sheet.getCell("T" + (2 + day)).value = lastTechName;
         }
@@ -288,7 +295,7 @@ export const generateMonthlyReport = async (
       const fuelSheet = getWorksheetCaseInsensitive(commWb, "Fuel Record");
       if (fuelSheet) {
         const fuelRow = 5 + day;
-        const logDateStr = new Date(parseInt(year, 10), parseInt(month, 10) - 1, day).toLocaleDateString("en-US");
+        const logDateStr = new Date(parseInt(year, 10), numericMonth - 1, day).toLocaleDateString("en-US");
         fuelSheet.getCell("A" + fuelRow).value = logDateStr;
         fuelSheet.getCell("M" + fuelRow).value = "OK";
         fuelSheet.getCell("N" + fuelRow).value = lastTechName;
@@ -298,7 +305,7 @@ export const generateMonthlyReport = async (
       if (pacSheet) {
         for (let eqIdx = 0; eqIdx < 24; eqIdx++) {
           const pacRow = 5 + (Math.floor(hour / 2) * 24) + eqIdx;
-          const logDateStr = new Date(parseInt(year, 10), parseInt(month, 10) - 1, day).toLocaleDateString("en-US");
+          const logDateStr = new Date(parseInt(year, 10), numericMonth - 1, day).toLocaleDateString("en-US");
           pacSheet.getCell("A" + pacRow).value = logDateStr;
           pacSheet.getCell("R" + pacRow).value = lastTechName;
         }

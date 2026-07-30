@@ -84,44 +84,11 @@ export function RegistrationForm({ onClose, onSaveSuccess }: RegistrationFormPro
   const [error, setError] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
 
-  // Bootstrapping State — Require both zero admin count and ?setup=true query param
-  const [hasAdmins, setHasAdmins] = useState<boolean | null>(null);
-  
-  const queryParams = new URLSearchParams(window.location.search);
-  const isSetupParam = queryParams.get("setup") === "true";
-
-  useEffect(() => {
-    const checkAdmins = async () => {
-      try {
-        const { count, error: countError } = await supabase
-          .from("employees")
-          .select("*", { count: "exact", head: true })
-          .eq("role", "ADMIN");
-        
-        if (!countError) {
-          setHasAdmins((count || 0) > 0);
-        } else {
-          setHasAdmins(true);
-        }
-      } catch (err) {
-        setHasAdmins(true);
-      }
-    };
-    checkAdmins();
-  }, []);
-
-  const isBootstrapMode = hasAdmins === false && isSetupParam;
-
-  // Force role to ADMIN during first-time bootstrapping
-  useEffect(() => {
-    if (isBootstrapMode) {
-      setRole("ADMIN");
-    }
-  }, [isBootstrapMode]);
-
-  // 1. Guard Check: Only authenticated users with ADMIN role can access, 
-  // EXCEPT when the database is completely uninitialized (Bootstrap mode).
-  if (isAuthLoading || hasAdmins === null) {
+  // Guard Check: Only authenticated users with ADMIN role can provision
+  // accounts. (The old "bootstrap mode" was unreachable dead code — the
+  // first ADMIN row for a brand-new database is inserted directly via
+  // the SQL Editor / service_role, which bypasses RLS.)
+  if (isAuthLoading) {
     return (
       <div className="flex items-center justify-center p-12 min-h-[300px]">
         <div className="flex flex-col items-center gap-3">
@@ -132,7 +99,8 @@ export function RegistrationForm({ onClose, onSaveSuccess }: RegistrationFormPro
     );
   }
 
-  if (!isBootstrapMode && (!employee || employee.role !== "ADMIN")) {
+  if (!employee || employee.role !== "ADMIN") {
+
     return (
       <div className="max-w-md mx-auto my-12 p-8 bg-white border border-red-100 rounded-3xl shadow-sm text-center space-y-4">
         <div className="w-16 h-16 bg-red-50 rounded-full flex items-center justify-center mx-auto text-red-500 border border-red-100">
@@ -164,9 +132,16 @@ export function RegistrationForm({ onClose, onSaveSuccess }: RegistrationFormPro
     }
 
     try {
-      // Step A: Register User in Supabase Auth via the temporary non-persistent client
+      const cleanBadge = badgeId.trim().toUpperCase();
+
+      // Step A: Register User in Supabase Auth via the temporary non-persistent client.
+      // The AUTH identity uses the synthesized badge-ID email — this is what the
+      // login screen expects when a technician types their Employee/Badge ID.
+      // Their real corporate email is stored on the employees row as a contact
+      // field only, never as the login credential.
+      const loginEmail = `${cleanBadge.toLowerCase()}@dcime.local`;
       const { data: authData, error: authError } = await tempAuthClient.auth.signUp({
-        email: email.trim(),
+        email: loginEmail,
         password: password,
       });
 
@@ -175,19 +150,20 @@ export function RegistrationForm({ onClose, onSaveSuccess }: RegistrationFormPro
         throw new Error("Failed to create user credentials.");
       }
 
-      // Step B: Insert the matching profile record into public.employees
-      const { error: dbError } = await supabase
-        .from("employees")
-        .insert([{
-          auth_id: authData.user.id,
-          full_name: name.trim(),
-          email: email.trim(),
-          phone_number: phone.trim(),
-          employee_id: badgeId.trim().toUpperCase(),
-          role: role,
-          site_id: site,
-          site_uuid: selectedSiteUuid || null
-        }]);
+      // Step B: Insert the matching profile via the secure RPC. The direct
+      // table INSERT is rejected by RLS (admins can't self-insert rows for
+      // other auth users); admin_create_employee() is SECURITY DEFINER and
+      // re-verifies the caller is an active ADMIN at the same site.
+      const { error: dbError } = await supabase.rpc("admin_create_employee", {
+        p_auth_id: authData.user.id,
+        p_full_name: name.trim(),
+        p_employee_id: cleanBadge,
+        p_role: role,
+        p_site_uuid: selectedSiteUuid,
+        p_site_id: site,
+        p_email: email.trim(),
+        p_phone_number: phone.trim() || null,
+      });
 
       if (dbError) {
         throw dbError;
@@ -199,16 +175,14 @@ export function RegistrationForm({ onClose, onSaveSuccess }: RegistrationFormPro
       setPassword("");
       setBadgeId("");
       setPhone("");
-      setSuccessMsg(isBootstrapMode 
-        ? "Primary NOC Administrator account created successfully! Bootstrapping complete."
-        : `Account for ${name} provisioned successfully! Auth linked.`
-      );
+      setSuccessMsg(`Account for ${name} provisioned successfully! They can now sign in with Badge ID "${cleanBadge}".`);
       
       setTimeout(() => {
         if (onSaveSuccess) onSaveSuccess();
         if (onClose) onClose();
       }, 1500);
     } catch (err: any) {
+
       console.error("Error provisioning user:", err);
       setError(err.message || "An unexpected error occurred during account provisioning.");
     } finally {
@@ -223,11 +197,12 @@ export function RegistrationForm({ onClose, onSaveSuccess }: RegistrationFormPro
       <div className="px-6 py-5 border-b border-gray-100 bg-gray-50/50 flex items-center justify-between">
         <div>
           <div className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-0.5">
-            {isBootstrapMode ? "System Bootstrap · Step 1/1" : "IAM · Identity Access Provisioning"}
+            IAM · Identity Access Provisioning
           </div>
           <h2 className="text-[16px] font-black text-gray-900 leading-none">
-            {isBootstrapMode ? "Create Primary NOC Admin Account" : "Register New Employee"}
+            Register New Employee
           </h2>
+
         </div>
         {onClose && (
           <button
@@ -386,13 +361,12 @@ export function RegistrationForm({ onClose, onSaveSuccess }: RegistrationFormPro
           <div className="grid grid-cols-2 gap-4">
             <button
               type="button"
-              disabled={isBootstrapMode}
               onClick={() => setRole("FIELD_TECH")}
               className={`py-3 rounded-xl text-center text-xs font-black uppercase tracking-wider transition-all border cursor-pointer ${
                 role === "FIELD_TECH"
                   ? "bg-red-50 border-red-500 text-red-700"
                   : "bg-gray-50 border-gray-200 text-gray-500 hover:bg-gray-100"
-              } ${isBootstrapMode ? "opacity-40 cursor-not-allowed" : ""}`}
+              }`}
             >
               Field Tech
             </button>
@@ -405,8 +379,9 @@ export function RegistrationForm({ onClose, onSaveSuccess }: RegistrationFormPro
                   : "bg-gray-50 border-gray-200 text-gray-500 hover:bg-gray-100"
               }`}
             >
-              {isBootstrapMode ? "NOC Admin (First Boot)" : "NOC Admin (L5)"}
+              NOC Admin (L5)
             </button>
+
           </div>
         </div>
 

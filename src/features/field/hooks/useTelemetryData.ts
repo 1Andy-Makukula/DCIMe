@@ -228,10 +228,14 @@ export function useTelemetryData(
         }
 
         // Step D (Supabase Query 2 - Carry-Forward scoped to current site)
+        // Only actual facility logs may seed a new hour — a Daily Checklist
+        // row (or any other asset type) at a nearer hour would poison the
+        // pre-fill with the wrong data shape.
         const { data: previousData, error: prevError } = await supabase
           .from('telemetry_logs')
           .select('*')
           .lt('target_hour', targetHourISO)
+          .eq('asset_id', 'facility_wide')
           .or(`metrics->>site_uuid.eq.${currentSite.id},metrics->>site_id.eq.${siteCode}`)
           .order('target_hour', { ascending: false })
           .limit(1)
@@ -251,11 +255,16 @@ export function useTelemetryData(
             if (metric.default_value !== undefined) {
               newFormState[metric.id] = metric.default_value;
             }
-            if (previousMetrics[metric.id] !== undefined) {
+            // Honor the blueprint's carry_forward flag: only cumulative
+            // state (run-hours, meter readings, fuel balances) rolls into
+            // the next hour. Point-in-time readings (temps, voltages) must
+            // be re-measured, not silently copied.
+            if (metric.carry_forward === true && previousMetrics[metric.id] !== undefined) {
               newFormState[metric.id] = previousMetrics[metric.id];
             }
           });
         });
+
 
         // Carry forward all asset status values & persistent comments (e.g. status_pac_server_em1 = 'OFFLINE', comment_pac_server_em1 = 'Compressor failure')
         Object.keys(previousMetrics).forEach((key) => {
@@ -372,7 +381,65 @@ export function useTelemetryData(
       }
     }
 
+    // ── 2.4: Field input validation ──────────────────────────────────
+    // Reject physically impossible values (-40°C, 9999V) and block totally
+    // blank submissions from marking the hour "completed".
+    const plausibleBounds = (id: string): [number, number] => {
+      if (id.includes('temp')) return [-10, 60];
+      if (id.includes('humidity')) return [0, 100];
+      if (id.includes('freq')) return [40, 70];
+      if (id.includes('volt') || id.includes('vdc')) return [0, 1000];
+      if (id.includes('current') || id.includes('_amp')) return [0, 2000];
+      if (id.includes('load') || id.includes('charge') || id.includes('capacity')) return [0, 100];
+      if (id.includes('fuel') || id.includes('meter') || id.includes('hrs') || id.includes('kwh')) return [0, 1000000];
+      return [-1000000, 1000000];
+    };
+
+    const offlineForValidation = new Set<string>();
+    Object.keys(formData).forEach((key) => {
+      if (key.startsWith('status_') && formData[key] === 'OFFLINE') {
+        offlineForValidation.add(key.substring(7).toLowerCase().replace(/-/g, '_'));
+      }
+    });
+
+    for (const equip of blueprint.equipment) {
+      const normalizedId = (equip.id as string).toLowerCase().replace(/-/g, '_');
+      if (offlineForValidation.has(normalizedId)) continue;
+      if (equip.id === 'grid_main' && isGridOff) continue;
+
+      const visibleMetrics = getVisibleMetrics(equip.id, equip.metrics || []);
+      for (const m of visibleMetrics) {
+        if (m.type !== 'number' || m.is_constant) continue;
+        const raw = formData[m.id];
+
+        if (raw === undefined || raw === null || raw === '') {
+          // Core environmental readings are mandatory every hour; other
+          // categories may legitimately be skipped (e.g. standby DG).
+          if (equip.category === 'ENVIRONMENT') {
+            toast.error(`Missing required reading: ${m.label}`);
+            setIsSubmitting(false);
+            return;
+          }
+          continue;
+        }
+
+        const v = Number(raw);
+        if (!Number.isFinite(v)) {
+          toast.error(`Invalid number entered for ${m.label}.`);
+          setIsSubmitting(false);
+          return;
+        }
+        const [lo, hi] = plausibleBounds(m.id);
+        if (v < lo || v > hi) {
+          toast.error(`${m.label}: ${v} is outside the plausible range (${lo} – ${hi}).`);
+          setIsSubmitting(false);
+          return;
+        }
+      }
+    }
+
     // Calculate theoretical fuel burn for active generators (Dual-Tier Day Tank Math)
+
     const fuelBurnUpdates: Record<string, any> = {};
     activeGenerators.forEach((dgId) => {
       const startVal = parseFloat(formData[`${dgId}_hr_meter_start`]);
@@ -505,9 +572,16 @@ export function useTelemetryData(
 
       const firstName = (technicianName || 'Field Tech').trim().split(/\s+/)[0];
 
+      // A site context is mandatory — a NULL site_uuid would violate the
+      // NOT NULL constraint and produce an orphaned, unreadable row.
+      const siteUuid = currentSite?.id;
+      if (!siteUuid) {
+        throw new Error('Active site not loaded yet — cannot submit telemetry.');
+      }
+
       // Add site isolation metadata to metrics JSONB payload
       payload['site_id'] = siteCode;
-      payload['site_uuid'] = currentSite?.id || null;
+      payload['site_uuid'] = siteUuid;
 
       // Upsert to telemetry_logs
       // C-1: Use the composite conflict key (target_hour, site_uuid) so that
@@ -523,7 +597,7 @@ export function useTelemetryData(
             asset_id: 'facility_wide',
             technician_name: firstName,
             technician_id: employee?.id || null,
-            site_uuid: currentSite?.id || null
+            site_uuid: siteUuid
           },
           { onConflict: 'target_hour,site_uuid' }
         );
@@ -532,13 +606,17 @@ export function useTelemetryData(
         throw error;
       }
 
-      // Update active_power_source in public.shift_reports for the current shift
+      // Update active_power_source in public.shift_reports for the current
+      // OPEN shift only. A certified shift report is a signed-off,
+      // permanent record — a new technician's first entry must never
+      // silently rewrite the previous shift's history.
       let targetShiftLogId: string | null = null;
       if (employee?.id) {
         const { data } = await supabase
           .from('shift_reports')
           .select('log_id')
           .eq('logged_by', employee.id)
+          .eq('certified', false)
           .order('timestamp', { ascending: false })
           .limit(1)
           .maybeSingle();
@@ -550,25 +628,27 @@ export function useTelemetryData(
         // Without the site_uuid filter, this returns the most recent shift
         // report across ALL sites, then updates that report's power source —
         // potentially overwriting another site's shift record.
-        const siteId = currentSite?.id;
         const shiftQuery = supabase
           .from('shift_reports')
           .select('log_id')
+          .eq('site_uuid', siteUuid)
+          .eq('certified', false)
           .order('timestamp', { ascending: false })
           .limit(1);
-        if (siteId) {
-          shiftQuery.eq('site_uuid', siteId);
-        }
         const { data } = await shiftQuery.maybeSingle();
         if (data) targetShiftLogId = data.log_id;
       }
 
       if (targetShiftLogId) {
+        // Double-guard: the UPDATE itself also refuses certified rows, so
+        // even a stale log_id can't touch a closed shift.
         await supabase
           .from('shift_reports')
           .update({ active_power_source: activePowerSource })
-          .eq('log_id', targetShiftLogId);
+          .eq('log_id', targetShiftLogId)
+          .eq('certified', false);
       }
+
  
       const cacheKey = getCacheKey(targetHour);
       localStorage.removeItem(cacheKey);

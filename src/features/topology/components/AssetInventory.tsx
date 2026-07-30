@@ -433,78 +433,99 @@ export function AssetInventory() {
 
       if (error) throw error;
 
+      // Latest facility log for this site — the source of truth for live
+      // metrics and per-asset health signals. (The old code fabricated
+      // voltages per unit number, e.g. "47.6" for unit 2 regardless of
+      // reality.)
+      const { data: latestLog } = await supabase
+        .from("telemetry_logs")
+        .select("metrics, target_hour")
+        .eq("site_uuid", currentSite.id)
+        .eq("asset_id", "facility_wide")
+        .order("target_hour", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      const latestM = ((latestLog?.metrics as Record<string, any>) || {});
+      const lastSeenLabel = latestLog?.target_hour
+        ? new Date(latestLog.target_hour).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", hour12: false })
+        : null;
+
+      // Preferred live-metric keys per category, in priority order.
+      const metricCandidates = (normId: string, categoryDb: string): [string, string][] => {
+        switch (categoryDb) {
+          case "GENERATOR":
+            return [[`${normId}_run_hrs`, "hrs"], [`${normId}_batt_voltage`, "V"], [`${normId}_cumulative_hrs`, "hrs cum"]];
+          case "UPS":
+            return [[`${normId}_battery_vdc`, "V DC"], [`${normId}_output_load_kw`, "kW"], [`${normId}_battery_charge_percent`, "%"]];
+          case "RECTIFIER":
+            return [[`${normId}_dc_voltage`, "V DC"], [`${normId}_dc_current`, "A DC"], [`${normId}_load_percent`, "%"]];
+          case "AIRCON":
+            return [[`${normId}_return_temp_actual`, "°C"], [`${normId}_supply_temp_actual`, "°C"]];
+          case "MAINS":
+            return [[`grid_voltage_rs`, "V AC"], [`grid_total_site_load`, "kW"], [`grid_frequency`, "Hz"]];
+          default:
+            return [];
+        }
+      };
+
       if (data) {
         const mapped = data.map((row: any) => {
           const id = row.equipment_id;
-          const categoryDb = row.category; // 'UPS', 'GENERATOR', 'MAINS', 'RECTIFIER', 'AIRCON'
-          
-          let categoryUi: AssetCategory = "Power";
-          if (categoryDb === "AIRCON") {
-            categoryUi = "Cooling";
-          }
+          const categoryDb = row.category;
+          const normId = String(id).toLowerCase().replace(/-/g, "_");
 
-          // Parse number from ID
-          const parts = id.split("-");
-          const lastPart = parts[parts.length - 1] || "001";
-          const num = lastPart.padStart(3, "0");
-          
-          let name = row.name || `Equipment ${id}`;
-          let manufacturer = row.manufacturer || "Standard";
-          let model = row.model || "Generic Model";
-          let ip = row.ip_address || "10.0.4.10";
-          let firmware = row.firmware_version || "v1.0.0";
-          let rack = row.rack_location || "—";
+          const categoryUi: AssetCategory = categoryDb === "AIRCON" ? "Cooling" : "Power";
+
+
+          const name = row.name || `Equipment ${id}`;
+          const manufacturer = row.manufacturer || "Standard";
+          const model = row.model || "Generic Model";
+          const ip = row.ip_address || "—";
+          const firmware = row.firmware_version || "—";
+          const rack = row.rack_location || "—";
+
+          // ── Live metric: read the real value from the latest log ──
           let liveMetric = "—";
           let metricUnit = "";
-          
-          if (categoryDb === "UPS") {
-            if (!row.name) name = `UPS Unit ${num}`;
-            if (!row.manufacturer) manufacturer = "Vertiv";
-            if (!row.model) model = "Liebert EXL S1 80kVA";
-            if (!row.ip_address) ip = `10.0.4.1${num.charAt(2) || '1'}`;
-            if (!row.firmware_version) firmware = "v4.2.1";
-            if (!row.rack_location) rack = `R-${num.substring(1)}`;
-            liveMetric = num === "002" ? "47.6" : "48.1";
-            metricUnit = "V DC";
-          } else if (categoryDb === "GENERATOR") {
-            if (!row.name) name = `Diesel Generator ${num === "001" ? "A" : "B"}`;
-            if (!row.manufacturer) manufacturer = "Cummins";
-            if (!row.model) model = "C250 D5 250kVA";
-            if (!row.ip_address) ip = `10.0.4.2${num.charAt(2) || '1'}`;
-            if (!row.firmware_version) firmware = "v2.8.0";
-            if (!row.rack_location) rack = "—";
-            liveMetric = "0";
-            metricUnit = "kW";
-          } else if (categoryDb === "RECTIFIER") {
-            if (!row.name) name = `Rectifier ${num === "001" ? "A – Rm 1" : "B – Rm 2"}`;
-            if (!row.manufacturer) manufacturer = "Eltek";
-            if (!row.model) model = "Flatpack2 HE 48V";
-            if (!row.ip_address) ip = `10.0.4.3${num.charAt(2) || '1'}`;
-            if (!row.firmware_version) firmware = "v5.3.0";
-            if (!row.rack_location) rack = `R-0${4 + (parseInt(num) || 1)}`;
-            liveMetric = num === "002" ? "47.8" : "48.1";
-            metricUnit = "V DC";
-          } else if (categoryDb === "AIRCON") {
-            if (!row.name) name = `CRAC Unit ${num}`;
-            if (!row.manufacturer) manufacturer = "Stulz";
-            if (!row.model) model = "CyberAir 3PRO DX";
-            if (!row.ip_address) ip = `10.0.5.1${num.charAt(2) || '1'}`;
-            if (!row.firmware_version) firmware = "v3.1.4";
-            if (!row.rack_location) rack = "—";
-            liveMetric = num === "003" ? "22.4" : "20.7";
-            metricUnit = "°C";
-          } else if (categoryDb === "MAINS") {
-            if (!row.name) name = "ZESCO Mains Grid";
-            if (!row.manufacturer) manufacturer = "ZESCO";
-            if (!row.model) model = "Utility Feed";
-            if (!row.ip_address) ip = "10.0.4.50";
-            if (!row.firmware_version) firmware = "v1.0";
-            if (!row.rack_location) rack = "—";
-            liveMetric = "230";
-            metricUnit = "V AC";
+          for (const [key, unit] of metricCandidates(normId, categoryDb)) {
+            const raw = latestM[key];
+            if (raw !== undefined && raw !== null && raw !== "" && !isNaN(Number(raw))) {
+              // Zero is a legitimate reading (e.g. a generator that didn't
+              // run shows 0 hrs — never override it with a fake value).
+              liveMetric = String(raw);
+              metricUnit = unit;
+              break;
+            }
+          }
+          // Generic fallback: any numeric metric namespaced to this asset
+          if (liveMetric === "—") {
+            const prefix = `${normId}_`;
+            const hit = Object.keys(latestM).find((k) =>
+              k.startsWith(prefix) &&
+              !k.startsWith(`${prefix}status`) &&
+              latestM[k] !== null && latestM[k] !== "" && !isNaN(Number(latestM[k]))
+            );
+            if (hit) {
+              liveMetric = String(latestM[hit]);
+              metricUnit = "";
+            }
           }
 
-          const status: AssetStatus = row.is_active ? "ONLINE" : "DECOMMISSIONED";
+          // ── Status: registry flag first, then actual health signals ──
+          let status: AssetStatus;
+          if (!row.is_active) {
+            status = "DECOMMISSIONED";
+          } else {
+            const signal = String(latestM[`status_${normId}`] || "").toUpperCase();
+            if (signal === "OFFLINE" || signal === "FAULT") {
+              status = "OFFLINE";
+            } else if (signal === "DEGRADED") {
+              status = "DEGRADED";
+            } else {
+              status = "ONLINE";
+            }
+          }
 
           return {
             id:           id,
@@ -520,7 +541,7 @@ export function AssetInventory() {
             status:       status,
             liveMetric:   liveMetric,
             metricUnit:   metricUnit,
-            lastSeen:     row.is_active ? "Live" : "Offline",
+            lastSeen:     row.is_active ? (lastSeenLabel ?? "—") : "Offline",
             room_id:      row.room_id,
             is_active:    row.is_active
           };
@@ -531,6 +552,7 @@ export function AssetInventory() {
       console.error("Error loading live assets:", err);
     }
   };
+
 
   useEffect(() => {
     fetchRooms();

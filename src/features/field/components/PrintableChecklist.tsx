@@ -230,11 +230,16 @@ export const PrintableChecklist = forwardRef<HTMLDivElement, any>((props, ref) =
   const fetchHistory = async () => {
     setIsHistoryLoading(true);
     try {
-      const { data, error } = await supabase
+      let query = supabase
         .from("telemetry_logs")
         .select("*")
         .eq("asset_id", "AIRTEL_DAILY_CHECKLIST")
         .order("target_hour", { ascending: false });
+      // Scope history to the current site — without this the log blends
+      // checklists submitted at other sites.
+      if (currentSite?.id) query = query.eq("site_uuid", currentSite.id);
+      const { data, error } = await query;
+
 
       if (error) throw error;
 
@@ -266,7 +271,8 @@ export const PrintableChecklist = forwardRef<HTMLDivElement, any>((props, ref) =
 
   useEffect(() => {
     fetchHistory();
-  }, [saveSuccess]);
+  }, [saveSuccess, currentSite?.id]);
+
 
   // Sync state ONLY when selectedHistory changes (e.g. clicking 'View & Print' or returning to new entry)
   useEffect(() => {

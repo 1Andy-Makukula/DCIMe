@@ -76,7 +76,12 @@ export function IncidentTracker() {
     setResImpact("");
     setResContractor("");
     setResDetails("");
-    setResResolvedAt(new Date().toISOString().slice(0, 16));
+    // datetime-local inputs expect LOCAL time. Slicing toISOString() would
+    // hand it UTC — two hours behind Zambia (CAT, UTC+2).
+    const now = new Date();
+    const local = new Date(now.getTime() - now.getTimezoneOffset() * 60000);
+    setResResolvedAt(local.toISOString().slice(0, 16));
+
   };
 
   const handleSubmitResolution = async (e: React.FormEvent) => {

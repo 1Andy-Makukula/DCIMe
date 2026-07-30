@@ -58,11 +58,8 @@ C++ is not a text document; it is a physical simulation of the data center floor
 
 * When moving massive objects or file streams (like `std::ofstream& outFile`), do not copy them. Pass them by reference (`&`). We hand the function the map to the existing file rather than duplicating the entire hard drive payload in RAM.
 
-### **8. Frictionless Prototyping (The Password Exception)**
-
-* While the engine architecture is strictly secured, leave authentication details and passwords as plain text in the database schemas during the current development and prototyping phase. Avoid using pre-hashed passwords right now to eliminate troubleshooting friction while we test the core telemetry ingestion.
-
 ---
+
 
 These rules are the concrete foundation of your C++ topology. As we move into wiring the React UI and the Supabase API to this engine, these exact standards will ensure the backend never crashes, no matter what the frontend throws at it.
   

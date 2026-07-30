@@ -85,7 +85,10 @@ export const RoutineTasksDashboard = ({
     if (setFormData) {
       setFormData(updatedData);
     }
-    const cacheKey = `telemetry_cache_${targetHour}`;
+    // Key by site + local date + hour: an hour-only key bleeds drafts into
+    // the same hour on other days and other sites.
+    const cacheKey = `telemetry_cache_${siteCode}_${new Date().toDateString()}_${targetHour}`;
+
     localStorage.setItem(cacheKey, JSON.stringify(updatedData));
 
     const success = await submitTelemetryLog('facility_wide', updatedData, targetHour);
@@ -157,10 +160,11 @@ export const RoutineTasksDashboard = ({
           ...prevForm,
           [`active_${dgId}`]: next.includes(dgId)
         };
-        const cacheKey = `telemetry_cache_${targetHour}`;
+        const cacheKey = `telemetry_cache_${siteCode}_${new Date().toDateString()}_${targetHour}`;
         localStorage.setItem(cacheKey, JSON.stringify(updated));
         return updated;
       });
+
 
       return next;
     });
@@ -176,10 +180,11 @@ export const RoutineTasksDashboard = ({
           ...prevForm,
           [`active_${defaultDg}`]: true
         };
-        const cacheKey = `telemetry_cache_${targetHour}`;
+        const cacheKey = `telemetry_cache_${siteCode}_${new Date().toDateString()}_${targetHour}`;
         localStorage.setItem(cacheKey, JSON.stringify(updated));
         return updated;
       });
+
     }
   }, [fsmMode, activeGenerators, generatorIds]);
 
@@ -291,10 +296,11 @@ export const RoutineTasksDashboard = ({
 
     if (changed && setFormData) {
       setFormData(updated);
-      const cacheKey = `telemetry_cache_${targetHour}`;
+      const cacheKey = `telemetry_cache_${siteCode}_${new Date().toDateString()}_${targetHour}`;
       localStorage.setItem(cacheKey, JSON.stringify(updated));
     }
-  }, [formData, targetHour]);
+  }, [formData, targetHour, siteCode]);
+
 
   // WhatsApp Share & History (Synced across Database & Local Storage)
   const [historyOpen, setHistoryOpen] = useState(false);
@@ -445,16 +451,24 @@ export const RoutineTasksDashboard = ({
     window.open(waUrl, '_blank');
   };
 
-  // Helper to fetch last stop values of a specific generator
+  // Helper to fetch last stop values of a specific generator.
+  // Scoped to THIS site's facility logs — previously read the entire
+  // telemetry table unfiltered, so a second site would poison the
+  // run-hours memory with foreign data.
   const fetchLastDgMetrics = async (dgId: string) => {
+    if (!currentSite?.id) return null;
     try {
       const { data, error } = await supabase
         .from('telemetry_logs')
         .select('metrics')
+        .eq('site_uuid', currentSite.id)
+        .eq('asset_id', 'facility_wide')
         .not('metrics', 'is', null)
-        .order('target_hour', { ascending: false });
+        .order('target_hour', { ascending: false })
+        .limit(50);
 
       if (error) throw error;
+
 
       if (data) {
         const lastLogWithDg = data.find((row: any) => {
@@ -550,10 +564,11 @@ export const RoutineTasksDashboard = ({
             }
 
             if (changed) {
-              const cacheKey = `telemetry_cache_${targetHour}`;
+              const cacheKey = `telemetry_cache_${siteCode}_${new Date().toDateString()}_${targetHour}`;
               localStorage.setItem(cacheKey, JSON.stringify(updated));
             }
             return updated;
+
           });
         }
       }

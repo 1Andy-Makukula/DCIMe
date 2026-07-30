@@ -68,7 +68,19 @@ export interface ZoneDataPoint {
   status: string;
 }
 
+// ── Fuel burn-rate specifications (litres per hour at rated load) ──────────
+// ⚠ SITE ENGINEERS: replace these with the real spec-sheet burn rates for
+// each generator. Until then all units use the fleet estimate of 150 L/hr.
+const DG_FUEL_BURN_RATES_LPH: Record<string, number> = {
+  dg_1: 150,
+  dg_2: 150,
+  dg_3: 150,
+  dg_4: 150,
+  dg_hq: 150,
+};
+
 export interface IncidentBubblePoint {
+
   dayIndex: number;
   yValue: number;
   severity: number;
@@ -326,42 +338,61 @@ export function useDashboardData() {
             const date = new Date(row.target_hour).toLocaleDateString([], { month: 'short', day: '2-digit' });
             const result: any = { date };
 
-            // Map each generator prefix dynamically
+            // Map each generator prefix dynamically.
+            // NOTE: zero run-hours is a REAL answer (the unit didn't run) —
+            // never substitute a fabricated default like "2.5 hrs".
             const generatorIds = ['1', '2', '3', '4', 'hq'];
             generatorIds.forEach(id => {
               const prefix = `dg_${id}`;
               const start = parseFloat(m[`${prefix}_hr_meter_start`] ?? 0);
               const stop = parseFloat(m[`${prefix}_hr_meter_stop`] ?? 0);
               let run_hrs = Math.max(0, stop - start);
-              if (!run_hrs) run_hrs = parseFloat(m[`${prefix}_run_hrs`] ?? (id === 'hq' ? 1.5 : 2.5));
-              const fuel_consumed = parseFloat(m[`${prefix}_calculated_fuel_burn`] ?? String(run_hrs * 150));
+              if (!run_hrs) run_hrs = parseFloat(m[`${prefix}_run_hrs`] ?? 0) || 0;
+              const fuel_consumed = parseFloat(
+                m[`${prefix}_calculated_fuel_burn`] ??
+                String(run_hrs * (DG_FUEL_BURN_RATES_LPH[prefix] ?? 150))
+              );
 
               const keyName = id === 'hq' ? 'dghq' : `dg${id}`;
               result[`${keyName}_run_hrs`] = run_hrs;
               result[`${keyName}_fuel_consumed`] = fuel_consumed;
             });
 
-            // Keep default run_hrs / fuel_consumed as fallback
-            result.run_hrs = result.dg1_run_hrs;
-            result.fuel_consumed = result.dg1_fuel_consumed;
+            // Totals across ALL configured generators (previously only
+            // DG-1 was counted, ignoring 2/3/4/HQ entirely).
+            result.run_hrs = generatorIds.reduce((sum, id) => {
+              const keyName = id === 'hq' ? 'dghq' : `dg${id}`;
+              return sum + (result[`${keyName}_run_hrs`] || 0);
+            }, 0);
+            result.fuel_consumed = generatorIds.reduce((sum, id) => {
+              const keyName = id === 'hq' ? 'dghq' : `dg${id}`;
+              return sum + (result[`${keyName}_fuel_consumed`] || 0);
+            }, 0);
 
             return result;
           });
           setFuelChartData(mappedFuel);
 
-          // Fuel KPIs
+          // Fuel KPIs — summed across the whole generator fleet
           let sumRunHours = 0;
           let sumFuelConsumed = 0;
+          const fleetPrefixes = ['dg_1', 'dg_2', 'dg_3', 'dg_4', 'dg_hq'];
           telLogs.forEach(row => {
             const m = (row.metrics || {}) as Record<string, any>;
-            const start = parseFloat(m.dg_1_hr_meter_start ?? 0);
-            const stop = parseFloat(m.dg_1_hr_meter_stop ?? 0);
-            let run_hrs = Math.max(0, stop - start);
-            if (!run_hrs) run_hrs = parseFloat(m.dg_1_run_hrs ?? m.dg_hq_run_hrs ?? 0);
+            fleetPrefixes.forEach(prefix => {
+              const start = parseFloat(m[`${prefix}_hr_meter_start`] ?? 0);
+              const stop = parseFloat(m[`${prefix}_hr_meter_stop`] ?? 0);
+              let run_hrs = Math.max(0, stop - start);
+              if (!run_hrs) run_hrs = parseFloat(m[`${prefix}_run_hrs`] ?? 0) || 0;
 
-            sumRunHours += run_hrs;
-            sumFuelConsumed += parseFloat(m.dg_1_calculated_fuel_burn ?? String(run_hrs * 150));
+              sumRunHours += run_hrs;
+              sumFuelConsumed += parseFloat(
+                m[`${prefix}_calculated_fuel_burn`] ??
+                String(run_hrs * (DG_FUEL_BURN_RATES_LPH[prefix] ?? 150))
+              );
+            });
           });
+
 
           // Engine Health Scatter Mapping - read dynamic prefixes from the latest log
           const latestLogObj = telLogs[0];
@@ -509,9 +540,13 @@ export function useDashboardData() {
           setIncidentBubbles(incidentBubblesData);
           setTicketsLedger(ticketsLedgerData);
 
-          const avgBurnRate = 150;
+          // Fleet-average burn rate derived from actuals (0 when nothing ran)
+          const avgBurnRate = sumRunHours > 0
+            ? parseFloat((sumFuelConsumed / sumRunHours).toFixed(1))
+            : 0;
 
-          // Update KPIs state
+          // Update KPIs state — real totals only; when live data exists a
+          // legitimate zero must never be replaced by a mock fallback.
           setKpis({
             grid: {
               uptimePercentage: uptimePct !== "NaN" ? uptimePct : "100.0",
@@ -519,11 +554,12 @@ export function useDashboardData() {
               peakSiteLoad: peakLoad
             },
             fuel: {
-              totalRunHours: sumRunHours || 30.4,
-              totalFuelConsumed: sumFuelConsumed || 4560,
+              totalRunHours: parseFloat(sumRunHours.toFixed(1)),
+              totalFuelConsumed: parseFloat(sumFuelConsumed.toFixed(1)),
               avgBurnRate: avgBurnRate,
-              currentFuelBalance: parseFloat(latestMetrics.fuel_balance ?? 24350)
+              currentFuelBalance: parseFloat(latestMetrics.fuel_balance ?? 0)
             },
+
             ups: {
               maxCapacityPct,
               avgBatteryCharge,

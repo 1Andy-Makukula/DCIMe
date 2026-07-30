@@ -72,7 +72,7 @@ export function LoginForm() {
     try {
       const { data: empData, error: empError } = await supabase
         .from("employees")
-        .select("role, full_name")
+        .select("role, full_name, status")
         .eq("auth_id", authData.user.id)
         .maybeSingle();
 
@@ -84,7 +84,16 @@ export function LoginForm() {
         return;
       }
 
+      // 4b. Hard-block revoked accounts: kill the just-created session.
+      if ((empData as any).status === "Revoked") {
+        await supabase.auth.signOut();
+        setError("Access to this account has been revoked. Contact your NOC administrator.");
+        setIsLoading(false);
+        return;
+      }
+
       // 5. Route based on role
+
       if (empData.role === "ADMIN") {
         navigate("/admin");
       } else {
