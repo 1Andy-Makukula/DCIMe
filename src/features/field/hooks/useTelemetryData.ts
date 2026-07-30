@@ -137,6 +137,9 @@ export function useTelemetryData(
   useEffect(() => {
     let active = true;
 
+    // Immediately reset carried fields on slot/site switch to prevent stale tags
+    setCarriedFields(new Set());
+
     // Step A (Instant Load)
     const cacheKey = getCacheKey(targetHour);
     const cached = localStorage.getItem(cacheKey);
@@ -683,6 +686,7 @@ export function useTelemetryData(
       const cacheKey = getCacheKey(targetHour);
       localStorage.removeItem(cacheKey);
       
+      setCarriedFields(new Set());
       setIsSuccess(true);
       setIsSubmitting(false);
 
@@ -738,6 +742,7 @@ export function useTelemetryData(
 
     // Carried-forward field tracking
     carriedFields,
+    setCarriedFields,
 
     // FSM exports
     fsmMode,

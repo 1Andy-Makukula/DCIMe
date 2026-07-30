@@ -73,7 +73,6 @@ export function NocOverview() {
     latestMetrics,
     lastSync,
     uptimePct,
-    isLoading,
   } = useNocTelemetry();
 
 
@@ -166,6 +165,7 @@ export function NocOverview() {
   }
 
   const [incidents, setIncidents] = React.useState<IncidentLog[]>([]);
+  const [incidentsLoading, setIncidentsLoading] = React.useState(true);
   const [filter, setFilter] = React.useState<"all" | "open" | "resolved">("all");
   const [searchQuery, setSearchQuery] = React.useState("");
   const [activePhotoUrl, setActivePhotoUrl] = React.useState<string | null>(null);
@@ -174,6 +174,7 @@ export function NocOverview() {
   const openAlarmCount = incidents.filter((i) => i.status === "OPEN").length;
 
   const fetchIncidents = async () => {
+    setIncidentsLoading(true);
     try {
       const query = supabase
         .from("incidents")
@@ -207,6 +208,8 @@ export function NocOverview() {
       setIncidents(sanitized);
     } catch (err) {
       console.error("Error fetching incidents for NOC:", err);
+    } finally {
+      setIncidentsLoading(false);
     }
   };
 
@@ -791,16 +794,16 @@ export function NocOverview() {
                 onClick={fetchIncidents}
                 className="p-2 rounded-xl bg-gray-50 border border-gray-200 text-gray-400 hover:text-gray-950 active:scale-95 transition-all shadow-sm flex items-center justify-center"
                 title="Refresh Audits"
-                disabled={isLoading}
+                disabled={incidentsLoading}
               >
-                <RefreshCw size={13} className={isLoading ? "animate-spin text-red-500" : ""} />
+                <RefreshCw size={13} className={incidentsLoading ? "animate-spin text-red-500" : ""} />
               </button>
             </div>
           </div>
 
           {/* Incident Feed */}
           <div className="space-y-3">
-            {isLoading && incidents.length === 0 ? (
+            {incidentsLoading && incidents.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-12 text-gray-400">
                 <RefreshCw size={20} className="animate-spin mb-2 text-red-400" />
                 <span className="text-xs font-semibold">Loading incident audit logs from Supabase...</span>

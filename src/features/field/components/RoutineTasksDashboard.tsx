@@ -70,7 +70,8 @@ export const RoutineTasksDashboard = ({
     isDailyTestDoneToday,
     dailyTestCompletedInfo,
     // Carried-forward tracking
-    carriedFields
+    carriedFields,
+    setCarriedFields
   } = useTelemetryData(targetHour, onComplete, onSubmitSuccess);
 
   const { groupedEquipment } = useSiteEquipment();
@@ -87,6 +88,17 @@ export const RoutineTasksDashboard = ({
     if (setFormData) {
       setFormData(updatedData);
     }
+
+    // Clear carried state for any key modified by this toggle
+    if (setCarriedFields) {
+      setCarriedFields((prev) => {
+        const next = new Set(prev);
+        next.delete(key);
+        Object.keys(extraUpdates).forEach((k) => next.delete(k));
+        return next;
+      });
+    }
+
     // Key by site + local date + hour: an hour-only key bleeds drafts into
     // the same hour on other days and other sites.
     const cacheKey = `telemetry_cache_${siteCode}_${new Date().toDateString()}_${targetHour}`;
