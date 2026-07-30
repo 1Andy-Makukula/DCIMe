@@ -417,14 +417,20 @@ export function useTelemetryData(
     // Reject physically impossible values (-40°C, 9999V) and block totally
     // blank submissions from marking the hour "completed".
     const plausibleBounds = (id: string): [number, number] => {
-      if (id.includes('temp')) return [-10, 60];
-      if (id.includes('humidity')) return [0, 100];
-      if (id.includes('freq')) return [40, 70];
-      if (id.includes('volt') || id.includes('vdc')) return [0, 1000];
-      if (id.includes('current') || id.includes('_amp')) return [0, 9999];
-      if (id.includes('load')) return [0, 999];
-      if (id.includes('charge') || id.includes('capacity')) return [0, 100];
-      if (id.includes('fuel') || id.includes('meter') || id.includes('hrs') || id.includes('kwh')) return [0, 99999999];
+      const cleanId = id.toLowerCase();
+      // Percentages / State of Charge / Capacity are strictly 0–100%
+      if (cleanId.includes('percent') || cleanId.includes('percentage') || cleanId.includes('charge') || cleanId.includes('capacity')) {
+        return [0, 100];
+      }
+      if (cleanId.includes('temp')) return [-10, 80];
+      if (cleanId.includes('humidity')) return [0, 100];
+      if (cleanId.includes('freq')) return [30, 80];
+      if (cleanId.includes('volt') || cleanId.includes('vdc')) return [0, 10000];
+      if (cleanId.includes('current') || cleanId.includes('amp')) return [0, 99999];
+      // Power / kW / Load / Meter / Energy / Fuel readings have high upper limits (up to 99,999,999)
+      if (cleanId.includes('load') || cleanId.includes('kw') || cleanId.includes('power') || cleanId.includes('watt') || cleanId.includes('fuel') || cleanId.includes('meter') || cleanId.includes('hrs')) {
+        return [0, 99999999];
+      }
       return [-1000000, 99999999];
     };
 
