@@ -12,7 +12,10 @@ import {
   User
 } from "lucide-react";
 import { ShiftTimeline } from "./ShiftTimeline";
+import { DateScrubber } from "./DateScrubber";
+import { ShiftCheckInPrompt } from "./ShiftCheckInPrompt";
 import { RoutineTasksDashboard } from "./RoutineTasksDashboard";
+import { monthBounds, startOfLocalDay, toLocalDateKey } from "../utils/dateKeys";
 import { PrintableChecklist } from "./PrintableChecklist";
 import { supabase } from "@/shared/api/supabaseClient";
 import { useCurrentSite } from "@/shared/context/SiteContext";
@@ -29,6 +32,16 @@ export function TechDashboard() {
   const [selectedTargetHour, setSelectedTargetHour] = useState<number | null>(null);
   const [completedHours, setCompletedHours] = useState<number[]>([]);
   const [currentTime, setCurrentTime] = useState(new Date());
+
+  // Which local day the timeline is showing, and which month the scrubber is
+  // browsing (they diverge while paging back through months).
+  const [selectedDate, setSelectedDate] = useState<Date>(() => startOfLocalDay(new Date()));
+  const [viewMonth, setViewMonth] = useState<Date>(() => {
+    const now = new Date();
+    return new Date(now.getFullYear(), now.getMonth(), 1);
+  });
+  // Logged-hour count per local date key, for the scrubber's day badges.
+  const [dayCounts, setDayCounts] = useState<Record<string, number>>({});
   
   // Tab state: "checklist", "handover", or "maintenance"
   const [activeTab, setActiveTab] = useState<"checklist" | "handover" | "maintenance">("checklist");
@@ -46,41 +59,38 @@ export function TechDashboard() {
     return () => clearInterval(timer);
   }, []);
 
-  // Fetch completed slots for today on mount and slot return to keep UI synced with database
+  // Completed slots for the SELECTED day. A log only turns a slot green on the
+  // day it was logged for — yesterday's 20:00 must not mark today's 20:00.
   useEffect(() => {
     const fetchCompletedHours = async () => {
       try {
-        // Query a generous window, but only count logs whose target_hour
-        // falls on TODAY (local date). A slot may only turn green for work
-        // logged today — yesterday's 20:00 log must not pre-fill today's
-        // 20:00 slot.
-        const windowStart = new Date();
-        windowStart.setHours(-12, 0, 0, 0);
-        const windowEnd = new Date();
-        windowEnd.setHours(36, 0, 0, 0);
+        const dayStart = startOfLocalDay(selectedDate);
+        const dayEnd = new Date(dayStart.getFullYear(), dayStart.getMonth(), dayStart.getDate(), 23, 59, 59, 999);
 
+        // Only facility telemetry counts as "this hour is logged".
+        // telemetry_logs also holds AIRTEL_DAILY_CHECKLIST and dg_daily_test
+        // rows; without this filter, submitting a daily checklist turned that
+        // hour's slot green even though no hourly reading had been taken.
         let query = supabase
           .from("telemetry_logs")
           .select("target_hour")
-          .gte("target_hour", windowStart.toISOString())
-          .lte("target_hour", windowEnd.toISOString());
+          .eq("asset_id", "facility_wide")
+          .gte("target_hour", dayStart.toISOString())
+          .lte("target_hour", dayEnd.toISOString());
         if (currentSite?.id) query = query.eq("site_uuid", currentSite.id);
         const { data, error } = await query;
 
         if (error) throw error;
 
         if (data) {
-          const now = new Date();
+          const selectedKey = toLocalDateKey(dayStart);
           const hours = data
             .map((row: any) => new Date(row.target_hour))
-            .filter((d: Date) =>
-              d.getFullYear() === now.getFullYear() &&
-              d.getMonth() === now.getMonth() &&
-              d.getDate() === now.getDate()
-            )
+            // The range filter is in UTC, so re-check the local day to avoid
+            // pulling in a neighbouring day's edge hours.
+            .filter((d: Date) => toLocalDateKey(d) === selectedKey)
             .map((d: Date) => d.getHours());
-          const uniqueHours = Array.from(new Set(hours));
-          setCompletedHours(uniqueHours);
+          setCompletedHours(Array.from(new Set(hours)));
         }
       } catch (err) {
         console.error("Error fetching completed hours from Supabase:", err);
@@ -88,7 +98,52 @@ export function TechDashboard() {
     };
 
     fetchCompletedHours();
-  }, [selectedTargetHour, currentSite?.id]);
+  }, [selectedTargetHour, currentSite?.id, selectedDate]);
+
+  // Per-day logged-hour counts for the month on screen, so the scrubber can
+  // show at a glance which days actually have data.
+  useEffect(() => {
+    const fetchMonthCounts = async () => {
+      try {
+        const { start, end } = monthBounds(viewMonth);
+
+        // Same facility-only scope as the day query above, so the scrubber's
+        // day badges can't be inflated by checklist or DG-test rows.
+        let query = supabase
+          .from("telemetry_logs")
+          .select("target_hour")
+          .eq("asset_id", "facility_wide")
+          .gte("target_hour", start.toISOString())
+          .lte("target_hour", end.toISOString());
+        if (currentSite?.id) query = query.eq("site_uuid", currentSite.id);
+        const { data, error } = await query;
+
+        if (error) throw error;
+
+        if (data) {
+          // Count DISTINCT hours per day — several rows can share a slot
+          // (facility_wide plus dg_daily_test), and that isn't two hours logged.
+          const perDay: Record<string, Set<number>> = {};
+          data.forEach((row: any) => {
+            const d = new Date(row.target_hour);
+            if (isNaN(d.getTime())) return;
+            const key = toLocalDateKey(d);
+            (perDay[key] ||= new Set<number>()).add(d.getHours());
+          });
+
+          const counts: Record<string, number> = {};
+          Object.entries(perDay).forEach(([key, hours]) => {
+            counts[key] = hours.size;
+          });
+          setDayCounts(counts);
+        }
+      } catch (err) {
+        console.error("Error fetching month telemetry coverage:", err);
+      }
+    };
+
+    fetchMonthCounts();
+  }, [viewMonth, currentSite?.id, selectedTargetHour]);
 
 
   const formatDate = (dateStr: string) => {
@@ -104,9 +159,10 @@ export function TechDashboard() {
 
   if (selectedTargetHour !== null) {
     return (
-      <RoutineTasksDashboard 
-        targetHour={selectedTargetHour} 
-        onBack={() => setSelectedTargetHour(null)} 
+      <RoutineTasksDashboard
+        targetHour={selectedTargetHour}
+        selectedDate={selectedDate}
+        onBack={() => setSelectedTargetHour(null)}
         onSubmitSuccess={(hour) => {
           setCompletedHours((prev) => {
             if (!prev.includes(hour)) {
@@ -122,6 +178,9 @@ export function TechDashboard() {
 
   return (
     <div className="space-y-6 max-w-4xl mx-auto">
+      {/* Soft shift check-in — dismissible, never blocks logging */}
+      <ShiftCheckInPrompt />
+
       {/* Shift Context Card */}
       <div className="relative overflow-hidden bg-gradient-to-br from-gray-900 via-gray-950 to-gray-900 rounded-3xl p-5 text-white shadow-xl border border-gray-800 print:hidden max-w-md mx-auto">
         {/* Subtle decorative glowing spot */}
@@ -223,12 +282,22 @@ export function TechDashboard() {
       {activeTab === "checklist" && (
         <div className="max-w-md mx-auto space-y-6">
           {/* Shift Timeline Section */}
-          <div className="bg-white rounded-3xl p-5 border border-gray-100 shadow-sm">
-            <ShiftTimeline 
-              currentTime={currentTime} 
-              completedHours={completedHours} 
-              onSelectSlot={(hour) => setSelectedTargetHour(hour)} 
+          <div className="bg-white rounded-3xl p-5 border border-gray-100 shadow-sm space-y-5">
+            <DateScrubber
+              selectedDate={selectedDate}
+              viewMonth={viewMonth}
+              dayCounts={dayCounts}
+              onSelectDate={setSelectedDate}
+              onChangeMonth={setViewMonth}
             />
+            <div className="border-t border-gray-100 pt-5">
+              <ShiftTimeline
+                currentTime={currentTime}
+                selectedDate={selectedDate}
+                completedHours={completedHours}
+                onSelectSlot={(hour) => setSelectedTargetHour(hour)}
+              />
+            </div>
           </div>
 
           {/* Facility Status Section */}

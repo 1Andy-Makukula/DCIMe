@@ -2,6 +2,12 @@ import React, { createContext, useContext, useState, useEffect, useRef } from "r
 import { supabase } from "@/shared/api/supabaseClient";
 import { useCurrentSite } from "./SiteContext";
 
+interface SiteRef {
+  id: string;
+  site_code: string;
+  site_name: string;
+}
+
 export interface EmployeeProfile {
   id: string;             // database UUID
   auth_id: string;       // auth UUID
@@ -14,11 +20,10 @@ export interface EmployeeProfile {
   status: "Active" | "Revoked";
   created_at: string;
   site_uuid?: string | null;
-  sites?: {
-    id: string;
-    site_code: string;
-    site_name: string;
-  }[] | null;
+  // PostgREST returns a single object for this to-one embed, but has returned
+  // a one-element array in the past. applyProfileAndSite() normalises both,
+  // so the type admits both rather than claiming only one is possible.
+  sites?: SiteRef | SiteRef[] | null;
 }
 
 interface AuthContextType {

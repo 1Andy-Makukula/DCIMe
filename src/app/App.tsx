@@ -2,6 +2,7 @@ import { useEffect } from "react";
 import { BrowserRouter, Routes, Route, Navigate, useSearchParams } from "react-router";
 import { AuthProvider } from "@/shared/context/AuthContext";
 import { SiteProvider } from "@/shared/context/SiteContext";
+import { ShiftProvider } from "@/shared/context/ShiftContext";
 import { Toaster } from "./components/ui/sonner";
 
 // Pages
@@ -53,6 +54,9 @@ export default function App() {
   return (
     <SiteProvider>
       <AuthProvider>
+        {/* Inside AuthProvider: a shift session belongs to a signed-in
+            employee, so it can only resolve once auth has. */}
+        <ShiftProvider>
         <Toaster />
         <BrowserRouter>
         <Routes>
@@ -91,6 +95,7 @@ export default function App() {
           </Route>
         </Routes>
       </BrowserRouter>
+        </ShiftProvider>
       </AuthProvider>
     </SiteProvider>
   );

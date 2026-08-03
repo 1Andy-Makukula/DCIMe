@@ -162,7 +162,9 @@ export function RegistrationForm({ onClose, onSaveSuccess }: RegistrationFormPro
         p_site_uuid: selectedSiteUuid,
         p_site_id: site,
         p_email: email.trim(),
-        p_phone_number: phone.trim() || null,
+        // Omit rather than pass null — admin_create_employee declares
+        // p_phone_number text DEFAULT NULL, so an absent key gets the default.
+        p_phone_number: phone.trim() || undefined,
       });
 
       if (dbError) {

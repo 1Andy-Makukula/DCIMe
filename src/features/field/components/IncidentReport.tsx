@@ -1,17 +1,28 @@
 import React, { useState, useRef, useEffect } from "react";
 import { useNavigate, useOutletContext } from "react-router";
-import { 
-  Camera, 
-  CheckCircle2, 
-  X, 
-  AlertOctagon, 
+import {
+  Camera,
+  CheckCircle2,
+  X,
+  AlertOctagon,
   ArrowLeft,
   FileText,
   MessageSquare,
   PlusCircle,
-  History
+  History,
+  Search,
+  Wrench,
+  HardHat,
+  Building2,
+  Boxes,
+  Ticket
 } from "lucide-react";
-import { useIncidents, Incident } from "../hooks/useIncidents";
+import { useIncidents, Incident, ResolverType } from "../hooks/useIncidents";
+import {
+  useContractorVisits,
+  PURPOSE_SUGGESTIONS,
+  VisitTargetType
+} from "../hooks/useContractorVisits";
 import { TechUser } from "./TechLayout";
 import { useCurrentSite } from "@/shared/context/SiteContext";
 import { supabase } from "@/shared/api/supabaseClient";
@@ -68,15 +79,16 @@ const compressToWebP = (file: File, maxWidth = 800, maxHeight = 800, quality = 0
 export function IncidentReport() {
   const navigate = useNavigate();
   const { user } = useOutletContext<{ user: TechUser | null }>();
-  const { 
-    incidents, 
-    reportIncident, 
+  const {
+    incidents,
+    reportIncident,
     addIncidentComment,
     resolveIncident,
     refresh
   } = useIncidents();
+  const { visits, logVisit } = useContractorVisits();
   const { currentSite } = useCurrentSite();
-  
+
   // Tab state: "report" | "contractor" | "history"
   const [activeTab, setActiveTab] = useState<"report" | "contractor" | "history">("report");
 
@@ -90,8 +102,20 @@ export function IncidentReport() {
   const [actionNotes, setActionNotes] = useState("");
   const [actionPhoto, setActionPhoto] = useState<string | null>(null);
   const [isSubmittingAction, setIsSubmittingAction] = useState(false);
-  const [visitType, setVisitType] = useState<"routine" | "corrective">("routine");
   const [selectedFaultId, setSelectedFaultId] = useState<string>("");
+
+  // Contractor tab splits into two explicit workflows. Inspections record that
+  // a contractor was on site and never alter ticket status; resolutions are the
+  // only path that closes a fault. Conflating them was what produced tickets
+  // marked RESOLVED merely because someone turned up.
+  const [contractorMode, setContractorMode] = useState<"inspection" | "resolve">("inspection");
+  const [visitPurpose, setVisitPurpose] = useState<string>("");
+  const [visitTargetType, setVisitTargetType] = useState<VisitTargetType>("SITE");
+  const [visitTargetAsset, setVisitTargetAsset] = useState<string>("");
+
+  // Who fixed the fault. Defaults to internal: most faults are handled in-house,
+  // and defaulting to "contractor" is what produced the false attribution.
+  const [resolverType, setResolverType] = useState<ResolverType>("INTERNAL_TECH");
 
   // Report Form State
   const [asset, setAsset] = useState("");
@@ -194,7 +218,7 @@ export function IncidentReport() {
       alert("Please provide incident notes detailing the fault.");
       return;
     }
-    
+
     setIsSubmitting(true);
     try {
       const firstName = (user?.name || "Field Tech").trim().split(/\s+/)[0];
@@ -271,115 +295,106 @@ export function IncidentReport() {
     }
   };
 
-  const handleLogSiteVisit = async (e: React.FormEvent) => {
+  /**
+   * Records a contractor inspection in the visit logbook.
+   *
+   * This never writes to `incidents`. If the inspection targets a fault ticket
+   * it is noted against that ticket, but the ticket stays OPEN — a contractor
+   * looking at a fault is not the same as a contractor fixing it. Closing a
+   * ticket happens only through the Resolve workflow.
+   */
+  const handleLogInspection = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!contractorName.trim()) {
       alert("Please specify the Contractor name.");
       return;
     }
-    if (!actionNotes.trim()) {
-      alert("Please provide the tasks being executed.");
+    if (!visitPurpose.trim()) {
+      alert("Please describe the purpose of the visit.");
       return;
     }
-    if (visitType === "corrective" && !selectedFaultId) {
-      alert("Please select the active fault ticket being repaired.");
+    if (!actionNotes.trim()) {
+      alert("Please describe what was inspected or carried out.");
+      return;
+    }
+    if (visitTargetType === "ASSET" && !visitTargetAsset) {
+      alert("Please select which equipment was inspected.");
+      return;
+    }
+    if (visitTargetType === "TICKET" && !selectedFaultId) {
+      alert("Please select the fault ticket that was inspected.");
       return;
     }
 
     setIsSubmittingAction(true);
     try {
       const firstName = (user?.name || "Field Tech").trim().split(/\s+/)[0];
-      const currentYear = new Date().getFullYear();
+      const targetRef =
+        visitTargetType === "ASSET" ? visitTargetAsset
+        : visitTargetType === "TICKET" ? selectedFaultId
+        : null;
 
-      if (visitType === "corrective") {
-        // Atomic update of both contractor_engaged and comments in a single database write
-        const existingIncident = incidents.find(i => i.id === selectedFaultId);
-        const currentComments = existingIncident?.comments || [];
-        
-        const newComment = {
-          author_name: firstName,
-          author_id: user?.id || "EMP-UNKNOWN",
-          comment_text: `[Contractor: ${contractorName}] Logged site visit. Tasks: ${actionNotes}`,
-          type: "contractor_visit",
-          timestamp: new Date().toISOString(),
-          photo_url: actionPhoto || null
-        };
+      await logVisit({
+        purpose: visitPurpose.trim(),
+        target_type: visitTargetType,
+        target_ref: targetRef,
+        contractor: contractorName,
+        notes: actionNotes,
+        photo_url: actionPhoto,
+        logged_by_name: firstName,
+        logged_by_id: user?.id || "EMP-UNKNOWN"
+      });
 
-        const { error: updateError } = await supabase
-          .from("incidents")
-          .update({ 
-            contractor_engaged: contractorName,
-            comments: [...currentComments, newComment]
-          })
-          .eq("id", selectedFaultId);
-        
-        if (updateError) throw updateError;
-
-        alert("Contractor site visit logged successfully against active fault!");
-        refresh(); // Refresh list to fetch the newly created log and timeline update
-      } else {
-        // Routine visit: Log as a resolved incident under 'GENERAL_SITE'
-        const randomCode = Math.floor(1000 + Math.random() * 9000);
-        const receiptNumber = `REC-${currentYear}-${randomCode}`;
-        const ticketNum = `VISIT-${currentYear}-${Math.floor(1000 + Math.random() * 9000)}`;
-
-        const newRoutineVisit = {
-          ticket_number: ticketNum,
-          status: "RESOLVED" as const,
-          site_name: currentSite?.site_name || "NTC ZM 0874",
-          site_uuid: currentSite?.id || null,
-          asset_id: "GENERAL_SITE",
-          severity: "low" as const,
-          notes: `[Routine Visit] Contractor: ${contractorName}. Work Done: ${actionNotes}`,
-          photo_url: actionPhoto || null,
-          comments: [
-            {
-              author_name: firstName,
-              author_id: user?.id || "EMP-UNKNOWN",
-              comment_text: `Logged routine site visit. Tasks: ${actionNotes}`,
-              type: "contractor_visit",
-              timestamp: new Date().toISOString(),
-              photo_url: actionPhoto || null
-            }
-          ],
-          occurred_at: new Date().toISOString(),
-          raised_by_name: firstName,
-          raised_by_id: user?.id || "EMP-UNKNOWN",
-          created_at: new Date().toISOString(),
-          resolved_at: new Date().toISOString(),
-          resolved_by_name: firstName,
-          resolved_by_id: user?.id || "EMP-UNKNOWN",
-          receipt_number: receiptNumber,
-          impact: "NONE",
-          contractor_engaged: contractorName,
-          resolution_details: `Completed routine maintenance / refueling: ${actionNotes}`
-        };
-
-        const { error: insertError } = await supabase
-          .from("incidents")
-          .insert([newRoutineVisit]);
-
-        if (insertError) throw insertError;
-
-        alert("Routine contractor visit logged successfully!");
-        refresh(); // Refresh list to fetch the newly created log
+      // Mirror the entry onto the ticket timeline so a NOC operator reading the
+      // fault can see it was inspected, without the status implying a fix.
+      if (visitTargetType === "TICKET" && selectedFaultId) {
+        try {
+          await addIncidentComment(selectedFaultId, {
+            comment_text: `[Contractor: ${contractorName}] Inspected — ${visitPurpose.trim()}. Notes: ${actionNotes}`,
+            type: "contractor_visit",
+            photo_url: actionPhoto,
+            author_name: firstName,
+            author_id: user?.id || "EMP-UNKNOWN"
+          });
+          await supabase
+            .from("incidents")
+            .update({ contractor_engaged: contractorName })
+            .eq("id", selectedFaultId);
+          refresh();
+        } catch (linkErr) {
+          // The visit itself is already recorded; a failed mirror must not
+          // present as a failed log.
+          console.warn("Visit logged, but annotating the fault ticket failed:", linkErr);
+        }
       }
+
+      alert(
+        visitTargetType === "TICKET"
+          ? "Inspection logged. The fault ticket remains OPEN."
+          : "Contractor inspection logged to the site logbook."
+      );
 
       setContractorName("");
       setActionNotes("");
       setActionPhoto(null);
       setSelectedFaultId("");
+      setVisitTargetAsset("");
+      setVisitPurpose("");
     } catch (err: any) {
       console.error("Error logging contractor visit:", err);
-      alert("Failed to log contractor visit. Please try again.");
+      alert(err?.message || "Failed to log contractor visit. Please try again.");
     } finally {
       setIsSubmittingAction(false);
     }
   };
 
   const handleSubmitResolution = async (incidentId: string) => {
-    if (!contractorName.trim()) {
-      alert("Please specify the Contractor name.");
+    const isExternal = resolverType === "EXTERNAL_CONTRACTOR";
+
+    // A contractor name is required only when a contractor actually did the
+    // work. An in-house repair must not be forced to name one.
+    if (isExternal && !contractorName.trim()) {
+      alert("Please specify the Contractor company/name.");
       return;
     }
     if (!actionNotes.trim()) {
@@ -401,7 +416,10 @@ export function IncidentReport() {
 
       // 2. Call resolveIncident hook
       await resolveIncident(incidentId, {
-        contractor_engaged: contractorName,
+        resolved_by_type: resolverType,
+        // Null for internal repairs, so the ledger doesn't imply a contractor
+        // was involved when none was.
+        contractor_engaged: isExternal ? contractorName : null,
         resolution_details: actionNotes,
         impact: "NONE",
         resolved_by_name: firstName,
@@ -410,7 +428,9 @@ export function IncidentReport() {
 
       // 3. Append final resolution comment
       await addIncidentComment(incidentId, {
-        comment_text: `[Incident Resolved by ${firstName}] Contractor: ${contractorName}. Details: ${actionNotes}`,
+        comment_text: isExternal
+          ? `[Resolved by contractor] ${contractorName}, logged by ${firstName}. Details: ${actionNotes}`
+          : `[Resolved in-house] Site technician ${firstName}. Details: ${actionNotes}`,
         type: "resolution",
         photo_url: actionPhoto,
         author_name: firstName,
@@ -480,13 +500,12 @@ export function IncidentReport() {
                 <div key={idx} className="relative space-y-1">
                   <div className="absolute -left-[22px] top-1.5 w-2.5 h-2.5 rounded-full bg-slate-350 border-2 border-white" />
                   <div className="flex items-center justify-between gap-2">
-                    <span className={`text-[8px] font-black uppercase tracking-wider px-1.5 py-0.2 rounded ${
-                      cmt.type === "correction"
+                    <span className={`text-[8px] font-black uppercase tracking-wider px-1.5 py-0.2 rounded ${cmt.type === "correction"
                         ? "bg-red-50 text-red-600 border border-red-100"
                         : cmt.type === "resolution"
-                        ? "bg-green-50 text-green-700 border border-green-100"
-                        : "bg-blue-50 text-blue-600 border border-blue-100"
-                    }`}>
+                          ? "bg-green-50 text-green-700 border border-green-100"
+                          : "bg-blue-50 text-blue-600 border border-blue-100"
+                      }`}>
                       {cmt.type.replace(/_/g, " ")}
                     </span>
                     <span className="text-[8px] font-mono text-gray-400">{formatDate(cmt.timestamp)}</span>
@@ -528,7 +547,7 @@ export function IncidentReport() {
         <div className="w-20 h-20 bg-green-50 rounded-full flex items-center justify-center mx-auto text-green-500 border border-green-100">
           <CheckCircle2 size={40} className="animate-bounce" />
         </div>
-        
+
         <div className="space-y-2">
           <h1 className="text-xl font-black text-gray-900">Incident Dispatched</h1>
           <p className="text-sm text-gray-500 px-4">
@@ -586,33 +605,30 @@ export function IncidentReport() {
       <div className="bg-white border border-gray-100 rounded-2xl p-1.5 flex shadow-sm gap-1">
         <button
           onClick={() => { setActiveTab("report"); setSelectedIncidentId(null); setActiveAction(null); }}
-          className={`flex-1 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all flex items-center justify-center gap-1.5 ${
-            activeTab === "report"
+          className={`flex-1 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all flex items-center justify-center gap-1.5 ${activeTab === "report"
               ? "bg-red-500 text-white shadow-sm shadow-red-500/10"
               : "text-gray-400 hover:text-gray-600"
-          }`}
+            }`}
         >
           <PlusCircle size={12} />
           <span>Report Alert</span>
         </button>
         <button
           onClick={() => { setActiveTab("contractor"); setSelectedIncidentId(null); setActiveAction(null); }}
-          className={`flex-1 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all flex items-center justify-center gap-1.5 ${
-            activeTab === "contractor"
+          className={`flex-1 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all flex items-center justify-center gap-1.5 ${activeTab === "contractor"
               ? "bg-red-500 text-white shadow-sm shadow-red-500/10"
               : "text-gray-400 hover:text-gray-600"
-          }`}
+            }`}
         >
           <FileText size={12} />
           <span>Contractors</span>
         </button>
         <button
           onClick={() => { setActiveTab("history"); setSelectedIncidentId(null); setActiveAction(null); }}
-          className={`flex-1 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all flex items-center justify-center gap-1.5 ${
-            activeTab === "history"
+          className={`flex-1 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all flex items-center justify-center gap-1.5 ${activeTab === "history"
               ? "bg-red-500 text-white shadow-sm shadow-red-500/10"
               : "text-gray-400 hover:text-gray-600"
-          }`}
+            }`}
         >
           <History size={12} />
           <span>History ({myIncidents.length})</span>
@@ -678,15 +694,14 @@ export function IncidentReport() {
                     key={sev}
                     type="button"
                     onClick={() => setSeverity(sev as any)}
-                    className={`p-3.5 rounded-2xl border text-center transition-all flex flex-col items-center gap-1 ${
-                      severity === sev
+                    className={`p-3.5 rounded-2xl border text-center transition-all flex flex-col items-center gap-1 ${severity === sev
                         ? sev === "critical"
                           ? "bg-red-50 border-red-200 text-red-700 font-bold shadow-sm"
                           : sev === "medium"
-                          ? "bg-amber-50 border-amber-200 text-amber-700 font-bold shadow-sm"
-                          : "bg-blue-50 border-blue-200 text-blue-700 font-bold shadow-sm"
+                            ? "bg-amber-50 border-amber-200 text-amber-700 font-bold shadow-sm"
+                            : "bg-blue-50 border-blue-200 text-blue-700 font-bold shadow-sm"
                         : "bg-white border-gray-200 text-gray-400 font-semibold"
-                    }`}
+                      }`}
                   >
                     <span className="text-xs uppercase tracking-wider">{sev}</span>
                   </button>
@@ -715,15 +730,14 @@ export function IncidentReport() {
               </label>
               <div
                 onClick={handlePhotoUpload}
-                className={`h-32 bg-gray-50 border-2 border-dashed rounded-2xl flex flex-col items-center justify-center text-gray-500 cursor-pointer active:bg-gray-100 transition-colors p-0 relative overflow-hidden ${
-                  photo ? "border-green-400" : "border-gray-200"
-                }`}
+                className={`h-32 bg-gray-50 border-2 border-dashed rounded-2xl flex flex-col items-center justify-center text-gray-500 cursor-pointer active:bg-gray-100 transition-colors p-0 relative overflow-hidden ${photo ? "border-green-400" : "border-gray-200"
+                  }`}
               >
                 {photo ? (
                   <div className="w-full h-full flex flex-col items-center justify-center relative p-0">
-                    <img 
-                      src={photo} 
-                      alt="Captured evidence preview" 
+                    <img
+                      src={photo}
+                      alt="Captured evidence preview"
                       className="w-full h-full object-cover rounded-2xl"
                     />
                     <div className="absolute inset-0 bg-black/45 flex flex-col items-center justify-center text-white opacity-0 hover:opacity-100 transition-opacity rounded-2xl">
@@ -769,15 +783,14 @@ export function IncidentReport() {
               <button
                 type="submit"
                 disabled={isSubmitting}
-                className={`w-full py-4 rounded-2xl text-white font-black text-sm tracking-widest uppercase transition-all shadow-lg flex items-center justify-center gap-2 ${
-                  isSubmitting
+                className={`w-full py-4 rounded-2xl text-white font-black text-sm tracking-widest uppercase transition-all shadow-lg flex items-center justify-center gap-2 ${isSubmitting
                     ? "bg-gray-400 shadow-none cursor-not-allowed"
                     : severity === "critical"
-                    ? "bg-red-600 hover:bg-red-700 shadow-red-600/10 active:scale-[0.98]"
-                    : severity === "medium"
-                    ? "bg-amber-600 hover:bg-amber-700 shadow-amber-600/10 active:scale-[0.98]"
-                    : "bg-blue-600 hover:bg-blue-700 shadow-blue-600/10 active:scale-[0.98]"
-                }`}
+                      ? "bg-red-600 hover:bg-red-700 shadow-red-600/10 active:scale-[0.98]"
+                      : severity === "medium"
+                        ? "bg-amber-600 hover:bg-amber-700 shadow-amber-600/10 active:scale-[0.98]"
+                        : "bg-blue-600 hover:bg-blue-700 shadow-blue-600/10 active:scale-[0.98]"
+                  }`}
               >
                 {isSubmitting ? (
                   <span>Sending Alert...</span>
@@ -798,50 +811,110 @@ export function IncidentReport() {
         <div className="space-y-6">
           <div className="px-1">
             <h1 className="text-xl font-black text-gray-900 tracking-tight">Contractor Visits</h1>
-            <p className="text-xs text-gray-500 mt-0.5">Log visitor details, routine refueling/servicing, or corrective fault fixes.</p>
+            <p className="text-xs text-gray-500 mt-0.5">Log an inspection, or formally close a fault after a repair.</p>
           </div>
 
-          {/* New Log Site Visit Form */}
+          {/* Workflow selector — inspections and repairs are separate actions.
+              Logging that a contractor was on site must never imply a fix. */}
+          <div className="grid grid-cols-2 gap-2 bg-gray-100 p-1 rounded-2xl border border-gray-200/70">
+            <button
+              type="button"
+              onClick={() => setContractorMode("inspection")}
+              className={`py-3 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all cursor-pointer flex flex-col items-center gap-1 ${contractorMode === "inspection"
+                  ? "bg-white text-slate-900 shadow-sm"
+                  : "text-gray-500 hover:text-gray-700"
+                }`}
+            >
+              <Search size={14} />
+              <span>Log Inspection</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setContractorMode("resolve")}
+              className={`py-3 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all cursor-pointer flex flex-col items-center gap-1 ${contractorMode === "resolve"
+                  ? "bg-white text-green-700 shadow-sm"
+                  : "text-gray-500 hover:text-gray-700"
+                }`}
+            >
+              <Wrench size={14} />
+              <span>Resolve Fault</span>
+            </button>
+          </div>
+
+          {contractorMode === "inspection" && (
           <form
-            onSubmit={handleLogSiteVisit}
-            className="bg-white rounded-3xl border border-gray-100 shadow-sm p-5 flex flex-col gap-6"
+            onSubmit={handleLogInspection}
+            className="bg-white rounded-3xl border border-gray-100 shadow-sm p-5 flex flex-col gap-6 animate-fade-in"
           >
             <div className="flex items-center gap-2 border-b border-gray-50 pb-3">
               <span className="w-1.5 h-6 bg-slate-900 rounded-full" />
-              <span className="text-xs font-black text-slate-800 uppercase tracking-wider">Log New Visit</span>
+              <span className="text-xs font-black text-slate-800 uppercase tracking-wider">Log Contractor Inspection</span>
             </div>
 
-            {/* Visit Type Toggle */}
+            <div className="bg-blue-50/70 border border-blue-100 rounded-2xl px-3.5 py-2.5 text-[10px] font-semibold text-blue-900 leading-relaxed">
+              This records that a contractor attended site. It does <span className="font-black">not</span> change any fault ticket status — use <span className="font-black">Resolve Fault</span> once repairs are complete.
+            </div>
+
+            {/* Purpose of visit — freeform. Contractors do an open-ended range
+                of work, so this is a text field with optional shortcuts rather
+                than a closed list that would force visits into wrong buckets. */}
             <div className="space-y-2">
               <label className="text-xs font-black text-gray-400 uppercase tracking-widest block">
-                Visit Category
+                Purpose of Visit / Description of Work
               </label>
-              <div className="grid grid-cols-2 gap-2 bg-gray-50 p-1 rounded-2xl border border-gray-100">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setVisitType("routine");
-                    setSelectedFaultId("");
-                  }}
-                  className={`py-2 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all cursor-pointer ${
-                    visitType === "routine"
-                      ? "bg-white text-gray-900 shadow-sm font-bold"
-                      : "text-gray-400 hover:text-gray-600"
-                  }`}
-                >
-                  Routine / Refueling
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setVisitType("corrective")}
-                  className={`py-2 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all cursor-pointer ${
-                    visitType === "corrective"
-                      ? "bg-white text-gray-900 shadow-sm font-bold"
-                      : "text-gray-400 hover:text-gray-600"
-                  }`}
-                >
-                  Corrective (Fix Fault)
-                </button>
+              <input
+                type="text"
+                value={visitPurpose}
+                onChange={(e) => setVisitPurpose(e.target.value)}
+                placeholder="e.g. Replaced DG-2 fuel filter and bled the line"
+                className="w-full px-4 h-12 bg-gray-50 border border-gray-200 rounded-2xl text-sm font-semibold text-gray-800 focus:outline-none focus:border-slate-800 focus:ring-1 focus:ring-slate-800/10 transition-colors"
+                required
+              />
+              <div className="flex flex-wrap gap-1.5 pt-0.5">
+                {PURPOSE_SUGGESTIONS.map((s) => (
+                  <button
+                    key={s}
+                    type="button"
+                    onClick={() => setVisitPurpose(s)}
+                    className="px-2.5 py-1 rounded-lg bg-gray-50 border border-gray-200 text-[9px] font-bold text-gray-500 hover:bg-gray-100 hover:text-gray-700 transition-colors cursor-pointer"
+                  >
+                    {s}
+                  </button>
+                ))}
+              </div>
+              <p className="text-[9px] font-semibold text-gray-400">
+                Shortcuts are suggestions — type anything that describes the visit.
+              </p>
+            </div>
+
+            {/* What the visit was aimed at */}
+            <div className="space-y-2">
+              <label className="text-xs font-black text-gray-400 uppercase tracking-widest block">
+                What Was Inspected
+              </label>
+              <div className="grid grid-cols-3 gap-2 bg-gray-50 p-1 rounded-2xl border border-gray-100">
+                {([
+                  { value: "SITE"   as VisitTargetType, icon: <Building2 size={13} />, label: "Whole Site" },
+                  { value: "ASSET"  as VisitTargetType, icon: <Boxes size={13} />,     label: "Equipment" },
+                  { value: "TICKET" as VisitTargetType, icon: <Ticket size={13} />,    label: "Fault Ticket" },
+                ]).map((t) => (
+                  <button
+                    key={t.value}
+                    type="button"
+                    onClick={() => {
+                      setVisitTargetType(t.value);
+                      setSelectedFaultId("");
+                      setVisitTargetAsset("");
+                    }}
+                    className={`py-2.5 rounded-xl text-[9px] font-black uppercase tracking-wider transition-all cursor-pointer flex flex-col items-center gap-1 ${visitTargetType === t.value
+                        ? "bg-white text-gray-900 shadow-sm"
+                        : "text-gray-400 hover:text-gray-600"
+                      }`}
+                  >
+                    {t.icon}
+                    <span>{t.label}</span>
+                  </button>
+                ))}
               </div>
             </div>
 
@@ -860,11 +933,38 @@ export function IncidentReport() {
               />
             </div>
 
-            {/* Conditional Dropdown for Active Faults */}
-            {visitType === "corrective" && (
+            {/* Target: specific asset */}
+            {visitTargetType === "ASSET" && (
               <div className="space-y-2 animate-fade-in">
                 <label className="text-xs font-black text-gray-400 uppercase tracking-widest block">
-                  Select Active Fault Ticket
+                  Select Equipment
+                </label>
+                <Select value={visitTargetAsset} onValueChange={setVisitTargetAsset}>
+                  <SelectTrigger className="w-full h-12 bg-gray-50 border border-gray-200 rounded-2xl text-sm font-semibold text-gray-800 focus:ring-1 focus:ring-slate-800/10 focus:border-slate-800">
+                    <SelectValue placeholder={isLoadingEquip ? "Loading equipment…" : "-- Choose equipment --"} />
+                  </SelectTrigger>
+                  <SelectContent className="bg-white border border-gray-100 rounded-2xl shadow-lg z-[10000]">
+                    {equipmentList.length === 0 ? (
+                      <SelectItem value="empty" disabled className="text-xs font-semibold text-gray-400">
+                        No active equipment registered
+                      </SelectItem>
+                    ) : (
+                      equipmentList.map((eq) => (
+                        <SelectItem key={eq.value} value={eq.value} className="text-xs font-semibold text-gray-800 cursor-pointer">
+                          {eq.label}
+                        </SelectItem>
+                      ))
+                    )}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+
+            {/* Target: existing fault ticket (inspected, not resolved) */}
+            {visitTargetType === "TICKET" && (
+              <div className="space-y-2 animate-fade-in">
+                <label className="text-xs font-black text-gray-400 uppercase tracking-widest block">
+                  Select Fault Ticket
                 </label>
                 <Select value={selectedFaultId} onValueChange={setSelectedFaultId}>
                   <SelectTrigger className="w-full h-12 bg-gray-50 border border-gray-200 rounded-2xl text-sm font-semibold text-gray-800 focus:ring-1 focus:ring-slate-800/10 focus:border-slate-800">
@@ -890,22 +990,25 @@ export function IncidentReport() {
                     )}
                   </SelectContent>
                 </Select>
+                <p className="text-[9px] font-bold text-amber-700 bg-amber-50 border border-amber-100 rounded-lg px-2.5 py-1.5">
+                  This ticket will stay OPEN after logging.
+                </p>
               </div>
             )}
 
             {/* Tasks / Work details */}
             <div className="space-y-2">
               <label className="text-xs font-black text-gray-400 uppercase tracking-widest block">
-                Tasks / Work Description
+                Findings / Work Carried Out
               </label>
               <textarea
                 rows={4}
                 value={actionNotes}
                 onChange={(e) => setActionNotes(e.target.value)}
                 placeholder={
-                  visitType === "routine"
-                    ? "Detail the routine tasks done, refueling quantities, or checkups..."
-                    : "Detail the repairs or fixes applied to the selected asset..."
+                  visitTargetType === "TICKET"
+                    ? "What did the contractor observe about this fault?"
+                    : "Detail what was inspected, serviced, refuelled or checked…"
                 }
                 className="w-full p-4 rounded-2xl bg-gray-50 border border-gray-200 text-sm font-semibold text-gray-800 placeholder-gray-400 focus:outline-none focus:border-slate-800 focus:ring-1 focus:ring-slate-800/10 resize-none transition-colors"
                 required
@@ -919,9 +1022,8 @@ export function IncidentReport() {
               </label>
               <div
                 onClick={handleActionPhotoUpload}
-                className={`h-32 bg-gray-50 border-2 border-dashed rounded-2xl flex flex-col items-center justify-center text-gray-500 cursor-pointer active:bg-gray-100 transition-colors p-0 relative overflow-hidden ${
-                  actionPhoto ? "border-green-400" : "border-gray-200"
-                }`}
+                className={`h-32 bg-gray-50 border-2 border-dashed rounded-2xl flex flex-col items-center justify-center text-gray-500 cursor-pointer active:bg-gray-100 transition-colors p-0 relative overflow-hidden ${actionPhoto ? "border-green-400" : "border-gray-200"
+                  }`}
               >
                 {actionPhoto ? (
                   <div className="w-full h-full flex flex-col items-center justify-center relative p-0">
@@ -970,22 +1072,82 @@ export function IncidentReport() {
               className="w-full py-4 bg-slate-900 hover:bg-slate-950 text-white font-black text-sm tracking-widest uppercase rounded-2xl transition-all shadow-md flex items-center justify-center gap-2 active:scale-[0.98] cursor-pointer"
             >
               {isSubmittingAction ? (
-                <span>Logging Site Visit...</span>
+                <span>Logging Inspection...</span>
               ) : (
                 <>
                   <CheckCircle2 size={16} />
-                  <span>Log Visit Logbook</span>
+                  <span>Log Inspection</span>
                 </>
               )}
             </button>
           </form>
+          )}
+
+          {/* Recent inspections — the site logbook, distinct from fault tickets */}
+          {contractorMode === "inspection" && (
+            <div className="space-y-3 pt-2">
+              <div className="px-1 flex items-center justify-between">
+                <div>
+                  <h2 className="text-sm font-black text-gray-900 uppercase tracking-wider">Recent Inspections</h2>
+                  <p className="text-[11px] text-gray-400 font-semibold">Contractor attendance logbook.</p>
+                </div>
+                <span className="bg-slate-100 text-slate-600 font-extrabold text-[10px] px-2.5 py-1 rounded-full border border-slate-200">
+                  {visits.length} Logged
+                </span>
+              </div>
+
+              {visits.length === 0 ? (
+                <div className="bg-white border border-gray-100 rounded-3xl p-6 text-center shadow-sm">
+                  <p className="text-xs font-bold text-slate-800">No inspections logged yet</p>
+                  <p className="text-[10px] text-slate-400 mt-0.5">Contractor site checks will appear here.</p>
+                </div>
+              ) : (
+                <div className="space-y-2.5">
+                  {visits.slice(0, 10).map((v) => {
+                    const linkedTicket = v.target_type === "TICKET"
+                      ? incidents.find((i) => i.id === v.target_ref)
+                      : null;
+                    return (
+                      <div key={v.id} className="bg-white border border-gray-100 rounded-2xl p-4 shadow-sm space-y-2">
+                        <div className="flex items-center justify-between">
+                          <span className="text-[10px] font-mono font-black text-gray-400 tracking-wider">
+                            {v.visit_number}
+                          </span>
+                          <span className="text-[9px] font-bold text-gray-400 font-mono">
+                            {formatDate(v.occurred_at)}
+                          </span>
+                        </div>
+                        <div className="flex items-start gap-2">
+                          <span className="text-base leading-none">📋</span>
+                          <div className="min-w-0">
+                            <p className="text-xs font-black text-gray-900 leading-tight">{v.purpose}</p>
+                            <p className="text-[10px] font-bold text-slate-500 mt-0.5">
+                              {v.target_type === "SITE" && "Whole site"}
+                              {v.target_type === "ASSET" && (v.target_ref || "").toUpperCase().replace(/_/g, " ")}
+                              {v.target_type === "TICKET" && (linkedTicket
+                                ? `Ticket ${linkedTicket.ticket_number} — still ${linkedTicket.status}`
+                                : "Fault ticket")}
+                            </p>
+                          </div>
+                        </div>
+                        <p className="text-[11px] text-gray-600 font-medium leading-relaxed border-t border-gray-50 pt-2">
+                          <span className="font-black text-slate-700">{v.contractor}</span> — {v.notes}
+                        </p>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          )}
 
           {/* Section: Active Open Faults for Resolution */}
+          {contractorMode === "resolve" && (
           <div className="space-y-4 pt-4">
             <div className="px-1 flex items-center justify-between">
               <div>
                 <h2 className="text-sm font-black text-gray-900 uppercase tracking-wider">Active Fault Tickets</h2>
-                <p className="text-[11px] text-gray-400 font-semibold">Fault tickets awaiting final resolution.</p>
+                <p className="text-[11px] text-gray-400 font-semibold">Selecting one closes it and issues a clearance receipt.</p>
               </div>
               <span className="bg-red-50 text-red-600 font-extrabold text-[10px] px-2.5 py-1 rounded-full border border-red-100">
                 {incidents.filter((i) => i.status === "OPEN").length} Open
@@ -1081,20 +1243,56 @@ export function IncidentReport() {
                               </button>
                             </div>
 
-                            {/* Contractor Name */}
+                            {/* Who actually fixed it */}
                             <div className="space-y-1.5">
                               <label className="text-[9px] font-black text-gray-400 uppercase tracking-widest block">
-                                Contractor Name/Company
+                                Resolved By
                               </label>
-                              <input
-                                type="text"
-                                value={contractorName}
-                                onChange={(e) => setContractorName(e.target.value)}
-                                placeholder="e.g. Vertiv Services"
-                                className="w-full px-3 py-2 bg-white border border-gray-200 rounded-xl text-xs font-semibold text-gray-800 focus:outline-none focus:border-red-500"
-                                required
-                              />
+                              <div className="grid grid-cols-2 gap-2 bg-white p-1 rounded-xl border border-gray-200">
+                                <button
+                                  type="button"
+                                  onClick={() => setResolverType("INTERNAL_TECH")}
+                                  className={`py-2 rounded-lg text-[9px] font-black uppercase tracking-wider transition-all cursor-pointer flex flex-col items-center gap-1 ${resolverType === "INTERNAL_TECH"
+                                      ? "bg-slate-900 text-white shadow-sm"
+                                      : "text-gray-400 hover:text-gray-600"
+                                    }`}
+                                >
+                                  <HardHat size={13} />
+                                  <span>Site Technician</span>
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => setResolverType("EXTERNAL_CONTRACTOR")}
+                                  className={`py-2 rounded-lg text-[9px] font-black uppercase tracking-wider transition-all cursor-pointer flex flex-col items-center gap-1 ${resolverType === "EXTERNAL_CONTRACTOR"
+                                      ? "bg-slate-900 text-white shadow-sm"
+                                      : "text-gray-400 hover:text-gray-600"
+                                    }`}
+                                >
+                                  <Wrench size={13} />
+                                  <span>External Contractor</span>
+                                </button>
+                              </div>
                             </div>
+
+                            {resolverType === "INTERNAL_TECH" ? (
+                              <div className="bg-slate-50 border border-slate-200/70 rounded-xl px-3 py-2 text-[10px] font-bold text-slate-600">
+                                Recorded against you — <span className="font-black text-slate-800">{user?.name || "Field Tech"}</span>. No contractor will be attached to this ticket.
+                              </div>
+                            ) : (
+                              <div className="space-y-1.5 animate-fade-in">
+                                <label className="text-[9px] font-black text-gray-400 uppercase tracking-widest block">
+                                  Contractor Name/Company
+                                </label>
+                                <input
+                                  type="text"
+                                  value={contractorName}
+                                  onChange={(e) => setContractorName(e.target.value)}
+                                  placeholder="e.g. Vertiv Services"
+                                  className="w-full px-3 py-2 bg-white border border-gray-200 rounded-xl text-xs font-semibold text-gray-800 focus:outline-none focus:border-red-500"
+                                  required
+                                />
+                              </div>
+                            )}
 
                             {/* Resolution Details */}
                             <div className="space-y-1.5">
@@ -1118,9 +1316,8 @@ export function IncidentReport() {
                               </label>
                               <div
                                 onClick={handleActionPhotoUpload}
-                                className={`h-24 bg-white border-2 border-dashed rounded-xl flex flex-col items-center justify-center text-gray-500 cursor-pointer active:bg-gray-50 transition-colors relative overflow-hidden p-0 ${
-                                  actionPhoto ? "border-green-400" : "border-gray-200"
-                                }`}
+                                className={`h-24 bg-white border-2 border-dashed rounded-xl flex flex-col items-center justify-center text-gray-500 cursor-pointer active:bg-gray-50 transition-colors relative overflow-hidden p-0 ${actionPhoto ? "border-green-400" : "border-gray-200"
+                                  }`}
                               >
                                 {actionPhoto ? (
                                   <div className="w-full h-full flex flex-col items-center justify-center relative p-0">
@@ -1174,6 +1371,7 @@ export function IncidentReport() {
               </div>
             )}
           </div>
+          )}
         </div>
       )}
 
@@ -1202,22 +1400,21 @@ export function IncidentReport() {
               {myIncidents.map((incident, idx) => {
                 const isOpen = incident.status === "OPEN";
                 const isSelected = selectedIncidentId === incident.id;
-                
+
                 return (
                   <React.Fragment key={incident.id}>
                     <div className="bg-white border border-gray-100 rounded-3xl p-5 shadow-sm space-y-4 relative overflow-hidden">
                       {/* Left border indicator */}
                       <div className={`absolute left-0 top-0 bottom-0 w-1.5 ${isOpen ? "bg-red-500" : "bg-green-500"}`} />
-                      
+
                       <div className="flex items-center justify-between">
                         <span className="text-[10px] font-mono font-black text-gray-400 tracking-wider">
                           {incident.ticket_number}
                         </span>
-                        <span className={`text-[9px] font-black uppercase tracking-wider px-2.5 py-0.5 rounded-md border ${
-                          isOpen
+                        <span className={`text-[9px] font-black uppercase tracking-wider px-2.5 py-0.5 rounded-md border ${isOpen
                             ? "bg-red-50 text-red-600 border-red-100"
                             : "bg-green-50 text-green-600 border-green-100"
-                        }`}>
+                          }`}>
                           {incident.status}
                         </span>
                       </div>
@@ -1256,7 +1453,7 @@ export function IncidentReport() {
                               <span>Append Correction or Add Log</span>
                             </button>
                           ) : (
-                            <form 
+                            <form
                               onSubmit={(e) => handleAddComment(e, incident.id)}
                               className="space-y-3 bg-gray-50/70 p-4 border border-gray-200/50 rounded-2xl animate-fade-in"
                             >
@@ -1276,22 +1473,20 @@ export function IncidentReport() {
                                 <button
                                   type="button"
                                   onClick={() => setCommentType("addition")}
-                                  className={`py-2 text-[10px] rounded-xl border font-bold transition-all text-center ${
-                                    commentType === "addition"
+                                  className={`py-2 text-[10px] rounded-xl border font-bold transition-all text-center ${commentType === "addition"
                                       ? "bg-blue-50 border-blue-200 text-blue-700"
                                       : "bg-white border-gray-200 text-gray-400"
-                                  }`}
+                                    }`}
                                 >
                                   Additional Details
                                 </button>
                                 <button
                                   type="button"
                                   onClick={() => setCommentType("correction")}
-                                  className={`py-2 text-[10px] rounded-xl border font-bold transition-all text-center ${
-                                    commentType === "correction"
+                                  className={`py-2 text-[10px] rounded-xl border font-bold transition-all text-center ${commentType === "correction"
                                       ? "bg-red-50 border-red-200 text-red-700"
                                       : "bg-white border-gray-200 text-gray-400"
-                                  }`}
+                                    }`}
                                 >
                                   Correction Log
                                 </button>

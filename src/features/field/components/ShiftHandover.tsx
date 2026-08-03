@@ -11,12 +11,14 @@ import { supabase } from "@/shared/api/supabaseClient";
 import { useShiftReports } from "../hooks/useShiftReports";
 import { TechUser } from "./TechLayout";
 import { useCurrentSite } from "@/shared/context/SiteContext";
+import { useShiftSession } from "@/shared/context/ShiftContext";
 
 export function ShiftHandover() {
   const navigate = useNavigate();
   const { user } = useOutletContext<{ user: TechUser | null }>();
   const { submitShiftReport } = useShiftReports();
   const { currentSite } = useCurrentSite();
+  const { checkOut } = useShiftSession();
   const [notes, setNotes] = useState("");
   const [certified, setCertified] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -90,6 +92,15 @@ export function ShiftHandover() {
         site_id: currentSite?.site_name || "NTC ZM 0874",
         site_uuid: currentSite?.id || null
       });
+
+      // Completing the pass-down closes the shift session — that's the real
+      // end of the shift. Never let a failure here fail the handover itself:
+      // the report is the record of consequence, the session is bookkeeping.
+      try {
+        await checkOut(true);
+      } catch (sessionErr) {
+        console.warn("[DCIMe] Handover saved, but closing the shift session failed:", sessionErr);
+      }
 
       setIsSuccess(true);
     } catch (err) {

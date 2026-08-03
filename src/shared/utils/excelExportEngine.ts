@@ -73,7 +73,8 @@ export const generateMonthlyReport = async (
   // Filter out daily checklists from the main hourly telemetry log processing
   const filteredLogs = logs.filter(log => log.asset_id !== "AIRTEL_DAILY_CHECKLIST");
 
-  // Build a lookup map of hourly logs by day and hour in CAT
+  // Build a lookup map of hourly logs by day and hour in CAT.
+  // Prioritize facility_wide logs over secondary asset logs (e.g. dg_daily_test)
   const logsMap = new Map<string, any>();
   filteredLogs.forEach((log) => {
     const timestampStr = log.target_hour;
@@ -82,7 +83,12 @@ export const generateMonthlyReport = async (
     const catDate = new Date(date.getTime() + 2 * 60 * 60 * 1000);
     const day = catDate.getUTCDate();
     const hour = catDate.getUTCHours();
-    logsMap.set(`${day}-${hour}`, log);
+    const key = `${day}-${hour}`;
+    
+    // Only overwrite if existing key is empty or if this log is the primary facility_wide log
+    if (!logsMap.has(key) || log.asset_id === "facility_wide") {
+      logsMap.set(key, log);
+    }
   });
 
   // Determine number of days in the month

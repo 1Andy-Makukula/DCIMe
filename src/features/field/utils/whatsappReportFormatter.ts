@@ -72,6 +72,83 @@ export const generateReportTexts = ({
   let whatsappPayload = "";
   let internalPayload = "";
 
+  // ── DG test detail (internal history only — never appended to whatsappPayload) ──
+  // A No-Load or On-Load test writes per-unit generator data that the internal log
+  // previously dropped entirely, leaving no record of how the test actually ran.
+  const buildDgTestSection = (): string => {
+    const mode = formData['fsm_mode'];
+    const isNoLoad = mode === 'DAILY_TEST' || formData['daily_dg_test_completed'] === true;
+    const isOnLoad = mode === 'ON_LOAD_TEST';
+    if (!isNoLoad && !isOnLoad) return "";
+
+    // A no-load test deliberately hides load parameters, so reporting voltage,
+    // current and frequency there would emit a wall of NA. Engine vitals are
+    // what that test actually captures.
+    const relevantFields = isOnLoad
+      ? ['voltage_ry', 'voltage_yb', 'voltage_br', 'current_r', 'current_y', 'current_b',
+         'frequency', 'hr_meter_start', 'hr_meter_stop', 'cumulative_hrs', 'calculated_fuel_burn']
+      : ['hr_meter_start', 'hr_meter_stop', 'cumulative_hrs', 'calculated_fuel_burn',
+         'batt_voltage', 'engine_rpm', 'oil_pressure', 'water_temp'];
+
+    const blocks: string[] = [];
+
+    ['dg_1', 'dg_2', 'dg_3', 'dg_4', 'dg_hq'].forEach((dgId) => {
+      // Skip units that took no part in this test rather than printing empty rows.
+      const hasData = relevantFields.some((f) => {
+        const v = formData[`${dgId}_${f}`];
+        return v !== undefined && v !== null && String(v).trim() !== "";
+      });
+      if (!hasData) return;
+
+      const label = dgId === 'dg_hq' ? 'DG-HQ' : `DG-${dgId.replace('dg_', '').toUpperCase()}`;
+      const g = (suffix: string) => getCleanValue(`${dgId}_${suffix}`);
+
+      // Emit a line only when the unit actually recorded something for it —
+      // a partially-logged generator should not produce rows of "NA".
+      const present = (suffix: string) => {
+        const v = formData[`${dgId}_${suffix}`];
+        return v !== undefined && v !== null && String(v).trim() !== "";
+      };
+      const anyPresent = (...suffixes: string[]) => suffixes.some(present);
+
+      const lines: string[] = [];
+
+      if (isOnLoad) {
+        if (anyPresent('voltage_ry', 'voltage_yb', 'voltage_br')) {
+          lines.push(`  Voltage  : RY:${g('voltage_ry')}V | YB:${g('voltage_yb')}V | BR:${g('voltage_br')}V`);
+        }
+        if (anyPresent('current_r', 'current_y', 'current_b')) {
+          lines.push(`  Current  : R:${g('current_r')}A | Y:${g('current_y')}A | B:${g('current_b')}A`);
+        }
+        if (present('frequency')) lines.push(`  Frequency: ${g('frequency')} Hz`);
+      } else {
+        if (present('batt_voltage')) lines.push(`  Battery  : ${g('batt_voltage')}V`);
+        if (anyPresent('engine_rpm', 'oil_pressure', 'water_temp')) {
+          lines.push(`  Engine   : ${g('engine_rpm')} rpm | Oil ${g('oil_pressure')} | Water ${g('water_temp')}°C`);
+        }
+      }
+
+      if (anyPresent('hr_meter_start', 'hr_meter_stop', 'cumulative_hrs')) {
+        lines.push(`  Hr Meter : ${g('hr_meter_start')} → ${g('hr_meter_stop')} (run ${g('cumulative_hrs')} hrs)`);
+      }
+      if (anyPresent('time_start', 'time_stop')) {
+        lines.push(`  Time     : ${g('time_start')} → ${g('time_stop')}`);
+      }
+      if (present('calculated_fuel_burn')) {
+        lines.push(`  Fuel Burn: ${g('calculated_fuel_burn')} L`);
+      }
+
+      blocks.push(`${label}\n${lines.join('\n')}`);
+    });
+
+    if (blocks.length === 0) return "";
+
+    const testLabel = isOnLoad ? 'ON-LOAD TEST' : 'NO-LOAD TEST (DAILY)';
+    return `\n\n*DG ${testLabel} — UNIT DETAIL*\n${blocks.join('\n\n')}`;
+  };
+
+  const dgTestSection = buildDgTestSection();
+
   if (siteCode === "NTC") {
     const v_r = isGen ? getCleanValue('dg_load_voltage_r') : getCleanValue('grid_voltage_r');
     const v_y = isGen ? getCleanValue('dg_load_voltage_y') : getCleanValue('grid_voltage_y');
@@ -286,7 +363,7 @@ Vertiv 6  : ${vt6_temp}°C | ${vt6_hum}%
 FREQUENCY   : ${gridFreq} Hz
 VOLTAGE L-L : R:${v_r}V | Y:${v_y}V | B:${v_b}V (AVG: ${avgV_LL}V)
 VOLTAGE L-N : RN:${v_rn}V | YN:${v_yn}V | BN:${v_bn}V (AVG: ${avgV_LN}V)
-CURRENT     : R:${a_r}A | Y:${a_y}A | B:${a_b}A (AVG: ${avgAmps}A)`;
+CURRENT     : R:${a_r}A | Y:${a_y}A | B:${a_b}A (AVG: ${avgAmps}A)${dgTestSection}`;
   } else {
     const v_r = isGen ? getCleanValue('dg_load_voltage_r') : getCleanValue('grid_voltage_r');
     const v_y = isGen ? getCleanValue('dg_load_voltage_y') : getCleanValue('grid_voltage_y');
@@ -408,7 +485,7 @@ CURRENT     : R:${a_r}A | Y:${a_y}A | B:${a_b}A (AVG: ${avgAmps}A)
 *UNIT TEMPERATURES & HUMIDITY*
 Emerson 1 : ${em1_temp}°C | ${em1_hum}%
 Emerson 2 : ${em2_temp}°C | ${em2_hum}%
-IT Room 1 AC 1 : ${em1_it_temp}°C`;
+IT Room 1 AC 1 : ${em1_it_temp}°C${dgTestSection}`;
   }
   return { whatsappPayload, internalPayload };
 };

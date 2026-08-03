@@ -1,6 +1,6 @@
 // src/features/field/components/RoutineTasksDashboard.tsx
 import { useState, useMemo, useEffect, useCallback } from 'react';
-import { Save, CheckCircle2, Loader2, Zap, AlertTriangle, ArrowLeft, Plug, ClipboardList, Share2, History } from 'lucide-react';
+import { Save, CheckCircle2, Loader2, Zap, AlertTriangle, ArrowLeft, Plug, ClipboardList, Share2, History, EyeOff } from 'lucide-react';
 import { supabase } from '@/shared/api/supabaseClient';
 import { useAuth } from '@/shared/context/AuthContext';
 import { useCurrentSite } from '@/shared/context/SiteContext';
@@ -12,10 +12,13 @@ import { toast } from 'sonner';
 import { PathRenderer } from './PathRenderer';
 import { TelemetryHistoryModal } from './TelemetryHistoryModal';
 import { HistoryRecord, sortHistoryAscending, generateReportTexts } from '../utils/whatsappReportFormatter';
+import { toLocalDateKey, slotISO, parseHour } from '../utils/dateKeys';
 import '../styles/telemetryHistory.css';
 
 interface RoutineTasksDashboardProps {
   targetHour: number;
+  /** Local day this slot belongs to. Defaults to today. */
+  selectedDate?: Date;
   onComplete?: () => void;
   onBack?: () => void;
   onSubmitSuccess?: (hour: number) => void;
@@ -34,15 +37,27 @@ function activeChecksLabel(isTwoHour: boolean, isFourHour: boolean, isDaily: boo
 
 export const RoutineTasksDashboard = ({
   targetHour: propTargetHour,
+  selectedDate,
   onComplete,
   onBack,
   onSubmitSuccess
 }: RoutineTasksDashboardProps) => {
   const targetHour = `${String(propTargetHour).padStart(2, '0')}:00`;
+  const slotDate = selectedDate ?? new Date();
   const { employee } = useAuth();
   const { currentSite } = useCurrentSite();
   const siteCode = currentSite?.site_code || "NTC";
   const blueprint = SITE_BLUEPRINTS[siteCode] || SITE_BLUEPRINTS.NTC;
+
+  // Must match useTelemetryData's key exactly, or drafts written here are
+  // invisible to the hook that reads them back.
+  const cacheKey = `telemetry_cache_${siteCode}_${toLocalDateKey(slotDate)}_${parseHour(propTargetHour)}`;
+
+  // The exact instant this slot represents. Passed to submitTelemetryLog so
+  // toggle saves land on the selected day rather than always on today.
+  const slotTimestamp = new Date(slotISO(slotDate, parseHour(propTargetHour)));
+
+  const isBackdating = toLocalDateKey(slotDate) !== toLocalDateKey(new Date());
 
   const [currentTime, setCurrentTime] = useState(new Date());
 
@@ -72,9 +87,9 @@ export const RoutineTasksDashboard = ({
     // Carried-forward tracking
     carriedFields,
     setCarriedFields
-  } = useTelemetryData(targetHour, onComplete, onSubmitSuccess);
+  } = useTelemetryData(targetHour, onComplete, onSubmitSuccess, slotDate);
 
-  const { groupedEquipment } = useSiteEquipment();
+  const { groupedEquipment, isLoading: isEquipmentLoading, error: equipmentError } = useSiteEquipment();
   const { submitTelemetryLog } = useTelemetryMutation();
 
   const handleToggleChange = async (key: string, value: any, extraUpdates: Record<string, any> = {}) => {
@@ -101,11 +116,9 @@ export const RoutineTasksDashboard = ({
 
     // Key by site + local date + hour: an hour-only key bleeds drafts into
     // the same hour on other days and other sites.
-    const cacheKey = `telemetry_cache_${siteCode}_${new Date().toDateString()}_${targetHour}`;
-
     localStorage.setItem(cacheKey, JSON.stringify(updatedData));
 
-    const success = await submitTelemetryLog('facility_wide', updatedData, targetHour);
+    const success = await submitTelemetryLog('facility_wide', updatedData, slotTimestamp);
     if (!success) {
       if (setFormData) {
         setFormData(prevFormData);
@@ -116,6 +129,11 @@ export const RoutineTasksDashboard = ({
   };
 
   const allEquipment = Object.values(groupedEquipment).flat();
+
+  // The registry is only authoritative once it has actually loaded. While it is
+  // still fetching — or if the fetch failed, or no site is selected yet — every
+  // asset is treated as active so a transient error can't blank the walk-through.
+  const registryLoaded = !isEquipmentLoading && !equipmentError && allEquipment.length > 0;
 
   const handleDashboardSubmit = () => {
     // Validate comments for DEGRADED or OFFLINE
@@ -128,7 +146,7 @@ export const RoutineTasksDashboard = ({
         return;
       }
     }
-    handleSubmit(activeGenerators);
+    handleSubmit(activeGenerators, decommissionedIds);
   };
 
   const activeSiteGenerators = allEquipment
@@ -174,7 +192,6 @@ export const RoutineTasksDashboard = ({
           ...prevForm,
           [`active_${dgId}`]: next.includes(dgId)
         };
-        const cacheKey = `telemetry_cache_${siteCode}_${new Date().toDateString()}_${targetHour}`;
         localStorage.setItem(cacheKey, JSON.stringify(updated));
         return updated;
       });
@@ -194,7 +211,6 @@ export const RoutineTasksDashboard = ({
           ...prevForm,
           [`active_${defaultDg}`]: true
         };
-        const cacheKey = `telemetry_cache_${siteCode}_${new Date().toDateString()}_${targetHour}`;
         localStorage.setItem(cacheKey, JSON.stringify(updated));
         return updated;
       });
@@ -248,11 +264,70 @@ export const RoutineTasksDashboard = ({
   const [prevGeneratorValues, setPrevGeneratorValues] = useState<Record<string, any>>({});
   const [attemptedFetches, setAttemptedFetches] = useState<Set<string>>(new Set());
 
-  // Determine if an equipment is marked as active in database registry
+  // Determine if an equipment is marked as active in database registry.
+  // useSiteEquipment drops decommissioned assets from the registry entirely, so
+  // absence from a *loaded* registry means decommissioned — the previous
+  // `find() ? is_active : true` fallback read that absence as "assume active"
+  // and kept decommissioned equipment on the technician's walk-through.
   const isEquipmentActive = (equipmentId: string): boolean => {
-    const eq = allEquipment.find(e => e.equipment_id.toLowerCase() === equipmentId.toLowerCase());
-    return eq ? eq.is_active : true;
+    if (!registryLoaded) return true;
+    return allEquipment.some(e => e.equipment_id.toLowerCase() === equipmentId.toLowerCase());
   };
+
+  // Blueprint assets the registry says are decommissioned. Passed into submit so
+  // validation can't demand readings for fields the tech is no longer shown.
+  const decommissionedIds = useMemo(
+    () => new Set<string>(
+      blueprint.equipment
+        .filter((eq: any) => !isEquipmentActive(eq.id))
+        .map((eq: any) => eq.id as string)
+    ),
+    [blueprint, registryLoaded, allEquipment]
+  );
+
+  // Mode transparency: count the readings the current facility mode suppresses.
+  // Fields still hide as before, but the technician is told what is missing and
+  // why, so a shorter form doesn't read as lost data or a broken toggle.
+  const hiddenByMode = useMemo(() => {
+    const matchesFrequency = (metric: any): boolean => {
+      switch (metric.frequency) {
+        case 'hourly': return true;
+        case '2-hour': return isTwoHour;
+        case '4-hour': return isFourHour;
+        case 'daily': return isDaily;
+        default: return false;
+      }
+    };
+
+    let count = 0;
+    blueprint.equipment.forEach((equip: any) => {
+      if (!isEquipmentActive(equip.id)) return;
+      // grid_status is suppressed in every mode, so it isn't a mode difference.
+      const eligible = (equip.metrics || []).filter(
+        (m: any) => m.id !== 'grid_status' && matchesFrequency(m)
+      );
+      const visible = getVisibleMetrics(equip.id, equip.metrics || []);
+      count += Math.max(0, eligible.length - visible.length);
+    });
+
+    let reason = '';
+    switch (fsmMode) {
+      case 'NORMAL':
+        reason = 'Generator readings are not logged while the site runs on mains.';
+        break;
+      case 'DAILY_TEST':
+        reason = 'Electrical load readings are not logged during a no-load test.';
+        break;
+      case 'ON_LOAD_TEST':
+        reason = 'Mains grid readings are not logged during a simulated blackout.';
+        break;
+      case 'OUTAGE':
+        reason = 'Mains grid readings are not logged while the site runs on generator.';
+        break;
+    }
+
+    return { count, reason };
+  }, [blueprint, fsmMode, activeGenerators, targetHour, registryLoaded, allEquipment]);
 
   // Compile the list of walking path steps that are visible based on active assets & metric schedules
   const visibleSteps = useMemo(() => {
@@ -310,7 +385,6 @@ export const RoutineTasksDashboard = ({
 
     if (changed && setFormData) {
       setFormData(updated);
-      const cacheKey = `telemetry_cache_${siteCode}_${new Date().toDateString()}_${targetHour}`;
       localStorage.setItem(cacheKey, JSON.stringify(updated));
     }
   }, [formData, targetHour, siteCode]);
@@ -338,6 +412,11 @@ export const RoutineTasksDashboard = ({
       const { data, error } = await supabase
         .from('telemetry_logs')
         .select('target_hour, metrics, technician_name, submitted_at')
+        // Facility logs only. telemetry_logs also carries dg_daily_test rows
+        // (same hour, duplicating an entry in the modal) and
+        // AIRTEL_DAILY_CHECKLIST rows, whose metrics aren't telemetry at all
+        // and render as a garbage report.
+        .eq('asset_id', 'facility_wide')
         .or(`metrics->>site_uuid.eq.${currentSite.id},metrics->>site_id.eq.${siteCode}`)
         .order('target_hour', { ascending: false })
         .limit(100);
@@ -359,18 +438,21 @@ export const RoutineTasksDashboard = ({
           const hourStr = `${hourNum.toString().padStart(2, '0')}:00`;
 
           const m = row.metrics || {};
-          let textContent = m._report_text;
-          if (!textContent) {
-            const generated = generateReportTexts({
-              siteCode,
-              currentSiteName: currentSite?.site_name,
-              employeeName: row.technician_name || employee?.full_name,
-              activePowerSource: m['fsm_mode'] === 'OUTAGE' || m['fsm_mode'] === 'ON_LOAD_TEST' || m['grid_status'] === 'OFF' ? 'GENERATOR' : 'MAINS',
-              formData: m,
-              targetHour: hourStr
-            });
-            textContent = generated.internalPayload;
-          }
+          // Always re-render the summary from the live metrics rather than
+          // trusting a stored _report_text. That snapshot was written once at
+          // first submission and never refreshed, so after a technician edited
+          // an hour the history still showed the pre-edit numbers.
+          // internalPayload derives its timestamp from targetHour (not wall
+          // clock), so regenerating an untouched row reproduces it exactly.
+          const { internalPayload } = generateReportTexts({
+            siteCode,
+            currentSiteName: currentSite?.site_name,
+            employeeName: row.technician_name || employee?.full_name,
+            activePowerSource: m['fsm_mode'] === 'OUTAGE' || m['fsm_mode'] === 'ON_LOAD_TEST' || m['grid_status'] === 'OFF' ? 'GENERATOR' : 'MAINS',
+            formData: m,
+            targetHour: hourStr
+          });
+          const textContent = internalPayload;
 
           return {
             timestamp: row.target_hour || row.submitted_at || new Date().toISOString(),
@@ -425,7 +507,7 @@ export const RoutineTasksDashboard = ({
       formData,
       targetHour
     });
-    const dateStr = new Date().toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+    const dateStr = slotDate.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
 
     const targetNum = typeof targetHour === 'number'
       ? targetHour
@@ -450,11 +532,10 @@ export const RoutineTasksDashboard = ({
 
     // Save report text to database via telemetry submission payload
     try {
-      const payloadWithText = {
-        ...formData,
-        _report_text: internalPayload
-      };
-      await submitTelemetryLog("facility_wide", payloadWithText, targetHour);
+      // Deliberately does NOT persist the rendered text. History regenerates the
+      // summary from metrics on read, so storing a snapshot here only created a
+      // stale copy that outranked the real data after an edit.
+      await submitTelemetryLog("facility_wide", formData, slotTimestamp);
       toast.success("Log saved to shared database history!");
     } catch (err: any) {
       console.warn("Telemetry DB save warning:", err);
@@ -578,7 +659,6 @@ export const RoutineTasksDashboard = ({
             }
 
             if (changed) {
-              const cacheKey = `telemetry_cache_${siteCode}_${new Date().toDateString()}_${targetHour}`;
               localStorage.setItem(cacheKey, JSON.stringify(updated));
             }
             return updated;
@@ -616,10 +696,32 @@ export const RoutineTasksDashboard = ({
   return (
     <div className="max-w-md mx-auto space-y-6 pb-24">
       {/* Sticky Audit Banner */}
-      <div className="sticky top-0 z-[100] backdrop-blur-md bg-slate-900/90 text-white border border-slate-800 px-4 py-2.5 rounded-2xl shadow-lg flex items-center justify-between text-[11px] font-black uppercase tracking-wider">
-        <span>Logging for Shift: {targetHour}</span>
-        <span className="text-gray-400 font-mono">Actual: {currentTime.toLocaleTimeString('en-US', { hour12: false })}</span>
+      <div className={`sticky top-0 z-[100] backdrop-blur-md text-white border px-4 py-2.5 rounded-2xl shadow-lg flex items-center justify-between text-[11px] font-black uppercase tracking-wider ${
+        isBackdating ? 'bg-amber-900/90 border-amber-700' : 'bg-slate-900/90 border-slate-800'
+      }`}>
+        <span>
+          {isBackdating ? 'Backdated Log: ' : 'Logging for Shift: '}
+          {targetHour}
+        </span>
+        <span className={`font-mono ${isBackdating ? 'text-amber-200' : 'text-gray-400'}`}>
+          {isBackdating
+            ? slotDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+            : `Actual: ${currentTime.toLocaleTimeString('en-US', { hour12: false })}`}
+        </span>
       </div>
+
+      {/* Backdating is legitimate (catching up a missed slot) but must never be
+          silent — the banner keeps the tech aware they aren't logging "now". */}
+      {isBackdating && (
+        <div className="bg-amber-50 border border-amber-200/70 rounded-2xl px-4 py-2.5 flex items-start gap-2.5 text-[10px] font-bold text-amber-900 mx-1">
+          <AlertTriangle size={13} className="shrink-0 mt-0.5 text-amber-600" />
+          <span>
+            You are logging for <span className="font-black">
+              {slotDate.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}
+            </span>, not today.
+          </span>
+        </div>
+      )}
 
       {/* Back Button */}
       {handleBack && (
@@ -777,6 +879,22 @@ export const RoutineTasksDashboard = ({
                   </button>
                 );
               })}
+            </div>
+          </div>
+        )}
+
+        {/* Mode transparency banner — explains the shorter form instead of
+            leaving the technician to guess whether readings went missing. */}
+        {hiddenByMode.count > 0 && (
+          <div className="bg-slate-50 border border-slate-200/70 rounded-2xl p-3 flex items-start gap-2.5 animate-fade-in">
+            <EyeOff size={13} className="text-slate-400 shrink-0 mt-0.5" />
+            <div className="text-[10px] leading-relaxed">
+              <span className="font-black text-slate-800 uppercase tracking-wider">
+                {hiddenByMode.count} reading{hiddenByMode.count === 1 ? '' : 's'} hidden in this mode
+              </span>
+              <span className="block font-semibold text-slate-500 mt-0.5">
+                {hiddenByMode.reason} Nothing has been lost — switch mode to log them.
+              </span>
             </div>
           </div>
         )}

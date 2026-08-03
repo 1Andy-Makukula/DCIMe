@@ -6,7 +6,6 @@ import {
   AlertTriangle,
   FileText,
   Users,
-  Bell,
   LogOut,
   Menu,
   X,
@@ -15,6 +14,7 @@ import {
 import { AirtelMark } from "@/shared/ui";
 import { useAuth } from "@/shared/context/AuthContext";
 import { useCurrentSite } from "@/shared/context/SiteContext";
+import { NotificationBell } from "./NotificationBell";
 
 // ── Nav tab definition ────────────────────────────────────────────────────────
 const NAV_TABS = [
@@ -167,15 +167,8 @@ export function AdminLayout() {
                 {currentSite.site_name}
               </span>
             )}
-            {/* Bell */}
-            <button
-              className="relative p-2 rounded-xl text-gray-400 hover:text-gray-700 hover:bg-gray-100 transition-all cursor-pointer"
-              aria-label="Notifications"
-            >
-              <Bell size={16} />
-              {/* Active alert badge */}
-              <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full" />
-            </button>
+            {/* Bell — live activity feed, routes to the relevant page on click */}
+            <NotificationBell />
 
             {/* Logout (Desktop Only) */}
             <button

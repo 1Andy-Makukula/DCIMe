@@ -1,13 +1,32 @@
 import { CheckCircle2, AlertTriangle, Play, Lock } from "lucide-react";
+import { isSameLocalDay, startOfLocalDay } from "../utils/dateKeys";
 
 interface ShiftTimelineProps {
   currentTime: Date;
+  /** The local day being inspected. Defaults to today when omitted. */
+  selectedDate?: Date;
   completedHours: number[];
   onSelectSlot: (hour: number) => void;
 }
 
-export function ShiftTimeline({ currentTime, completedHours, onSelectSlot }: ShiftTimelineProps) {
+export function ShiftTimeline({
+  currentTime,
+  selectedDate,
+  completedHours,
+  onSelectSlot,
+}: ShiftTimelineProps) {
   const currentHour = currentTime.getHours();
+
+  const today = startOfLocalDay(currentTime);
+  const viewDay = startOfLocalDay(selectedDate ?? currentTime);
+
+  const isToday = isSameLocalDay(viewDay, today);
+  const isPastDay = viewDay.getTime() < today.getTime();
+  const isFutureDay = viewDay.getTime() > today.getTime();
+
+  const headingDate = isToday
+    ? "Today"
+    : viewDay.toLocaleDateString("en-US", { weekday: "long", month: "short", day: "numeric" });
 
   return (
     <div className="space-y-6">
@@ -17,12 +36,18 @@ export function ShiftTimeline({ currentTime, completedHours, onSelectSlot }: Shi
             24-Hour Shift Timeline
           </h2>
           <p className="text-xs text-gray-500 mt-1">
-            Select an active or overdue slot to log telemetry.
+            {isFutureDay
+              ? "Future date — slots open once the day arrives."
+              : isPastDay
+                ? "Past date — open any slot to review or backfill."
+                : "Select an active or overdue slot to log telemetry."}
           </p>
         </div>
         <div className="text-right">
           <span className="text-[10px] font-bold bg-gray-100 text-gray-600 px-2.5 py-1 rounded-full font-mono uppercase tracking-wide">
-            {currentTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+            {isToday
+              ? currentTime.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
+              : headingDate}
           </span>
         </div>
       </div>
@@ -30,13 +55,21 @@ export function ShiftTimeline({ currentTime, completedHours, onSelectSlot }: Shi
       <div className="grid grid-cols-4 sm:grid-cols-6 gap-2">
         {Array.from({ length: 24 }).map((_, hour) => {
           const isCompleted = completedHours.includes(hour);
-          const isActive = hour === currentHour;
-          const isOverdue = hour < currentHour && !isCompleted;
 
           let status: "completed" | "active" | "overdue" | "future" = "future";
-          if (isCompleted) status = "completed";
-          else if (isActive) status = "active";
-          else if (isOverdue) status = "overdue";
+          if (isCompleted) {
+            status = "completed";
+          } else if (isFutureDay) {
+            // Nothing on a future day can be logged yet.
+            status = "future";
+          } else if (isPastDay) {
+            // The day is over, so any unlogged hour is a gap, not a pending slot.
+            status = "overdue";
+          } else if (hour === currentHour) {
+            status = "active";
+          } else if (hour < currentHour) {
+            status = "overdue";
+          }
 
           const formattedHour = `${hour.toString().padStart(2, "0")}:00`;
 

@@ -171,6 +171,15 @@ function EditPersonnelModal({ isOpen, onClose, onSaveSuccess, person }: EditPers
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    // employees.site_uuid is NOT NULL (20260728_employee_read_and_site_required).
+    // Sending null here didn't clear the site — it failed the constraint and the
+    // whole save was rejected. Refuse up front with a message the admin can act on.
+    if (!selectedSiteUuid) {
+      alert("Please select a site for this employee before saving.");
+      return;
+    }
+
     setIsSaving(true);
     try {
       const { data, error } = await supabase
@@ -180,7 +189,7 @@ function EditPersonnelModal({ isOpen, onClose, onSaveSuccess, person }: EditPers
           phone_number: phone.trim(),
           role: role,
           site_id: siteId,
-          site_uuid: selectedSiteUuid || null
+          site_uuid: selectedSiteUuid
         })
         .eq("id", person.id)
         .select("id");
@@ -425,10 +434,20 @@ function ConfirmDialog({
 }
 
 // ── Mapper helper ─────────────────────────────────────────────────────────────
+/** An open shift_sessions row, as needed by the roster view. */
+interface ActiveSession {
+  id: string;
+  employee_id: string;
+  shift_type: "DAY_SHIFT" | "NIGHT_SHIFT" | "CUSTOM";
+  checked_in_at: string;
+  site_uuid: string;
+}
+
 // ── Main Component ────────────────────────────────────────────────────────────
 export function PersonnelManagement() {
   const { currentSite } = useCurrentSite();
   const [rawEmployees, setRawEmployees] = useState<any[]>([]);
+  const [activeSessions, setActiveSessions] = useState<Record<string, ActiveSession>>({});
   const [isLoading,    setIsLoading]    = useState(true);
   const [showAddModal, setShowAddModal] = useState(false);
   const [editingPerson, setEditingPerson] = useState<Personnel | null>(null);
@@ -482,9 +501,17 @@ export function PersonnelManagement() {
     // Revocation is a real database column now (employees.status),
     // enforced by RLS helpers — not browser localStorage.
     const isRevoked = row.status === "Revoked";
+
+    // "On-Shift" now means an open shift_sessions row, not a job title. The
+    // previous `role === "ADMIN" ? "On-Shift" : "Active"` hardcoded every
+    // technician to "Active", so the live-session counter only ever counted
+    // the single admin no matter how many techs were working.
+    const session = activeSessions[row.id];
     const status: Status = isRevoked
       ? "Revoked"
-      : (row.role === "ADMIN" ? "On-Shift" : "Active");
+      : session
+        ? "On-Shift"
+        : "Active";
 
 
     return {
@@ -497,9 +524,17 @@ export function PersonnelManagement() {
       role:        mapRole(row.role),
       zone:        row.site_id || "Global (All Rooms)",
       siteUuid:    row.site_uuid || null,
-      shift:       row.role === "ADMIN" ? "08:00 – 18:00" : (row.employee_id && /\d/.test(row.employee_id) ? (parseInt(row.employee_id.replace(/\D/g, ""), 10) % 2 === 0 ? "08:00 – 18:00" : "18:00 – 08:00") : "08:00 – 18:00"),
+      // Prefer the shift they actually checked in to; fall back to the old
+      // badge-parity guess only when no session exists.
+      shift:       session
+        ? (session.shift_type === "NIGHT_SHIFT" ? "18:00 – 08:00" : "08:00 – 18:00")
+        : row.role === "ADMIN" ? "08:00 – 18:00" : (row.employee_id && /\d/.test(row.employee_id) ? (parseInt(row.employee_id.replace(/\D/g, ""), 10) % 2 === 0 ? "08:00 – 18:00" : "18:00 – 08:00") : "08:00 – 18:00"),
       shiftDays:   "Mon – Fri",
-      lastActive:  isRevoked ? "Suspended" : "Just now",
+      lastActive:  isRevoked
+        ? "Suspended"
+        : session
+          ? `On shift since ${new Date(session.checked_in_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}`
+          : "—",
       status:      status,
       accessLevel: row.role === "ADMIN" ? 5 : 3,
       joinedDate:  formatTime(row.created_at),
@@ -508,6 +543,31 @@ export function PersonnelManagement() {
   };
 
   const roster = rawEmployees.map(mapRowToPersonnel);
+
+  // Open shift sessions, keyed by employee id. Empty until
+  // 20260803_shift_sessions.sql is applied, in which case nobody reads as
+  // On-Shift — which is honest, rather than the old hardcoded guess.
+  const fetchActiveSessions = async () => {
+    try {
+      const { data, error } = await supabase
+        .from("shift_sessions")
+        .select("id, employee_id, shift_type, checked_in_at, site_uuid")
+        .eq("status", "ACTIVE");
+
+      if (error) {
+        console.warn("Shift sessions unavailable:", error.message);
+        return;
+      }
+
+      const byEmployee: Record<string, ActiveSession> = {};
+      (data || []).forEach((s: any) => {
+        byEmployee[s.employee_id] = s as ActiveSession;
+      });
+      setActiveSessions(byEmployee);
+    } catch (err) {
+      console.warn("Failed to load shift sessions:", err);
+    }
+  };
 
   const fetchRoster = async () => {
     try {
@@ -530,6 +590,21 @@ export function PersonnelManagement() {
 
   useEffect(() => {
     fetchRoster();
+    fetchActiveSessions();
+
+    // Check-ins and check-outs must move the live counter without a reload.
+    const channel = supabase
+      .channel("personnel_shift_sessions")
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "shift_sessions" },
+        () => fetchActiveSessions()
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, []);
 
   // ── Computed stats ──────────────────────────────────────────────────────

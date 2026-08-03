@@ -2,6 +2,8 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import { supabase } from "@/shared/api/supabaseClient";
 import { useCurrentSite } from "@/shared/context/SiteContext";
 
+export type ResolverType = "INTERNAL_TECH" | "EXTERNAL_CONTRACTOR";
+
 export interface Incident {
   id: string;
   ticket_number: string;
@@ -32,6 +34,8 @@ export interface Incident {
   impact: string | null;
   contractor_engaged: string | null;
   resolution_details: string | null;
+  /** Null on rows resolved before attribution was tracked. */
+  resolved_by_type?: ResolverType | null;
   site_uuid?: string | null;
 }
 
@@ -230,7 +234,14 @@ export function useIncidents() {
       resolved_by_name?: string;
       resolved_by_id?: string;
       impact: string;
-      contractor_engaged: string;
+      /**
+       * Who actually fixed it. An in-house repair must not be recorded as
+       * contractor work — leaving this unset keeps historical rows honest
+       * rather than retroactively attributing them.
+       */
+      resolved_by_type?: ResolverType;
+      /** Only meaningful for EXTERNAL_CONTRACTOR; null for internal repairs. */
+      contractor_engaged?: string | null;
       resolution_details: string;
       occurred_at?: string;
       resolved_at?: string;
@@ -250,7 +261,10 @@ export function useIncidents() {
         resolved_by_id: payload.resolved_by_id || "",
         receipt_number: receiptNumber,
         impact: payload.impact,
-        contractor_engaged: payload.contractor_engaged,
+        resolved_by_type: payload.resolved_by_type || null,
+        // Null rather than a placeholder string: "no contractor was involved"
+        // and "a contractor was involved" must stay distinguishable.
+        contractor_engaged: payload.contractor_engaged || null,
         resolution_details: payload.resolution_details,
         ...(payload.occurred_at ? { occurred_at: payload.occurred_at } : {}),
       };

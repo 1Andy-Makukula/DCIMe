@@ -81,6 +81,7 @@ export function useNocTelemetry(): UseNocTelemetryResult {
         .from("telemetry_logs")
         .select("target_hour, metrics")
         .eq("site_uuid", siteId)
+        .eq("asset_id", "facility_wide")
         .order("target_hour", { ascending: false })
         .limit(50);
 

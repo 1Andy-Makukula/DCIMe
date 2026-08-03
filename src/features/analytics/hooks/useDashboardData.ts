@@ -267,9 +267,16 @@ export function useDashboardData() {
       try {
         // Fetch Telemetry Logs (scoped to site)
         const siteId = currentSite?.id;
+        // Facility logs only. Without this the analytics series also ingested
+        // AIRTEL_DAILY_CHECKLIST rows — whose metrics have a completely
+        // different shape and plot as junk points — plus dg_daily_test rows
+        // that duplicate an existing target_hour. It also silently shrank the
+        // window: with up to 3 rows per hour, limit(50) covered far fewer
+        // than 50 hours of actual telemetry.
         const telQuery = supabase
           .from('telemetry_logs')
           .select('*')
+          .eq('asset_id', 'facility_wide')
           .order('target_hour', { ascending: false })
           .limit(50);
         if (siteId) telQuery.eq('site_uuid', siteId);

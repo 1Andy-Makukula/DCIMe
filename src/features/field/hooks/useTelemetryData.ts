@@ -6,18 +6,29 @@ import { useCurrentSite } from '@/shared/context/SiteContext';
 import { SITE_BLUEPRINTS } from '@/config/sites';
 import { toast } from 'sonner';
 import { useFacilityState } from './useFacilityState';
+import { toLocalDateKey, slotISO, parseHour } from '../utils/dateKeys';
+import { useShiftSession } from '@/shared/context/ShiftContext';
 
 export function useTelemetryData(
   targetHourProp: number | string,
   onComplete?: () => void,
-  onSubmitSuccess?: (hour: number) => void
+  onSubmitSuccess?: (hour: number) => void,
+  /** Local day being logged. Defaults to today so existing callers are unaffected. */
+  selectedDate?: Date
 ) {
   const targetHour = typeof targetHourProp === "string" && targetHourProp.includes(":")
     ? parseInt(targetHourProp.split(":")[0], 10)
     : Number(targetHourProp);
 
+  // Every slot identity below (cache key, fetch, submit) derives from this one
+  // date, so a technician reviewing 3 days ago reads and writes that day.
+  const slotDate = selectedDate ?? new Date();
+  const slotDateKey = toLocalDateKey(slotDate);
+
   const { employee } = useAuth();
   const { currentSite } = useCurrentSite();
+  // Null when the technician skipped check-in — logging stays allowed.
+  const { shiftSessionId } = useShiftSession();
   const siteCode = currentSite?.site_code || "NTC";
   const blueprint = SITE_BLUEPRINTS[siteCode] || SITE_BLUEPRINTS.NTC;
 
@@ -42,8 +53,8 @@ export function useTelemetryData(
   // The Grid Override Boolean
   const isGridOff = formData['grid_status'] === 'OFF' || fsmMode === 'OUTAGE' || fsmMode === 'ON_LOAD_TEST';
 
-  const dateStr = new Date().toISOString().slice(0, 10);
-  const getCacheKey = (hour: number) => `telemetry_cache_${dateStr}_${hour}`;
+  const getCacheKey = (hour: number | string) =>
+    `telemetry_cache_${siteCode}_${slotDateKey}_${parseHour(hour)}`;
 
   useEffect(() => {
     setFormData((prev) => {
@@ -97,10 +108,10 @@ export function useTelemetryData(
         // test would mark THIS site's isDailyTestDoneToday as true
         if (!currentSite?.id) return;
 
-        const todayStart = new Date();
-        todayStart.setHours(0, 0, 0, 0);
-        const todayEnd = new Date();
-        todayEnd.setHours(23, 59, 59, 999);
+        // Scoped to the SELECTED day, not "now" — reviewing an earlier date
+        // must report whether that day's test ran, not today's.
+        const todayStart = new Date(slotDate.getFullYear(), slotDate.getMonth(), slotDate.getDate(), 0, 0, 0, 0);
+        const todayEnd = new Date(slotDate.getFullYear(), slotDate.getMonth(), slotDate.getDate(), 23, 59, 59, 999);
 
         const { data, error } = await supabase
           .from('telemetry_logs')
@@ -131,7 +142,7 @@ export function useTelemetryData(
     };
 
     checkDailyTest();
-  }, [formData?.daily_dg_test_completed]);
+  }, [formData?.daily_dg_test_completed, slotDateKey, currentSite?.id]);
 
   // Zero-Delay Local Cache & Supabase Fetch Engine
   useEffect(() => {
@@ -167,23 +178,12 @@ export function useTelemetryData(
     setIsSuccess(false);
 
     // Step B (Date Construction)
-    // Build targetHourISO from LOCAL date components so that the stored UTC
+    // Built from LOCAL date components of the SELECTED day, so the stored UTC
     // timestamp round-trips back to the correct local clock hour.
     // e.g. UTC+2: local 00:00 → stored as 2026-07-22T22:00:00Z → displays as 00:00 ✓
-    // The previous UTC-based approach stored local 00:00 as 2026-07-23T00:00:00Z
-    // which displayed as 02:00 in UTC+2. ✗
-    const numericTargetH = typeof targetHour === 'number'
-      ? targetHour
-      : parseInt(String(targetHour || '0').split(':')[0], 10);
-    const safeH = isNaN(numericTargetH) ? 0 : numericTargetH;
-
-    const now = new Date();
-    const targetHourISO = new Date(
-      now.getFullYear(),
-      now.getMonth(),
-      now.getDate(),
-      safeH, 0, 0, 0
-    ).toISOString();
+    // A UTC-based approach would store local 00:00 as 2026-07-23T00:00:00Z,
+    // which displays as 02:00 in UTC+2. ✗
+    const targetHourISO = slotISO(slotDate, parseHour(targetHour));
 
     const fetchTelemetryData = async () => {
       try {
@@ -199,6 +199,7 @@ export function useTelemetryData(
           .from('telemetry_logs')
           .select('*')
           .eq('target_hour', targetHourISO)
+          .eq('asset_id', 'facility_wide')
           .or(`metrics->>site_uuid.eq.${currentSite.id},metrics->>site_id.eq.${siteCode}`)
           .maybeSingle();
 
@@ -367,7 +368,8 @@ export function useTelemetryData(
     };
   // M-1 FIX: add currentSite?.id to deps — if the site UUID changes (admin
   // switches sites), the subscription must re-register with the new filter.
-  }, [targetHour, siteCode, currentSite?.id]);
+  // slotDateKey: scrubbing to another day must refetch that day's slot.
+  }, [targetHour, siteCode, currentSite?.id, slotDateKey]);
 
   // Ambient temperature & humidity inputs are preserved directly as raw values
 
@@ -394,7 +396,10 @@ export function useTelemetryData(
 
 
   // Exhaustive Ambient Average Math & Submission
-  const handleSubmit = async (activeGenerators: string[] = []) => {
+  const handleSubmit = async (
+    activeGenerators: string[] = [],
+    decommissionedIds: Set<string> = new Set()
+  ) => {
     setIsSubmitting(true);
     setSubmitError(null);
     setIsSuccess(false);
@@ -445,6 +450,9 @@ export function useTelemetryData(
       const normalizedId = (equip.id as string).toLowerCase().replace(/-/g, '_');
       if (offlineForValidation.has(normalizedId)) continue;
       if (equip.id === 'grid_main' && isGridOff) continue;
+      // Decommissioned assets aren't rendered, so their readings can't be
+      // supplied — never block submission on them.
+      if (decommissionedIds.has(equip.id)) continue;
 
       const visibleMetrics = getVisibleMetrics(equip.id, equip.metrics || []);
       for (const m of visibleMetrics) {
@@ -532,6 +540,12 @@ export function useTelemetryData(
       payload['ambient_avg_temp'] = ambient_avg_temp;
     }
 
+    // Purge any legacy rendered-report snapshot. Older rows stored one inside
+    // metrics, and because it round-tripped through formData every subsequent
+    // edit re-persisted the original pre-edit text. History renders from
+    // metrics now, so this field must not survive another write.
+    delete payload['_report_text'];
+
     if (fsmMode === 'ON_LOAD_TEST') {
       payload['outage_type'] = 'planned_test';
     } else if (fsmMode === 'OUTAGE') {
@@ -552,18 +566,7 @@ export function useTelemetryData(
 
     try {
       // Same local-time construction as the fetch effect above
-      const numericTargetH = typeof targetHour === 'number'
-        ? targetHour
-        : parseInt(String(targetHour || '0').split(':')[0], 10);
-      const safeH = isNaN(numericTargetH) ? 0 : numericTargetH;
-
-      const now = new Date();
-      const targetHourISO = new Date(
-        now.getFullYear(),
-        now.getMonth(),
-        now.getDate(),
-        safeH, 0, 0, 0
-      ).toISOString();
+      const targetHourISO = slotISO(slotDate, parseHour(targetHour));
 
       // Fetch all parameters to map parameter_id to equipment_id
       const { data: allParams } = await supabase
@@ -578,10 +581,11 @@ export function useTelemetryData(
         }
       });
 
-      // Strip metrics for offline assets
+      // Strip metrics for offline and decommissioned assets — stale carried-forward
+      // values would otherwise keep writing readings for equipment no longer on site.
       blueprint.equipment.forEach((equip: any) => {
         const normalizedAssetId = equip.id.toLowerCase().replace(/-/g, '_');
-        if (offlineAssetIds.has(normalizedAssetId)) {
+        if (offlineAssetIds.has(normalizedAssetId) || decommissionedIds.has(equip.id)) {
           equip.metrics.forEach((m: any) => {
             delete payload[m.id];
           });
@@ -622,9 +626,10 @@ export function useTelemetryData(
       payload['site_id'] = siteCode;
       payload['site_uuid'] = siteUuid;
 
-      // Upsert to telemetry_logs
-      // C-1: Use the composite conflict key (target_hour, site_uuid) so that
-      // each site has its own unique slot per hour — prevents cross-site overwrites.
+      const isDgTestMode = fsmMode === 'DAILY_TEST' || payload['daily_dg_test_completed'] === true;
+
+      // Upsert to telemetry_logs (Facility Wide)
+      // Composite conflict key (target_hour, site_uuid, asset_id)
       const { error } = await supabase
         .from('telemetry_logs')
         .upsert(
@@ -636,13 +641,37 @@ export function useTelemetryData(
             asset_id: 'facility_wide',
             technician_name: firstName,
             technician_id: employee?.id || null,
-            site_uuid: siteUuid
+            site_uuid: siteUuid,
+            shift_session_id: shiftSessionId
           },
-          { onConflict: 'target_hour,site_uuid' }
+          { onConflict: 'target_hour,site_uuid,asset_id' }
         );
 
       if (error) {
         throw error;
+      }
+
+      // Upsert dedicated DG Daily Test log when in Daily Test mode
+      if (isDgTestMode) {
+        const { error: dgError } = await supabase
+          .from('telemetry_logs')
+          .upsert(
+            {
+              target_hour: targetHourISO,
+              frequency: 'daily',
+              metrics: payload,
+              is_edited: isEditMode,
+              asset_id: 'dg_daily_test',
+              technician_name: firstName,
+              technician_id: employee?.id || null,
+              site_uuid: siteUuid,
+              shift_session_id: shiftSessionId
+            },
+            { onConflict: 'target_hour,site_uuid,asset_id' }
+          );
+        if (dgError) {
+          console.warn('[DCIMe] Warning: Failed to write dedicated dg_daily_test record:', dgError);
+        }
       }
 
       // Update active_power_source in public.shift_reports for the current

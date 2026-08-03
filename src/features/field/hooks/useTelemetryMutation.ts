@@ -49,11 +49,14 @@ export function useTelemetryMutation() {
       // Stamp site identity onto the metrics payload itself (toggle saves
       // used to skip this — leaving rows that later reads couldn't
       // attribute to any site).
-      const stampedMetrics = {
+      const stampedMetrics: Record<string, any> = {
         ...metricsJson,
         site_id: currentSite.site_code,
         site_uuid: currentSite.id,
       };
+      // History renders summaries from metrics on read. Drop any legacy stored
+      // snapshot so it can't be re-persisted by a toggle save and go stale.
+      delete stampedMetrics['_report_text'];
 
       // Offline Interceptor
       if (!navigator.onLine) {
@@ -86,24 +89,33 @@ export function useTelemetryMutation() {
       }
 
       // Determine if this is an edit by checking for an existing log —
-      // filtered by REAL database columns (target_hour + site_uuid), not
-      // by peeking inside the metrics payload. Without the site filter a
-      // same-hour row from another site (or an unmatched row) corrupts
-      // the is_edited flag and the conflict target below.
+      // filtered by REAL database columns, not by peeking inside the metrics
+      // payload. Without the site filter a same-hour row from another site
+      // (or an unmatched row) corrupts the is_edited flag.
+      //
+      // asset_id is part of this filter because the unique key became
+      // 3-column in 20260731. Several rows legitimately share
+      // (target_hour, site_uuid) — 'facility_wide' plus 'dg_daily_test' —
+      // and without this the maybeSingle() below errors with "multiple rows
+      // returned" the moment a DG test exists for the hour, failing every
+      // subsequent toggle save on that slot.
+      const resolvedAssetId = assetId || "facility_wide";
+
       const { data: existingLog, error: fetchError } = await supabase
         .from("telemetry_logs")
         .select("id")
         .eq("target_hour", targetHourISO)
         .eq("site_uuid", currentSite.id)
+        .eq("asset_id", resolvedAssetId)
         .maybeSingle();
 
       if (fetchError) throw fetchError;
 
       const isEdited = !!existingLog;
 
-      // The live unique constraint is (target_hour, site_uuid) — the
-      // conflict target MUST name both columns or Postgres rejects the
-      // upsert outright and the save silently fails.
+      // The live unique constraint is (target_hour, site_uuid, asset_id) —
+      // the conflict target MUST name all three columns or Postgres rejects
+      // the upsert outright and the save silently fails.
       const { error: upsertError } = await supabase
         .from("telemetry_logs")
         .upsert(
@@ -113,12 +125,12 @@ export function useTelemetryMutation() {
             metrics: stampedMetrics,
             is_edited: isEdited,
             last_edited_at: isEdited ? new Date().toISOString() : null,
-            asset_id: assetId || "facility_wide",
+            asset_id: resolvedAssetId,
             technician_id: employee.id,
             technician_name: firstName,
             site_uuid: currentSite.id
           },
-          { onConflict: "target_hour,site_uuid" }
+          { onConflict: "target_hour,site_uuid,asset_id" }
         );
 
 

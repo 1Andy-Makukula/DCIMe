@@ -52,12 +52,17 @@ export function useOfflineSync() {
           const isDaily = payload.frequency === "daily";
 
           if (!isDaily) {
-            // Resolve is_edited flag against the composite key (C-1 fix applied)
+            // Resolve is_edited against the FULL composite key. asset_id
+            // matters: 'facility_wide' and 'dg_daily_test' share a
+            // (target_hour, site_uuid), so omitting it makes maybeSingle()
+            // error on "multiple rows returned" — and because that error was
+            // discarded, the log silently synced with is_edited = false.
             const { data: existingLog } = await supabase
               .from("telemetry_logs")
               .select("id")
               .eq("target_hour", payload.target_hour)
               .eq("site_uuid", payload.site_uuid)
+              .eq("asset_id", payload.asset_id || "facility_wide")
               .maybeSingle();
 
             const isEdited = !!existingLog;
@@ -65,10 +70,10 @@ export function useOfflineSync() {
             payload.last_edited_at = isEdited ? new Date().toISOString() : null;
           }
 
-          // C-1: use composite conflict key (target_hour + site_uuid)
+          // Composite conflict key (target_hour + site_uuid + asset_id)
           const { error } = await supabase
             .from("telemetry_logs")
-            .upsert(payload, { onConflict: "target_hour,site_uuid" });
+            .upsert(payload, { onConflict: "target_hour,site_uuid,asset_id" });
 
           if (error) throw error;
           successCount++;
