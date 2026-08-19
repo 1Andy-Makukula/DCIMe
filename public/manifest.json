@@ -1,18 +1,19 @@
 {
   "short_name": "DCIMe",
   "name": "DCIMe Data Center Infrastructure Engine",
-  "description": "Offline-First Data Center Operations & Field Telemetry System",
-  "icons": [
-    {
-      "src": "/Logo.png",
-      "type": "image/png",
-      "sizes": "512x512",
-      "purpose": "any maskable"
-    }
-  ],
+  "description": "Data centre operations, telemetry and power topology.",
   "start_url": "/",
   "background_color": "#0f172a",
-  "theme_color": "#ef4444",
+  "theme_color": "#0f172a",
   "display": "standalone",
-  "orientation": "portrait"
+  "orientation": "portrait",
+  "_icons_hidden": [
+    {
+      "src": "/Logo.jpg",
+      "type": "image/jpeg",
+      "sizes": "616x570",
+      "purpose": "any"
+    }
+  ],
+  "icons": []
 }

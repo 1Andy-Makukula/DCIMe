@@ -68,7 +68,7 @@ export function TechDashboard() {
         const dayEnd = new Date(dayStart.getFullYear(), dayStart.getMonth(), dayStart.getDate(), 23, 59, 59, 999);
 
         // Only facility telemetry counts as "this hour is logged".
-        // telemetry_logs also holds AIRTEL_DAILY_CHECKLIST and dg_daily_test
+        // telemetry_logs also holds daily-checklist and dg_daily_test
         // rows; without this filter, submitting a daily checklist turned that
         // hour's slot green even though no hourly reading had been taken.
         let query = supabase
@@ -184,22 +184,22 @@ export function TechDashboard() {
       {/* Shift Context Card */}
       <div className="relative overflow-hidden bg-gradient-to-br from-gray-900 via-gray-950 to-gray-900 rounded-3xl p-5 text-white shadow-xl border border-gray-800 print:hidden max-w-md mx-auto">
         {/* Subtle decorative glowing spot */}
-        <div className="absolute -top-16 -right-16 w-36 h-36 bg-red-600 rounded-full blur-3xl opacity-20 pointer-events-none" />
+        <div className="absolute -top-16 -right-16 w-36 h-36 bg-brand-600 rounded-full blur-3xl opacity-20 pointer-events-none" />
 
         <div className="relative z-10 space-y-4">
           <div className="flex items-center justify-between">
-            <span className="text-[10px] uppercase tracking-widest font-black text-red-500 bg-red-500/10 px-2.5 py-1 rounded-full border border-red-500/20">
+            <span className="text-[10px] uppercase tracking-widest font-black text-brand-500 bg-brand-500/10 px-2.5 py-1 rounded-full border border-brand-500/20">
               Active Shift
             </span>
-            <div className="flex items-center gap-1.5 text-green-400 text-xs font-semibold">
-              <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
+            <div className="flex items-center gap-1.5 text-ok-400 text-xs font-semibold">
+              <span className="w-2 h-2 rounded-full bg-ok-500 animate-pulse" />
               On-Shift
             </div>
           </div>
 
           <div className="space-y-3">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center text-red-400 shrink-0">
+              <div className="w-10 h-10 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center text-brand-400 shrink-0">
                 <User size={18} />
               </div>
               <div>
@@ -226,7 +226,7 @@ export function TechDashboard() {
       <div className="max-w-md mx-auto">
         <button
           onClick={() => window.open("/topology_engine/renderer/index.html?role=FIELD_TECH", "_blank")}
-          className="w-full bg-white border border-gray-200 hover:border-red-200 rounded-3xl py-3.5 text-[10px] font-black uppercase tracking-wider text-slate-700 hover:text-red-500 hover:bg-red-50/10 active:scale-[0.98] transition-all shadow-sm flex items-center justify-center gap-2 cursor-pointer"
+          className="w-full bg-white border border-gray-200 hover:border-brand-200 rounded-3xl py-3.5 text-[10px] font-black uppercase tracking-wider text-slate-700 hover:text-brand-500 hover:bg-brand-50/10 active:scale-[0.98] transition-all shadow-sm flex items-center justify-center gap-2 cursor-pointer"
         >
           📊 View Visual Topology Map
         </button>
@@ -238,7 +238,7 @@ export function TechDashboard() {
           onClick={() => setActiveTab("checklist")}
           className={`flex-1 py-2 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all flex flex-col items-center justify-center gap-1 text-center ${
             activeTab === "checklist"
-              ? "bg-red-500 text-white shadow-sm shadow-red-500/10"
+              ? "bg-brand-500 text-white shadow-sm shadow-brand-500/10"
               : "text-gray-400 hover:text-gray-600"
           }`}
         >
@@ -250,7 +250,7 @@ export function TechDashboard() {
           onClick={() => setActiveTab("maintenance")}
           className={`flex-1 py-2 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all flex flex-col items-center justify-center gap-1 text-center ${
             activeTab === "maintenance"
-              ? "bg-red-500 text-white shadow-sm shadow-red-500/10"
+              ? "bg-brand-500 text-white shadow-sm shadow-brand-500/10"
               : "text-gray-400 hover:text-gray-600"
           }`}
         >
@@ -264,14 +264,14 @@ export function TechDashboard() {
           onClick={() => { setActiveTab("handover"); refreshHandovers(); }}
           className={`flex-1 py-2 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all flex flex-col items-center justify-center gap-1 text-center relative ${
             activeTab === "handover"
-              ? "bg-red-500 text-white shadow-sm shadow-red-500/10"
+              ? "bg-brand-500 text-white shadow-sm shadow-brand-500/10"
               : "text-gray-400 hover:text-gray-600"
           }`}
         >
           <MessageSquare size={16} />
           <span className="leading-tight block">Pass-<br />down</span>
           {shiftReports.length > 0 && activeTab !== "handover" && (
-            <span className="absolute top-1 right-2 w-4 h-4 bg-red-600 border-2 border-white text-[8px] font-black text-white rounded-full flex items-center justify-center">
+            <span className="absolute top-1 right-2 w-4 h-4 bg-danger-600 border-2 border-white text-[8px] font-black text-white rounded-full flex items-center justify-center">
               {shiftReports.length}
             </span>
           )}
@@ -307,8 +307,8 @@ export function TechDashboard() {
             </h2>
             
             <div className="bg-white rounded-3xl p-4 border border-gray-100 shadow-sm flex items-center gap-4">
-              <div className="w-12 h-12 rounded-2xl bg-green-50 flex items-center justify-center shrink-0 border border-green-100">
-                <CheckCircle size={22} className="text-green-500" />
+              <div className="w-12 h-12 rounded-2xl bg-ok-50 flex items-center justify-center shrink-0 border border-ok-100">
+                <CheckCircle size={22} className="text-ok-500" />
               </div>
               <div className="flex-1 min-w-0">
                 <p className="font-bold text-gray-900 text-sm">Site Stable</p>
@@ -340,7 +340,7 @@ export function TechDashboard() {
             </div>
             <button 
               onClick={refreshHandovers}
-              className="text-[10px] text-red-600 font-bold hover:underline"
+              className="text-[10px] text-danger-600 font-bold hover:underline"
               disabled={isHandoversLoading}
             >
               {isHandoversLoading ? "Refreshing..." : "Sync Logs"}
@@ -349,11 +349,11 @@ export function TechDashboard() {
 
           {isHandoversLoading && shiftReports.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-10 bg-white border border-gray-100 rounded-3xl shadow-sm gap-2">
-              <Loader2 className="animate-spin text-red-500" size={24} />
+              <Loader2 className="animate-spin text-brand-500" size={24} />
               <p className="text-[11px] font-bold uppercase tracking-wider text-gray-400">Syncing shift reports...</p>
             </div>
           ) : handoversError ? (
-            <div className="bg-red-50 border border-red-100 text-red-700 p-4 rounded-3xl text-xs flex gap-2">
+            <div className="bg-danger-50 border border-danger-100 text-danger-700 p-4 rounded-3xl text-xs flex gap-2">
               <AlertOctagon size={16} className="shrink-0 mt-0.5" />
               <div>
                 <span className="font-bold">Fetch Error:</span> {handoversError}
@@ -379,11 +379,11 @@ export function TechDashboard() {
                   <div 
                     key={report.log_id}
                     className={`bg-white border border-gray-100 rounded-3xl p-5 shadow-sm space-y-4 relative overflow-hidden transition-all hover:border-gray-200 ${
-                      isActiveWatch ? "ring-2 ring-red-500/25 border-red-100 bg-gradient-to-b from-red-50/10 to-white" : ""
+                      isActiveWatch ? "ring-2 ring-brand-500/25 border-brand-100 bg-gradient-to-b from-brand-50/10 to-white" : ""
                     }`}
                   >
                     {/* Left visual state stripe */}
-                    <div className={`absolute left-0 top-0 bottom-0 w-1.5 ${isActiveWatch ? "bg-red-500" : "bg-gray-300"}`} />
+                    <div className={`absolute left-0 top-0 bottom-0 w-1.5 ${isActiveWatch ? "bg-danger-500" : "bg-gray-300"}`} />
 
                     <div className="flex items-center justify-between pl-1">
                       <div className="flex items-center gap-1.5">
@@ -391,7 +391,7 @@ export function TechDashboard() {
                           {report.signature_id ? report.signature_id.substring(0, 14) + "..." : `SR-${report.log_id.substring(0, 6)}`}
                         </span>
                         {isActiveWatch && (
-                          <span className="inline-flex items-center gap-1 bg-red-500 text-white text-[8px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full shadow-sm shadow-red-500/10">
+                          <span className="inline-flex items-center gap-1 bg-brand-500 text-white text-[8px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full shadow-sm shadow-brand-500/10">
                             <span className="w-1.5 h-1.5 rounded-full bg-white animate-ping" />
                             Active Watch Note
                           </span>
@@ -410,7 +410,7 @@ export function TechDashboard() {
                       {/* Pass-down commentary box */}
                       <div className={`p-4 rounded-2xl text-xs font-semibold leading-relaxed ${
                         isActiveWatch 
-                          ? "bg-red-50/40 border border-red-100/50 text-red-950" 
+                          ? "bg-danger-50/40 border border-danger-100/50 text-danger-950" 
                           : "bg-gray-50 border border-gray-100 text-gray-700"
                       }`}>
                         <div className="text-[8px] font-black text-gray-400 uppercase tracking-widest mb-1">Pass-down Instructions</div>
@@ -422,7 +422,7 @@ export function TechDashboard() {
                           <Clock size={11} />
                           <span>Shift: {report.shift_duration}</span>
                         </div>
-                        <div className="flex items-center gap-1 text-green-600">
+                        <div className="flex items-center gap-1 text-ok-600">
                           <ShieldCheck size={11} />
                           <span>Certified {report.routine_logs_completed}/4 Logs Saved</span>
                         </div>

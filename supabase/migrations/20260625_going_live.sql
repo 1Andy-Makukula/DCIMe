@@ -13,7 +13,7 @@ CREATE TABLE IF NOT EXISTS public.incidents (
   ticket_number      text        NOT NULL,
   status             text        NOT NULL DEFAULT 'OPEN'
                      CHECK (status IN ('OPEN', 'RESOLVED')),
-  site_name          text        NOT NULL DEFAULT 'NTC ZM 0874',
+  site_name          text        NOT NULL DEFAULT 'Site 1',
   asset_id           text        NOT NULL,
   severity           text        NOT NULL
                      CHECK (severity IN ('low', 'medium', 'critical')),
@@ -53,7 +53,7 @@ CREATE TABLE IF NOT EXISTS public.shift_reports (
   timestamp               timestamptz NOT NULL DEFAULT now(),
   logged_by               text,
   active_power_source     text        NOT NULL DEFAULT 'Mains Active',
-  site_id                 text        NOT NULL DEFAULT 'NTC ZM 0874',
+  site_id                 text        NOT NULL DEFAULT 'Site 1',
   notes                   text        NOT NULL DEFAULT '',
   certified               boolean     NOT NULL DEFAULT false,
   technician_name         text        NOT NULL DEFAULT '',

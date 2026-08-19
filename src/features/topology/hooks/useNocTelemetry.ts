@@ -77,11 +77,19 @@ export function useNocTelemetry(): UseNocTelemetryResult {
       }
 
       // ── Query 1: site-scoped telemetry logs ──
+      // Bounded to the last 24 hours because the UI labels this "24-Hour Load
+      // Trend" and the headline stat "Site Uptime" off the same rows. The
+      // previous `.limit(50)` had no time bound at all — for hourly rows that
+      // silently covered ~50 hours (about two days), so both the chart and
+      // the uptime % were quietly describing a different window than the one
+      // printed on screen.
+      const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
       const { data: telemetryRows, error: telemetryError } = await supabase
         .from("telemetry_logs")
         .select("target_hour, metrics")
         .eq("site_uuid", siteId)
         .eq("asset_id", "facility_wide")
+        .gte("target_hour", twentyFourHoursAgo)
         .order("target_hour", { ascending: false })
         .limit(50);
 

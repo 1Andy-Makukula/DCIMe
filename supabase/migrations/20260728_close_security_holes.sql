@@ -30,9 +30,9 @@
 -- SELECT count(*) AS employees_missing_site FROM public.employees        WHERE site_uuid IS NULL;
 
 -- Section 0b — ONLY if the first count above is non-zero. Replace
--- 'NTC' with the site_code these orphaned rows belong to, then run:
+-- 'SITE_01' with the site_code these orphaned rows belong to, then run:
 -- UPDATE public.equipment_registry
---   SET site_uuid = (SELECT id FROM public.sites WHERE site_code = 'NTC')
+--   SET site_uuid = (SELECT id FROM public.sites WHERE site_code = 'SITE_01')
 --   WHERE site_uuid IS NULL;
 
 
@@ -65,7 +65,7 @@ $$;
 -- policies, so each of these silently nullifies the correct
 -- site-scoped policy sitting next to it on the same table.
 --
--- KNOWN SIDE EFFECT: this intentionally breaks the "Seed NTC/WTC DB"
+-- KNOWN SIDE EFFECT: this intentionally breaks the "Seed Site 1/Site 2 DB"
 -- buttons (src/shared/utils/seedDatabase.ts), which DELETE from
 -- rooms / equipment_registry / equipment_parameters. Those buttons are
 -- flagged for removal anyway (report §4.6) because they wipe live site

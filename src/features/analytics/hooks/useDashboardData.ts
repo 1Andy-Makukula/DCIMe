@@ -1,13 +1,23 @@
 import { useState, useEffect, useRef } from 'react';
+import { UTILITY_GRID_LABEL } from "@/shared/utils/branding";
 import { supabase } from '@/shared/api/supabaseClient';
 import { useCurrentSite } from '@/shared/context/SiteContext';
+import { DateRangeValue, useDateRange } from '@/shared/utils/useDateRange';
+
+// A defensive ceiling, not the primary filter. The date range is what bounds
+// the query; this only protects the browser if "All Time" is selected on a
+// site with years of hourly data — it should never bind at 2-site scale.
+const MAX_ROWS_PER_FETCH = 3000;
 
 export interface GridDataPoint {
   time: string;
-  grid_voltage_r: number;
-  grid_voltage_y: number;
-  grid_voltage_b: number;
-  grid_total_site_load: number;
+  // null = this hour genuinely has no reading. Never backfilled with a
+  // plausible-looking number — Recharts gaps the line at null, which is the
+  // honest signal; a fabricated 230V is indistinguishable from a real one.
+  grid_voltage_r: number | null;
+  grid_voltage_y: number | null;
+  grid_voltage_b: number | null;
+  grid_total_site_load: number | null;
   grid_status: string;
 }
 
@@ -35,37 +45,39 @@ export interface FuelDataPoint {
 
 export interface EngineHealthPoint {
   name: string;
-  oil_pressure: number;
-  water_temp: number;
-  batt_voltage: number;
-  status: string;
+  oil_pressure: number | null;
+  water_temp: number | null;
+  batt_voltage: number | null;
+  // "NO_DATA" is distinct from "OK" — defaulting an unreported generator to
+  // OK would silently hide the fact that nobody actually checked it.
+  status: "OK" | "WARNING" | "CRITICAL" | "NO_DATA";
 }
 
 export interface UpsDataPoint {
   time: string;
-  ups1_load: number;
-  ups2_load: number;
+  ups1_load: number | null;
+  ups2_load: number | null;
 }
 
 export interface PhaseDistributionPoint {
   name: string;
-  Phase_A: number;
-  Phase_B: number;
-  Phase_C: number;
+  Phase_A: number | null;
+  Phase_B: number | null;
+  Phase_C: number | null;
 }
 
 export interface ThermalDataPoint {
   time: string;
-  server_ambient_temp: number;
-  return_temp_actual: number;
-  supply_temp_set: number;
+  server_ambient_temp: number | null;
+  return_temp_actual: number | null;
+  supply_temp_set: number | null;
 }
 
 export interface ZoneDataPoint {
   name: string;
-  temp: number;
-  humidity: number;
-  status: string;
+  temp: number | null;
+  humidity: number | null;
+  status: "Optimal" | "Moderate" | "Warm" | "No Data";
 }
 
 // ── Fuel burn-rate specifications (litres per hour at rated load) ──────────
@@ -77,6 +89,27 @@ const DG_FUEL_BURN_RATES_LPH: Record<string, number> = {
   dg_3: 150,
   dg_4: 150,
   dg_hq: 150,
+};
+
+/**
+ * Parses a metric value, returning null — not a plausible-looking number —
+ * when the field is genuinely absent. A missing reading and a real
+ * measurement must never be visually indistinguishable on a chart.
+ */
+const numOrNull = (v: any): number | null => {
+  if (v === undefined || v === null || v === '') return null;
+  const n = parseFloat(v);
+  return Number.isFinite(n) ? n : null;
+};
+
+// ⚠ SITE ENGINEERS: placeholder comfort-band thresholds for the zone heatmap,
+// mirrored from the old static demo labels. Replace with the facility's real
+// ASHRAE/vendor thresholds per room once available.
+const zoneStatus = (temp: number | null): ZoneDataPoint['status'] => {
+  if (temp === null) return 'No Data';
+  if (temp >= 25) return 'Warm';
+  if (temp >= 24) return 'Moderate';
+  return 'Optimal';
 };
 
 export interface IncidentBubblePoint {
@@ -113,13 +146,13 @@ export interface DashboardKPIs {
     currentFuelBalance: number;
   };
   ups: {
-    maxCapacityPct: number;
-    avgBatteryCharge: number;
-    rectifierVoltage: number;
+    maxCapacityPct: number | null;
+    avgBatteryCharge: number | null;
+    rectifierVoltage: number | null;
   };
   thermal: {
     peakTemp: string;
-    avgHumidity: number;
+    avgHumidity: number | null;
     abnormalitiesCount: number;
   };
   incidents: {
@@ -215,7 +248,7 @@ const defaultZoneData: ZoneDataPoint[] = [
 ];
 
 const defaultIncidentBubbles: IncidentBubblePoint[] = [
-  { dayIndex: 1, yValue: 2, severity: 200, name: "Zesco Grid Failure", status: "Resolved", date: "Jul 01" },
+  { dayIndex: 1, yValue: 2, severity: 200, name: `${UTILITY_GRID_LABEL} Failure`, status: "Resolved", date: "Jul 01" },
   { dayIndex: 2, yValue: 3, severity: 50, name: "PAC-3 High Temp", status: "Resolved", date: "Jul 02" },
   { dayIndex: 4, yValue: 1, severity: 100, name: "UPS-2 Fault Alarm", status: "Resolved", date: "Jul 04" },
   { dayIndex: 6, yValue: 4, severity: 500, name: "Gen 3 Day Tank Leak", status: "Resolved", date: "Jul 06" },
@@ -228,11 +261,16 @@ const defaultTickets: TicketPoint[] = [
   { id: "TKT-1024", name: "Gen 3 Day Tank Leak", tech: "Erick", severity: "Critical", status: "Resolved", date: "Jul 06", desc: "Day tank fuel return hose clamp was loose, causing minor leakage into the containment basin. Clamp tightened.", resolution: "Hose clamp tightened, containment basin drained." },
   { id: "TKT-1025", name: "Rectifier 1 Fan Failure", tech: "David", severity: "Medium", status: "Open", date: "Jul 08", desc: "Fan unit 2 on Rectifier cabinet 1 has seized.", resolution: "Replacement fan ordered from stock, pending arrival." },
   { id: "TKT-1026", name: "PAC-1 Squealing Belt", tech: "Emma", severity: "Low", status: "Open", date: "Jul 07", desc: "Technician noted squealing from PAC unit 1 belt during walk-around.", resolution: "Belt adjusted. Added to next maintenance cycle." },
-  { id: "TKT-1023", name: "Zesco Grid Failure", tech: "Emma", severity: "High", status: "Resolved", date: "Jul 01", desc: "Commercial utility feed lost. Generator 1 and 2 auto-started and assumed load.", resolution: "Auto-failover successful. No load lost." }
+  { id: "TKT-1023", name: `${UTILITY_GRID_LABEL} Failure`, tech: "Emma", severity: "High", status: "Resolved", date: "Jul 01", desc: "Commercial utility feed lost. Generator 1 and 2 auto-started and assumed load.", resolution: "Auto-failover successful. No load lost." }
 ];
 
-export function useDashboardData() {
+export function useDashboardData(range?: DateRangeValue) {
   const { currentSite } = useCurrentSite();
+  // Callers that don't care about the period (none currently) still get a
+  // sane default rather than the hook silently doing nothing.
+  const internalRange = useDateRange("30d").range;
+  const activeRange = range ?? internalRange;
+
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [isUsingMockData, setIsUsingMockData] = useState<boolean>(true);
   const [latestGridStatus, setLatestGridStatus] = useState<string>('ONLINE');
@@ -265,29 +303,32 @@ export function useDashboardData() {
       const fetchId = ++fetchCountRef.current;
       setIsLoading(true);
       try {
-        // Fetch Telemetry Logs (scoped to site)
+        // Fetch Telemetry Logs (scoped to site AND to the selected period —
+        // this used to be a flat "last 50 rows", which on a multi-asset table
+        // covered under two days of actual hourly readings and could never be
+        // widened. Facility logs only: daily-checklist rows have a
+        // completely different metrics shape and plot as junk points, and
+        // dg_daily_test rows duplicate an existing target_hour.
         const siteId = currentSite?.id;
-        // Facility logs only. Without this the analytics series also ingested
-        // AIRTEL_DAILY_CHECKLIST rows — whose metrics have a completely
-        // different shape and plot as junk points — plus dg_daily_test rows
-        // that duplicate an existing target_hour. It also silently shrank the
-        // window: with up to 3 rows per hour, limit(50) covered far fewer
-        // than 50 hours of actual telemetry.
         const telQuery = supabase
           .from('telemetry_logs')
           .select('*')
           .eq('asset_id', 'facility_wide')
+          .gte('target_hour', activeRange.start.toISOString())
+          .lte('target_hour', activeRange.end.toISOString())
           .order('target_hour', { ascending: false })
-          .limit(50);
+          .limit(MAX_ROWS_PER_FETCH);
         if (siteId) telQuery.eq('site_uuid', siteId);
         const { data: telLogs, error: telError } = await telQuery;
 
-        // Fetch Incidents (scoped to site)
+        // Fetch Incidents (scoped to site AND period, same reasoning)
         const incQuery = supabase
           .from('incidents')
           .select('*')
+          .gte('created_at', activeRange.start.toISOString())
+          .lte('created_at', activeRange.end.toISOString())
           .order('created_at', { ascending: false })
-          .limit(30);
+          .limit(MAX_ROWS_PER_FETCH);
         if (siteId) incQuery.eq('site_uuid', siteId);
         const { data: incData, error: incError } = await incQuery;
 
@@ -308,10 +349,10 @@ export function useDashboardData() {
             const time = new Date(row.target_hour).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false });
             return {
               time,
-              grid_voltage_r: parseFloat(m.grid_voltage_r ?? m.grid_voltage_rs ?? m.ups_1_output_voltage_a ?? 230),
-              grid_voltage_y: parseFloat(m.grid_voltage_y ?? m.grid_voltage_st ?? m.ups_2_output_voltage_a ?? 228),
-              grid_voltage_b: parseFloat(m.grid_voltage_b ?? m.grid_voltage_tr ?? 229),
-              grid_total_site_load: parseFloat(m.grid_total_site_load ?? m.total_active_power_kw ?? 85.0),
+              grid_voltage_r: numOrNull(m.grid_voltage_r ?? m.grid_voltage_rs ?? m.ups_1_output_voltage_a),
+              grid_voltage_y: numOrNull(m.grid_voltage_y ?? m.grid_voltage_st ?? m.ups_2_output_voltage_a),
+              grid_voltage_b: numOrNull(m.grid_voltage_b ?? m.grid_voltage_tr),
+              grid_total_site_load: numOrNull(m.grid_total_site_load ?? m.total_active_power_kw),
               grid_status: m.grid_status || 'ONLINE'
             };
           });
@@ -333,11 +374,12 @@ export function useDashboardData() {
           const uptimePct = totalLogs > 0 ? (((totalLogs - offlineLogs) / totalLogs) * 100).toFixed(1) : "100.0";
           const blackoutHours = (offlineLogs * 1).toFixed(1); // Hourly resolution
           
-          const maxLoadVal = Math.max(...telLogs.map(row => {
-            const m = (row.metrics || {}) as Record<string, any>;
-            return parseFloat(m.grid_total_site_load ?? m.total_active_power_kw ?? 0);
-          }));
-          const peakLoad = (isNaN(maxLoadVal) || maxLoadVal === -Infinity || maxLoadVal === Infinity) ? "0.0" : maxLoadVal.toFixed(1);
+          // A site with every load reading missing reported nothing — that's
+          // "—", not a peak load of literal 0.0kW.
+          const loadVals = telLogs
+            .map(row => numOrNull(((row.metrics || {}) as Record<string, any>).grid_total_site_load ?? ((row.metrics || {}) as Record<string, any>).total_active_power_kw))
+            .filter((v): v is number => v !== null);
+          const peakLoad = loadVals.length > 0 ? Math.max(...loadVals).toFixed(1) : "—";
 
           // 2. Fuel Mapping
           const mappedFuel = sortedLogs.map(row => {
@@ -408,13 +450,19 @@ export function useDashboardData() {
           const mappedHealth = generatorIds.map(id => {
             const name = id === 'hq' ? 'DG-HQ' : `DG-${id}`;
             const prefix = `dg_${id}`;
-            const oil_pressure = parseFloat(latestM[`${prefix}_oil_pressure`] ?? 4.5);
-            const water_temp = parseFloat(latestM[`${prefix}_water_temp`] ?? 82);
-            const batt_voltage = parseFloat(latestM[`${prefix}_batt_voltage`] ?? 26.8);
+            const oil_pressure = numOrNull(latestM[`${prefix}_oil_pressure`]);
+            const water_temp = numOrNull(latestM[`${prefix}_water_temp`]);
+            const batt_voltage = numOrNull(latestM[`${prefix}_batt_voltage`]);
 
-            let status = "OK";
-            if (water_temp > 95 || oil_pressure < 2.5) status = "CRITICAL";
-            else if (water_temp > 90 || oil_pressure < 3.5) status = "WARNING";
+            // A generator nobody reported on this cycle must not read as "OK" —
+            // defaulting missing sensors to healthy numbers would silently
+            // hide the fact that it was never actually checked.
+            let status: EngineHealthPoint['status'] = "NO_DATA";
+            if (oil_pressure !== null && water_temp !== null) {
+              status = "OK";
+              if (water_temp > 95 || oil_pressure < 2.5) status = "CRITICAL";
+              else if (water_temp > 90 || oil_pressure < 3.5) status = "WARNING";
+            }
 
             return { name, oil_pressure, water_temp, batt_voltage, status };
           });
@@ -426,19 +474,19 @@ export function useDashboardData() {
             const time = new Date(row.target_hour).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false });
             return {
               time,
-              ups1_load: parseFloat(m.ups_1_output_load_kw ?? m.total_active_power_kw ?? 35),
-              ups2_load: parseFloat(m.ups_2_output_load_kw ?? 38)
+              ups1_load: numOrNull(m.ups_1_output_load_kw ?? m.total_active_power_kw),
+              ups2_load: numOrNull(m.ups_2_output_load_kw)
             };
           });
           setUpsChartData(mappedUps);
 
           const latestMetrics = (telLogs[0].metrics || {}) as Record<string, any>;
-          const ups1AmpsA = parseFloat(latestMetrics.ups_1_load_amps_a ?? 152);
-          const ups1AmpsB = parseFloat(latestMetrics.ups_1_load_amps_b ?? 148);
-          const ups1AmpsC = parseFloat(latestMetrics.ups_1_load_amps_c ?? 150);
-          const ups2AmpsA = parseFloat(latestMetrics.ups_2_load_amps_a ?? 168);
-          const ups2AmpsB = parseFloat(latestMetrics.ups_2_load_amps_b ?? 162);
-          const ups2AmpsC = parseFloat(latestMetrics.ups_2_load_amps_c ?? 165);
+          const ups1AmpsA = numOrNull(latestMetrics.ups_1_load_amps_a);
+          const ups1AmpsB = numOrNull(latestMetrics.ups_1_load_amps_b);
+          const ups1AmpsC = numOrNull(latestMetrics.ups_1_load_amps_c);
+          const ups2AmpsA = numOrNull(latestMetrics.ups_2_load_amps_a);
+          const ups2AmpsB = numOrNull(latestMetrics.ups_2_load_amps_b);
+          const ups2AmpsC = numOrNull(latestMetrics.ups_2_load_amps_c);
 
           setPhaseDistributionData([
             { name: "UPS 1", Phase_A: ups1AmpsA, Phase_B: ups1AmpsB, Phase_C: ups1AmpsC },
@@ -446,9 +494,9 @@ export function useDashboardData() {
           ]);
 
           // UPS KPIs
-          const maxCapacityPct = parseFloat(latestMetrics.ups_1_used_capacity ?? latestMetrics.ups_2_used_capacity ?? 74.5);
-          const avgBatteryCharge = parseFloat(latestMetrics.ups_1_battery_charge_percent ?? latestMetrics.ups_2_battery_charge_percent ?? 100);
-          const rectifierVoltage = parseFloat(latestMetrics.rectifier_1_dc_voltage ?? latestMetrics.rectifier_2_dc_voltage ?? 54.2);
+          const maxCapacityPct = numOrNull(latestMetrics.ups_1_used_capacity ?? latestMetrics.ups_2_used_capacity);
+          const avgBatteryCharge = numOrNull(latestMetrics.ups_1_battery_charge_percent ?? latestMetrics.ups_2_battery_charge_percent);
+          const rectifierVoltage = numOrNull(latestMetrics.rectifier_1_dc_voltage ?? latestMetrics.rectifier_2_dc_voltage);
 
           // 4. Thermal Mapping
           const mappedThermal = sortedLogs.map(row => {
@@ -456,31 +504,34 @@ export function useDashboardData() {
             const time = new Date(row.target_hour).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false });
             return {
               time,
-              server_ambient_temp: parseFloat(m.server_ambient_temp ?? 21.5),
-              return_temp_actual: parseFloat(m.pac_1_return_temp_actual ?? 22.8),
-              supply_temp_set: parseFloat(m.pac_1_supply_temp_set ?? 19.0)
+              server_ambient_temp: numOrNull(m.server_ambient_temp),
+              return_temp_actual: numOrNull(m.pac_1_return_temp_actual),
+              supply_temp_set: numOrNull(m.pac_1_supply_temp_set)
             };
           });
           setThermalChartData(mappedThermal);
 
-          // Zones
-          const mappedZones = [
-            { name: "Server Room", temp: parseFloat(latestMetrics.server_ambient_temp ?? 21.2), humidity: parseFloat(latestMetrics.server_ambient_humidity ?? 48), status: "Optimal" },
-            { name: "IT Room 1", temp: parseFloat(latestMetrics.it1_ambient_temp ?? 22.5), humidity: parseFloat(latestMetrics.it1_ambient_humidity ?? 52), status: "Optimal" },
-            { name: "IT Room 2", temp: parseFloat(latestMetrics.it2_ambient_temp ?? 23.1), humidity: parseFloat(latestMetrics.it2_ambient_humidity ?? 50), status: "Optimal" },
-            { name: "Power Room 1", temp: parseFloat(latestMetrics.pr1_ambient_temp ?? 24.8), humidity: parseFloat(latestMetrics.pr1_ambient_humidity ?? 42), status: "Moderate" },
-            { name: "Power Room 2", temp: parseFloat(latestMetrics.pr2_ambient_temp ?? 24.2), humidity: parseFloat(latestMetrics.pr2_ambient_humidity ?? 44), status: "Moderate" },
-            { name: "HQ Power Room", temp: parseFloat(latestMetrics.hq_ambient_temp ?? 25.1), humidity: parseFloat(latestMetrics.hq_ambient_humidity ?? 41), status: "Warm" }
-          ];
+          // Zones — status is derived from the actual reading (zoneStatus),
+          // never asserted independently of it. The old static per-room
+          // labels claimed e.g. "HQ Power Room: Warm" regardless of what the
+          // temperature field actually held.
+          const mappedZones: ZoneDataPoint[] = [
+            { name: "Server Room", temp: numOrNull(latestMetrics.server_ambient_temp), humidity: numOrNull(latestMetrics.server_ambient_humidity) },
+            { name: "IT Room 1", temp: numOrNull(latestMetrics.it1_ambient_temp), humidity: numOrNull(latestMetrics.it1_ambient_humidity) },
+            { name: "IT Room 2", temp: numOrNull(latestMetrics.it2_ambient_temp), humidity: numOrNull(latestMetrics.it2_ambient_humidity) },
+            { name: "Power Room 1", temp: numOrNull(latestMetrics.pr1_ambient_temp), humidity: numOrNull(latestMetrics.pr1_ambient_humidity) },
+            { name: "Power Room 2", temp: numOrNull(latestMetrics.pr2_ambient_temp), humidity: numOrNull(latestMetrics.pr2_ambient_humidity) },
+            { name: "HQ Power Room", temp: numOrNull(latestMetrics.hq_ambient_temp), humidity: numOrNull(latestMetrics.hq_ambient_humidity) }
+          ].map(z => ({ ...z, status: zoneStatus(z.temp) }));
           setZoneData(mappedZones);
 
-          // Thermal KPIs
-          const maxTempVal = Math.max(...telLogs.map(row => {
-            const m = (row.metrics || {}) as Record<string, any>;
-            return parseFloat(m.server_ambient_temp ?? 0);
-          }));
-          const peakTemp = (isNaN(maxTempVal) || maxTempVal === -Infinity || maxTempVal === Infinity) ? "22.4" : maxTempVal.toFixed(1);
-          const avgHumidity = parseFloat(latestMetrics.server_ambient_humidity ?? 48.2);
+          // Thermal KPIs — a site with no server_ambient_temp reading anywhere
+          // in the window reported nothing; that's "—", not a fabricated 22.4°C.
+          const tempVals = telLogs
+            .map(row => numOrNull(((row.metrics || {}) as Record<string, any>).server_ambient_temp))
+            .filter((v): v is number => v !== null);
+          const peakTemp = tempVals.length > 0 ? Math.max(...tempVals).toFixed(1) : "—";
+          const avgHumidity = numOrNull(latestMetrics.server_ambient_humidity);
 
           // Dynamic calculation of abnormalitiesCount
           let abnormalitiesCountVal = 0;
@@ -495,11 +546,16 @@ export function useDashboardData() {
           });
 
           // 5. Incident Mapping
-          let incidentBubblesData = defaultIncidentBubbles;
-          let ticketsLedgerData = defaultTickets;
-          let totalIncidents = 14;
-          let openTickets = 2;
-          let mttr = "2.4";
+          // A site with real telemetry but zero incidents on record has zero
+          // incidents — it must never fall back to the named demo tickets
+          // (defaultIncidentBubbles/defaultTickets). Those defaults exist
+          // solely for the true no-telemetry-at-all mock state, gated by the
+          // initial useState values below, not re-entered here.
+          let incidentBubblesData: IncidentBubblePoint[] = [];
+          let ticketsLedgerData: TicketPoint[] = [];
+          let totalIncidents = 0;
+          let openTickets = 0;
+          let mttr = "—";
 
           if (incData && incData.length > 0) {
             totalIncidents = incData.length;
@@ -631,7 +687,10 @@ export function useDashboardData() {
       supabase.removeChannel(channelLogs);
       supabase.removeChannel(channelIncidents);
     };
-  }, [currentSite?.id]);
+  // activeRange.start/end as primitive timestamps, not the Date/object
+  // itself — a new Date instance with the same value must not be treated as
+  // a changed dependency and refetch on every render.
+  }, [currentSite?.id, activeRange.start.getTime(), activeRange.end.getTime()]);
 
   return {
     isLoading,

@@ -2,6 +2,7 @@
 import { supabase } from "@/shared/api/supabaseClient";
 import { SITE_BLUEPRINTS } from "@/config/sites";
 import { EXCEL_MAPPINGS } from "@/config/mappings/excelMappings";
+import { SITE_LABELS } from "@/shared/utils/branding";
 
 async function seedSiteData(siteCode: string, defaultSiteName: string): Promise<{ success: boolean; message: string }> {
   try {
@@ -161,9 +162,9 @@ async function seedSiteData(siteCode: string, defaultSiteName: string): Promise<
 }
 
 export async function seedWtcData(): Promise<{ success: boolean; message: string }> {
-  return seedSiteData('WTC', 'WTC Zambia');
+  return seedSiteData('SITE_02', SITE_LABELS.SITE_02);
 }
 
 export async function seedNtcData(): Promise<{ success: boolean; message: string }> {
-  return seedSiteData('NTC', 'NTC Zambia');
+  return seedSiteData('SITE_01', SITE_LABELS.SITE_01);
 }

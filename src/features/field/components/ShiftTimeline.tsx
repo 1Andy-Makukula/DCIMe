@@ -78,16 +78,16 @@ export function ShiftTimeline({
 
           switch (status) {
             case "completed":
-              btnClass = "bg-green-50 border-green-200 text-green-700 hover:bg-green-100/50 hover:border-green-300";
-              icon = <CheckCircle2 size={14} className="text-green-600" />;
+              btnClass = "bg-ok-50 border-ok-200 text-ok-700 hover:bg-ok-100/50 hover:border-ok-300";
+              icon = <CheckCircle2 size={14} className="text-ok-600" />;
               break;
             case "active":
-              btnClass = "bg-blue-50 border-blue-400 text-blue-800 ring-2 ring-blue-400/50 hover:bg-blue-100/80 animate-pulse";
-              icon = <Play size={10} fill="currentColor" className="text-blue-600" />;
+              btnClass = "bg-info-50 border-info-400 text-info-800 ring-2 ring-info-400/50 hover:bg-info-100/80 animate-pulse";
+              icon = <Play size={10} fill="currentColor" className="text-info-600" />;
               break;
             case "overdue":
-              btnClass = "bg-red-50 border-red-200 text-red-700 hover:bg-red-100/50 hover:border-red-300";
-              icon = <AlertTriangle size={14} className="text-red-600" />;
+              btnClass = "bg-danger-50 border-danger-200 text-danger-700 hover:bg-danger-100/50 hover:border-danger-300";
+              icon = <AlertTriangle size={14} className="text-danger-600" />;
               break;
             case "future":
               btnClass = "bg-gray-50 border-gray-100 text-gray-400 cursor-not-allowed opacity-50";

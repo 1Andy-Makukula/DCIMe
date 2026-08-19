@@ -3,7 +3,7 @@ import { useState, useEffect } from 'react';
 import { supabase } from '@/shared/api/supabaseClient';
 import { useAuth } from '@/shared/context/AuthContext';
 import { useCurrentSite } from '@/shared/context/SiteContext';
-import { SITE_BLUEPRINTS } from '@/config/sites';
+import { SITE_BLUEPRINTS, DEFAULT_SITE_CODE } from '@/config/sites';
 import { toast } from 'sonner';
 import { useFacilityState } from './useFacilityState';
 import { toLocalDateKey, slotISO, parseHour } from '../utils/dateKeys';
@@ -29,8 +29,8 @@ export function useTelemetryData(
   const { currentSite } = useCurrentSite();
   // Null when the technician skipped check-in — logging stays allowed.
   const { shiftSessionId } = useShiftSession();
-  const siteCode = currentSite?.site_code || "NTC";
-  const blueprint = SITE_BLUEPRINTS[siteCode] || SITE_BLUEPRINTS.NTC;
+  const siteCode = currentSite?.site_code || DEFAULT_SITE_CODE;
+  const blueprint = SITE_BLUEPRINTS[siteCode] || SITE_BLUEPRINTS[DEFAULT_SITE_CODE];
 
   // Exhaustive State Initialization
   const [formData, setFormData] = useState<Record<string, any>>({});
@@ -189,7 +189,7 @@ export function useTelemetryData(
       try {
         // Step C (Supabase Query 1 - Current Hour)
         if (!currentSite?.id) {
-          // Do not read database using default/fallback NTC site identity if site context is not loaded yet
+          // Do not read the database under the fallback site identity before context resolves
           setIsLoading(false);
           return;
         }
@@ -595,6 +595,11 @@ export function useTelemetryData(
       // Strip dynamic parameters for offline assets
       if (allParams) {
         allParams.forEach((param) => {
+          // equipment_id is nullable: a parameter can be defined against a
+          // TEMPLATE rather than an instance. Those have no asset to be offline,
+          // so they are skipped — and dereferencing null here would throw
+          // mid-submit and lose the whole reading.
+          if (!param.equipment_id) return;
           const normalizedAssetId = param.equipment_id.toLowerCase().replace(/-/g, '_');
           if (offlineAssetIds.has(normalizedAssetId)) {
             delete payload[`param_${param.id}`];

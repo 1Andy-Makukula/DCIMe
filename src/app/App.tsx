@@ -15,21 +15,30 @@ import { TechDashboard } from "@/features/field/components/TechDashboard";
 import { IncidentTracker } from "@/features/field/components/IncidentTracker";
 import { IncidentReport } from "@/features/field/components/IncidentReport";
 import { ShiftHandover } from "@/features/field/components/ShiftHandover";
+import { WorkQueue } from "@/features/field/components/WorkQueue";
+import { ReadingsRound } from "@/features/field/components/ReadingsRound";
 
 // Admin shell + views
 import { AdminLayout } from "@/features/topology/components/AdminLayout";
 import { NocOverview } from "@/features/topology/components/NocOverview";
+import { TopologyView } from "@/features/topology/components/TopologyView";
+import { ErrorBoundary } from "@/shared/ui";
 import { AssetInventory } from "@/features/topology/components/AssetInventory";
 import { AlertsLog } from "@/features/topology/components/AlertsLog";
 import { ShiftReports } from "@/features/topology/components/ShiftReports";
 import { PersonnelManagement } from "@/features/topology/components/PersonnelManagement";
+import { VendorRegister } from "@/features/topology/components/VendorRegister";
+import { CommissioningImport } from "@/features/topology/components/CommissioningImport";
 
 // Analytics sub-views
+import { ExecutiveSummary } from "@/features/analytics/components/ExecutiveSummary";
+import { ExecutiveSummaryDetailed } from "@/features/analytics/components/ExecutiveSummaryDetailed";
 import { GridAnalytics } from "@/features/analytics/components/GridAnalytics";
 import { FuelAnalytics } from "@/features/analytics/components/FuelAnalytics";
 import { UpsAnalytics } from "@/features/analytics/components/UpsAnalytics";
 import { ThermalAnalytics } from "@/features/analytics/components/ThermalAnalytics";
 import { IncidentAnalytics } from "@/features/analytics/components/IncidentAnalytics";
+import { CapacityLedger } from "@/features/analytics/components/CapacityLedger";
 
 // Redirect component to handle legacy/typo topology links
 function TopologyRedirect() {
@@ -43,7 +52,7 @@ function TopologyRedirect() {
   return (
     <div className="flex items-center justify-center min-h-screen bg-[#0a0c10] text-[#64748b]">
       <div className="flex flex-col items-center gap-2">
-        <div className="w-6 h-6 rounded-full border-2 border-red-500 border-t-transparent animate-spin" />
+        <div className="w-6 h-6 rounded-full border-2 border-brand-500 border-t-transparent animate-spin" />
         <span className="text-[10px] font-black uppercase tracking-widest text-slate-500">Redirecting to SCADA Topology...</span>
       </div>
     </div>
@@ -72,6 +81,8 @@ export default function App() {
           {/* Tech shell — nested routing */}
           <Route path="/tech" element={<TechLayout />}>
             <Route index element={<TechDashboard />} />
+            <Route path="readings" element={<ErrorBoundary label="Readings"><ReadingsRound /></ErrorBoundary>} />
+            <Route path="jobs" element={<ErrorBoundary label="Jobs"><WorkQueue /></ErrorBoundary>} />
             <Route path="log" element={<IncidentTracker />} />
             <Route path="incident" element={<IncidentReport />} />
             <Route path="handover" element={<ShiftHandover />} />
@@ -80,16 +91,22 @@ export default function App() {
           {/* Admin shell — nested routing */}
           <Route path="/admin" element={<AdminLayout />}>
             <Route index element={<NocOverview />} />
+            <Route path="topology"   element={<ErrorBoundary label="Topology"><TopologyView /></ErrorBoundary>} />
             <Route path="inventory"  element={<AssetInventory />} />
             <Route path="alerts"     element={<AlertsLog />} />
             <Route path="reports"    element={<ShiftReports />} />
             <Route path="personnel"  element={<PersonnelManagement />} />
+            <Route path="vendors"    element={<ErrorBoundary label="Vendors"><VendorRegister /></ErrorBoundary>} />
+            <Route path="import"     element={<ErrorBoundary label="Import"><CommissioningImport /></ErrorBoundary>} />
             <Route path="analytics" element={<AnalyticsPage />}>
-              <Route index element={<Navigate to="grid" replace />} />
+              <Route index element={<Navigate to="summary" replace />} />
+              <Route path="summary" element={<ExecutiveSummary />} />
+              <Route path="summary/full" element={<ExecutiveSummaryDetailed />} />
               <Route path="grid" element={<GridAnalytics />} />
               <Route path="fuel" element={<FuelAnalytics />} />
               <Route path="ups" element={<UpsAnalytics />} />
               <Route path="thermal" element={<ThermalAnalytics />} />
+              <Route path="capacity" element={<ErrorBoundary label="Capacity"><CapacityLedger /></ErrorBoundary>} />
               <Route path="incidents" element={<IncidentAnalytics />} />
             </Route>
           </Route>

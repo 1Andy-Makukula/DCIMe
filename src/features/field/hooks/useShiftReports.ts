@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from "react";
+import { siteLabel } from "@/shared/utils/branding";
 import { supabase } from "@/shared/api/supabaseClient";
 import { useCurrentSite } from "@/shared/context/SiteContext";
 
@@ -111,6 +112,11 @@ export function useShiftReports() {
     technician_name: string;
     technician_id: string;
     signature_id: string;
+    /** The handwritten mark as a PNG data URL, and when it was made. Held
+     *  alongside signature_id rather than replacing it: the id remains the
+     *  record's reference, the image is the evidence behind it. */
+    signature_image?: string | null;
+    signed_at?: string | null;
     shift_duration: string;
     routine_logs_completed: number;
     incidents_filed: number;
@@ -126,17 +132,22 @@ export function useShiftReports() {
         technician_name: payload.technician_name,
         technician_id: payload.technician_id,
         signature_id: payload.signature_id,
+        signature_image: payload.signature_image ?? null,
+        signed_at: payload.signed_at ?? null,
         shift_duration: payload.shift_duration,
         routine_logs_completed: payload.routine_logs_completed,
         incidents_filed: payload.incidents_filed,
         active_power_source: (payload.active_power_source || "MAINS") as "MAINS" | "GENERATOR" | "BLACKOUT",
-        site_id: payload.site_id || "NTC ZM 0874",
+        site_id: siteLabel(payload.site_id),
         site_uuid: payload.site_uuid || currentSite?.id || null,
         timestamp: new Date().toISOString()
       };
 
-      const { data, error: insertError } = await supabase
-        .from("shift_reports")
+      // database.types.ts predates signature_image/signed_at, so the typed
+      // client rejects the row by shape. Same narrow escape hatch used
+      // elsewhere; delete it once types are regenerated against
+      // 20260827_signatures.sql.
+      const { data, error: insertError } = await (supabase.from as any)("shift_reports")
         .insert([newReport])
         .select()
         .single();
@@ -148,7 +159,18 @@ export function useShiftReports() {
       return sanitized;
     } catch (err: any) {
       console.error("Error submitting shift report:", err);
-      setError(err.message || "Failed to submit shift handover.");
+
+      // PGRST204 = the column does not exist on the remote. The only column
+      // this row carries that a pre-V2 database lacks is the signature pair, so
+      // say which migration is missing rather than surfacing the raw code.
+      const missingColumn =
+        err?.code === "PGRST204" && /signature_image|signed_at/.test(err?.message ?? "");
+
+      setError(
+        missingColumn
+          ? "Signature columns are missing from the database. Apply supabase/migrations/20260827_signatures.sql, then retry."
+          : err.message || "Failed to submit shift handover."
+      );
       throw err;
     }
   };

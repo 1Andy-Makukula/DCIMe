@@ -1,9 +1,10 @@
-import { useState } from 'react';
+import { useOutletContext } from 'react-router';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/app/components/ui/card";
 import { Badge } from "@/app/components/ui/badge";
 import { Skeleton } from "@/app/components/ui/skeleton";
 import { Cpu, Activity, BatteryCharging, ShieldCheck, AlertCircle } from 'lucide-react';
 import { useDashboardData } from '../hooks/useDashboardData';
+import { AnalyticsOutletContext } from './AnalyticsLayout';
 import {
   AreaChart,
   Area,
@@ -19,8 +20,8 @@ import {
 } from 'recharts';
 
 export function UpsAnalytics() {
-  const [timePeriod] = useState("Today");
-  const { isLoading, isUsingMockData, upsChartData, phaseDistributionData, kpis } = useDashboardData();
+  const { range } = useOutletContext<AnalyticsOutletContext>();
+  const { isLoading, isUsingMockData, upsChartData, phaseDistributionData, kpis } = useDashboardData(range);
 
   if (isLoading) {
     return (
@@ -61,11 +62,16 @@ export function UpsAnalytics() {
     );
   }
 
-  // Calculate unbalance for both UPS units and find the maximum unbalance
-  const ups1 = phaseDistributionData[0] || { Phase_A: 152, Phase_B: 148, Phase_C: 150 };
-  const ups2 = phaseDistributionData[1] || { Phase_A: 168, Phase_B: 162, Phase_C: 165 };
+  // No fabricated fallback amps — an absent UPS reading must read as
+  // "no data," not as a specific, wrong phase distribution.
+  const ups1 = phaseDistributionData[0] || { Phase_A: null, Phase_B: null, Phase_C: null };
+  const ups2 = phaseDistributionData[1] || { Phase_A: null, Phase_B: null, Phase_C: null };
 
-  const calcUnbalance = (u: any) => {
+  // Returns null (rather than a misleading number) when any phase current
+  // is missing — an unbalance figure computed from a partial reading isn't
+  // a real answer, it's a guess dressed as one.
+  const calcUnbalance = (u: { Phase_A: number | null; Phase_B: number | null; Phase_C: number | null }): number | null => {
+    if (u.Phase_A === null || u.Phase_B === null || u.Phase_C === null) return null;
     const max = Math.max(u.Phase_A, u.Phase_B, u.Phase_C);
     const min = Math.min(u.Phase_A, u.Phase_B, u.Phase_C);
     const avg = (u.Phase_A + u.Phase_B + u.Phase_C) / 3;
@@ -74,8 +80,30 @@ export function UpsAnalytics() {
 
   const unbalance1 = calcUnbalance(ups1);
   const unbalance2 = calcUnbalance(ups2);
-  const maxUnbalance = Math.max(unbalance1, unbalance2);
-  const isBalanced = maxUnbalance < 3.0;
+  const validUnbalances = [unbalance1, unbalance2].filter((v): v is number => v !== null);
+  const maxUnbalance = validUnbalances.length > 0 ? Math.max(...validUnbalances) : null;
+  const isBalanced = maxUnbalance !== null && maxUnbalance < 3.0;
+
+  // Both badges below used to assert a verdict unconditionally, regardless of
+  // the number displayed beside them. ⚠ SITE ENGINEERS: placeholder
+  // thresholds — replace with real UPS/battery vendor specs once available.
+  const capacityBadge =
+    kpis.ups.maxCapacityPct === null
+      ? { label: "No Data", cls: "text-gray-400 bg-gray-50 border-gray-200" }
+      : kpis.ups.maxCapacityPct < 80
+        ? { label: "Safe Range", cls: "text-ok-600 bg-ok-50 border-ok-100" }
+        : kpis.ups.maxCapacityPct < 90
+          ? { label: "Elevated", cls: "text-warn-600 bg-warn-50 border-warn-100" }
+          : { label: "Critical", cls: "text-danger-600 bg-danger-50 border-danger-100" };
+
+  const batteryBadge =
+    kpis.ups.avgBatteryCharge === null
+      ? { label: "No Data", cls: "text-gray-400" }
+      : kpis.ups.avgBatteryCharge >= 95
+        ? { label: "Nominal", cls: "text-gray-400" }
+        : kpis.ups.avgBatteryCharge >= 85
+          ? { label: "Charging", cls: "text-warn-600" }
+          : { label: "Low", cls: "text-danger-600" };
 
   return (
     <div className="p-6 space-y-6 bg-slate-50/50 min-h-screen text-slate-800">
@@ -87,14 +115,14 @@ export function UpsAnalytics() {
         </div>
         <div className="flex items-center gap-3">
           <Badge variant="outline" className="bg-slate-50 border-gray-200 text-xs font-black uppercase tracking-wider h-10 px-4 rounded-xl text-slate-900 flex items-center justify-center">
-            {timePeriod}
+            {range.label}
           </Badge>
         </div>
       </div>
 
       {isUsingMockData && (
-        <div className="flex items-center gap-3 bg-amber-50 border border-amber-100/60 text-amber-800 p-4 rounded-3xl text-xs font-semibold">
-          <AlertCircle className="w-4.5 h-4.5 text-amber-600 shrink-0" />
+        <div className="flex items-center gap-3 bg-warn-50 border border-warn-100/60 text-warn-800 p-4 rounded-3xl text-xs font-semibold">
+          <AlertCircle className="w-4.5 h-4.5 text-warn-600 shrink-0" />
           <span>Operational Notice: Telemetry database table contains no records. Displaying baseline simulated data for dashboard verification.</span>
         </div>
       )}
@@ -108,11 +136,11 @@ export function UpsAnalytics() {
           </CardHeader>
           <CardContent>
             <div className="flex items-baseline gap-2">
-              <span className="text-2xl font-black text-slate-900 font-mono">{kpis.ups.maxCapacityPct}%</span>
-              <span className="text-xs font-black text-emerald-600 bg-emerald-50 border border-emerald-100 px-1.5 py-0.5 rounded">Safe Range</span>
+              <span className="text-2xl font-black text-slate-900 font-mono">{kpis.ups.maxCapacityPct ?? "—"}{kpis.ups.maxCapacityPct !== null && "%"}</span>
+              <span className={`text-xs font-black px-1.5 py-0.5 rounded border ${capacityBadge.cls}`}>{capacityBadge.label}</span>
             </div>
             <p className="text-[10px] text-gray-400 font-semibold mt-1 flex items-center gap-1">
-              <Activity size={11} className="text-emerald-500" /> Peak operational headroom remaining
+              <Activity size={11} className="text-ok-500" /> Peak operational headroom remaining
             </p>
           </CardContent>
         </Card>
@@ -124,11 +152,11 @@ export function UpsAnalytics() {
           </CardHeader>
           <CardContent>
             <div className="flex items-baseline gap-2">
-              <span className="text-2xl font-black text-slate-900 font-mono">{kpis.ups.avgBatteryCharge}%</span>
-              <span className="text-xs font-black text-gray-400 uppercase tracking-wider">Nominal</span>
+              <span className="text-2xl font-black text-slate-900 font-mono">{kpis.ups.avgBatteryCharge ?? "—"}{kpis.ups.avgBatteryCharge !== null && "%"}</span>
+              <span className={`text-xs font-black uppercase tracking-wider ${batteryBadge.cls}`}>{batteryBadge.label}</span>
             </div>
             <p className="text-[10px] text-gray-400 font-semibold mt-1 flex items-center gap-1">
-              <BatteryCharging size={11} className="text-emerald-500 animate-pulse" /> Constant float charge active
+              <BatteryCharging size={11} className="text-ok-500 animate-pulse" /> Constant float charge active
             </p>
           </CardContent>
         </Card>
@@ -140,11 +168,11 @@ export function UpsAnalytics() {
           </CardHeader>
           <CardContent>
             <div className="flex items-baseline gap-2">
-              <span className="text-2xl font-black text-slate-900 font-mono">{kpis.ups.rectifierVoltage}</span>
+              <span className="text-2xl font-black text-slate-900 font-mono">{kpis.ups.rectifierVoltage ?? "—"}</span>
               <span className="text-xs font-black text-gray-400 uppercase tracking-wider">V DC</span>
             </div>
             <p className="text-[10px] text-gray-400 font-semibold mt-1 flex items-center gap-1">
-              <Cpu size={11} className="text-blue-500" /> Telecom bus voltage nominal
+              <Cpu size={11} className="text-info-500" /> Telecom bus voltage nominal
             </p>
           </CardContent>
         </Card>
@@ -167,9 +195,9 @@ export function UpsAnalytics() {
                   <YAxis stroke="#94A3B8" fontSize={9} fontWeight="bold" tickLine={false} axisLine={false} domain={[0, 140]} label={{ value: "Load (kW)", angle: -90, position: "insideLeft", offset: 10, fill: "#94A3B8", fontSize: 9, fontWeight: "black" }} />
                   <Tooltip contentStyle={{ background: '#fff', borderRadius: '12px', border: '1px solid #F1F5F9', fontSize: '11px', fontWeight: 'bold' }} />
                   <Legend verticalAlign="top" height={36} iconSize={8} wrapperStyle={{ fontSize: '9px', fontWeight: 'black', textTransform: 'uppercase' }} />
-                  <ReferenceLine y={120} stroke="#EF4444" strokeDasharray="3 3" label={{ value: "120kW CAPACITY LIMIT", fill: "#EF4444", fontSize: 9, fontWeight: "black", position: "top" }} />
-                  <Area type="monotone" dataKey="ups1_load" name="UPS 1" stackId="1" stroke="#3B82F6" fill="#DDBEF7" fillOpacity={0.4} />
-                  <Area type="monotone" dataKey="ups2_load" name="UPS 2" stackId="1" stroke="#10B981" fill="#C2F3E1" fillOpacity={0.4} />
+                  <ReferenceLine y={120} stroke="var(--color-danger-500)" strokeDasharray="3 3" label={{ value: "120kW CAPACITY LIMIT", fill: "var(--color-danger-500)", fontSize: 9, fontWeight: "black", position: "top" }} />
+                  <Area type="monotone" dataKey="ups1_load" name="UPS 1" stackId="1" stroke="var(--color-info-500)" fill="#DDBEF7" fillOpacity={0.4} />
+                  <Area type="monotone" dataKey="ups2_load" name="UPS 2" stackId="1" stroke="var(--color-ok-500)" fill="#C2F3E1" fillOpacity={0.4} />
                 </AreaChart>
               </ResponsiveContainer>
             </div>
@@ -191,27 +219,34 @@ export function UpsAnalytics() {
                   <YAxis stroke="#94A3B8" fontSize={9} fontWeight="bold" tickLine={false} axisLine={false} domain={[0, 200]} />
                   <Tooltip contentStyle={{ background: '#fff', borderRadius: '12px', border: '1px solid #F1F5F9', fontSize: '11px', fontWeight: 'bold' }} />
                   <Legend verticalAlign="top" height={36} iconSize={8} wrapperStyle={{ fontSize: '9px', fontWeight: 'black', textTransform: 'uppercase' }} />
-                  <Bar dataKey="Phase_A" name="Phase A" fill="#EF4444" radius={[4, 4, 0, 0]} />
-                  <Bar dataKey="Phase_B" name="Phase B" fill="#F59E0B" radius={[4, 4, 0, 0]} />
-                  <Bar dataKey="Phase_C" name="Phase C" fill="#3B82F6" radius={[4, 4, 0, 0]} />
+                  <Bar dataKey="Phase_A" name="Phase A" fill="var(--color-danger-500)" radius={[4, 4, 0, 0]} />
+                  <Bar dataKey="Phase_B" name="Phase B" fill="var(--color-warn-500)" radius={[4, 4, 0, 0]} />
+                  <Bar dataKey="Phase_C" name="Phase C" fill="var(--color-info-500)" radius={[4, 4, 0, 0]} />
                 </BarChart>
               </ResponsiveContainer>
             </div>
 
             {/* Check info */}
             <div className={`flex items-center gap-1.5 text-[9px] font-black px-2.5 py-2 rounded-2xl border mt-4 justify-center ${
-              isBalanced
-                ? "text-emerald-700 bg-emerald-50 border-emerald-100"
-                : "text-amber-700 bg-amber-50 border-amber-100"
+              maxUnbalance === null
+                ? "text-slate-500 bg-slate-50 border-slate-200"
+                : isBalanced
+                  ? "text-ok-700 bg-ok-50 border-ok-100"
+                  : "text-warn-700 bg-warn-50 border-warn-100"
             }`}>
-              {isBalanced ? (
+              {maxUnbalance === null ? (
                 <>
-                  <ShieldCheck className="w-4 h-4 shrink-0 text-emerald-600" />
+                  <AlertCircle className="w-4 h-4 shrink-0 text-slate-400" />
+                  <span>Insufficient phase current data to assess balance.</span>
+                </>
+              ) : isBalanced ? (
+                <>
+                  <ShieldCheck className="w-4 h-4 shrink-0 text-ok-600" />
                   <span>Phases are optimally balanced (Unbalance &lt; 3.0%).</span>
                 </>
               ) : (
                 <>
-                  <Activity className="w-4 h-4 shrink-0 animate-pulse text-amber-600" />
+                  <Activity className="w-4 h-4 shrink-0 animate-pulse text-warn-600" />
                   <span>Phase unbalance warning (Unbalance of {maxUnbalance.toFixed(1)}% detected).</span>
                 </>
               )}

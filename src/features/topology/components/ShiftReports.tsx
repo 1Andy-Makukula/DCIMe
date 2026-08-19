@@ -1,4 +1,6 @@
 import React, { useState, useEffect } from "react";
+import { DEFAULT_SITE_CODE } from "@/config/sites";
+import { siteLabel, DEFAULT_SITE_LABEL } from "@/shared/utils/branding";
 import {
   FileText,
   Download,
@@ -19,10 +21,11 @@ import { generateLegacyMonthlyReport } from "../../../shared/utils/excelExportEn
 import { useCurrentSite } from "@/shared/context/SiteContext";
 import { supabase } from "@/shared/api/supabaseClient";
 import { PrintableChecklist } from "../../field/components/PrintableChecklist";
+import { DateRangePicker } from "@/shared/ui";
+import { useDateRange } from "@/shared/utils/useDateRange";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 type VerificationStatus = "verified" | "discrepancy";
-type DateRange = "7d" | "14d" | "30d" | "custom";
 
 interface TelemetryReading {
   label: string;
@@ -51,28 +54,20 @@ interface ShiftLog {
   signedOff: boolean;
 }
 
-// ── Date range options ────────────────────────────────────────────────────────
-const DATE_RANGES: { id: DateRange; label: string }[] = [
-  { id: "7d", label: "Last 7 Days" },
-  { id: "14d", label: "Last 14 Days" },
-  { id: "30d", label: "Last 30 Days" },
-  { id: "custom", label: "Custom Range" },
-];
-
 
 
 // ── Verification badge ────────────────────────────────────────────────────────
 function VerificationBadge({ status }: { status: VerificationStatus }) {
   if (status === "verified") {
     return (
-      <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-green-50 border border-green-200 text-green-700 text-[10px] font-black uppercase tracking-wider">
+      <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-ok-50 border border-ok-200 text-ok-700 text-[10px] font-black uppercase tracking-wider">
         <CheckCircle2 size={11} />
         System Verified
       </div>
     );
   }
   return (
-    <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-red-50 border border-red-200 text-red-600 text-[10px] font-black uppercase tracking-wider">
+    <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-danger-50 border border-danger-200 text-danger-600 text-[10px] font-black uppercase tracking-wider">
       <AlertTriangle size={11} />
       Sensor Discrepancy
     </div>
@@ -157,12 +152,12 @@ function ReportModal({
               {log.telemetry.map((t, i) => (
                 <div key={i} className="flex items-center justify-between gap-2">
                   <div className="flex items-center gap-1.5 text-gray-500 text-[10px] font-semibold">
-                    <span className={t.flag ? "text-red-400" : "text-gray-500"}>
+                    <span className={t.flag ? "text-danger-400" : "text-gray-500"}>
                       {t.icon}
                     </span>
                     {t.label}
                   </div>
-                  <span className={`font-mono text-[11px] font-bold ${t.flag ? "text-red-400" : "text-green-400"}`}>
+                  <span className={`font-mono text-[11px] font-bold ${t.flag ? "text-danger-400" : "text-ok-400"}`}>
                     {t.value}
                   </span>
                 </div>
@@ -184,21 +179,21 @@ function ReportModal({
 
           {/* Verification footer */}
           <div className={`flex items-center gap-3 px-4 py-3 rounded-xl border ${log.verificationStatus === "verified"
-              ? "bg-green-50 border-green-200"
-              : "bg-red-50 border-red-200"
+              ? "bg-ok-50 border-ok-200"
+              : "bg-danger-50 border-danger-200"
             }`}>
             {log.verificationStatus === "verified"
-              ? <CheckCircle2 size={16} className="text-green-600 flex-shrink-0" />
-              : <AlertTriangle size={16} className="text-red-500 flex-shrink-0" />
+              ? <CheckCircle2 size={16} className="text-ok-600 flex-shrink-0" />
+              : <AlertTriangle size={16} className="text-danger-500 flex-shrink-0" />
             }
             <div>
-              <div className={`text-[11px] font-black ${log.verificationStatus === "verified" ? "text-green-700" : "text-red-700"}`}>
+              <div className={`text-[11px] font-black ${log.verificationStatus === "verified" ? "text-ok-700" : "text-danger-700"}`}>
                 {log.verificationStatus === "verified"
                   ? "Log verified against SCADA telemetry. No discrepancies detected."
                   : "One or more field readings deviate from SCADA telemetry. Review flagged entries."}
               </div>
               <div className="text-[9px] font-semibold text-gray-400 mt-0.5">
-                Immutable record · {log.id} · NTC ZM-0874 Audit System
+                Immutable record · {log.id} · {DEFAULT_SITE_LABEL} Audit System
               </div>
             </div>
           </div>
@@ -271,13 +266,13 @@ function ShiftCard({
         {log.telemetry.map((t, i) => (
           <div key={i} className="flex items-center justify-between min-w-0">
             <div className="flex items-center gap-1 text-[10px] font-semibold text-gray-400 min-w-0">
-              <span className={`flex-shrink-0 ${t.flag ? "text-red-400" : "text-gray-400"}`}>
+              <span className={`flex-shrink-0 ${t.flag ? "text-danger-400" : "text-gray-400"}`}>
                 {t.icon}
               </span>
               <span className="truncate">{t.label}</span>
             </div>
             <span
-              className={`text-[11px] font-black ml-1 flex-shrink-0 ${t.flag ? "text-red-505" : "text-gray-800"
+              className={`text-[11px] font-black ml-1 flex-shrink-0 ${t.flag ? "text-danger-500" : "text-gray-800"
                 }`}
             >
               {t.value}
@@ -298,9 +293,9 @@ function ShiftCard({
       {/* ── Alerts acked strip ───────────────────────────────────────────── */}
       {log.alertsAcked > 0 && (
         <div className="mx-5 mb-4">
-          <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-yellow-50 border border-yellow-100">
-            <AlertTriangle size={11} className="text-yellow-500 flex-shrink-0" />
-            <span className="text-[10px] font-black text-yellow-700">
+          <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-warn-50 border border-warn-100">
+            <AlertTriangle size={11} className="text-warn-500 flex-shrink-0" />
+            <span className="text-[10px] font-black text-warn-700">
               {log.alertsAcked} alert{log.alertsAcked !== 1 ? "s" : ""} acknowledged this shift
             </span>
           </div>
@@ -312,7 +307,7 @@ function ShiftCard({
         <button
           onClick={() => onViewReport(log)}
           className={`w-full px-5 py-3.5 flex items-center justify-between text-[11px] font-black uppercase tracking-wider transition-colors ${isDiscrepancy
-              ? "bg-red-50/60 hover:bg-red-50 text-red-600"
+              ? "bg-danger-50/60 hover:bg-danger-50 text-danger-600"
               : "bg-gray-50 hover:bg-gray-100 text-gray-600"
             }`}
         >
@@ -330,12 +325,23 @@ function ShiftCard({
 // ── Main Component ────────────────────────────────────────────────────────────
 export function ShiftReports() {
   const { currentSite } = useCurrentSite();
-  const siteCode = currentSite?.site_code || "NTC";
+  const siteCode = currentSite?.site_code || DEFAULT_SITE_CODE;
   const [activeTab, setActiveTab] = useState<"shifts" | "checklists">("shifts");
-  const [dateRange, setDateRange] = useState<DateRange>("7d");
-  const [showPicker, setShowPicker] = useState(false);
+  // The old local dateRange/showPicker state drove a label in the button but
+  // was never actually passed to fetchDbReports — every range selection
+  // silently fetched the exact same unfiltered "all shift reports ever" set.
+  const { range, preset, setPreset, setCustomRange } = useDateRange("7d");
   const [activeReport, setActiveReport] = useState<ShiftLog | null>(null);
   const [isExporting, setIsExporting] = useState(false);
+  // Which month the Legacy Excel Report covers. Independent of `range` above:
+  // the destination template is a physical monthly compliance form with a
+  // fixed row per day-of-month, so it can only ever represent one calendar
+  // month — the ad-hoc browse picker doesn't apply here. This used to be
+  // hardcoded to "whichever month it is right now," so an admin in August
+  // had no way to generate July's report at all.
+  const now = new Date();
+  const [exportMonth, setExportMonth] = useState(now.getMonth());
+  const [exportYear, setExportYear] = useState(now.getFullYear());
   const [dbReports, setDbReports] = useState<ShiftLog[]>([]);
 
   const fetchDbReports = async () => {
@@ -343,6 +349,8 @@ export function ShiftReports() {
       let query = supabase
         .from("shift_reports")
         .select("*")
+        .gte("timestamp", range.start.toISOString())
+        .lte("timestamp", range.end.toISOString())
         .order("timestamp", { ascending: false });
       if (currentSite?.id) query = query.eq("site_uuid", currentSite.id);
       const { data, error } = await query;
@@ -356,7 +364,7 @@ export function ShiftReports() {
             ? report.technician_name.split(" ").map((n: string) => n[0]).join("").toUpperCase()
             : "AM";
           
-          const colors = ["bg-red-500", "bg-blue-500", "bg-emerald-500", "bg-purple-500", "bg-amber-500"];
+          const colors = ["bg-brand-500", "bg-info-500", "bg-ok-500", "bg-purple-500", "bg-warn-500"];
           const colorIdx = initials.charCodeAt(0) % colors.length;
           
           return {
@@ -374,7 +382,7 @@ export function ShiftReports() {
             }) + " CAT",
             date: new Date(report.timestamp).toISOString().split("T")[0],
             shiftLabel: report.shift_duration || "DAY SHIFT (08:00 - 18:00)",
-            site: report.site_id || "NTC ZM-0874",
+            site: siteLabel(report.site_id),
             zone: "Power Room 1",
             verificationStatus: (report.certified ? "verified" : "discrepancy") as VerificationStatus,
             telemetry: [
@@ -396,7 +404,7 @@ export function ShiftReports() {
 
   useEffect(() => {
     fetchDbReports();
-  }, [currentSite?.id]);
+  }, [currentSite?.id, range.start.getTime(), range.end.getTime()]);
 
 
   const allShiftLogs = [...dbReports];
@@ -404,13 +412,13 @@ export function ShiftReports() {
   const handleExport = async () => {
     setIsExporting(true);
     try {
-      // Query live telemetry_logs for the current calendar month
-      const now = new Date();
-      const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
-      const monthEnd   = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999);
+      // Query live telemetry_logs for the SELECTED calendar month, not
+      // whatever month happens to be current.
+      const monthStart = new Date(exportYear, exportMonth, 1);
+      const monthEnd   = new Date(exportYear, exportMonth + 1, 0, 23, 59, 59, 999);
 
-      const monthName = now.toLocaleString("en-US", { month: "long" });
-      const yearStr   = String(now.getFullYear());
+      const monthName = monthStart.toLocaleString("en-US", { month: "long" });
+      const yearStr   = String(exportYear);
 
       let telemetryQuery = supabase
         .from("telemetry_logs")
@@ -455,8 +463,6 @@ export function ShiftReports() {
   const discrepancyCount = allShiftLogs.filter((l) => l.verificationStatus === "discrepancy").length;
   const totalAlertsAcked = allShiftLogs.reduce((sum, l) => sum + l.alertsAcked, 0);
 
-  const activeDateLabel = DATE_RANGES.find((r) => r.id === dateRange)?.label ?? "Last 7 Days";
-
   // Audit CSV export handler (for a PDF, use the Print / PDF button — the
   // page is print-optimised and the browser produces a real PDF).
   function handleAuditExport(format: "csv") {
@@ -497,7 +503,7 @@ export function ShiftReports() {
             </h1>
             <p className="text-[12px] font-semibold text-gray-400 mt-1">
               {activeTab === "shifts"
-                ? `Immutable field technician reports · Site ${currentSite?.site_name || "—"}`
+                ? `Immutable field technician reports · ${currentSite?.site_name || "—"}`
                 : "Browse and print official daily checklists submitted by technicians."}
 
             </p>
@@ -509,7 +515,7 @@ export function ShiftReports() {
               onClick={() => setActiveTab("shifts")}
               className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
                 activeTab === "shifts"
-                  ? "bg-red-500 text-white shadow-sm shadow-red-500/10"
+                  ? "bg-brand-500 text-white shadow-sm shadow-brand-500/10"
                   : "text-gray-400 hover:text-gray-600"
               }`}
             >
@@ -521,7 +527,7 @@ export function ShiftReports() {
               onClick={() => setActiveTab("checklists")}
               className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
                 activeTab === "checklists"
-                  ? "bg-red-500 text-white shadow-sm shadow-red-500/10"
+                  ? "bg-brand-500 text-white shadow-sm shadow-brand-500/10"
                   : "text-gray-400 hover:text-gray-600"
               }`}
             >
@@ -535,41 +541,47 @@ export function ShiftReports() {
           <>
             {/* Action bar */}
             <div className="flex items-center justify-end gap-2 flex-wrap print:hidden">
-              {/* Date range picker */}
-              <div className="relative">
-                <button
-                  onClick={() => setShowPicker((p) => !p)}
-                  className="flex items-center gap-2 h-9 px-3.5 rounded-xl border border-gray-200 bg-white text-[11px] font-black text-gray-700 uppercase tracking-wider hover:border-gray-300 transition-all"
-                >
-                  <Calendar size={13} className="text-gray-500" />
-                  {activeDateLabel}
-                  <ChevronDown size={12} className={`text-gray-400 transition-transform ${showPicker ? "rotate-180" : ""}`} />
-                </button>
-
-                {showPicker && (
-                  <div className="absolute right-0 top-full mt-1.5 z-20 bg-white border border-gray-200 rounded-xl shadow-xl overflow-hidden w-44">
-                    {DATE_RANGES.map((range) => (
-                      <button
-                        key={range.id}
-                        onClick={() => { setDateRange(range.id); setShowPicker(false); }}
-                        className={`w-full text-left px-4 py-2.5 text-[11px] font-black uppercase tracking-wider transition-colors ${dateRange === range.id
-                            ? "bg-gray-900 text-white"
-                            : "text-gray-600 hover:bg-gray-50"
-                          }`}
-                      >
-                        {range.label}
-                      </button>
-                    ))}
-                  </div>
-                )}
-              </div>
+              {/* Date range picker — now actually wired to fetchDbReports */}
+              <DateRangePicker
+                label={range.label}
+                preset={preset}
+                activeStart={range.start}
+                activeEnd={range.end}
+                onSelectPreset={setPreset}
+                onSelectCustom={setCustomRange}
+              />
 
               {/* Export */}
               <div className="flex items-center gap-1.5 flex-wrap">
+                {/* Which month the compliance form covers — separate from the
+                    browse range above, since the template is fixed to one
+                    calendar month at a time. */}
+                <select
+                  value={exportMonth}
+                  onChange={(e) => setExportMonth(Number(e.target.value))}
+                  className="h-9 px-2.5 rounded-xl border border-gray-200 bg-white text-[11px] font-black text-gray-700 uppercase tracking-wider cursor-pointer"
+                  title="Month to export"
+                >
+                  {Array.from({ length: 12 }, (_, m) => (
+                    <option key={m} value={m}>
+                      {new Date(2000, m, 1).toLocaleString("en-US", { month: "short" })}
+                    </option>
+                  ))}
+                </select>
+                <select
+                  value={exportYear}
+                  onChange={(e) => setExportYear(Number(e.target.value))}
+                  className="h-9 px-2.5 rounded-xl border border-gray-200 bg-white text-[11px] font-black text-gray-700 uppercase tracking-wider cursor-pointer"
+                  title="Year to export"
+                >
+                  {Array.from({ length: 4 }, (_, i) => now.getFullYear() - i).map((y) => (
+                    <option key={y} value={y}>{y}</option>
+                  ))}
+                </select>
                 <button
                   onClick={handleExport}
                   disabled={isExporting}
-                  className="bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-4 rounded-lg flex items-center gap-2 disabled:opacity-50 cursor-pointer disabled:cursor-not-allowed text-xs uppercase font-black tracking-wider"
+                  className="bg-brand-600 hover:bg-brand-700 text-white font-bold py-2 px-4 rounded-lg flex items-center gap-2 disabled:opacity-50 cursor-pointer disabled:cursor-not-allowed text-xs uppercase font-black tracking-wider"
                 >
                   <FileSpreadsheet size={14} />
                   {isExporting ? 'Generating...' : 'Generate Legacy Excel Report'}
@@ -613,11 +625,11 @@ export function ShiftReports() {
 
               {/* Verified */}
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-green-50 flex items-center justify-center flex-shrink-0">
-                  <CheckCircle2 size={18} className="text-green-500" />
+                <div className="w-10 h-10 rounded-xl bg-ok-50 flex items-center justify-center flex-shrink-0">
+                  <CheckCircle2 size={18} className="text-ok-500" />
                 </div>
                 <div>
-                  <div className="text-[22px] font-black text-green-600 leading-none">
+                  <div className="text-[22px] font-black text-ok-600 leading-none">
                     {verifiedCount}
                   </div>
                   <div className="text-[9px] font-black text-gray-400 uppercase tracking-widest mt-0.5">
@@ -630,11 +642,11 @@ export function ShiftReports() {
 
               {/* Discrepancies */}
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-red-50 flex items-center justify-center flex-shrink-0">
-                  <AlertTriangle size={18} className="text-red-500" />
+                <div className="w-10 h-10 rounded-xl bg-danger-50 flex items-center justify-center flex-shrink-0">
+                  <AlertTriangle size={18} className="text-danger-500" />
                 </div>
                 <div>
-                  <div className="text-[22px] font-black text-red-600 leading-none">
+                  <div className="text-[22px] font-black text-danger-600 leading-none">
                     {discrepancyCount}
                   </div>
                   <div className="text-[9px] font-black text-gray-400 uppercase tracking-widest mt-0.5">
@@ -647,11 +659,11 @@ export function ShiftReports() {
 
               {/* Alerts acked */}
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-yellow-50 flex items-center justify-center flex-shrink-0">
-                  <Activity size={18} className="text-yellow-500" />
+                <div className="w-10 h-10 rounded-xl bg-warn-50 flex items-center justify-center flex-shrink-0">
+                  <Activity size={18} className="text-warn-500" />
                 </div>
                 <div>
-                  <div className="text-[22px] font-black text-yellow-600 leading-none">
+                  <div className="text-[22px] font-black text-warn-600 leading-none">
                     {totalAlertsAcked}
                   </div>
                   <div className="text-[9px] font-black text-gray-400 uppercase tracking-widest mt-0.5">
@@ -663,7 +675,7 @@ export function ShiftReports() {
               {/* Right: range label */}
               <div className="ml-auto hidden lg:flex items-center gap-1.5 text-[10px] font-black text-gray-400 uppercase tracking-widest">
                 <Calendar size={11} />
-                {activeDateLabel}
+                {range.label}
               </div>
             </div>
 
@@ -688,7 +700,7 @@ export function ShiftReports() {
 
               </div>
               <span className="font-mono">
-                {allShiftLogs.length} records · {activeDateLabel}
+                {allShiftLogs.length} records · {range.label}
               </span>
             </div>
           </>

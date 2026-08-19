@@ -5,10 +5,10 @@ import { Bell, CheckCheck } from "lucide-react";
 import { useNotifications, notificationMeta, AppNotification } from "../hooks/useNotifications";
 
 const TONE_STYLES: Record<string, string> = {
-  red:   "bg-red-50 text-red-600 border-red-100",
-  green: "bg-green-50 text-green-700 border-green-100",
-  amber: "bg-amber-50 text-amber-700 border-amber-100",
-  blue:  "bg-blue-50 text-blue-700 border-blue-100",
+  red:   "bg-danger-50 text-danger-600 border-danger-100",
+  green: "bg-ok-50 text-ok-700 border-ok-100",
+  amber: "bg-warn-50 text-warn-700 border-warn-100",
+  blue:  "bg-info-50 text-info-700 border-info-100",
   slate: "bg-slate-100 text-slate-600 border-slate-200",
 };
 
@@ -71,7 +71,7 @@ export function NotificationBell() {
       >
         <Bell size={16} />
         {unreadCount > 0 && (
-          <span className="absolute -top-0.5 -right-0.5 min-w-[16px] h-4 px-1 bg-red-500 text-white text-[9px] font-black rounded-full flex items-center justify-center border-2 border-white">
+          <span className="absolute -top-0.5 -right-0.5 min-w-[16px] h-4 px-1 bg-brand-500 text-white text-[9px] font-black rounded-full flex items-center justify-center border-2 border-white">
             {unreadCount > 9 ? "9+" : unreadCount}
           </span>
         )}
@@ -90,7 +90,7 @@ export function NotificationBell() {
               <button
                 type="button"
                 onClick={markAllRead}
-                className="flex items-center gap-1 text-[10px] font-black uppercase tracking-wider text-red-600 hover:text-red-700 cursor-pointer"
+                className="flex items-center gap-1 text-[10px] font-black uppercase tracking-wider text-brand-600 hover:text-brand-700 cursor-pointer"
               >
                 <CheckCheck size={12} />
                 Mark all read
@@ -117,7 +117,7 @@ export function NotificationBell() {
                     type="button"
                     onClick={() => handleSelect(n)}
                     className={`w-full text-left px-4 py-3 border-b border-gray-50 last:border-b-0 hover:bg-gray-50 transition-colors cursor-pointer flex gap-3 ${
-                      unread ? "bg-red-50/20" : ""
+                      unread ? "bg-brand-50/20" : ""
                     }`}
                   >
                     <span
@@ -138,7 +138,7 @@ export function NotificationBell() {
                         {n.detail}
                       </span>
                     </span>
-                    {unread && <span className="shrink-0 w-1.5 h-1.5 rounded-full bg-red-500 mt-1.5" />}
+                    {unread && <span className="shrink-0 w-1.5 h-1.5 rounded-full bg-brand-500 mt-1.5" />}
                   </button>
                 );
               })

@@ -1,4 +1,6 @@
 import React, { useState, useRef, useEffect } from "react";
+import { ContractorFindingsEditor, useSubmitFindings, type DraftFinding } from "./ContractorFindings";
+import { siteLabel } from "@/shared/utils/branding";
 import { useNavigate, useOutletContext } from "react-router";
 import {
   Camera,
@@ -87,6 +89,10 @@ export function IncidentReport() {
     refresh
   } = useIncidents();
   const { visits, logVisit } = useContractorVisits();
+  // Findings are staged while the visit is written up, then submitted once the
+  // visit row exists to reference.
+  const [findings, setFindings] = useState<DraftFinding[]>([]);
+  const { submit: submitFindings } = useSubmitFindings();
   const { currentSite } = useCurrentSite();
 
   // Tab state: "report" | "contractor" | "history"
@@ -230,7 +236,7 @@ export function IncidentReport() {
         occurred_at: new Date(occurredAt).toISOString(),
         raised_by_name: firstName,
         raised_by_id: user?.id || "EMP-UNKNOWN",
-        site_name: currentSite?.site_name || "NTC ZM 0874",
+        site_name: siteLabel(currentSite?.site_name),
         site_uuid: currentSite?.id || null
       });
 
@@ -334,7 +340,7 @@ export function IncidentReport() {
         : visitTargetType === "TICKET" ? selectedFaultId
         : null;
 
-      await logVisit({
+      const createdVisit = await logVisit({
         purpose: visitPurpose.trim(),
         target_type: visitTargetType,
         target_ref: targetRef,
@@ -344,6 +350,16 @@ export function IncidentReport() {
         logged_by_name: firstName,
         logged_by_id: user?.id || "EMP-UNKNOWN"
       });
+
+      // Each finding becomes a tracked item. Failures are reported per finding
+      // rather than discarding the whole set.
+      if (createdVisit?.id && findings.length > 0) {
+        const written = await submitFindings(createdVisit.id, findings);
+        if (written > 0) {
+          alert(`${written} finding${written === 1 ? "" : "s"} recorded and raised as work.`);
+          setFindings([]);
+        }
+      }
 
       // Mirror the entry onto the ticket timeline so a NOC operator reading the
       // fault can see it was inspected, without the status implying a fix.
@@ -466,14 +482,14 @@ export function IncidentReport() {
         {/* Contractor Visits Section */}
         {hasVisits && (
           <div className="space-y-2">
-            <h4 className="text-[9px] font-black text-emerald-600 uppercase tracking-widest flex items-center gap-1.5 bg-emerald-50/50 w-fit px-2 py-0.5 rounded-md border border-emerald-100">
+            <h4 className="text-[9px] font-black text-ok-600 uppercase tracking-widest flex items-center gap-1.5 bg-ok-50/50 w-fit px-2 py-0.5 rounded-md border border-ok-100">
               <span>👷‍♂️ Contractor Visits ({visits.length})</span>
             </h4>
-            <div className="relative pl-3.5 border-l border-emerald-200/60 space-y-3.5 ml-1.5">
+            <div className="relative pl-3.5 border-l border-ok-200/60 space-y-3.5 ml-1.5">
               {visits.map((cmt: any, idx: number) => (
                 <div key={idx} className="relative space-y-1">
-                  <div className="absolute -left-[22px] top-1.5 w-2.5 h-2.5 rounded-full bg-emerald-500 border-2 border-white" />
-                  <div className="flex items-center justify-between text-[8px] font-bold text-emerald-650">
+                  <div className="absolute -left-[22px] top-1.5 w-2.5 h-2.5 rounded-full bg-ok-500 border-2 border-white" />
+                  <div className="flex items-center justify-between text-[8px] font-bold text-ok-650">
                     <span className="uppercase tracking-wider">Site Visit</span>
                     <span className="font-mono">{formatDate(cmt.timestamp)}</span>
                   </div>
@@ -501,10 +517,10 @@ export function IncidentReport() {
                   <div className="absolute -left-[22px] top-1.5 w-2.5 h-2.5 rounded-full bg-slate-350 border-2 border-white" />
                   <div className="flex items-center justify-between gap-2">
                     <span className={`text-[8px] font-black uppercase tracking-wider px-1.5 py-0.2 rounded ${cmt.type === "correction"
-                        ? "bg-red-50 text-red-600 border border-red-100"
+                        ? "bg-danger-50 text-danger-600 border border-danger-100"
                         : cmt.type === "resolution"
-                          ? "bg-green-50 text-green-700 border border-green-100"
-                          : "bg-blue-50 text-blue-600 border border-blue-100"
+                          ? "bg-ok-50 text-ok-700 border border-ok-100"
+                          : "bg-info-50 text-info-600 border border-info-100"
                       }`}>
                       {cmt.type.replace(/_/g, " ")}
                     </span>
@@ -544,7 +560,7 @@ export function IncidentReport() {
   if (isSuccess) {
     return (
       <div className="max-w-md mx-auto bg-white rounded-3xl border border-gray-100 shadow-sm p-6 text-center space-y-6 animate-fade-in">
-        <div className="w-20 h-20 bg-green-50 rounded-full flex items-center justify-center mx-auto text-green-500 border border-green-100">
+        <div className="w-20 h-20 bg-ok-50 rounded-full flex items-center justify-center mx-auto text-ok-500 border border-ok-100">
           <CheckCircle2 size={40} className="animate-bounce" />
         </div>
 
@@ -562,12 +578,12 @@ export function IncidentReport() {
           </div>
           <div className="flex justify-between">
             <span className="text-gray-400">Severity:</span>
-            <span className="font-bold text-red-600 capitalize">{severity}</span>
+            <span className="font-bold text-danger-600 capitalize">{severity}</span>
           </div>
           {photo && (
             <div className="flex justify-between">
               <span className="text-gray-400">Evidence:</span>
-              <span className="text-green-600 font-bold">Attached</span>
+              <span className="text-ok-600 font-bold">Attached</span>
             </div>
           )}
         </div>
@@ -594,7 +610,7 @@ export function IncidentReport() {
         <button
           type="button"
           onClick={() => navigate("/tech")}
-          className="inline-flex items-center gap-2 py-3 px-4 rounded-xl bg-gray-50 border border-gray-200 text-xs font-bold text-gray-600 hover:text-red-600 active:scale-[0.98] transition-all cursor-pointer"
+          className="inline-flex items-center gap-2 py-3 px-4 rounded-xl bg-gray-50 border border-gray-200 text-xs font-bold text-gray-600 hover:text-brand-600 active:scale-[0.98] transition-all cursor-pointer"
         >
           <ArrowLeft size={14} />
           <span>← Back</span>
@@ -606,7 +622,7 @@ export function IncidentReport() {
         <button
           onClick={() => { setActiveTab("report"); setSelectedIncidentId(null); setActiveAction(null); }}
           className={`flex-1 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all flex items-center justify-center gap-1.5 ${activeTab === "report"
-              ? "bg-red-500 text-white shadow-sm shadow-red-500/10"
+              ? "bg-danger-500 text-white shadow-sm shadow-danger-500/10"
               : "text-gray-400 hover:text-gray-600"
             }`}
         >
@@ -616,7 +632,7 @@ export function IncidentReport() {
         <button
           onClick={() => { setActiveTab("contractor"); setSelectedIncidentId(null); setActiveAction(null); }}
           className={`flex-1 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all flex items-center justify-center gap-1.5 ${activeTab === "contractor"
-              ? "bg-red-500 text-white shadow-sm shadow-red-500/10"
+              ? "bg-danger-500 text-white shadow-sm shadow-danger-500/10"
               : "text-gray-400 hover:text-gray-600"
             }`}
         >
@@ -626,7 +642,7 @@ export function IncidentReport() {
         <button
           onClick={() => { setActiveTab("history"); setSelectedIncidentId(null); setActiveAction(null); }}
           className={`flex-1 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all flex items-center justify-center gap-1.5 ${activeTab === "history"
-              ? "bg-red-500 text-white shadow-sm shadow-red-500/10"
+              ? "bg-danger-500 text-white shadow-sm shadow-danger-500/10"
               : "text-gray-400 hover:text-gray-600"
             }`}
         >
@@ -660,7 +676,7 @@ export function IncidentReport() {
                 Affected Asset
               </label>
               <Select value={asset} onValueChange={setAsset}>
-                <SelectTrigger className="w-full h-12 bg-gray-50 border border-gray-200 rounded-2xl text-sm font-semibold text-gray-800 focus:ring-1 focus:ring-red-500/20 focus:border-red-500">
+                <SelectTrigger className="w-full h-12 bg-gray-50 border border-gray-200 rounded-2xl text-sm font-semibold text-gray-800 focus:ring-1 focus:ring-brand-500/20 focus:border-brand-500">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent className="bg-white border border-gray-100 rounded-2xl shadow-lg z-[10000]">
@@ -696,10 +712,10 @@ export function IncidentReport() {
                     onClick={() => setSeverity(sev as any)}
                     className={`p-3.5 rounded-2xl border text-center transition-all flex flex-col items-center gap-1 ${severity === sev
                         ? sev === "critical"
-                          ? "bg-red-50 border-red-200 text-red-700 font-bold shadow-sm"
+                          ? "bg-danger-50 border-danger-200 text-danger-700 font-bold shadow-sm"
                           : sev === "medium"
-                            ? "bg-amber-50 border-amber-200 text-amber-700 font-bold shadow-sm"
-                            : "bg-blue-50 border-blue-200 text-blue-700 font-bold shadow-sm"
+                            ? "bg-warn-50 border-warn-200 text-warn-700 font-bold shadow-sm"
+                            : "bg-info-50 border-info-200 text-info-700 font-bold shadow-sm"
                         : "bg-white border-gray-200 text-gray-400 font-semibold"
                       }`}
                   >
@@ -718,7 +734,7 @@ export function IncidentReport() {
                 type="datetime-local"
                 value={occurredAt}
                 onChange={(e) => setOccurredAt(e.target.value)}
-                className="w-full p-4 rounded-2xl bg-gray-50 border border-gray-200 text-sm font-semibold text-gray-900 focus:outline-none focus:border-red-500 transition-colors"
+                className="w-full p-4 rounded-2xl bg-gray-50 border border-gray-200 text-sm font-semibold text-gray-900 focus:outline-none focus:border-danger-500 transition-colors"
                 required
               />
             </div>
@@ -730,7 +746,7 @@ export function IncidentReport() {
               </label>
               <div
                 onClick={handlePhotoUpload}
-                className={`h-32 bg-gray-50 border-2 border-dashed rounded-2xl flex flex-col items-center justify-center text-gray-500 cursor-pointer active:bg-gray-100 transition-colors p-0 relative overflow-hidden ${photo ? "border-green-400" : "border-gray-200"
+                className={`h-32 bg-gray-50 border-2 border-dashed rounded-2xl flex flex-col items-center justify-center text-gray-500 cursor-pointer active:bg-gray-100 transition-colors p-0 relative overflow-hidden ${photo ? "border-ok-400" : "border-gray-200"
                   }`}
               >
                 {photo ? (
@@ -774,7 +790,7 @@ export function IncidentReport() {
                 value={notes}
                 onChange={(e) => setNotes(e.target.value)}
                 placeholder="Type observations (e.g. leaking coolant, strange hum, indicator red, etc.)"
-                className="w-full p-4 rounded-2xl bg-gray-50 border border-gray-200 text-sm font-semibold text-gray-800 placeholder-gray-400 focus:outline-none focus:border-red-500 focus:ring-1 focus:ring-red-500 resize-none transition-colors"
+                className="w-full p-4 rounded-2xl bg-gray-50 border border-gray-200 text-sm font-semibold text-gray-800 placeholder-gray-400 focus:outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500 resize-none transition-colors"
               />
             </div>
 
@@ -786,10 +802,10 @@ export function IncidentReport() {
                 className={`w-full py-4 rounded-2xl text-white font-black text-sm tracking-widest uppercase transition-all shadow-lg flex items-center justify-center gap-2 ${isSubmitting
                     ? "bg-gray-400 shadow-none cursor-not-allowed"
                     : severity === "critical"
-                      ? "bg-red-600 hover:bg-red-700 shadow-red-600/10 active:scale-[0.98]"
+                      ? "bg-danger-600 hover:bg-danger-700 shadow-danger-600/10 active:scale-[0.98]"
                       : severity === "medium"
-                        ? "bg-amber-600 hover:bg-amber-700 shadow-amber-600/10 active:scale-[0.98]"
-                        : "bg-blue-600 hover:bg-blue-700 shadow-blue-600/10 active:scale-[0.98]"
+                        ? "bg-warn-600 hover:bg-warn-700 shadow-warn-600/10 active:scale-[0.98]"
+                        : "bg-info-600 hover:bg-info-700 shadow-info-600/10 active:scale-[0.98]"
                   }`}
               >
                 {isSubmitting ? (
@@ -832,7 +848,7 @@ export function IncidentReport() {
               type="button"
               onClick={() => setContractorMode("resolve")}
               className={`py-3 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all cursor-pointer flex flex-col items-center gap-1 ${contractorMode === "resolve"
-                  ? "bg-white text-green-700 shadow-sm"
+                  ? "bg-white text-ok-700 shadow-sm"
                   : "text-gray-500 hover:text-gray-700"
                 }`}
             >
@@ -851,7 +867,7 @@ export function IncidentReport() {
               <span className="text-xs font-black text-slate-800 uppercase tracking-wider">Log Contractor Inspection</span>
             </div>
 
-            <div className="bg-blue-50/70 border border-blue-100 rounded-2xl px-3.5 py-2.5 text-[10px] font-semibold text-blue-900 leading-relaxed">
+            <div className="bg-info-50/70 border border-info-100 rounded-2xl px-3.5 py-2.5 text-[10px] font-semibold text-info-900 leading-relaxed">
               This records that a contractor attended site. It does <span className="font-black">not</span> change any fault ticket status — use <span className="font-black">Resolve Fault</span> once repairs are complete.
             </div>
 
@@ -990,7 +1006,7 @@ export function IncidentReport() {
                     )}
                   </SelectContent>
                 </Select>
-                <p className="text-[9px] font-bold text-amber-700 bg-amber-50 border border-amber-100 rounded-lg px-2.5 py-1.5">
+                <p className="text-[9px] font-bold text-warn-700 bg-warn-50 border border-warn-100 rounded-lg px-2.5 py-1.5">
                   This ticket will stay OPEN after logging.
                 </p>
               </div>
@@ -1015,6 +1031,12 @@ export function IncidentReport() {
               />
             </div>
 
+            {/* Trackable defects, separate from the narrative above. The notes
+                box describes the visit; these become jobs somebody owns. */}
+            <div className="rounded-2xl border border-gray-200 bg-gray-50/60 p-4">
+              <ContractorFindingsEditor findings={findings} onChange={setFindings} />
+            </div>
+
             {/* Photo upload */}
             <div className="space-y-2">
               <label className="text-xs font-black text-gray-400 uppercase tracking-widest block">
@@ -1022,7 +1044,7 @@ export function IncidentReport() {
               </label>
               <div
                 onClick={handleActionPhotoUpload}
-                className={`h-32 bg-gray-50 border-2 border-dashed rounded-2xl flex flex-col items-center justify-center text-gray-500 cursor-pointer active:bg-gray-100 transition-colors p-0 relative overflow-hidden ${actionPhoto ? "border-green-400" : "border-gray-200"
+                className={`h-32 bg-gray-50 border-2 border-dashed rounded-2xl flex flex-col items-center justify-center text-gray-500 cursor-pointer active:bg-gray-100 transition-colors p-0 relative overflow-hidden ${actionPhoto ? "border-ok-400" : "border-gray-200"
                   }`}
               >
                 {actionPhoto ? (
@@ -1149,14 +1171,14 @@ export function IncidentReport() {
                 <h2 className="text-sm font-black text-gray-900 uppercase tracking-wider">Active Fault Tickets</h2>
                 <p className="text-[11px] text-gray-400 font-semibold">Selecting one closes it and issues a clearance receipt.</p>
               </div>
-              <span className="bg-red-50 text-red-600 font-extrabold text-[10px] px-2.5 py-1 rounded-full border border-red-100">
+              <span className="bg-danger-50 text-danger-600 font-extrabold text-[10px] px-2.5 py-1 rounded-full border border-danger-100">
                 {incidents.filter((i) => i.status === "OPEN").length} Open
               </span>
             </div>
 
             {incidents.filter((i) => i.status === "OPEN").length === 0 ? (
               <div className="bg-white border border-gray-100 rounded-3xl p-6 text-center shadow-sm">
-                <CheckCircle2 size={24} className="text-green-500 mx-auto mb-2" />
+                <CheckCircle2 size={24} className="text-ok-500 mx-auto mb-2" />
                 <p className="text-xs font-bold text-slate-800">All Systems Nominal</p>
                 <p className="text-[10px] text-slate-400 mt-0.5">There are no open faults to resolve.</p>
               </div>
@@ -1173,13 +1195,13 @@ export function IncidentReport() {
                         className="bg-white border border-gray-100 rounded-3xl p-5 shadow-sm space-y-4 relative overflow-hidden"
                       >
                         {/* Left border indicator */}
-                        <div className="absolute left-0 top-0 bottom-0 w-1.5 bg-red-500" />
+                        <div className="absolute left-0 top-0 bottom-0 w-1.5 bg-danger-500" />
 
                         <div className="flex items-center justify-between pl-1">
                           <span className="text-[10px] font-mono font-black text-gray-400 tracking-wider">
                             {incident.ticket_number}
                           </span>
-                          <span className="bg-red-50 border border-red-100 text-[8px] font-black uppercase tracking-wider px-2 py-0.5 rounded text-red-600">
+                          <span className="bg-danger-50 border border-danger-100 text-[8px] font-black uppercase tracking-wider px-2 py-0.5 rounded text-danger-600">
                             {incident.severity}
                           </span>
                         </div>
@@ -1216,7 +1238,7 @@ export function IncidentReport() {
                                 setActionNotes("");
                                 setActionPhoto(null);
                               }}
-                              className="py-2.5 px-4 bg-green-600 hover:bg-green-700 text-white font-bold rounded-xl text-xs uppercase tracking-wider active:scale-[0.98] transition-all flex items-center gap-1.5 cursor-pointer shadow-sm shadow-green-600/10"
+                              className="py-2.5 px-4 bg-ok-600 hover:bg-ok-700 text-white font-bold rounded-xl text-xs uppercase tracking-wider active:scale-[0.98] transition-all flex items-center gap-1.5 cursor-pointer shadow-sm shadow-ok-600/10"
                             >
                               <CheckCircle2 size={13} />
                               <span>Resolve Fault</span>
@@ -1288,7 +1310,7 @@ export function IncidentReport() {
                                   value={contractorName}
                                   onChange={(e) => setContractorName(e.target.value)}
                                   placeholder="e.g. Vertiv Services"
-                                  className="w-full px-3 py-2 bg-white border border-gray-200 rounded-xl text-xs font-semibold text-gray-800 focus:outline-none focus:border-red-500"
+                                  className="w-full px-3 py-2 bg-white border border-gray-200 rounded-xl text-xs font-semibold text-gray-800 focus:outline-none focus:border-danger-500"
                                   required
                                 />
                               </div>
@@ -1304,7 +1326,7 @@ export function IncidentReport() {
                                 value={actionNotes}
                                 onChange={(e) => setActionNotes(e.target.value)}
                                 placeholder="Explain how the fault was resolved..."
-                                className="w-full p-3 bg-white border border-gray-250 rounded-xl text-xs font-semibold text-gray-800 focus:outline-none focus:border-red-500 resize-none"
+                                className="w-full p-3 bg-white border border-gray-250 rounded-xl text-xs font-semibold text-gray-800 focus:outline-none focus:border-danger-500 resize-none"
                                 required
                               />
                             </div>
@@ -1316,7 +1338,7 @@ export function IncidentReport() {
                               </label>
                               <div
                                 onClick={handleActionPhotoUpload}
-                                className={`h-24 bg-white border-2 border-dashed rounded-xl flex flex-col items-center justify-center text-gray-500 cursor-pointer active:bg-gray-50 transition-colors relative overflow-hidden p-0 ${actionPhoto ? "border-green-400" : "border-gray-200"
+                                className={`h-24 bg-white border-2 border-dashed rounded-xl flex flex-col items-center justify-center text-gray-500 cursor-pointer active:bg-gray-50 transition-colors relative overflow-hidden p-0 ${actionPhoto ? "border-ok-400" : "border-gray-200"
                                   }`}
                               >
                                 {actionPhoto ? (
@@ -1351,7 +1373,7 @@ export function IncidentReport() {
                               <button
                                 type="submit"
                                 disabled={isSubmittingAction}
-                                className="py-2 px-4 text-white bg-green-600 hover:bg-green-700 font-black rounded-xl text-[10px] uppercase tracking-wider active:scale-[0.98] transition-all flex items-center justify-center gap-1.5 cursor-pointer"
+                                className="py-2 px-4 text-white bg-ok-600 hover:bg-ok-700 font-black rounded-xl text-[10px] uppercase tracking-wider active:scale-[0.98] transition-all flex items-center justify-center gap-1.5 cursor-pointer"
                               >
                                 {isSubmittingAction ? (
                                   <span>Resolving...</span>
@@ -1405,15 +1427,15 @@ export function IncidentReport() {
                   <React.Fragment key={incident.id}>
                     <div className="bg-white border border-gray-100 rounded-3xl p-5 shadow-sm space-y-4 relative overflow-hidden">
                       {/* Left border indicator */}
-                      <div className={`absolute left-0 top-0 bottom-0 w-1.5 ${isOpen ? "bg-red-500" : "bg-green-500"}`} />
+                      <div className={`absolute left-0 top-0 bottom-0 w-1.5 ${isOpen ? "bg-danger-500" : "bg-ok-500"}`} />
 
                       <div className="flex items-center justify-between">
                         <span className="text-[10px] font-mono font-black text-gray-400 tracking-wider">
                           {incident.ticket_number}
                         </span>
                         <span className={`text-[9px] font-black uppercase tracking-wider px-2.5 py-0.5 rounded-md border ${isOpen
-                            ? "bg-red-50 text-red-600 border-red-100"
-                            : "bg-green-50 text-green-600 border-green-100"
+                            ? "bg-danger-50 text-danger-600 border-danger-100"
+                            : "bg-ok-50 text-ok-600 border-ok-100"
                           }`}>
                           {incident.status}
                         </span>
@@ -1447,7 +1469,7 @@ export function IncidentReport() {
                           {!isSelected ? (
                             <button
                               onClick={() => setSelectedIncidentId(incident.id)}
-                              className="w-full py-2.5 border border-gray-200 hover:border-gray-300 hover:text-red-600 text-gray-600 font-bold rounded-2xl text-xs uppercase tracking-wider active:scale-98 transition-all flex items-center justify-center gap-1.5 cursor-pointer"
+                              className="w-full py-2.5 border border-gray-200 hover:border-gray-300 hover:text-danger-600 text-gray-600 font-bold rounded-2xl text-xs uppercase tracking-wider active:scale-98 transition-all flex items-center justify-center gap-1.5 cursor-pointer"
                             >
                               <MessageSquare size={13} />
                               <span>Append Correction or Add Log</span>
@@ -1474,7 +1496,7 @@ export function IncidentReport() {
                                   type="button"
                                   onClick={() => setCommentType("addition")}
                                   className={`py-2 text-[10px] rounded-xl border font-bold transition-all text-center ${commentType === "addition"
-                                      ? "bg-blue-50 border-blue-200 text-blue-700"
+                                      ? "bg-info-50 border-info-200 text-info-700"
                                       : "bg-white border-gray-200 text-gray-400"
                                     }`}
                                 >
@@ -1484,7 +1506,7 @@ export function IncidentReport() {
                                   type="button"
                                   onClick={() => setCommentType("correction")}
                                   className={`py-2 text-[10px] rounded-xl border font-bold transition-all text-center ${commentType === "correction"
-                                      ? "bg-red-50 border-red-200 text-red-700"
+                                      ? "bg-danger-50 border-danger-200 text-danger-700"
                                       : "bg-white border-gray-200 text-gray-400"
                                     }`}
                                 >
@@ -1498,7 +1520,7 @@ export function IncidentReport() {
                                 value={commentText}
                                 onChange={(e) => setCommentText(e.target.value)}
                                 placeholder="Detail the addition or correction here..."
-                                className="w-full p-3 rounded-xl bg-white border border-gray-200 text-xs font-semibold text-gray-800 placeholder-gray-400 focus:outline-none focus:border-red-500 resize-none"
+                                className="w-full p-3 rounded-xl bg-white border border-gray-200 text-xs font-semibold text-gray-800 placeholder-gray-400 focus:outline-none focus:border-danger-500 resize-none"
                                 required
                               />
 

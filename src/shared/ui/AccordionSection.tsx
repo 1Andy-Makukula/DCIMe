@@ -25,7 +25,7 @@ export function AccordionSection({
         <div className="flex items-center gap-3">
           <div
             className="w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0 transition-colors"
-            style={{ backgroundColor: isOpen ? "#FF0000" : "#F3F4F6" }}
+            style={{ backgroundColor: isOpen ? "var(--color-brand-600)" : "#F3F4F6" }}
           >
             <span style={{ color: isOpen ? "white" : "#888" }}>{icon}</span>
           </div>

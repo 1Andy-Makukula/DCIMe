@@ -2,8 +2,9 @@
 import ExcelJS from "exceljs";
 import { saveAs } from "file-saver";
 import { EXCEL_MAPPINGS } from "../../config/mappings/excelMappings";
-import { SITE_BLUEPRINTS } from "../../config/sites";
+import { SITE_BLUEPRINTS, DEFAULT_SITE_CODE } from "../../config/sites";
 import { getExcelColumn, getPacEquipmentIndex, getEqptStatusRow, getFssRoomOffset } from "./excelMappingHelpers";
+import { BRAND_NAME, DAILY_CHECKLIST_ASSET_ID, siteFileLabel } from "./branding";
 
 // Helper to get fallback/constant value based on user spec
 const getFallbackValue = (metricId: string, lastValue: any): any => {
@@ -44,9 +45,9 @@ export const generateMonthlyReport = async (
   month: string,
   year: string,
   logs: any[],
-  siteCode: string = "NTC"
+  siteCode: string = DEFAULT_SITE_CODE
 ): Promise<void> => {
-  const blueprint = SITE_BLUEPRINTS[siteCode] || SITE_BLUEPRINTS.NTC;
+  const blueprint = SITE_BLUEPRINTS[siteCode] || SITE_BLUEPRINTS[DEFAULT_SITE_CODE];
   const dailyTemplatePath = blueprint.templates?.daily_canvas || "/template_daily_canvas.xlsx";
   const commercialTemplatePath = blueprint.templates?.commercial_logbook || "/template_commercial_logbook.xlsx";
 
@@ -71,7 +72,7 @@ export const generateMonthlyReport = async (
   await commWb.xlsx.load(await commRes.arrayBuffer());
 
   // Filter out daily checklists from the main hourly telemetry log processing
-  const filteredLogs = logs.filter(log => log.asset_id !== "AIRTEL_DAILY_CHECKLIST");
+  const filteredLogs = logs.filter(log => log.asset_id !== DAILY_CHECKLIST_ASSET_ID);
 
   // Build a lookup map of hourly logs by day and hour in CAT.
   // Prioritize facility_wide logs over secondary asset logs (e.g. dg_daily_test)
@@ -107,7 +108,7 @@ export const generateMonthlyReport = async (
   const lastEnteredValues: Record<string, any> = {};
   let lastTechName = "Field Tech";
 
-  const siteMappings = EXCEL_MAPPINGS[siteCode] || EXCEL_MAPPINGS.NTC;
+  const siteMappings = EXCEL_MAPPINGS[siteCode] || EXCEL_MAPPINGS[DEFAULT_SITE_CODE];
 
   // Loop over every day and hour chronologically
   for (let day = 1; day <= numDays; day++) {
@@ -320,7 +321,7 @@ export const generateMonthlyReport = async (
   }
 
   // Process daily checklists to populate "DG Check" status checks
-  const checklistLogs = logs.filter(log => log.asset_id === "AIRTEL_DAILY_CHECKLIST");
+  const checklistLogs = logs.filter(log => log.asset_id === DAILY_CHECKLIST_ASSET_ID);
   for (const log of checklistLogs) {
     const timestampStr = log.target_hour;
     if (!timestampStr) continue;
@@ -360,17 +361,17 @@ export const generateMonthlyReport = async (
 
   // Trigger Download
   const dailyBuffer = await dailyWb.xlsx.writeBuffer();
-  saveAs(new Blob([dailyBuffer]), `Airtel_${siteCode}_Daily_Canvas_${month}_${year}.xlsx`);
+  saveAs(new Blob([dailyBuffer]), `${BRAND_NAME}_${siteFileLabel(siteCode)}_Daily_Canvas_${month}_${year}.xlsx`);
 
   const commBuffer = await commWb.xlsx.writeBuffer();
-  saveAs(new Blob([commBuffer]), `Airtel_${siteCode}_Commercial_Logbook_${month}_${year}.xlsx`);
+  saveAs(new Blob([commBuffer]), `${BRAND_NAME}_${siteFileLabel(siteCode)}_Commercial_Logbook_${month}_${year}.xlsx`);
 };
 
 export const generateLegacyMonthlyReport = async (
   month: string,
   year: string,
   flatData: any[],
-  siteCode: string = "NTC"
+  siteCode: string = DEFAULT_SITE_CODE
 ): Promise<void> => {
   const mappedLogs = flatData.map((row) => {
     const metrics: Record<string, any> = {};

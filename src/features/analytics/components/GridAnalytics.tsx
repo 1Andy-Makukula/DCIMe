@@ -1,9 +1,11 @@
-import { useState } from 'react';
+import { useOutletContext } from 'react-router';
+import { UTILITY_GRID_LABEL } from "@/shared/utils/branding";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/app/components/ui/card";
 import { Badge } from "@/app/components/ui/badge";
 import { Skeleton } from "@/app/components/ui/skeleton";
 import { Zap, Clock, ShieldCheck, AlertCircle } from 'lucide-react';
 import { useDashboardData } from '../hooks/useDashboardData';
+import { AnalyticsOutletContext } from './AnalyticsLayout';
 import {
   ComposedChart,
   Line,
@@ -17,8 +19,8 @@ import {
 } from 'recharts';
 
 export function GridAnalytics() {
-  const [timePeriod] = useState("Today");
-  const { isLoading, isUsingMockData, latestGridStatus, gridChartData, heatmapData, kpis } = useDashboardData();
+  const { range } = useOutletContext<AnalyticsOutletContext>();
+  const { isLoading, isUsingMockData, latestGridStatus, gridChartData, heatmapData, kpis } = useDashboardData(range);
 
   if (isLoading) {
     return (
@@ -61,6 +63,17 @@ export function GridAnalytics() {
 
   const isOnline = latestGridStatus === 'ONLINE' || latestGridStatus === 'ON';
 
+  // Derived from the actual figure, not asserted independently of it — the
+  // badge previously read "Safe" beside any uptime number, including a poor one.
+  const uptimeNum = parseFloat(kpis.grid.uptimePercentage);
+  const uptimeBadge = isNaN(uptimeNum)
+    ? { label: "No Data", cls: "text-gray-400 bg-gray-50 border-gray-200" }
+    : uptimeNum >= 99
+      ? { label: "Safe", cls: "text-ok-600 bg-ok-50 border-ok-100" }
+      : uptimeNum >= 95
+        ? { label: "Degraded", cls: "text-warn-600 bg-warn-50 border-warn-100" }
+        : { label: "At Risk", cls: "text-danger-600 bg-danger-50 border-danger-100" };
+
   return (
     <div className="p-6 space-y-6 bg-slate-50/50 min-h-screen text-slate-800">
       {/* Header Panel */}
@@ -72,23 +85,23 @@ export function GridAnalytics() {
         <div className="flex items-center gap-3">
           <div className={`px-4 py-2 rounded-2xl border flex items-center gap-3 transition-all ${
             isOnline
-              ? "bg-emerald-50 border-emerald-100 text-emerald-700"
-              : "bg-red-50 border-red-100 text-red-600"
+              ? "bg-ok-50 border-ok-100 text-ok-700"
+              : "bg-danger-50 border-danger-100 text-danger-600"
           }`}>
-            <div className={`w-2.5 h-2.5 rounded-full ${isOnline ? "bg-emerald-500 animate-ping" : "bg-red-500"}`} />
+            <div className={`w-2.5 h-2.5 rounded-full ${isOnline ? "bg-ok-500 animate-ping" : "bg-danger-500"}`} />
             <span className="text-xs font-black uppercase tracking-wider">
-              ZESCO Grid: {isOnline ? "ONLINE" : "OFFLINE"}
+              {UTILITY_GRID_LABEL}: {isOnline ? "ONLINE" : "OFFLINE"}
             </span>
           </div>
           <Badge variant="outline" className="bg-slate-50 border-gray-200 text-xs font-black uppercase tracking-wider h-10 px-4 rounded-xl text-slate-900 flex items-center justify-center">
-            {timePeriod}
+            {range.label}
           </Badge>
         </div>
       </div>
 
       {isUsingMockData && (
-        <div className="flex items-center gap-3 bg-amber-50 border border-amber-100/60 text-amber-800 p-4 rounded-3xl text-xs font-semibold">
-          <AlertCircle className="w-4.5 h-4.5 text-amber-600 shrink-0" />
+        <div className="flex items-center gap-3 bg-warn-50 border border-warn-100/60 text-warn-800 p-4 rounded-3xl text-xs font-semibold">
+          <AlertCircle className="w-4.5 h-4.5 text-warn-600 shrink-0" />
           <span>Operational Notice: Telemetry database table contains no records. Displaying baseline simulated data for dashboard verification.</span>
         </div>
       )}
@@ -103,10 +116,10 @@ export function GridAnalytics() {
           <CardContent>
             <div className="flex items-baseline gap-2">
               <span className="text-2xl font-black text-slate-900 font-mono">{kpis.grid.uptimePercentage}%</span>
-              <span className="text-xs font-black text-emerald-600 bg-emerald-50 border border-emerald-100 px-1.5 py-0.5 rounded">Safe</span>
+              <span className={`text-xs font-black px-1.5 py-0.5 rounded border ${uptimeBadge.cls}`}>{uptimeBadge.label}</span>
             </div>
             <p className="text-[10px] text-gray-400 font-semibold mt-1 flex items-center gap-1">
-              <ShieldCheck size={11} className="text-emerald-500" /> Active utility feed ratio
+              <ShieldCheck size={11} className="text-ok-500" /> Active utility feed ratio
             </p>
           </CardContent>
         </Card>
@@ -122,7 +135,7 @@ export function GridAnalytics() {
               <span className="text-xs font-black text-gray-400 uppercase tracking-wider">Hours</span>
             </div>
             <p className="text-[10px] text-gray-400 font-semibold mt-1 flex items-center gap-1">
-              <Clock size={11} className="text-red-500" /> Cumulative outage logs
+              <Clock size={11} className="text-danger-500" /> Cumulative outage logs
             </p>
           </CardContent>
         </Card>
@@ -138,7 +151,7 @@ export function GridAnalytics() {
               <span className="text-xs font-black text-gray-400 uppercase tracking-wider">kW</span>
             </div>
             <p className="text-[10px] text-gray-400 font-semibold mt-1 flex items-center gap-1">
-              <Zap size={11} className="text-amber-500" /> Maximum recorded power draw
+              <Zap size={11} className="text-warn-500" /> Maximum recorded power draw
             </p>
           </CardContent>
         </Card>
@@ -163,9 +176,9 @@ export function GridAnalytics() {
                   <Tooltip contentStyle={{ background: '#fff', borderRadius: '12px', border: '1px solid #F1F5F9', fontSize: '11px', fontWeight: 'bold' }} />
                   <Legend verticalAlign="top" height={36} iconSize={8} wrapperStyle={{ fontSize: '9px', fontWeight: 'black', textTransform: 'uppercase' }} />
                   <Bar yAxisId="right" dataKey="grid_total_site_load" name="Total Site Load" fill="#E2E8F0" radius={[4, 4, 0, 0]} barSize={25} />
-                  <Line yAxisId="left" type="monotone" dataKey="grid_voltage_r" name="Phase R" stroke="#EF4444" strokeWidth={2} dot={{ r: 3 }} />
-                  <Line yAxisId="left" type="monotone" dataKey="grid_voltage_y" name="Phase Y" stroke="#F59E0B" strokeWidth={2} dot={{ r: 3 }} />
-                  <Line yAxisId="left" type="monotone" dataKey="grid_voltage_b" name="Phase B" stroke="#3B82F6" strokeWidth={2} dot={{ r: 3 }} />
+                  <Line yAxisId="left" type="monotone" dataKey="grid_voltage_r" name="Phase R" stroke="var(--color-danger-500)" strokeWidth={2} dot={{ r: 3 }} />
+                  <Line yAxisId="left" type="monotone" dataKey="grid_voltage_y" name="Phase Y" stroke="var(--color-warn-500)" strokeWidth={2} dot={{ r: 3 }} />
+                  <Line yAxisId="left" type="monotone" dataKey="grid_voltage_b" name="Phase B" stroke="var(--color-info-500)" strokeWidth={2} dot={{ r: 3 }} />
                 </ComposedChart>
               </ResponsiveContainer>
             </div>
@@ -181,13 +194,13 @@ export function GridAnalytics() {
           <CardContent className="p-6 flex flex-col justify-between flex-1">
             <div className="grid grid-cols-6 gap-3">
               {heatmapData.map((d) => {
-                let colorClass = "bg-emerald-50 text-emerald-700 border-emerald-100 hover:bg-emerald-100/50";
+                let colorClass = "bg-ok-50 text-ok-700 border-ok-100 hover:bg-ok-100/50";
                 let tooltip = `Day ${d.day}: No Outages`;
                 if (d.status === 'minor') {
-                  colorClass = "bg-amber-50 text-amber-700 border-amber-200/50 hover:bg-amber-100";
+                  colorClass = "bg-warn-50 text-warn-700 border-warn-200/50 hover:bg-warn-100";
                   tooltip = `Day ${d.day}: Minor Outage (${d.hours}h)`;
                 } else if (d.status === 'critical') {
-                  colorClass = "bg-red-50 text-red-700 border-red-200/50 hover:bg-red-100";
+                  colorClass = "bg-danger-50 text-danger-700 border-danger-200/50 hover:bg-danger-100";
                   tooltip = `Day ${d.day}: Major Blackout (${d.hours}h)`;
                 }
                 return (
@@ -206,15 +219,15 @@ export function GridAnalytics() {
             {/* Heatmap Legend */}
             <div className="flex items-center justify-between border-t border-slate-50 pt-4 mt-4 text-[9px] font-black uppercase text-gray-400">
               <div className="flex items-center gap-1.5">
-                <span className="w-2.5 h-2.5 bg-emerald-500 rounded border border-emerald-600/30" />
+                <span className="w-2.5 h-2.5 bg-ok-500 rounded border border-ok-600/30" />
                 <span>ONLINE</span>
               </div>
               <div className="flex items-center gap-1.5">
-                <span className="w-2.5 h-2.5 bg-amber-400 rounded border border-amber-500/30" />
+                <span className="w-2.5 h-2.5 bg-warn-400 rounded border border-warn-500/30" />
                 <span>MINOR</span>
               </div>
               <div className="flex items-center gap-1.5">
-                <span className="w-2.5 h-2.5 bg-red-500 rounded border border-red-600/30" />
+                <span className="w-2.5 h-2.5 bg-danger-500 rounded border border-danger-600/30" />
                 <span>BLACKOUT</span>
               </div>
             </div>

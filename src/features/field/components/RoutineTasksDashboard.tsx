@@ -4,7 +4,7 @@ import { Save, CheckCircle2, Loader2, Zap, AlertTriangle, ArrowLeft, Plug, Clipb
 import { supabase } from '@/shared/api/supabaseClient';
 import { useAuth } from '@/shared/context/AuthContext';
 import { useCurrentSite } from '@/shared/context/SiteContext';
-import { SITE_BLUEPRINTS } from '@/config/sites';
+import { SITE_BLUEPRINTS, DEFAULT_SITE_CODE } from '@/config/sites';
 import { useTelemetryData } from '../hooks/useTelemetryData';
 import { useSiteEquipment } from '../hooks/useSiteEquipment';
 import { useTelemetryMutation } from '../hooks/useTelemetryMutation';
@@ -46,8 +46,8 @@ export const RoutineTasksDashboard = ({
   const slotDate = selectedDate ?? new Date();
   const { employee } = useAuth();
   const { currentSite } = useCurrentSite();
-  const siteCode = currentSite?.site_code || "NTC";
-  const blueprint = SITE_BLUEPRINTS[siteCode] || SITE_BLUEPRINTS.NTC;
+  const siteCode = currentSite?.site_code || DEFAULT_SITE_CODE;
+  const blueprint = SITE_BLUEPRINTS[siteCode] || SITE_BLUEPRINTS[DEFAULT_SITE_CODE];
 
   // Must match useTelemetryData's key exactly, or drafts written here are
   // invisible to the hook that reads them back.
@@ -404,7 +404,7 @@ export const RoutineTasksDashboard = ({
 
   const fetchDatabaseHistory = useCallback(async () => {
     if (!currentSite?.id) {
-      // Skip query to avoid persisting NTC fallback when site context is loading
+      // Skip query to avoid persisting the fallback site when context is loading
       return;
     }
 
@@ -414,7 +414,7 @@ export const RoutineTasksDashboard = ({
         .select('target_hour, metrics, technician_name, submitted_at')
         // Facility logs only. telemetry_logs also carries dg_daily_test rows
         // (same hour, duplicating an entry in the modal) and
-        // AIRTEL_DAILY_CHECKLIST rows, whose metrics aren't telemetry at all
+        // daily-checklist rows, whose metrics aren't telemetry at all
         // and render as a garbage report.
         .eq('asset_id', 'facility_wide')
         .or(`metrics->>site_uuid.eq.${currentSite.id},metrics->>site_id.eq.${siteCode}`)
@@ -499,6 +499,13 @@ export const RoutineTasksDashboard = ({
   }, [fetchDatabaseHistory, siteCode, currentSite?.id]);
 
   const handleShareAndSave = async () => {
+    // iOS Safari only permits window.open while the tap's transient user
+    // activation is still alive, and awaiting the Supabase write below burns
+    // through it — which is why "Share & Save" silently did nothing on iPhone
+    // while working fine on Android. Claim the tab synchronously here, before
+    // any await, then point it at WhatsApp once the save settles.
+    const shareWindow = window.open('', '_blank');
+
     const { whatsappPayload, internalPayload } = generateReportTexts({
       siteCode,
       currentSiteName: currentSite?.site_name,
@@ -542,8 +549,18 @@ export const RoutineTasksDashboard = ({
       toast.warning("Network warning: Log saved to local history only.");
     }
 
-    const waUrl = `https://api.whatsapp.com/send?text=${encodeURIComponent(whatsappPayload)}`;
-    window.open(waUrl, '_blank');
+    // wa.me is WhatsApp's documented universal link and resolves more reliably
+    // on iOS than api.whatsapp.com, which round-trips through a web page first.
+    const waUrl = `https://wa.me/?text=${encodeURIComponent(whatsappPayload)}`;
+
+    if (shareWindow && !shareWindow.closed) {
+      shareWindow.location.href = waUrl;
+    } else {
+      // Popup blocked outright — happens when the app is running as an
+      // installed PWA in iOS standalone mode. Navigating the current tab is
+      // never popup-blocked, and the back gesture returns to the app.
+      window.location.href = waUrl;
+    }
   };
 
   // Helper to fetch last stop values of a specific generator.
@@ -684,7 +701,7 @@ export const RoutineTasksDashboard = ({
   if (isLoading) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[50vh] gap-3 text-gray-400">
-        <Loader2 size={32} className="text-red-500 animate-spin" />
+        <Loader2 size={32} className="text-brand-500 animate-spin" />
         <p className="text-xs font-bold uppercase tracking-widest text-gray-400">Loading slot data…</p>
       </div>
     );
@@ -697,13 +714,13 @@ export const RoutineTasksDashboard = ({
     <div className="max-w-md mx-auto space-y-6 pb-24">
       {/* Sticky Audit Banner */}
       <div className={`sticky top-0 z-[100] backdrop-blur-md text-white border px-4 py-2.5 rounded-2xl shadow-lg flex items-center justify-between text-[11px] font-black uppercase tracking-wider ${
-        isBackdating ? 'bg-amber-900/90 border-amber-700' : 'bg-slate-900/90 border-slate-800'
+        isBackdating ? 'bg-warn-900/90 border-warn-700' : 'bg-slate-900/90 border-slate-800'
       }`}>
         <span>
           {isBackdating ? 'Backdated Log: ' : 'Logging for Shift: '}
           {targetHour}
         </span>
-        <span className={`font-mono ${isBackdating ? 'text-amber-200' : 'text-gray-400'}`}>
+        <span className={`font-mono ${isBackdating ? 'text-warn-200' : 'text-gray-400'}`}>
           {isBackdating
             ? slotDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
             : `Actual: ${currentTime.toLocaleTimeString('en-US', { hour12: false })}`}
@@ -713,8 +730,8 @@ export const RoutineTasksDashboard = ({
       {/* Backdating is legitimate (catching up a missed slot) but must never be
           silent — the banner keeps the tech aware they aren't logging "now". */}
       {isBackdating && (
-        <div className="bg-amber-50 border border-amber-200/70 rounded-2xl px-4 py-2.5 flex items-start gap-2.5 text-[10px] font-bold text-amber-900 mx-1">
-          <AlertTriangle size={13} className="shrink-0 mt-0.5 text-amber-600" />
+        <div className="bg-warn-50 border border-warn-200/70 rounded-2xl px-4 py-2.5 flex items-start gap-2.5 text-[10px] font-bold text-warn-900 mx-1">
+          <AlertTriangle size={13} className="shrink-0 mt-0.5 text-warn-600" />
           <span>
             You are logging for <span className="font-black">
               {slotDate.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}
@@ -729,7 +746,7 @@ export const RoutineTasksDashboard = ({
           <button
             type="button"
             onClick={handleBack}
-            className="inline-flex items-center gap-2 py-3 px-4 rounded-xl bg-white border border-gray-200 text-xs font-bold text-gray-600 hover:text-red-600 active:scale-[0.98] transition-all cursor-pointer shadow-sm"
+            className="inline-flex items-center gap-2 py-3 px-4 rounded-xl bg-white border border-gray-200 text-xs font-bold text-gray-600 hover:text-brand-600 active:scale-[0.98] transition-all cursor-pointer shadow-sm"
           >
             <ArrowLeft size={14} />
             <span>← Back</span>
@@ -743,21 +760,21 @@ export const RoutineTasksDashboard = ({
           Log for {targetHour}
         </h1>
         <p className="text-xs text-gray-500 mt-1.5 flex flex-wrap gap-2 items-center">
-          <span className="font-semibold text-red-600 bg-red-50 px-2.5 py-0.5 rounded-full border border-red-100">
+          <span className="font-semibold text-brand-600 bg-brand-50 px-2.5 py-0.5 rounded-full border border-brand-100">
             {activeChecksLabel(isTwoHour, isFourHour, isDaily)}
           </span>
           {isEditMode && (
-            <span className="bg-amber-50 text-amber-800 text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full border border-amber-200 flex items-center gap-1">
+            <span className="bg-warn-50 text-warn-800 text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full border border-warn-200 flex items-center gap-1">
               <ClipboardList size={10} /> Editing
             </span>
           )}
           {fsmMode === 'ON_LOAD_TEST' && (
-            <span className="bg-amber-50 text-amber-800 text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full border border-amber-200 flex items-center gap-1">
+            <span className="bg-warn-50 text-warn-800 text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full border border-warn-200 flex items-center gap-1">
               <Zap size={10} /> Simulated Blackout (On-Load Test)
             </span>
           )}
           {fsmMode === 'OUTAGE' && (
-            <span className="bg-red-50 text-red-800 text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full border border-red-200 flex items-center gap-1">
+            <span className="bg-danger-50 text-danger-800 text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full border border-danger-200 flex items-center gap-1">
               <Zap size={10} /> Outage Mode
             </span>
           )}
@@ -776,7 +793,7 @@ export const RoutineTasksDashboard = ({
             type="button"
             onClick={() => setFsmMode('NORMAL')}
             className={`py-2.5 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all cursor-pointer flex flex-col items-center justify-center gap-1 text-center ${fsmMode === 'NORMAL'
-                ? "bg-white text-green-600 shadow-sm border border-slate-200/30"
+                ? "bg-white text-ok-600 shadow-sm border border-slate-200/30"
                 : "text-slate-500 hover:text-slate-700"
               }`}
           >
@@ -789,7 +806,7 @@ export const RoutineTasksDashboard = ({
             disabled={isDailyTestDoneToday && fsmMode !== 'DAILY_TEST'}
             onClick={() => setFsmMode('DAILY_TEST')}
             className={`py-2.5 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all cursor-pointer flex flex-col items-center justify-center gap-1 text-center ${fsmMode === 'DAILY_TEST'
-                ? "bg-amber-500 text-white shadow-sm"
+                ? "bg-warn-500 text-white shadow-sm"
                 : isDailyTestDoneToday
                   ? "opacity-50 cursor-not-allowed text-slate-400"
                   : "text-slate-500 hover:text-slate-700"
@@ -803,7 +820,7 @@ export const RoutineTasksDashboard = ({
             type="button"
             onClick={() => setFsmMode('ON_LOAD_TEST')}
             className={`py-2.5 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all cursor-pointer flex flex-col items-center justify-center gap-1 text-center ${fsmMode === 'ON_LOAD_TEST'
-                ? "bg-amber-600 text-white shadow-sm"
+                ? "bg-warn-600 text-white shadow-sm"
                 : "text-slate-500 hover:text-slate-700"
               }`}
           >
@@ -815,7 +832,7 @@ export const RoutineTasksDashboard = ({
             type="button"
             onClick={() => setFsmMode('OUTAGE')}
             className={`py-2.5 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all cursor-pointer flex flex-col items-center justify-center gap-1 text-center ${fsmMode === 'OUTAGE'
-                ? "bg-red-500 text-white shadow-sm"
+                ? "bg-danger-500 text-white shadow-sm"
                 : "text-slate-500 hover:text-slate-700"
               }`}
           >
@@ -826,12 +843,12 @@ export const RoutineTasksDashboard = ({
 
         {/* Daily Test completion gatekeeper banner */}
         {isDailyTestDoneToday && (
-          <div className="bg-green-50 border border-green-200/50 rounded-2xl p-3 flex items-center gap-2.5 text-[10px] font-bold text-green-800">
-            <CheckCircle2 size={14} className="text-green-600 shrink-0" />
+          <div className="bg-ok-50 border border-ok-200/50 rounded-2xl p-3 flex items-center gap-2.5 text-[10px] font-bold text-ok-800">
+            <CheckCircle2 size={14} className="text-ok-600 shrink-0" />
             <div>
               <span>Daily DG No-Load Test completed today</span>
               {dailyTestCompletedInfo && (
-                <span className="block text-[9px] font-semibold text-green-600/80 mt-0.5">
+                <span className="block text-[9px] font-semibold text-ok-600/80 mt-0.5">
                   At {dailyTestCompletedInfo.time} CAT by {dailyTestCompletedInfo.tech}
                 </span>
               )}
@@ -841,15 +858,15 @@ export const RoutineTasksDashboard = ({
 
         {/* Checkbox to mark Daily Test Completed during active test */}
         {fsmMode === 'DAILY_TEST' && !isDailyTestDoneToday && (
-          <div className="flex items-center gap-2 bg-amber-50 border border-amber-200/50 rounded-2xl p-3 animate-fade-in">
+          <div className="flex items-center gap-2 bg-warn-50 border border-warn-200/50 rounded-2xl p-3 animate-fade-in">
             <input
               id="mark_daily_completed"
               type="checkbox"
               checked={formData['daily_dg_test_completed'] === true}
               onChange={(e) => handleInputChange('daily_dg_test_completed', e.target.checked)}
-              className="w-4 h-4 rounded text-amber-600 focus:ring-amber-500 border-gray-300 cursor-pointer"
+              className="w-4 h-4 rounded text-warn-600 focus:ring-warn-500 border-gray-300 cursor-pointer"
             />
-            <label htmlFor="mark_daily_completed" className="text-[10px] font-black text-amber-950 uppercase tracking-wider cursor-pointer">
+            <label htmlFor="mark_daily_completed" className="text-[10px] font-black text-warn-950 uppercase tracking-wider cursor-pointer">
               Mark Daily DG No-Load Test Completed
             </label>
           </div>
@@ -940,8 +957,8 @@ export const RoutineTasksDashboard = ({
 
       {/* Error banner */}
       {submitError && (
-        <div className="bg-red-50 border border-red-200 rounded-2xl p-4 flex items-center gap-3 text-sm text-red-800 shadow-sm mx-1">
-          <AlertTriangle size={18} className="text-red-600 shrink-0" />
+        <div className="bg-danger-50 border border-danger-200 rounded-2xl p-4 flex items-center gap-3 text-sm text-danger-800 shadow-sm mx-1">
+          <AlertTriangle size={18} className="text-danger-600 shrink-0" />
           <span className="font-medium">{submitError}</span>
         </div>
       )}
@@ -974,10 +991,10 @@ export const RoutineTasksDashboard = ({
               className={`flex-1 py-3.5 rounded-2xl text-white font-black text-xs tracking-widest uppercase transition-all shadow-lg flex items-center justify-center gap-2 ${isSubmitting
                   ? "bg-gray-400 shadow-none cursor-not-allowed text-gray-100"
                   : isSuccess
-                    ? "bg-green-600 shadow-green-600/10 active:scale-[0.98]"
+                    ? "bg-ok-600 shadow-ok-600/10 active:scale-[0.98]"
                     : (fsmMode === 'OUTAGE' || fsmMode === 'ON_LOAD_TEST')
-                      ? "bg-red-600 hover:bg-red-700 shadow-red-600/10 active:scale-[0.98]"
-                      : "bg-red-600 hover:bg-red-700 shadow-red-600/10 active:scale-[0.98]"
+                      ? "bg-danger-600 hover:bg-danger-700 shadow-danger-600/10 active:scale-[0.98]"
+                      : "bg-danger-600 hover:bg-danger-700 shadow-danger-600/10 active:scale-[0.98]"
                 }`}
             >
               {isSubmitting ? (

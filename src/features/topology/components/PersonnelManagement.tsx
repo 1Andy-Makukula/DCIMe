@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { siteLabel } from "@/shared/utils/branding";
 import { supabase } from "@/shared/api/supabaseClient";
 import { useCurrentSite } from "@/shared/context/SiteContext";
 import { RegistrationForm } from "@/features/auth/components/RegistrationForm";
@@ -55,16 +56,16 @@ interface Personnel {
 // ── Role badge config ─────────────────────────────────────────────────────────
 const ROLE_BADGE: Record<Role, string> = {
   "NOC Admin":       "bg-purple-100 text-purple-700 border border-purple-200",
-  "L2 Engineer":     "bg-blue-100   text-blue-700   border border-blue-200",
+  "L2 Engineer":     "bg-info-100   text-info-700   border border-info-200",
   "L1 Tech":         "bg-gray-100   text-gray-600   border border-gray-200",
-  "Security Officer":"bg-amber-100  text-amber-700  border border-amber-200",
+  "Security Officer":"bg-warn-100  text-warn-700  border border-warn-200",
 };
 
 // ── Status badge config ───────────────────────────────────────────────────────
 const STATUS_BADGE: Record<Status, { cls: string; dot: string; label: string }> = {
-  "On-Shift": { cls: "bg-green-100 text-green-700",  dot: "bg-green-500",  label: "On-Shift" },
+  "On-Shift": { cls: "bg-ok-100 text-ok-700",  dot: "bg-ok-500",  label: "On-Shift" },
   "Active":   { cls: "bg-gray-100  text-gray-600",   dot: "bg-gray-400",   label: "Active"   },
-  "Revoked":  { cls: "bg-red-100   text-red-700",    dot: "bg-red-500",    label: "Revoked"  },
+  "Revoked":  { cls: "bg-danger-100   text-danger-700",    dot: "bg-danger-500",    label: "Revoked"  },
 };
 
 // ── Access level pips ─────────────────────────────────────────────────────────
@@ -75,7 +76,7 @@ function AccessPips({ level }: { level: number }) {
         <span
           key={i}
           className={`w-2.5 h-1.5 rounded-sm ${
-            i < level ? "bg-red-500" : "bg-gray-200"
+            i < level ? "bg-brand-500" : "bg-gray-200"
           }`}
         />
       ))}
@@ -310,7 +311,7 @@ function EditPersonnelModal({ isOpen, onClose, onSaveSuccess, person }: EditPers
                       value={s.id} 
                       className="text-[12px] font-semibold text-gray-900 cursor-pointer"
                     >
-                      {s.site_name} ({s.site_code})
+                      {siteLabel(s.site_name ?? s.site_code)}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -328,7 +329,7 @@ function EditPersonnelModal({ isOpen, onClose, onSaveSuccess, person }: EditPers
                   onClick={() => setRole("FIELD_TECH")}
                   className={`py-3 rounded-xl text-center text-xs font-black uppercase tracking-wider transition-all border cursor-pointer ${
                     role === "FIELD_TECH"
-                      ? "bg-red-50 border-red-500 text-red-700"
+                      ? "bg-brand-50 border-brand-500 text-brand-700"
                       : "bg-gray-50 border-gray-200 text-gray-500 hover:bg-gray-100"
                   }`}
                 >
@@ -392,15 +393,15 @@ function ConfirmDialog({
       style={{ backgroundColor: "rgba(0,0,0,0.45)", backdropFilter: "blur(4px)" }}
     >
       <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm overflow-hidden">
-        <div className={`px-6 pt-6 pb-4 flex items-start gap-4 ${isRevoke ? "bg-red-50" : "bg-green-50"}`}>
-          <div className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 ${isRevoke ? "bg-red-100" : "bg-green-100"}`}>
+        <div className={`px-6 pt-6 pb-4 flex items-start gap-4 ${isRevoke ? "bg-danger-50" : "bg-ok-50"}`}>
+          <div className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 ${isRevoke ? "bg-danger-100" : "bg-ok-100"}`}>
             {isRevoke
-              ? <ShieldBan size={20} className="text-red-600" />
-              : <UserCheck size={20} className="text-green-600" />
+              ? <ShieldBan size={20} className="text-danger-600" />
+              : <UserCheck size={20} className="text-ok-600" />
             }
           </div>
           <div>
-            <h3 className={`text-[14px] font-black leading-none mb-1 ${isRevoke ? "text-red-800" : "text-green-800"}`}>
+            <h3 className={`text-[14px] font-black leading-none mb-1 ${isRevoke ? "text-danger-800" : "text-ok-800"}`}>
               {isRevoke ? "Revoke Access?" : "Reinstate Access?"}
             </h3>
             <p className="text-[12px] font-semibold text-gray-600 leading-snug">
@@ -421,7 +422,7 @@ function ConfirmDialog({
           <button
             onClick={onConfirm}
             className={`flex items-center gap-1.5 px-4 py-2 rounded-xl text-[11px] font-black text-white uppercase tracking-wider active:scale-[0.98] transition-all cursor-pointer ${
-              isRevoke ? "bg-red-600 hover:bg-red-700" : "bg-green-600 hover:bg-green-700"
+              isRevoke ? "bg-danger-600 hover:bg-danger-700" : "bg-ok-600 hover:bg-ok-700"
             }`}
           >
             {isRevoke ? <ShieldBan size={12} /> : <UserCheck size={12} />}
@@ -469,11 +470,11 @@ export function PersonnelManagement() {
 
     const getAvatarColor = (name: string) => {
       const colors = [
-        "bg-red-500",
-        "bg-blue-500",
-        "bg-emerald-500",
+        "bg-brand-500",
+        "bg-info-500",
+        "bg-ok-500",
         "bg-violet-500",
-        "bg-amber-500",
+        "bg-warn-500",
         "bg-cyan-500",
         "bg-pink-500",
         "bg-indigo-500"
@@ -654,8 +655,8 @@ export function PersonnelManagement() {
       value:     totalCleared,
       sub:       `${roster.length} total registered`,
       icon:      Users,
-      iconBg:    "bg-blue-50",
-      iconColor: "text-blue-500",
+      iconBg:    "bg-info-50",
+      iconColor: "text-info-500",
       valueColor:"text-gray-900",
     },
     {
@@ -663,9 +664,9 @@ export function PersonnelManagement() {
       value:     onShiftCount,
       sub:       "Live active sessions",
       icon:      Activity,
-      iconBg:    "bg-green-50",
-      iconColor: "text-green-500",
-      valueColor:"text-green-600",
+      iconBg:    "bg-ok-50",
+      iconColor: "text-ok-500",
+      valueColor:"text-ok-600",
       pulse:     true,
     },
     {
@@ -673,9 +674,9 @@ export function PersonnelManagement() {
       value:     revokedCount,
       sub:       "Accounts suspended",
       icon:      ShieldBan,
-      iconBg:    "bg-red-50",
-      iconColor: "text-red-500",
-      valueColor:"text-red-600",
+      iconBg:    "bg-danger-50",
+      iconColor: "text-danger-500",
+      valueColor:"text-danger-600",
     },
   ] as const;
 
@@ -729,7 +730,7 @@ export function PersonnelManagement() {
               Personnel &amp; Security Access
             </h1>
             <p className="text-[12px] font-semibold text-gray-400 mt-1">
-              Manage IAM, shift rosters, and zone clearances · Site {currentSite?.site_name || "NTC ZM-0874"}
+              Manage IAM, shift rosters, and zone clearances · {siteLabel(currentSite?.site_name)}
             </p>
           </div>
 
@@ -756,7 +757,7 @@ export function PersonnelManagement() {
                   {"pulse" in card && card.pulse ? (
                     <div className="relative">
                       <Icon size={22} className={card.iconColor} />
-                      <span className="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-green-500 border-2 border-white animate-pulse" />
+                      <span className="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-ok-500 border-2 border-white animate-pulse" />
                     </div>
                   ) : (
                     <Icon size={22} className={card.iconColor} />
@@ -933,7 +934,7 @@ export function PersonnelManagement() {
                               <button
                                 onClick={() => handleToggleAccess(person)}
                                 title="Reinstate access"
-                                className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg border border-green-300 text-green-700 bg-green-50 hover:bg-green-100 text-[10px] font-black uppercase tracking-wider transition-all active:scale-[0.97] cursor-pointer"
+                                className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg border border-ok-300 text-ok-700 bg-ok-50 hover:bg-ok-100 text-[10px] font-black uppercase tracking-wider transition-all active:scale-[0.97] cursor-pointer"
                               >
                                 <UserCheck size={11} />
                                 Reinstate
@@ -942,7 +943,7 @@ export function PersonnelManagement() {
                               <button
                                 onClick={() => handleToggleAccess(person)}
                                 title="Revoke access"
-                                className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg border border-red-300 text-red-700 bg-red-50 hover:bg-red-100 text-[10px] font-black uppercase tracking-wider transition-all active:scale-[0.97] cursor-pointer"
+                                className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg border border-danger-300 text-danger-700 bg-danger-50 hover:bg-danger-100 text-[10px] font-black uppercase tracking-wider transition-all active:scale-[0.97] cursor-pointer"
                               >
                                 <ShieldBan size={11} />
                                 Revoke
@@ -981,9 +982,9 @@ export function PersonnelManagement() {
 
                             {/* Revoked warning banner */}
                             {isRevoked && (
-                              <div className="mt-3 flex items-center gap-2 px-4 py-2.5 rounded-xl bg-red-50 border border-red-200">
-                                <AlertTriangle size={13} className="text-red-500 flex-shrink-0" />
-                                <span className="text-[11px] font-bold text-red-700">
+                              <div className="mt-3 flex items-center gap-2 px-4 py-2.5 rounded-xl bg-danger-50 border border-danger-200">
+                                <AlertTriangle size={13} className="text-danger-500 flex-shrink-0" />
+                                <span className="text-[11px] font-bold text-danger-700">
                                   This account has been suspended. All active sessions have been terminated and badge access revoked.
                                 </span>
                               </div>
@@ -1005,7 +1006,7 @@ export function PersonnelManagement() {
             </span>
             <div className="flex items-center gap-1.5 text-[10px] font-black text-gray-400 uppercase tracking-wider">
               <Shield size={11} />
-              Site NTC ZM-0874
+              {currentSite?.site_name || "—"}
             </div>
           </div>
         </div>

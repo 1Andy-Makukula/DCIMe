@@ -1,0 +1,72 @@
+name: Topology Engine
+
+on:
+  push:
+    paths:
+      - 'topology_engine/**'
+      - '.github/workflows/engine.yml'
+  pull_request:
+    paths:
+      - 'topology_engine/**'
+      - '.github/workflows/engine.yml'
+  workflow_dispatch:
+
+# Deliberately no CMake. The local workflow compiles with g++ and emcc directly
+# (test_engine.ps1 / build_wasm.ps1), so CI uses the same commands — a build
+# that passes here passes on the dev machine, and there is no third build
+# system to keep in sync.
+
+jobs:
+  # The safety net. Seconds to run, no browser, no emsdk. This is the job that
+  # must stay green: it proves a refactor of PowerMatrix changed only what it
+  # was meant to change.
+  native-tests:
+    name: Native golden tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Compile golden test runner
+        run: |
+          g++ topology_engine/core/src/PowerMatrix.cpp \
+              topology_engine/tests/run_tests.cpp \
+              -I topology_engine/core/include \
+              -std=c++17 -O1 -Wall \
+              -o run_tests
+
+      - name: Run golden tests
+        run: ./run_tests topology_engine/tests/fixtures
+
+  # Catches a change that compiles natively but breaks the WASM/embind build —
+  # e.g. adding a method to PowerMatrix without binding it in wasm_bridge.cpp.
+  wasm-build:
+    name: WASM build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: mymindstorm/setup-emsdk@v14
+        with:
+          version: 3.1.51
+          actions-cache-folder: emsdk-cache
+
+      # Mirrors build_wasm.ps1 exactly.
+      - name: Compile C++ to WASM
+        run: |
+          mkdir -p ci-wasm
+          emcc topology_engine/core/src/PowerMatrix.cpp \
+               topology_engine/bindings/wasm_bridge.cpp \
+               -I topology_engine/core/include \
+               -O2 -std=c++17 --bind \
+               -s WASM=1 \
+               -s MODULARIZE=1 \
+               -s EXPORT_NAME='"TopologyEngine"' \
+               -s ALLOW_MEMORY_GROWTH=1 \
+               -s EXPORTED_RUNTIME_METHODS='["ccall","cwrap"]' \
+               -o ci-wasm/topology_engine.js
+
+      - name: Verify artifacts
+        run: |
+          test -f ci-wasm/topology_engine.js   || (echo "missing topology_engine.js"; exit 1)
+          test -f ci-wasm/topology_engine.wasm || (echo "missing topology_engine.wasm"; exit 1)
+          ls -la ci-wasm/

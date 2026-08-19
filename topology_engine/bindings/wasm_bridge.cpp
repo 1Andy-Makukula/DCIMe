@@ -21,10 +21,36 @@ EMSCRIPTEN_BINDINGS(topology_engine) {
         .field("status", &Node::status);
 
     register_vector<Node>("vector_Node");
+    register_vector<std::string>("vector_string");
 
     class_<PowerMatrix>("PowerMatrix")
         .constructor<>()
         .function("addNode", &PowerMatrix::addNode)
+        // ── Graph lifecycle (Stage 4a) ────────────────────────────────────
+        // beginLoad -> addNode* -> addEdge* -> buildGraph -> [frozen]
+        //
+        // NOTE: embind does not honour C++ default arguments. addEdge is bound
+        // at its full arity, so JavaScript must always pass all five:
+        //   engine.addEdge(src, tgt, priority, sourcePort, targetPort)
+        .function("beginLoad", &PowerMatrix::beginLoad)
+        .function("addEdge", &PowerMatrix::addEdge)
+        .function("setInputPolicy", &PowerMatrix::setInputPolicy)
+        .function("setGeneratorPair", &PowerMatrix::setGeneratorPair)
+        .function("buildGraph", &PowerMatrix::buildGraph)
+        .function("isGraphBuilt", &PowerMatrix::isGraphBuilt)
+        .function("getEdgeCount", &PowerMatrix::getEdgeCount)
+        .function("getGraphIssues", &PowerMatrix::getGraphIssues)
+        .function("getTopoOrder", &PowerMatrix::getTopoOrder)
+        .function("getFeeders", &PowerMatrix::getFeeders)
+        .function("getLoads", &PowerMatrix::getLoads)
+        // ── Two-phase evaluation results (Stage 4b) ───────────────────────
+        // isEnergised drives node colouring; getAccumulatedLoad and
+        // getHeadroom are the inputs to stranded capacity; getSelectedFeeder
+        // distinguishes "on mains" from "on generator" at a changeover.
+        .function("isEnergised", &PowerMatrix::isEnergised)
+        .function("getAccumulatedLoad", &PowerMatrix::getAccumulatedLoad)
+        .function("getHeadroom", &PowerMatrix::getHeadroom)
+        .function("getSelectedFeeder", &PowerMatrix::getSelectedFeeder)
         .function("updateNodeTelemetry", &PowerMatrix::updateNodeTelemetry)
         .function("toggleNodeFault", &PowerMatrix::toggleNodeFault)
         .function("clearAllFaults", &PowerMatrix::clearAllFaults)

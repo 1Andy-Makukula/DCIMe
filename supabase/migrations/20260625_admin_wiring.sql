@@ -84,12 +84,12 @@ ON CONFLICT (equipment_id) DO NOTHING;
 -- ── 6. Seed Initial Roster ────────────────────────────────────
 INSERT INTO public.employees (badge_id, full_name, role, email, phone, clearance_zone, shift_schedule, access_level, status)
 VALUES
-  ('ZM-4891', 'Ndabane Anderson M.', 'ADMIN', 'anderson.m@airtel.zm', '+260 97 123 4567', 'Global (All Rooms)', '06:00 – 14:00', 5, 'Active'),
-  ('ZM-5204', 'Chileshe Kapumpe K.', 'FIELD_TECH', 'chileshe.k@airtel.zm', '+260 96 234 5678', 'Power Room 1 & 2', '14:00 – 22:00', 3, 'Active'),
-  ('ZM-5491', 'Mwansa Bwalya B.', 'FIELD_TECH', 'mwansa.b@airtel.zm', '+260 95 345 6789', 'Main Room', '22:00 – 06:00', 3, 'Active'),
-  ('ZM-3874', 'Tembo Sikazwe R.', 'ADMIN', 'tembo.r@airtel.zm', '+260 97 456 7890', 'Global (All Rooms)', '14:00 – 22:00', 5, 'Active'),
-  ('ZM-6102', 'Phiri Grace N.', 'FIELD_TECH', 'grace.n@airtel.zm', '+260 96 567 8901', 'Entrance Room 1', '06:00 – 14:00', 1, 'Active'),
-  ('ZM-5889', 'Lungu Mpande D.', 'FIELD_TECH', 'lungu.d@airtel.zm', '+260 95 678 9012', 'Power Room 2', '22:00 – 06:00', 1, 'Revoked'),
-  ('ZM-4477', 'Kabwe Mutale F.', 'FIELD_TECH', 'kabwe.f@airtel.zm', '+260 97 789 0123', 'Global (All Rooms)', '06:00 – 18:00', 4, 'Active'),
-  ('ZM-5714', 'Sakala Josephine M.', 'FIELD_TECH', 'josephine.s@airtel.zm', '+260 96 890 1234', 'Main Room', '06:00 – 14:00', 3, 'Active')
+  ('ZM-4891', 'Ndabane Anderson M.', 'ADMIN', 'anderson.m@sintech.zm', '+260 97 123 4567', 'Global (All Rooms)', '06:00 – 14:00', 5, 'Active'),
+  ('ZM-5204', 'Chileshe Kapumpe K.', 'FIELD_TECH', 'chileshe.k@sintech.zm', '+260 96 234 5678', 'Power Room 1 & 2', '14:00 – 22:00', 3, 'Active'),
+  ('ZM-5491', 'Mwansa Bwalya B.', 'FIELD_TECH', 'mwansa.b@sintech.zm', '+260 95 345 6789', 'Main Room', '22:00 – 06:00', 3, 'Active'),
+  ('ZM-3874', 'Tembo Sikazwe R.', 'ADMIN', 'tembo.r@sintech.zm', '+260 97 456 7890', 'Global (All Rooms)', '14:00 – 22:00', 5, 'Active'),
+  ('ZM-6102', 'Phiri Grace N.', 'FIELD_TECH', 'grace.n@sintech.zm', '+260 96 567 8901', 'Entrance Room 1', '06:00 – 14:00', 1, 'Active'),
+  ('ZM-5889', 'Lungu Mpande D.', 'FIELD_TECH', 'lungu.d@sintech.zm', '+260 95 678 9012', 'Power Room 2', '22:00 – 06:00', 1, 'Revoked'),
+  ('ZM-4477', 'Kabwe Mutale F.', 'FIELD_TECH', 'kabwe.f@sintech.zm', '+260 97 789 0123', 'Global (All Rooms)', '06:00 – 18:00', 4, 'Active'),
+  ('ZM-5714', 'Sakala Josephine M.', 'FIELD_TECH', 'josephine.s@sintech.zm', '+260 96 890 1234', 'Main Room', '06:00 – 14:00', 3, 'Active')
 ON CONFLICT (badge_id) DO NOTHING;

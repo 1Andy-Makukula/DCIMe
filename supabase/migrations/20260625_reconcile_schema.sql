@@ -9,12 +9,12 @@
 ALTER TABLE public.employees ADD COLUMN IF NOT EXISTS email text;
 ALTER TABLE public.employees ADD COLUMN IF NOT EXISTS employee_id text;
 ALTER TABLE public.employees ADD COLUMN IF NOT EXISTS phone_number text;
-ALTER TABLE public.employees ADD COLUMN IF NOT EXISTS site_id text DEFAULT 'NTC ZM 0874';
+ALTER TABLE public.employees ADD COLUMN IF NOT EXISTS site_id text DEFAULT 'Site 1';
 
 -- Ensure existing rows comply (safety fallback for nulls)
 UPDATE public.employees SET email = id::text || '@dcime.local' WHERE email IS NULL;
 UPDATE public.employees SET employee_id = 'EMP-' || upper(substring(id::text from 1 for 4)) WHERE employee_id IS NULL;
-UPDATE public.employees SET site_id = 'NTC ZM 0874' WHERE site_id IS NULL;
+UPDATE public.employees SET site_id = 'Site 1' WHERE site_id IS NULL;
 
 -- Enforce NOT NULL constraints
 ALTER TABLE public.employees ALTER COLUMN email SET NOT NULL;

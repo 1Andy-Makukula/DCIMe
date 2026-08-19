@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from "react";
+import { siteLabel } from "@/shared/utils/branding";
 import { supabase } from "@/shared/api/supabaseClient";
 import { useCurrentSite } from "@/shared/context/SiteContext";
 
@@ -148,7 +149,7 @@ export function useIncidents() {
       const newIncident = {
         ticket_number: ticketNum,
         status: "OPEN" as const,
-        site_name: payload.site_name || "NTC ZM 0874",
+        site_name: siteLabel(payload.site_name),
         site_uuid: payload.site_uuid || null,
         asset_id: payload.asset_id,
         severity: (payload.severity.toLowerCase() as "low" | "medium" | "critical") || "medium",

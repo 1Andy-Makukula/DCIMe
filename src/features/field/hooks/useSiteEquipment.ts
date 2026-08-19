@@ -2,7 +2,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/shared/api/supabaseClient";
 import { useCurrentSite } from "@/shared/context/SiteContext";
-import { SITE_BLUEPRINTS } from "@/config/sites";
+import { SITE_BLUEPRINTS, DEFAULT_SITE_CODE } from "@/config/sites";
 
 export interface EquipmentParameter {
   id: string;
@@ -39,8 +39,8 @@ export interface GroupedEquipment {
 
 export function useSiteEquipment() {
   const { currentSite } = useCurrentSite();
-  const siteCode = currentSite?.site_code || "NTC";
-  const blueprint = SITE_BLUEPRINTS[siteCode] || SITE_BLUEPRINTS.NTC;
+  const siteCode = currentSite?.site_code || DEFAULT_SITE_CODE;
+  const blueprint = SITE_BLUEPRINTS[siteCode] || SITE_BLUEPRINTS[DEFAULT_SITE_CODE];
 
   const [groupedEquipment, setGroupedEquipment] = useState<GroupedEquipment>({});
   const [isLoading, setIsLoading] = useState<boolean>(true);

@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, useRef } from "react";
+import { siteLabel } from "@/shared/utils/branding";
 import { supabase } from "@/shared/api/supabaseClient";
 import { useCurrentSite } from "./SiteContext";
 
@@ -15,7 +16,7 @@ export interface EmployeeProfile {
   email: string;         // unique email
   employee_id: string;   // unique badge/staff ID (e.g. ZM-4891)
   phone_number: string;  // phone number
-  site_id: string;       // primary site location (e.g. NTC ZM 0874)
+  site_id: string;       // primary site location (generic label, e.g. Site 1)
   role: "ADMIN" | "FIELD_TECH";
   status: "Active" | "Revoked";
   created_at: string;
@@ -311,7 +312,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setIsLoading(false);
   };
 
-  const siteId = employee?.site_id || "NTC ZM 0874";
+  const siteId = siteLabel(employee?.site_id);
   const employeeId = employee?.employee_id || "EMP-UNKNOWN";
 
   return (

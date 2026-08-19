@@ -1,7 +1,10 @@
 import { useState, useEffect, useCallback } from "react";
+import { siteLabel } from "@/shared/utils/branding";
 import { supabase } from "@/shared/api/supabaseClient";
 import { useCurrentSite } from "@/shared/context/SiteContext";
 import { useAuth } from "@/shared/context/AuthContext";
+import { DateRangePicker } from "@/shared/ui";
+import { useDateRange } from "@/shared/utils/useDateRange";
 
 import {
   AlertTriangle,
@@ -45,39 +48,42 @@ interface Incident {
   resolvedAt?: string;
   resolution?: string;
   duration?:   string;
+  /** Null on rows resolved before this was tracked, or via legacy paths. */
+  resolvedByType?: "INTERNAL_TECH" | "EXTERNAL_CONTRACTOR" | null;
+  contractorEngaged?: string | null;
 }
 
 // ── Severity config ───────────────────────────────────────────────────────────
 const SEV_CONFIG = {
   critical: {
     border:   "border-l-red-500",
-    bg:       "bg-red-50",
-    badgeBg:  "bg-red-100",
-    badgeText:"text-red-700",
-    iconColor:"#DC2626",
+    bg:       "bg-danger-50",
+    badgeBg:  "bg-danger-100",
+    badgeText:"text-danger-700",
+    iconColor:"var(--color-danger-600)",
     label:    "CRITICAL",
     Icon:     AlertCircle,
-    headerBg: "bg-red-50/60",
+    headerBg: "bg-danger-50/60",
   },
   warning: {
     border:   "border-l-yellow-500",
-    bg:       "bg-yellow-50",
-    badgeBg:  "bg-yellow-100",
-    badgeText:"text-yellow-700",
+    bg:       "bg-warn-50",
+    badgeBg:  "bg-warn-100",
+    badgeText:"text-warn-700",
     iconColor:"#D97706",
     label:    "WARNING",
     Icon:     AlertTriangle,
-    headerBg: "bg-yellow-50/60",
+    headerBg: "bg-warn-50/60",
   },
   info: {
     border:   "border-l-blue-500",
-    bg:       "bg-blue-50",
-    badgeBg:  "bg-blue-100",
-    badgeText:"text-blue-700",
+    bg:       "bg-info-50",
+    badgeBg:  "bg-info-100",
+    badgeText:"text-info-700",
     iconColor:"#2563EB",
     label:    "INFO",
     Icon:     Info,
-    headerBg: "bg-blue-50/60",
+    headerBg: "bg-info-50/60",
   },
 } as const;
 
@@ -118,14 +124,14 @@ function EvidenceImage({ photoUrl, technicianName }: { photoUrl?: string | null;
 
   const getStableColors = (n: string) => {
     const themes = [
-      { bg: "from-rose-500 to-red-600", border: "border-rose-200" },
-      { bg: "from-blue-500 to-indigo-600", border: "border-blue-200" },
-      { bg: "from-emerald-500 to-teal-600", border: "border-emerald-200" },
+      { bg: "from-danger-500 to-danger-600", border: "border-danger-200" },
+      { bg: "from-info-500 to-indigo-600", border: "border-info-200" },
+      { bg: "from-ok-500 to-teal-600", border: "border-ok-200" },
       { bg: "from-violet-500 to-purple-600", border: "border-violet-200" },
-      { bg: "from-amber-500 to-orange-600", border: "border-amber-200" },
+      { bg: "from-warn-500 to-warn-600", border: "border-warn-200" },
       { bg: "from-cyan-500 to-sky-600", border: "border-cyan-200" },
       { bg: "from-pink-500 to-fuchsia-600", border: "border-pink-200" },
-      { bg: "from-teal-500 to-emerald-600", border: "border-teal-200" }
+      { bg: "from-teal-500 to-ok-600", border: "border-teal-200" }
     ];
     if (!n) return themes[0];
     let hash = 0;
@@ -256,7 +262,7 @@ function ActiveCard({
             <div className="text-[9px] font-black text-gray-400 uppercase tracking-widest mb-1.5">
               Telemetry Snapshot
             </div>
-            <div className="font-mono text-[11px] text-gray-700 bg-gray-900 text-green-400 rounded-xl px-4 py-3 leading-relaxed tracking-wide">
+            <div className="font-mono text-[11px] text-gray-700 bg-gray-900 text-ok-400 rounded-xl px-4 py-3 leading-relaxed tracking-wide">
               {incident.telemetry.split("  |  ").map((seg, i) => (
                 <span key={i}>
                   {i > 0 && (
@@ -297,7 +303,7 @@ function ActiveCard({
 
             <button
               onClick={(e) => { e.stopPropagation(); onResolve(incident.dbId); }}
-              className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-green-600 text-white text-[11px] font-black hover:bg-green-700 active:scale-[0.98] transition-all shadow-sm shadow-green-500/20 cursor-pointer"
+              className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-ok-600 text-white text-[11px] font-black hover:bg-ok-700 active:scale-[0.98] transition-all shadow-sm shadow-ok-500/20 cursor-pointer"
             >
               <CheckCircle2 size={13} />
               Resolve / Clear
@@ -319,6 +325,17 @@ function ResolvedCard({ incident }: { incident: Incident }) {
   const [expanded, setExpanded] = useState(false);
   const cfg = SEV_CONFIG[incident.severity];
   const { Icon } = cfg;
+
+  // "Operator" was previously hardcoded regardless of who actually closed the
+  // ticket. resolvedByType is null on rows resolved before this was tracked
+  // (or via a path that doesn't set it), so "Operator" remains the honest
+  // fallback there — it's just no longer asserted for every row.
+  const resolverLabel =
+    incident.resolvedByType === "EXTERNAL_CONTRACTOR"
+      ? (incident.contractorEngaged ? `Contractor (${incident.contractorEngaged})` : "Contractor")
+      : incident.resolvedByType === "INTERNAL_TECH"
+        ? "Site Technician"
+        : "Operator";
 
   return (
     <div className="bg-white border border-gray-100 border-l-4 border-l-gray-300 rounded-2xl shadow-sm overflow-hidden opacity-80 hover:opacity-100 transition-opacity">
@@ -344,12 +361,12 @@ function ResolvedCard({ incident }: { incident: Incident }) {
               </span>
             )}
             {incident.id?.startsWith("VISIT-") ? (
-              <div className="ml-auto flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-100 text-emerald-700 text-[10px] font-black uppercase tracking-wider">
+              <div className="ml-auto flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-ok-100 text-ok-700 text-[10px] font-black uppercase tracking-wider">
                 <User size={10} />
                 Visit Logged
               </div>
             ) : (
-              <div className="ml-auto flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-green-100 text-green-700 text-[10px] font-black uppercase tracking-wider">
+              <div className="ml-auto flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-ok-100 text-ok-700 text-[10px] font-black uppercase tracking-wider">
                 <ShieldCheck size={10} />
                 Resolved
               </div>
@@ -401,18 +418,18 @@ function ResolvedCard({ incident }: { incident: Incident }) {
             <div className="text-[9px] font-black text-gray-400 uppercase tracking-widest mb-1.5">
               Resolution Notes
             </div>
-            <p className="text-[12px] font-semibold text-gray-600 leading-snug bg-green-50 border border-green-100 rounded-xl px-4 py-3">
+            <p className="text-[12px] font-semibold text-gray-600 leading-snug bg-ok-50 border border-ok-100 rounded-xl px-4 py-3">
               {incident.resolution}
             </p>
           </div>
 
           {/* Resolver info */}
           <div className="flex items-center gap-2 text-[10px] font-semibold text-gray-400">
-            <ShieldCheck size={11} className="text-green-500" />
+            <ShieldCheck size={11} className="text-ok-500" />
             <span>
               Cleared by{" "}
               <span className="font-black text-gray-600">{incident.resolvedBy}</span>
-              {" "}· Operator · at {incident.resolvedAt}
+              {" "}· {resolverLabel} · at {incident.resolvedAt}
             </span>
             <span className="ml-auto font-mono font-black text-gray-400">
               {incident.id}
@@ -433,6 +450,11 @@ export function AlertsLog() {
   const [isLoading,    setIsLoading]    = useState(true);
   const [expandedId,   setExpandedId]   = useState<string | null>(null);
   const [lastSync,     setLastSync]     = useState<string>("");
+
+  // Deliberately scoped to the Resolved tab only. An OPEN fault must never
+  // disappear from Active because it happens to be older than the selected
+  // period — date filtering only makes sense for browsing closed history.
+  const { range, preset, setPreset, setCustomRange } = useDateRange("30d");
 
 
   const mapRowToIncident = (row: any): Incident => {
@@ -500,7 +522,7 @@ export function AlertsLog() {
       timestamp:      formatTime(row.occurred_at || row.created_at),
       asset:          row.asset_id,
       assetId:        row.asset_id,
-      location:       row.site_name || "NTC ZM 0874",
+      location:       siteLabel(row.site_name),
       description:    row.notes || "No description provided",
       telemetry:      telemetryStr,
       category:       categoryStr,
@@ -512,6 +534,8 @@ export function AlertsLog() {
 
       resolvedBy:     row.resolved_by_name,
       resolvedAt:     row.resolved_at ? formatShortTime(row.resolved_at) : undefined,
+      resolvedByType: row.resolved_by_type ?? null,
+      contractorEngaged: row.contractor_engaged ?? null,
       resolution:     row.resolution_details,
       duration:       row.resolved_at ? formatDuration(row.occurred_at || row.created_at, row.resolved_at) : undefined,
     };
@@ -529,24 +553,42 @@ export function AlertsLog() {
     }
 
     try {
-      const { data, error } = await supabase
-        .from("incidents")
-        .select("*")
-        .order("created_at", { ascending: false })
-        .eq("site_uuid", currentSite.id);
+      // Two queries, not one — an open fault must stay visible in Active
+      // regardless of age, so it is fetched unbounded (capped only as a
+      // defensive ceiling, never as the real limit). Resolved history is
+      // exactly what "browse by period" means, so it's scoped to the
+      // selected range — this used to be a single unfiltered query pulling
+      // every incident ever logged into the browser on every mount.
+      const [openRes, resolvedRes] = await Promise.all([
+        supabase
+          .from("incidents")
+          .select("*")
+          .eq("site_uuid", currentSite.id)
+          .eq("status", "OPEN")
+          .order("created_at", { ascending: false })
+          .limit(1000),
+        supabase
+          .from("incidents")
+          .select("*")
+          .eq("site_uuid", currentSite.id)
+          .eq("status", "RESOLVED")
+          .gte("resolved_at", range.start.toISOString())
+          .lte("resolved_at", range.end.toISOString())
+          .order("resolved_at", { ascending: false })
+          .limit(1000),
+      ]);
 
-      if (error) throw error;
+      if (openRes.error) throw openRes.error;
+      if (resolvedRes.error) throw resolvedRes.error;
 
-      if (data) {
-        setRawIncidents(data);
-      }
+      setRawIncidents([...(openRes.data || []), ...(resolvedRes.data || [])]);
       setLastSync(new Date().toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" }));
     } catch (err) {
       console.error("Error fetching incidents:", err);
     } finally {
       setIsLoading(false);
     }
-  }, [currentSite?.id]);
+  }, [currentSite?.id, range.start.getTime(), range.end.getTime()]);
 
   useEffect(() => {
     fetchIncidents();
@@ -623,7 +665,12 @@ export function AlertsLog() {
           resolved_by_id: operatorId,
           receipt_number: receiptNumber,
           impact: "Minimal operational impact, resolved by operator.",
-          contractor_engaged: "None",
+          // This is a one-click NOC dashboard action with no contractor
+          // capture, so it's an internal closure by definition — never the
+          // literal string "None", which reads as a real (if odd) value
+          // rather than "no contractor was involved".
+          resolved_by_type: "INTERNAL_TECH",
+          contractor_engaged: null,
           resolution_details: `Manually resolved via NOC dashboard by ${operatorName}.`,
         })
         .eq("id", dbId);
@@ -672,7 +719,7 @@ export function AlertsLog() {
             System Alerts &amp; Triage
           </h1>
           <p className="text-[11px] font-semibold text-gray-400 mt-1">
-            Site {currentSite?.site_name || "—"} · Real-time fault queue
+            {currentSite?.site_name || "—"} · Real-time fault queue
           </p>
 
         </div>
@@ -680,17 +727,17 @@ export function AlertsLog() {
         {/* Summary badges */}
         <div className="flex items-center gap-2 flex-wrap">
           {criticalCount > 0 && (
-            <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-red-100 border border-red-200">
-              <AlertCircle size={13} className="text-red-600" />
-              <span className="text-[11px] font-black text-red-700 uppercase tracking-wider">
+            <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-danger-100 border border-danger-200">
+              <AlertCircle size={13} className="text-danger-600" />
+              <span className="text-[11px] font-black text-danger-700 uppercase tracking-wider">
                 {criticalCount} Critical — Action Required
               </span>
             </div>
           )}
           {warningCount > 0 && (
-            <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-yellow-100 border border-yellow-200">
-              <AlertTriangle size={13} className="text-yellow-600" />
-              <span className="text-[11px] font-black text-yellow-700 uppercase tracking-wider">
+            <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-warn-100 border border-warn-200">
+              <AlertTriangle size={13} className="text-warn-600" />
+              <span className="text-[11px] font-black text-warn-700 uppercase tracking-wider">
                 {warningCount} Warning
               </span>
             </div>
@@ -704,9 +751,9 @@ export function AlertsLog() {
             </div>
           )}
           {activeAlerts.length === 0 && view === "active" && (
-            <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-green-100 border border-green-200">
-              <ShieldCheck size={13} className="text-green-600" />
-              <span className="text-[11px] font-black text-green-700 uppercase tracking-wider">
+            <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-ok-100 border border-ok-200">
+              <ShieldCheck size={13} className="text-ok-600" />
+              <span className="text-[11px] font-black text-ok-700 uppercase tracking-wider">
                 All Clear
               </span>
             </div>
@@ -715,8 +762,9 @@ export function AlertsLog() {
       </div>
 
       {/* ── View toggle tabs ─────────────────────────────────────────────── */}
-      <div className="bg-white border border-gray-100 rounded-2xl shadow-sm px-4 py-3 flex items-center justify-between gap-4">
+      <div className="bg-white border border-gray-100 rounded-2xl shadow-sm px-4 py-3 flex items-center justify-between gap-4 flex-wrap">
         {/* Tab group */}
+        <div className="flex items-center gap-3 flex-wrap">
         <div className="flex items-center gap-1 bg-gray-100 rounded-xl p-1">
           {TABS.map((tab) => (
             <button
@@ -730,7 +778,7 @@ export function AlertsLog() {
               ].join(" ")}
             >
               {tab.id === "active" ? (
-                <Bell size={12} className={view === "active" ? "text-red-500" : ""} />
+                <Bell size={12} className={view === "active" ? "text-brand-500" : ""} />
               ) : (
                 <RotateCcw size={12} />
               )}
@@ -740,7 +788,7 @@ export function AlertsLog() {
                   "min-w-[20px] h-5 rounded-full flex items-center justify-center text-[9px] font-black px-1.5",
                   view === tab.id
                     ? tab.id === "active"
-                      ? "bg-red-500 text-white"
+                      ? "bg-brand-500 text-white"
                       : "bg-gray-200 text-gray-600"
                     : "bg-gray-200 text-gray-500",
                 ].join(" ")}
@@ -751,20 +799,34 @@ export function AlertsLog() {
           ))}
         </div>
 
+        {/* Resolved history is browsed by period; Active is never filtered
+            by date — an open fault must not disappear for being old. */}
+        {view === "resolved" && (
+          <DateRangePicker
+            label={range.label}
+            preset={preset}
+            activeStart={range.start}
+            activeEnd={range.end}
+            onSelectPreset={setPreset}
+            onSelectCustom={setCustomRange}
+          />
+        )}
+        </div>
+
         {/* Stats strip */}
         <div className="hidden sm:flex items-center gap-5 text-right">
           {view === "active" ? (
             <>
               <div>
-                <div className="text-[18px] font-black text-red-600 leading-none">{criticalCount}</div>
+                <div className="text-[18px] font-black text-danger-600 leading-none">{criticalCount}</div>
                 <div className="text-[9px] font-black text-gray-400 uppercase tracking-widest">Critical</div>
               </div>
               <div>
-                <div className="text-[18px] font-black text-yellow-600 leading-none">{warningCount}</div>
+                <div className="text-[18px] font-black text-warn-600 leading-none">{warningCount}</div>
                 <div className="text-[9px] font-black text-gray-400 uppercase tracking-widest">Warning</div>
               </div>
               <div>
-                <div className="text-[18px] font-black text-blue-600 leading-none">
+                <div className="text-[18px] font-black text-info-600 leading-none">
                   {activeAlerts.filter((a) => a.severity === "info").length}
                 </div>
                 <div className="text-[9px] font-black text-gray-400 uppercase tracking-widest">Info</div>
@@ -773,7 +835,7 @@ export function AlertsLog() {
           ) : (
             <>
               <div>
-                <div className="text-[18px] font-black text-green-600 leading-none">{resolved.length}</div>
+                <div className="text-[18px] font-black text-ok-600 leading-none">{resolved.length}</div>
                 <div className="text-[9px] font-black text-gray-400 uppercase tracking-widest">Resolved</div>
               </div>
               <div>
@@ -793,8 +855,8 @@ export function AlertsLog() {
           {activeAlerts.length === 0 ? (
             /* Empty state */
             <div className="bg-white border border-gray-100 rounded-2xl shadow-sm px-8 py-16 flex flex-col items-center gap-4">
-              <div className="w-16 h-16 rounded-2xl bg-green-50 flex items-center justify-center">
-                <ShieldCheck size={32} className="text-green-500" />
+              <div className="w-16 h-16 rounded-2xl bg-ok-50 flex items-center justify-center">
+                <ShieldCheck size={32} className="text-ok-500" />
               </div>
               <div className="text-center">
                 <div className="text-[15px] font-black text-gray-900">All Systems Clear</div>
@@ -853,7 +915,7 @@ export function AlertsLog() {
             ? `${activeAlerts.length} active incident${activeAlerts.length !== 1 ? "s" : ""} · Last sync: ${lastSync} UTC+2`
             : `${resolved.length} resolved incidents in history`}
         </span>
-        <span className="font-mono">Site {currentSite?.site_name || "—"}</span>
+        <span className="font-mono">{currentSite?.site_name || "—"}</span>
 
       </div>
     </div>

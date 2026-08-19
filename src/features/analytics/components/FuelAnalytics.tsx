@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useOutletContext } from 'react-router';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/app/components/ui/card";
 import { Badge } from "@/app/components/ui/badge";
 import { Skeleton } from "@/app/components/ui/skeleton";
@@ -6,6 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/app/components/ui/table";
 import { Fuel, Clock, Activity, ShieldAlert, AlertCircle } from 'lucide-react';
 import { useDashboardData } from '../hooks/useDashboardData';
+import { AnalyticsOutletContext } from './AnalyticsLayout';
 import {
   ComposedChart,
   Bar,
@@ -23,7 +25,8 @@ import {
 
 export function FuelAnalytics() {
   const [selectedGenerator, setSelectedGenerator] = useState("DG-1");
-  const { isLoading, isUsingMockData, fuelChartData, engineHealthData, kpis } = useDashboardData();
+  const { range } = useOutletContext<AnalyticsOutletContext>();
+  const { isLoading, isUsingMockData, fuelChartData, engineHealthData, kpis } = useDashboardData(range);
 
   if (isLoading) {
     return (
@@ -91,8 +94,8 @@ export function FuelAnalytics() {
       </div>
 
       {isUsingMockData && (
-        <div className="flex items-center gap-3 bg-amber-50 border border-amber-100/60 text-amber-800 p-4 rounded-3xl text-xs font-semibold">
-          <AlertCircle className="w-4.5 h-4.5 text-amber-600 shrink-0" />
+        <div className="flex items-center gap-3 bg-warn-50 border border-warn-100/60 text-warn-800 p-4 rounded-3xl text-xs font-semibold">
+          <AlertCircle className="w-4.5 h-4.5 text-warn-600 shrink-0" />
           <span>Operational Notice: Telemetry database table contains no records. Displaying baseline simulated data for dashboard verification.</span>
         </div>
       )}
@@ -142,7 +145,7 @@ export function FuelAnalytics() {
               <span className="text-xs font-black text-gray-400 uppercase tracking-wider">L/Hr</span>
             </div>
             <p className="text-[10px] text-gray-400 font-semibold mt-1 flex items-center gap-1">
-              <Activity size={11} className="text-emerald-500" /> Theoretical nominal rate
+              <Activity size={11} className="text-ok-500" /> Theoretical nominal rate
             </p>
           </CardContent>
         </Card>
@@ -183,7 +186,7 @@ export function FuelAnalytics() {
                   <Tooltip contentStyle={{ background: '#fff', borderRadius: '12px', border: '1px solid #F1F5F9', fontSize: '11px', fontWeight: 'bold' }} />
                   <Legend verticalAlign="top" height={36} iconSize={8} wrapperStyle={{ fontSize: '9px', fontWeight: 'black', textTransform: 'uppercase' }} />
                   <Bar yAxisId="left" dataKey={`${chartPrefix}_run_hrs`} name="Run Hours" fill="#E2E8F0" radius={[4, 4, 0, 0]} barSize={25} />
-                  <Line yAxisId="right" type="monotone" dataKey={`${chartPrefix}_fuel_consumed`} name="Fuel Burned" stroke="#EF4444" strokeWidth={2} dot={{ r: 4 }} />
+                  <Line yAxisId="right" type="monotone" dataKey={`${chartPrefix}_fuel_consumed`} name="Fuel Burned" stroke="var(--color-danger-500)" strokeWidth={2} dot={{ r: 4 }} />
                 </ComposedChart>
               </ResponsiveContainer>
             </div>
@@ -206,17 +209,17 @@ export function FuelAnalytics() {
                   <ZAxis type="number" dataKey="batt_voltage" range={[60, 200]} name="Battery Voltage" unit=" V" />
                   <Tooltip cursor={{ strokeDasharray: '3 3' }} contentStyle={{ background: '#fff', borderRadius: '12px', border: '1px solid #F1F5F9', fontSize: '11px', fontWeight: 'bold' }} />
                   <Legend verticalAlign="top" height={36} iconSize={8} wrapperStyle={{ fontSize: '9px', fontWeight: 'black', textTransform: 'uppercase' }} />
-                  <Scatter name="Normal Status" data={engineHealthData.filter(d => d.status === "OK")} fill="#10B981" shape="circle" />
-                  <Scatter name="Warning Alerts" data={engineHealthData.filter(d => d.status === "WARNING")} fill="#F59E0B" shape="triangle" />
-                  <Scatter name="Critical Faults" data={engineHealthData.filter(d => d.status === "CRITICAL")} fill="#EF4444" shape="square" />
+                  <Scatter name="Normal Status" data={engineHealthData.filter(d => d.status === "OK")} fill="var(--color-ok-500)" shape="circle" />
+                  <Scatter name="Warning Alerts" data={engineHealthData.filter(d => d.status === "WARNING")} fill="var(--color-warn-500)" shape="triangle" />
+                  <Scatter name="Critical Faults" data={engineHealthData.filter(d => d.status === "CRITICAL")} fill="var(--color-danger-500)" shape="square" />
                 </ScatterChart>
               </ResponsiveContainer>
             </div>
 
             {/* Abnormalities Notice */}
             {engineHealthData.some(d => d.status !== "OK") && (
-              <div className="flex items-center gap-3 bg-red-50 border border-red-100 rounded-2xl p-3.5 mt-4 text-[10px] font-bold text-red-700 animate-pulse">
-                <ShieldAlert className="w-5 h-5 text-red-600 shrink-0" />
+              <div className="flex items-center gap-3 bg-danger-50 border border-danger-100 rounded-2xl p-3.5 mt-4 text-[10px] font-bold text-danger-700 animate-pulse">
+                <ShieldAlert className="w-5 h-5 text-danger-600 shrink-0" />
                 <span>Anomaly Detected: Generator telemetry outside normal operating parameters (Check Oil/Water logs).</span>
               </div>
             )}
@@ -224,11 +227,14 @@ export function FuelAnalytics() {
         </Card>
       </div>
 
-      {/* Fleet Log Details */}
+      {/* Fleet Log Details — scoped to the SAME selected generator as the
+          chart above. It previously always showed fleet-wide totals, so
+          picking DG-2 in the dropdown changed the chart but not this table —
+          the two halves of the same card told different stories. */}
       <Card className="bg-white border-gray-100 rounded-3xl shadow-sm overflow-hidden">
         <CardHeader className="border-b border-gray-50 px-6 py-4">
           <CardDescription className="text-[10px] font-black uppercase tracking-widest text-gray-400">HISTORICAL CHECKS</CardDescription>
-          <CardTitle className="text-sm font-black text-gray-900 uppercase tracking-tight mt-0.5">Generator Operation Ledger</CardTitle>
+          <CardTitle className="text-sm font-black text-gray-900 uppercase tracking-tight mt-0.5">Generator Operation Ledger ({selectedGenerator})</CardTitle>
         </CardHeader>
         <CardContent className="p-0">
           <Table>
@@ -242,19 +248,27 @@ export function FuelAnalytics() {
               </TableRow>
             </TableHeader>
             <TableBody className="divide-y divide-gray-100">
-              {fuelChartData.map((row, idx) => (
-                <TableRow key={idx} className="hover:bg-slate-50/30 transition-colors">
-                  <TableCell className="p-4 font-bold text-gray-800 text-xs">{row.date}</TableCell>
-                  <TableCell className="p-4 font-bold text-gray-950 text-xs font-mono">{row.run_hrs.toFixed(1)} Hrs</TableCell>
-                  <TableCell className="p-4 text-slate-800 font-mono text-xs font-bold">{row.fuel_consumed.toLocaleString()} Liters</TableCell>
-                  <TableCell className="p-4 text-slate-500 font-semibold text-xs">150 L/Hr</TableCell>
-                  <TableCell className="p-4 text-right">
-                    <Badge variant="outline" className={`shadow-none font-black text-[9px] uppercase tracking-wider ${row.run_hrs > 0 ? "bg-green-50 text-green-700 border-green-200/50" : "bg-slate-50 text-slate-500 border-slate-200"}`}>
-                      {row.run_hrs > 0 ? "RUNNING" : "STANDBY"}
-                    </Badge>
-                  </TableCell>
-                </TableRow>
-              ))}
+              {fuelChartData.map((row, idx) => {
+                const runHrs = (row as any)[`${chartPrefix}_run_hrs`] ?? 0;
+                const fuelConsumed = (row as any)[`${chartPrefix}_fuel_consumed`] ?? 0;
+                // Derived from this row's own numbers, not asserted — a
+                // standby day has no burn rate to report at all.
+                const burnRate = runHrs > 0 ? (fuelConsumed / runHrs).toFixed(1) : null;
+
+                return (
+                  <TableRow key={idx} className="hover:bg-slate-50/30 transition-colors">
+                    <TableCell className="p-4 font-bold text-gray-800 text-xs">{row.date}</TableCell>
+                    <TableCell className="p-4 font-bold text-gray-950 text-xs font-mono">{runHrs.toFixed(1)} Hrs</TableCell>
+                    <TableCell className="p-4 text-slate-800 font-mono text-xs font-bold">{fuelConsumed.toLocaleString()} Liters</TableCell>
+                    <TableCell className="p-4 text-slate-500 font-semibold text-xs">{burnRate !== null ? `${burnRate} L/Hr` : "—"}</TableCell>
+                    <TableCell className="p-4 text-right">
+                      <Badge variant="outline" className={`shadow-none font-black text-[9px] uppercase tracking-wider ${runHrs > 0 ? "bg-ok-50 text-ok-700 border-ok-200/50" : "bg-slate-50 text-slate-500 border-slate-200"}`}>
+                        {runHrs > 0 ? "RUNNING" : "STANDBY"}
+                      </Badge>
+                    </TableCell>
+                  </TableRow>
+                );
+              })}
             </TableBody>
           </Table>
         </CardContent>

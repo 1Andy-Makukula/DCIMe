@@ -71,7 +71,7 @@ export function DateScrubber({
                 onChangeMonth(new Date(today.getFullYear(), today.getMonth(), 1));
                 onSelectDate(today);
               }}
-              className="px-2.5 py-1 rounded-lg bg-red-50 border border-red-100 text-[9px] font-black uppercase tracking-wider text-red-600 hover:bg-red-100 transition-colors cursor-pointer"
+              className="px-2.5 py-1 rounded-lg bg-brand-50 border border-brand-100 text-[9px] font-black uppercase tracking-wider text-brand-600 hover:bg-brand-100 transition-colors cursor-pointer"
             >
               Today
             </button>
@@ -145,11 +145,11 @@ export function DateScrubber({
                       : "bg-gray-50 text-gray-300"
                     : count >= 24
                       ? isSelected
-                        ? "bg-green-400 text-slate-900"
-                        : "bg-green-100 text-green-700"
+                        ? "bg-ok-400 text-slate-900"
+                        : "bg-ok-100 text-ok-700"
                       : isSelected
-                        ? "bg-amber-400 text-slate-900"
-                        : "bg-amber-50 text-amber-700"
+                        ? "bg-warn-400 text-slate-900"
+                        : "bg-warn-50 text-warn-700"
                 }`}
               >
                 {count === 0 ? "–" : count}
@@ -157,7 +157,7 @@ export function DateScrubber({
 
               {isToday && (
                 <span
-                  className={`w-1 h-1 rounded-full ${isSelected ? "bg-red-400" : "bg-red-500"}`}
+                  className={`w-1 h-1 rounded-full ${isSelected ? "bg-brand-400" : "bg-brand-500"}`}
                 />
               )}
             </button>

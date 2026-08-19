@@ -1,4 +1,6 @@
 import React, { useState, useMemo, useEffect } from "react";
+import { ParameterLimits } from "./ParameterLimits";
+import { EquipmentSchedules } from "./EquipmentSchedules";
 import { supabase } from "@/shared/api/supabaseClient";
 import { useCurrentSite } from "@/shared/context/SiteContext";
 import { toast } from "sonner";
@@ -40,32 +42,34 @@ interface Asset {
   lastSeen: string;
   room_id?: string | null;
   is_active: boolean;
+  /** Present when deployed from a template — enables fleet-wide scheduling. */
+  template_id?: string | null;
 }
 
 
 // ── Category icon map ─────────────────────────────────────────────────────────
 function categoryIcon(cat: string): React.ReactNode {
   const c = cat?.toUpperCase() ?? "";
-  if (c === "AIRCON")    return <Thermometer size={13} className="text-blue-400" />;
-  if (c === "UPS")       return <Zap size={13} className="text-yellow-500" />;
-  if (c === "GENERATOR") return <Zap size={13} className="text-orange-400" />;
+  if (c === "AIRCON")    return <Thermometer size={13} className="text-info-400" />;
+  if (c === "UPS")       return <Zap size={13} className="text-warn-500" />;
+  if (c === "GENERATOR") return <Zap size={13} className="text-warn-400" />;
   if (c === "MAINS")     return <Network size={13} className="text-purple-400" />;
-  if (c === "RECTIFIER") return <Cpu size={13} className="text-green-500" />;
+  if (c === "RECTIFIER") return <Cpu size={13} className="text-ok-500" />;
   return <Activity size={13} className="text-gray-400" />;
 }
 
 // ── Status badge ──────────────────────────────────────────────────────────────
 function StatusBadge({ status }: { status: AssetStatus }) {
   const styles: Record<AssetStatus, string> = {
-    ONLINE:         "bg-green-100  text-green-700",
-    DEGRADED:       "bg-orange-100 text-orange-700",
-    OFFLINE:        "bg-red-100    text-red-700",
+    ONLINE:         "bg-ok-100  text-ok-700",
+    DEGRADED:       "bg-warn-100 text-warn-700",
+    OFFLINE:        "bg-danger-100    text-danger-700",
     DECOMMISSIONED: "bg-gray-100   text-gray-500",
   };
   const dots: Record<AssetStatus, string> = {
-    ONLINE:         "bg-green-500",
-    DEGRADED:       "bg-orange-400",
-    OFFLINE:        "bg-red-500",
+    ONLINE:         "bg-ok-500",
+    DEGRADED:       "bg-warn-400",
+    OFFLINE:        "bg-danger-500",
     DECOMMISSIONED: "bg-gray-400",
   };
   return (
@@ -178,8 +182,8 @@ function ChartPanel({ equipmentId }: { equipmentId: string }) {
         className="w-full flex items-center justify-between px-6 py-3.5 hover:bg-gray-50/60 transition-colors"
       >
         <div className="flex items-center gap-2">
-          <div className="w-6 h-6 rounded-lg bg-red-50 border border-red-100 flex items-center justify-center">
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#ef4444" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+          <div className="w-6 h-6 rounded-lg bg-brand-50 border border-brand-100 flex items-center justify-center">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="var(--color-danger-500)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
               <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>
             </svg>
           </div>
@@ -209,6 +213,8 @@ interface ManageParametersModalProps {
   isOpen: boolean;
   onClose: () => void;
   equipmentId: string;
+  /** Enables fleet-wide scheduling when the machine came from a template. */
+  templateId?: string | null;
 }
 
 interface EquipmentParameter {
@@ -221,11 +227,18 @@ interface EquipmentParameter {
   is_graphable: boolean;
   unit: string | null;
   created_at: string;
+  // The safe operating range. NULL on either side means unbounded there — and
+  // a parameter with neither bound can never raise an alarm.
+  min_value: number | null;
+  max_value: number | null;
 }
 
-function ManageParametersModal({ isOpen, onClose, equipmentId }: ManageParametersModalProps) {
+function ManageParametersModal({ isOpen, onClose, equipmentId, templateId }: ManageParametersModalProps) {
   const [parameters, setParameters] = useState<EquipmentParameter[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  // Parameters and schedules are two views of the same machine, so they belong
+  // behind one click rather than on separate screens someone has to find.
+  const [tab, setTab] = useState<"parameters" | "schedules">("parameters");
 
   const fetchParameters = async () => {
     setIsLoading(true);
@@ -243,7 +256,9 @@ function ManageParametersModal({ isOpen, onClose, equipmentId }: ManageParameter
         is_constant: !!p.is_constant,
         data_type: (p.data_type as any) || "string",
         is_graphable: !!p.is_graphable,
-        created_at: p.created_at || new Date().toISOString()
+        created_at: p.created_at || new Date().toISOString(),
+        min_value: p.min_value ?? null,
+        max_value: p.max_value ?? null
       }));
       setParameters(sanitized);
     } catch (err) {
@@ -288,8 +303,31 @@ function ManageParametersModal({ isOpen, onClose, equipmentId }: ManageParameter
           </button>
         </div>
 
+        {/* Tabs */}
+        <div className="flex gap-1 border-b border-gray-100 px-6 pt-1 flex-shrink-0">
+          {([["parameters", "Parameters"], ["schedules", "Maintenance"]] as const).map(([k, label]) => (
+            <button
+              key={k}
+              onClick={() => setTab(k)}
+              className={`px-4 py-3 text-[12px] font-bold tracking-wide border-b-2 -mb-px transition-colors ${
+                tab === k
+                  ? "border-brand-500 text-gray-900"
+                  : "border-transparent text-gray-400 hover:text-gray-600"
+              }`}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+
         {/* Content */}
         <div className="flex-1 overflow-y-auto flex flex-col min-h-0">
+          {tab === "schedules" ? (
+            <div className="p-6">
+              <EquipmentSchedules equipmentId={equipmentId} templateId={templateId} />
+            </div>
+          ) : (
+          <>
           {/* Telemetry History Chart — full width panel */}
           <ChartPanel equipmentId={equipmentId} />
 
@@ -297,7 +335,7 @@ function ManageParametersModal({ isOpen, onClose, equipmentId }: ManageParameter
           <div className="p-6 overflow-y-auto flex flex-col gap-6">
             {isLoading ? (
               <div className="flex flex-col items-center justify-center py-12 text-gray-400 gap-2">
-                <Loader2 size={24} className="animate-spin text-red-500" />
+                <Loader2 size={24} className="animate-spin text-brand-500" />
                 <span className="text-xs font-bold uppercase tracking-wider">Loading parameters...</span>
               </div>
             ) : parameters.length === 0 ? (
@@ -311,28 +349,28 @@ function ManageParametersModal({ isOpen, onClose, equipmentId }: ManageParameter
                 {constants.length > 0 && (
                   <div className="space-y-3">
                     <h3 className="text-[10px] font-black text-gray-400 uppercase tracking-widest flex items-center gap-1.5 border-b border-gray-50 pb-1.5">
-                      <Database size={12} className="text-blue-500" />
+                      <Database size={12} className="text-info-500" />
                       <span>Constant Identifiers & Thresholds ({constants.length})</span>
                     </h3>
                     <div className="space-y-2">
                       {constants.map((param) => (
                         <div
                           key={param.id}
-                          className="bg-blue-50/30 border border-blue-100 rounded-xl p-3.5 flex items-center justify-between gap-4"
+                          className="bg-info-50/30 border border-info-100 rounded-xl p-3.5 flex items-center justify-between gap-4"
                         >
                           <div className="min-w-0">
                             <div className="flex items-center gap-2">
-                              <span className="text-[12px] font-black text-blue-900 truncate">
+                              <span className="text-[12px] font-black text-info-900 truncate">
                                 {param.parameter_name}
                               </span>
-                              <span className="bg-blue-100 text-blue-800 text-[8px] font-black uppercase tracking-wider px-1.5 py-0.5 rounded">
+                              <span className="bg-info-100 text-info-800 text-[8px] font-black uppercase tracking-wider px-1.5 py-0.5 rounded">
                                 {param.data_type}
                               </span>
                             </div>
-                            <div className="text-[11px] text-blue-700/80 mt-1 font-semibold flex items-center gap-1.5 flex-wrap">
-                              <span>Value: <strong className="font-mono bg-blue-100/50 px-1 py-0.5 rounded text-blue-900">{param.constant_value}</strong></span>
+                            <div className="text-[11px] text-info-700/80 mt-1 font-semibold flex items-center gap-1.5 flex-wrap">
+                              <span>Value: <strong className="font-mono bg-info-100/50 px-1 py-0.5 rounded text-info-900">{param.constant_value}</strong></span>
                               {param.unit && (
-                                <span className="text-[9px] font-bold text-blue-500 uppercase">[{param.unit}]</span>
+                                <span className="text-[9px] font-bold text-info-500 uppercase">[{param.unit}]</span>
                               )}
                             </div>
                           </div>
@@ -346,14 +384,14 @@ function ManageParametersModal({ isOpen, onClose, equipmentId }: ManageParameter
                 {telemetries.length > 0 && (
                   <div className="space-y-3">
                     <h3 className="text-[10px] font-black text-gray-400 uppercase tracking-widest flex items-center gap-1.5 border-b border-gray-50 pb-1.5">
-                      <Activity size={12} className="text-red-500" />
+                      <Activity size={12} className="text-brand-500" />
                       <span>Flexible Telemetry Parameters ({telemetries.length})</span>
                     </h3>
                     <div className="space-y-2">
                       {telemetries.map((param) => (
                         <div
                           key={param.id}
-                          className="bg-red-50/20 border border-red-100/50 rounded-xl p-3.5 flex items-center justify-between gap-4"
+                          className="bg-brand-50/20 border border-brand-100/50 rounded-xl p-3.5 flex items-center justify-between gap-4"
                         >
                           <div className="min-w-0">
                             <div className="flex items-center gap-2">
@@ -364,7 +402,7 @@ function ManageParametersModal({ isOpen, onClose, equipmentId }: ManageParameter
                                 {param.data_type}
                               </span>
                               {param.is_graphable && (
-                                <span className="bg-red-100 text-red-700 text-[8px] font-black uppercase tracking-wider px-1.5 py-0.5 rounded">
+                                <span className="bg-brand-100 text-brand-700 text-[8px] font-black uppercase tracking-wider px-1.5 py-0.5 rounded">
                                   Graphable
                                 </span>
                               )}
@@ -376,6 +414,24 @@ function ManageParametersModal({ isOpen, onClose, equipmentId }: ManageParameter
                               )}
                             </div>
                           </div>
+
+                          {/* Numbers only: a range has no meaning for a status
+                              string like "OK" or a yes/no flag. */}
+                          {param.data_type === "number" && (
+                            <ParameterLimits
+                              parameterId={param.id}
+                              min={param.min_value}
+                              max={param.max_value}
+                              unit={param.unit}
+                              onSaved={(lo, hi) =>
+                                setParameters(prev =>
+                                  prev.map(x =>
+                                    x.id === param.id ? { ...x, min_value: lo, max_value: hi } : x
+                                  )
+                                )
+                              }
+                            />
+                          )}
                         </div>
                       ))}
                     </div>
@@ -384,6 +440,8 @@ function ManageParametersModal({ isOpen, onClose, equipmentId }: ManageParameter
               </>
             )}
           </div>
+          </>
+          )}
         </div>
       </div>
     </div>
@@ -543,6 +601,7 @@ export function AssetInventory() {
             metricUnit:   metricUnit,
             lastSeen:     row.is_active ? (lastSeenLabel ?? "—") : "Offline",
             room_id:      row.room_id,
+            template_id: row.template_id ?? null,
             is_active:    row.is_active
           };
         });
@@ -625,6 +684,7 @@ export function AssetInventory() {
             setSelectedAssetId(null);
           }}
           equipmentId={selectedAssetId}
+          templateId={assets.find(a => a.id === selectedAssetId)?.template_id ?? null}
         />
       )}
       <div className="min-h-full flex flex-col gap-5">
@@ -639,7 +699,7 @@ export function AssetInventory() {
             Infrastructure Ledger
           </h1>
           <p className="text-[11px] font-semibold text-gray-400 mt-1">
-            {filtered.length} of {assets.length} assets · Site {currentSite?.site_name || "Unknown"}
+            {filtered.length} of {assets.length} assets · {currentSite?.site_name || "Unknown"}
           </p>
         </div>
 
@@ -647,9 +707,9 @@ export function AssetInventory() {
         <div className="flex items-center gap-4 flex-wrap">
           {(
             [
-              { label: "Online",        count: assets.filter((a) => a.status === "ONLINE").length,         color: "text-green-600"  },
-              { label: "Degraded",      count: assets.filter((a) => a.status === "DEGRADED").length,       color: "text-orange-500" },
-              { label: "Offline",       count: assets.filter((a) => a.status === "OFFLINE").length,        color: "text-red-600"    },
+              { label: "Online",        count: assets.filter((a) => a.status === "ONLINE").length,         color: "text-ok-600"  },
+              { label: "Degraded",      count: assets.filter((a) => a.status === "DEGRADED").length,       color: "text-warn-500" },
+              { label: "Offline",       count: assets.filter((a) => a.status === "OFFLINE").length,        color: "text-danger-600"    },
               { label: "Decommissioned",count: assets.filter((a) => a.status === "DECOMMISSIONED").length, color: "text-gray-400"   },
             ]
           ).map((s) => (
@@ -682,13 +742,13 @@ export function AssetInventory() {
                 onClick={() => setActiveRoomId(null)}
                 className={`w-full text-left px-3.5 py-2.5 rounded-xl text-xs font-bold transition-all uppercase tracking-wider flex items-center justify-between ${
                   activeRoomId === null
-                    ? "bg-red-500 text-white shadow-sm shadow-red-500/10"
+                    ? "bg-brand-500 text-white shadow-sm shadow-brand-500/10"
                     : "text-gray-600 hover:bg-gray-50"
                 }`}
               >
                 <span>All Rooms</span>
                 <span className={`text-[9px] px-1.5 py-0.5 rounded font-mono ${
-                  activeRoomId === null ? "bg-red-600 text-white" : "bg-gray-100 text-gray-400"
+                  activeRoomId === null ? "bg-brand-600 text-white" : "bg-gray-100 text-gray-400"
                 }`}>
                   {assets.length}
                 </span>
@@ -701,7 +761,7 @@ export function AssetInventory() {
                     key={room.id}
                     className={`w-full flex items-center justify-between px-3.5 py-1 rounded-xl transition-all group ${
                       isActive
-                        ? "bg-red-500 text-white shadow-sm shadow-red-500/10"
+                        ? "bg-brand-500 text-white shadow-sm shadow-brand-500/10"
                         : "text-gray-600 hover:bg-gray-50"
                     }`}
                   >
@@ -715,7 +775,7 @@ export function AssetInventory() {
                     <div className="flex items-center gap-1.5 flex-shrink-0 ml-2">
                       <span className={`text-[9px] px-1.5 py-0.5 rounded font-mono flex-shrink-0 ${
                         isActive 
-                          ? "bg-red-600 text-white" 
+                          ? "bg-brand-600 text-white" 
                           : "bg-gray-100 text-gray-400 group-hover:bg-gray-200"
                       }`}>
                         {roomAssetCount}
@@ -729,7 +789,10 @@ export function AssetInventory() {
         </div>
 
         {/* Right Content: Action Bar & Master Ledger Table */}
-        <div className="lg:col-span-3 flex flex-col gap-5">
+        {/* min-w-0: a grid item will not shrink below its content by default,
+            so the 900px table forced this column wide and squeezed the cells
+            instead of letting the overflow-x-auto wrapper scroll. */}
+        <div className="lg:col-span-3 flex flex-col gap-5 min-w-0">
           {/* Action Bar */}
           <div className="bg-white border border-gray-100 rounded-2xl shadow-sm px-4 py-3 flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
             {/* Search */}
@@ -835,8 +898,8 @@ export function AssetInventory() {
                             <div className="w-8 h-8 rounded-lg bg-gray-50 border border-gray-100 flex items-center justify-center flex-shrink-0 group-hover:border-gray-200 transition-colors">
                               {categoryIcon(asset.category)}
                             </div>
-                            <div>
-                              <div className="text-[12px] font-black text-gray-900 font-mono tracking-tight">
+                            <div className="min-w-0">
+                              <div className="text-[12px] font-black text-gray-900 font-mono truncate">
                                 {asset.id}
                               </div>
                               <div className="text-[10px] font-semibold text-gray-400 mt-0.5">
@@ -937,8 +1000,8 @@ export function AssetInventory() {
                               }}
                               className={`px-3 py-1.5 rounded-lg border text-[10px] font-black uppercase tracking-wider transition-all cursor-pointer shadow-sm active:scale-95 ${
                                 asset.is_active
-                                  ? "bg-red-50 border-red-100 text-red-500 hover:text-red-700 hover:bg-red-100/50"
-                                  : "bg-green-50 border-green-100 text-green-600 hover:text-green-800 hover:bg-green-100/50"
+                                  ? "bg-danger-50 border-danger-100 text-danger-500 hover:text-danger-700 hover:bg-danger-100/50"
+                                  : "bg-ok-50 border-ok-100 text-ok-600 hover:text-ok-800 hover:bg-ok-100/50"
                               }`}
                             >
                               {asset.is_active ? "Decommission" : "Recommission"}
@@ -955,7 +1018,7 @@ export function AssetInventory() {
             {/* Table footer */}
             <div className="px-5 py-3 border-t border-gray-100 flex items-center justify-between bg-gray-50/50">
               <span className="text-[10px] font-semibold text-gray-400">
-                Showing {filtered.length} of {assets.length} records · Site {currentSite?.site_name || "Unknown"}
+                Showing {filtered.length} of {assets.length} records · {currentSite?.site_name || "Unknown"}
               </span>
               <div className="flex items-center gap-1.5 text-[10px] font-black text-gray-400 uppercase tracking-wider">
                 <ArrowUpDown size={11} />

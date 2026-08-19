@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { Wordmark } from "@/shared/ui";
 import { NavLink, Outlet, useNavigate } from "react-router";
 import {
   LayoutGrid,
@@ -10,20 +11,41 @@ import {
   Menu,
   X,
   BarChart2,
+  Network,
+  Building2,
+  Upload,
 } from "lucide-react";
-import { AirtelMark } from "@/shared/ui";
+import { BrandMark, NavMenu } from "@/shared/ui";
 import { useAuth } from "@/shared/context/AuthContext";
 import { useCurrentSite } from "@/shared/context/SiteContext";
 import { NotificationBell } from "./NotificationBell";
 
 // ── Nav tab definition ────────────────────────────────────────────────────────
+// ORDER IS THE UI. The first INLINE_TABS entries sit on the header bar; the
+// rest collapse into the floating panel. So the four an admin opens daily —
+// the watching pages — lead, and the managing pages follow.
+const INLINE_TABS = 4;
+
 const NAV_TABS = [
-  { to: "/admin",            label: "Overview",   icon: LayoutGrid,    end: true  },
-  { to: "/admin/inventory",  label: "Inventory",  icon: List,          end: false },
-  { to: "/admin/alerts",     label: "Alerts",     icon: AlertTriangle, end: false },
-  { to: "/admin/reports",    label: "Reports",    icon: FileText,      end: false },
-  { to: "/admin/personnel",  label: "Personnel",  icon: Users,         end: false },
-  { to: "/admin/analytics",  label: "Analytics",  icon: BarChart2,     end: false },
+  { to: "/admin",            label: "Overview",   icon: LayoutGrid,    end: true,
+    hint: "Live site state and data flow" },
+  { to: "/admin/topology",   label: "Topology",   icon: Network,       end: false,
+    hint: "Power single line and failure simulation" },
+  { to: "/admin/alerts",     label: "Alerts",     icon: AlertTriangle, end: false,
+    hint: "Incidents and open work" },
+  { to: "/admin/analytics",  label: "Analytics",  icon: BarChart2,     end: false,
+    hint: "PUE, capacity and service performance" },
+  // ── overflow ──
+  { to: "/admin/inventory",  label: "Inventory",  icon: List,          end: false,
+    hint: "Equipment, parameters and maintenance" },
+  { to: "/admin/reports",    label: "Reports",    icon: FileText,      end: false,
+    hint: "Shift handovers and exports" },
+  { to: "/admin/personnel",  label: "Personnel",  icon: Users,         end: false,
+    hint: "Technicians, roles and access" },
+  { to: "/admin/vendors",    label: "Vendors",    icon: Building2,     end: false,
+    hint: "Contractors, visits and findings" },
+  { to: "/admin/import",     label: "Import",     icon: Upload,        end: false,
+    hint: "Commission a site from a spreadsheet" },
 ] as const;
 
 // ── AdminLayout ───────────────────────────────────────────────────────────────
@@ -51,7 +73,7 @@ export function AdminLayout() {
     return (
       <div className="h-screen w-full flex items-center justify-center bg-gray-50">
         <div className="flex flex-col items-center gap-3">
-          <div className="w-8 h-8 rounded-full border-2 border-red-500 border-t-transparent animate-spin" />
+          <div className="w-8 h-8 rounded-full border-2 border-brand-500 border-t-transparent animate-spin" />
           <span className="text-xs font-bold text-gray-400 uppercase tracking-widest">Verifying Admin Clearance...</span>
         </div>
       </div>
@@ -65,8 +87,8 @@ export function AdminLayout() {
     return (
       <div className="h-screen w-full flex items-center justify-center bg-gray-50 p-6">
         <div className="max-w-sm text-center flex flex-col items-center gap-4">
-          <div className="w-14 h-14 rounded-2xl bg-amber-50 border border-amber-200 flex items-center justify-center">
-            <AlertTriangle size={26} className="text-amber-500" />
+          <div className="w-14 h-14 rounded-2xl bg-warn-50 border border-warn-200 flex items-center justify-center">
+            <AlertTriangle size={26} className="text-warn-500" />
           </div>
           <div>
             <h2 className="text-[15px] font-black text-gray-900 uppercase tracking-tight">You're Offline</h2>
@@ -100,9 +122,16 @@ export function AdminLayout() {
     : name.substring(0, 2).toUpperCase();
 
   return (
-    <div className="h-screen flex flex-col bg-white overflow-hidden relative">
+    <div className="h-screen print:h-auto flex flex-col bg-white overflow-hidden print:overflow-visible relative">
+      {/* print:h-auto/print:overflow-visible above undo the fixed-viewport app
+          shell for print — h-screen + overflow-hidden clips anything taller
+          than one screen, which silently capped every multi-page print flow
+          in the admin area to a single page (Chrome's print dialog reports
+          "limit is 1" when this happens: the content genuinely doesn't exist
+          beyond the clip, so there's nothing to paginate). Zero effect
+          on-screen, since the override only applies inside @media print. */}
       {/* ── Fixed Header ─────────────────────────────────────────────────── */}
-      <header className="flex-shrink-0 z-10 border-b border-gray-100 bg-white">
+      <header className="flex-shrink-0 z-10 border-b border-gray-100 bg-white print:hidden">
         <div className="flex items-center justify-between px-5 py-2.5">
 
           {/* Left: Hamburger + Logo */}
@@ -117,10 +146,10 @@ export function AdminLayout() {
             </button>
 
             <div className="flex items-center gap-2.5">
-              <AirtelMark size={32} />
+              <BrandMark size={32} />
               <div className="flex flex-col">
                 <span className="font-black text-[14px] leading-none text-gray-900 tracking-tight">
-                  DCIMe<span className="text-red-500">_Engine</span>
+                  <Wordmark />
                 </span>
                 <span className="text-[9px] font-black text-gray-400 uppercase tracking-widest leading-none mt-1">
                   Admin Portal
@@ -129,41 +158,21 @@ export function AdminLayout() {
             </div>
           </div>
 
-          {/* Middle: Nav tabs (Desktop Only) */}
-          <nav className="hidden lg:flex items-center gap-1 bg-gray-100 rounded-xl p-1">
-            {NAV_TABS.map(({ to, label, icon: Icon, end }) => (
-              <NavLink
-                key={to}
-                to={to}
-                end={end}
-                className={({ isActive }) =>
-                  [
-                    "relative flex items-center gap-1.5 px-3 py-2 rounded-lg text-[11px] font-black transition-all select-none",
-                    isActive
-                      ? "bg-white border border-gray-200 text-gray-900 shadow-sm"
-                      : "text-gray-400 hover:text-gray-600 hover:bg-white/50",
-                  ].join(" ")
-                }
-              >
-                {({ isActive }) => (
-                  <>
-                    <Icon
-                      size={14}
-                      className={isActive ? "text-red-500" : ""}
-                    />
-                    <span className="uppercase tracking-wide">
-                      {label}
-                    </span>
-                  </>
-                )}
-              </NavLink>
-            ))}
-          </nav>
+          {/* Middle: the daily pages inline, the rest behind "More". Nine tabs
+              no longer fit between the logo and the profile controls, and every
+              new section made it worse — this bar's width is now fixed. */}
+          <div className="hidden lg:block">
+            <NavMenu
+              items={[...NAV_TABS]}
+              inlineCount={INLINE_TABS}
+              title="Admin Portal"
+            />
+          </div>
 
           {/* Right: Bell + Logout (Desktop Only) + Avatar */}
           <div className="flex items-center gap-2">
             {currentSite && (
-              <span className="hidden sm:inline-block px-3 py-1 bg-red-50 text-red-600 rounded-full text-[10px] font-black uppercase tracking-wider border border-red-100 mr-2">
+              <span className="hidden sm:inline-block px-3 py-1 bg-brand-50 text-brand-600 rounded-full text-[10px] font-black uppercase tracking-wider border border-brand-100 mr-2">
                 {currentSite.site_name}
               </span>
             )}
@@ -173,7 +182,7 @@ export function AdminLayout() {
             {/* Logout (Desktop Only) */}
             <button
               onClick={handleLogout}
-              className="hidden lg:flex items-center gap-1.5 text-[11px] font-bold text-gray-400 hover:text-red-500 px-2.5 py-1.5 rounded-lg hover:bg-gray-100 transition-all cursor-pointer"
+              className="hidden lg:flex items-center gap-1.5 text-[11px] font-bold text-gray-400 hover:text-brand-500 px-2.5 py-1.5 rounded-lg hover:bg-gray-100 transition-all cursor-pointer"
               aria-label="Logout"
             >
               <LogOut size={13} />
@@ -183,7 +192,7 @@ export function AdminLayout() {
             {/* Avatar */}
             <div
               className="w-8 h-8 rounded-xl flex items-center justify-center text-white text-[11px] font-black flex-shrink-0"
-              style={{ backgroundColor: "#FF0000" }}
+              style={{ backgroundColor: "var(--color-brand-600)" }}
               title={name}
             >
               {initials}
@@ -210,13 +219,13 @@ export function AdminLayout() {
         {/* Drawer Header */}
         <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100/50 bg-white/50">
           <div className="flex items-center gap-2.5">
-            <AirtelMark size={28} />
+            <BrandMark size={28} />
             <div className="flex flex-col">
               <span className="font-black text-[13px] text-gray-900 tracking-tight leading-none">
-                DCIMe<span className="text-red-505 font-black">_Engine</span>
+                <Wordmark accentClassName="text-brand-500 font-black" />
               </span>
               {currentSite && (
-                <span className="text-[9px] font-bold text-red-650 mt-1.5 uppercase tracking-wider leading-none">
+                <span className="text-[9px] font-bold text-brand-600 mt-1.5 uppercase tracking-wider leading-none">
                   {currentSite.site_name}
                 </span>
               )}
@@ -251,7 +260,7 @@ export function AdminLayout() {
                 <>
                   <Icon
                     size={16}
-                    className={isActive ? "text-red-500" : ""}
+                    className={isActive ? "text-brand-500" : ""}
                   />
                   <span className="uppercase tracking-wider">
                     {label}
@@ -265,7 +274,7 @@ export function AdminLayout() {
         {/* Drawer Footer with Logout */}
         <div className="p-4 border-t border-gray-100/50 bg-white/50 mt-auto">
           <div className="flex items-center gap-2.5 mb-4 px-1.5">
-            <div className="w-8 h-8 rounded-xl flex items-center justify-center text-white text-[11px] font-black flex-shrink-0 bg-red-500">
+            <div className="w-8 h-8 rounded-xl flex items-center justify-center text-white text-[11px] font-black flex-shrink-0 bg-brand-500">
               {initials}
             </div>
             <div className="min-w-0">
@@ -276,7 +285,7 @@ export function AdminLayout() {
 
           <button
             onClick={() => { setIsDrawerOpen(false); handleLogout(); }}
-            className="w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-red-50/70 border border-red-200/50 text-red-600 hover:bg-red-50 text-xs font-black uppercase tracking-wider transition-all active:scale-[0.97] cursor-pointer shadow-xs"
+            className="w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-brand-50/70 border border-brand-200/50 text-brand-600 hover:bg-brand-50 text-xs font-black uppercase tracking-wider transition-all active:scale-[0.97] cursor-pointer shadow-xs"
           >
             <LogOut size={14} />
             <span>Sign Out</span>
@@ -285,7 +294,12 @@ export function AdminLayout() {
       </div>
 
       {/* ── Scrollable Viewport ───────────────────────────────────────────── */}
-      <main className="flex-1 overflow-y-auto bg-gray-50/30 p-6 md:p-8">
+      {/* print:overflow-visible — same reasoning as the root shell: flex-1's
+          height is derived from the (now print:h-auto) parent, but this
+          element's own overflow-y-auto would still clip on its own if left
+          unset. print:p-0 avoids doubling up padding on top of whatever the
+          printed page itself already applies. */}
+      <main className="flex-1 overflow-y-auto print:overflow-visible bg-gray-50/30 p-6 md:p-8 print:p-0">
         <Outlet />
       </main>
     </div>

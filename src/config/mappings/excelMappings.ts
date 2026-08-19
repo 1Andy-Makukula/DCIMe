@@ -211,7 +211,7 @@ function getFssMappings(prefix: string): Record<string, ExcelTargetCoordinate[]>
 }
 
 // ═════════════════════════════════════════════════════════════════════════════
-// COMPILATION OF NTC MASTER MAPPINGS
+// COMPILATION OF SITE 1 MASTER MAPPINGS
 // ═════════════════════════════════════════════════════════════════════════════
 const ntcMappings: SiteMappings = {
   // Ambient Averages
@@ -383,9 +383,9 @@ const ntcMappings: SiteMappings = {
 };
 
 // ═════════════════════════════════════════════════════════════════════════════
-// WTC BLUEPRINT MAPPINGS
+// SITE 2 BLUEPRINT MAPPINGS
 // ═════════════════════════════════════════════════════════════════════════════
-// WTC uses a trimmed down subset of NTC, referencing identical workbook column offsets
+// Site 2 uses a trimmed-down subset of Site 1, referencing identical workbook column offsets
 const wtcMappings: SiteMappings = {
   ...getAmbientMappings('server_ambient', 65, 8),
   ...getAmbientMappings('pr1_ambient', 69, 12),
@@ -482,6 +482,6 @@ const wtcMappings: SiteMappings = {
 };
 
 export const EXCEL_MAPPINGS: Record<string, SiteMappings> = {
-  NTC: ntcMappings,
-  WTC: wtcMappings
+  SITE_01: ntcMappings,
+  SITE_02: wtcMappings
 };

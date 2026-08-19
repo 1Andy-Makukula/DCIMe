@@ -1,7 +1,9 @@
 import React, { useState, useEffect } from "react";
+import { UTILITY_MAINS_LABEL } from "@/shared/utils/branding";
 import { X, Download, Printer, Share2 } from "lucide-react";
 import { GlowDot } from "@/shared/ui";
 import { supabase } from "@/shared/api/supabaseClient";
+import { BRAND_PRODUCT, DEFAULT_SITE_LABEL } from "@/shared/utils/branding";
 
 export interface AuditTrailModalProps {
   onClose: () => void;
@@ -31,9 +33,9 @@ export function AuditTrailModal({ onClose }: AuditTrailModalProps) {
   }, []);
 
   const auditRows = [
-    { section: "POWER SOURCE", rows: [["Source", "ZESCO MAINS", ""]] },
+    { section: "POWER SOURCE", rows: [["Source", UTILITY_MAINS_LABEL, ""]] },
     {
-      section: "ZESCO MAINS",
+      section: UTILITY_MAINS_LABEL,
       rows: [
         ["Load Voltage", "233 V", "Nominal"],
         ["Load Current", "98 A", "Normal"],
@@ -101,7 +103,7 @@ export function AuditTrailModal({ onClose }: AuditTrailModalProps) {
               SHIFT LOG: 2026-06-20 · 14:32 UTC+2
             </div>
             <div className="text-[10px] font-bold text-gray-400 uppercase tracking-[0.12em] mt-0.5">
-              Logged by: {techName} · NTC ZM-0874 · Airtel DCIMe
+              Logged by: {techName} · {DEFAULT_SITE_LABEL} · {BRAND_PRODUCT}
             </div>
           </div>
           <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-gray-100 transition-colors text-gray-400">
@@ -118,7 +120,7 @@ export function AuditTrailModal({ onClose }: AuditTrailModalProps) {
           ].map((btn) => (
             <button
               key={btn.label}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[11px] font-bold border-2 border-gray-200 text-gray-600 hover:border-red-300 hover:text-red-600 transition-all"
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[11px] font-bold border-2 border-gray-200 text-gray-600 hover:border-brand-300 hover:text-brand-600 transition-all"
             >
               {btn.icon} {btn.label}
             </button>

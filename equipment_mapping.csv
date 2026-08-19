@@ -1,0 +1,63 @@
+﻿source,blueprint_id,blueprint_name,room,suggested_topology_id,confidence,topology_id,action,display_name,notes
+BLUEPRINT,room_server_ambient,Server Room Ambient,Server Room,,NONE,,,,"No topology node found - likely telemetry-only (sensor, record, workstation)."
+BLUEPRINT,pac_server_em1,Emerson Aircon 1,Server Room,node-sr-ac-1,HIGH,node-sr-ac-1,MATCH,,
+BLUEPRINT,pac_server_em2,Emerson Aircon 2,Server Room,node-sr-ac-2,HIGH,node-sr-ac-2,MATCH,,
+BLUEPRINT,pac_server_em3,Emerson Aircon 3,Server Room,node-sr-ac-3,HIGH,node-sr-ac-3,MATCH,,
+BLUEPRINT,pac_server_em4,Emerson Aircon 4,Server Room,node-sr-ac-4,HIGH,node-sr-ac-4,MATCH,,
+BLUEPRINT,pac_server_em5,Emerson Aircon 5,Server Room,node-sr-ac-5,HIGH,node-sr-ac-5,MATCH,,
+BLUEPRINT,pac_server_em6,Emerson Aircon 6,Server Room,node-sr-ac-6,HIGH,node-sr-ac-6,MATCH,,
+BLUEPRINT,pac_server_em7,Emerson Aircon 7,Server Room,node-sr-ac-7,HIGH,node-sr-ac-7,MATCH,,
+BLUEPRINT,pac_server_vt1,Vertiv 1,Server Room,node-vertiv-1,HIGH,node-vertiv-1,MATCH,,Vertiv AIRCON. Do not confuse with node-ups-1/2 (Vertiv-brand UPS).
+BLUEPRINT,pac_server_vt2,Vertiv 2,Server Room,node-vertiv-2,HIGH,node-vertiv-2,MATCH,,Vertiv AIRCON. Do not confuse with node-ups-1/2 (Vertiv-brand UPS).
+BLUEPRINT,pac_server_vt3,Vertiv 3,Server Room,node-vertiv-3,HIGH,node-vertiv-3,MATCH,,Vertiv AIRCON. Do not confuse with node-ups-1/2 (Vertiv-brand UPS).
+BLUEPRINT,pac_server_vt4,Vertiv 4,Server Room,node-vertiv-4,HIGH,node-vertiv-4,MATCH,,Vertiv AIRCON. Do not confuse with node-ups-1/2 (Vertiv-brand UPS).
+BLUEPRINT,pac_server_vt5,Vertiv 5,Server Room,node-vertiv-5,HIGH,node-vertiv-5,MATCH,,Vertiv AIRCON. Do not confuse with node-ups-1/2 (Vertiv-brand UPS).
+BLUEPRINT,pac_server_dragor,Dragor,Server Room,node-dragor,HIGH,node-dragor,MATCH,,
+BLUEPRINT,room_data_ambient,Data Room Ambient,Data Room,,NONE,,,,"No topology node found - likely telemetry-only (sensor, record, workstation)."
+BLUEPRINT,pac_data_vt6,Data Room Vertiv 6,Data Room,node-vertiv-6,HIGH,node-vertiv-6,MATCH,,CONFIRMED Data Room. node-vertiv-6 is drawn in the Server Room - topology needs correcting.
+BLUEPRINT,pac_data_em1,Data Room Emerson 1,Data Room,node-dr-ac-1,LOW,node-dr-ac-1,,,
+BLUEPRINT,pac_data_em2,Data Room Emerson 2,Data Room,node-dr-ac-2,LOW,node-dr-ac-2,,,
+BLUEPRINT,room_pr1_ambient,Power Room 1 Ambient,Power Room 1,,NONE,,,,"No topology node found - likely telemetry-only (sensor, record, workstation)."
+BLUEPRINT,pac_pr1_em1,Power Room 1 AC 1,Power Room 1,node-pr1-ac-1,LOW,node-pr1-ac-1,,,
+BLUEPRINT,pac_pr1_em2,Power Room 1 AC 2,Power Room 1,node-pr1-ac-2,LOW,node-pr1-ac-2,,,
+BLUEPRINT,rectifier_1,Rectifier 1,Power Room 1,node-rectifier-1,HIGH,node-rectifier-1,MATCH,,
+BLUEPRINT,ups_1,UPS 1,Power Room 1,node-ups-1,HIGH,node-ups-1,MATCH,,
+BLUEPRINT,room_pr2_ambient,Power Room 2 Ambient,Power Room 2,,NONE,,,,"No topology node found - likely telemetry-only (sensor, record, workstation)."
+BLUEPRINT,pac_pr2_em1,Power Room 2 AC 1,Power Room 2,node-pr2-ac-1,LOW,node-pr2-ac-1,,,
+BLUEPRINT,pac_pr2_em2,Power Room 2 AC 2,Power Room 2,node-pr2-ac-2,LOW,node-pr2-ac-2,,,
+BLUEPRINT,rectifier_2,Rectifier 2,Power Room 2,node-rectifier-2,HIGH,node-rectifier-2,MATCH,,
+BLUEPRINT,ups_2,UPS 2,Power Room 2,node-ups-2,HIGH,node-ups-2,MATCH,,
+BLUEPRINT,room_it1_ambient,IT Room 1 Ambient,IT Room 1,,NONE,,,,"No topology node found - likely telemetry-only (sensor, record, workstation)."
+BLUEPRINT,pac_it1_em1,IT Room 1 AC 1,IT Room 1,node-it1-ac-1,LOW,node-it1-ac-1,,,
+BLUEPRINT,pac_it1_em2,IT Room 1 AC 2,IT Room 1,node-it1-ac-2,LOW,node-it1-ac-2,,,
+BLUEPRINT,room_it2_ambient,IT Room 2 Ambient,IT Room 2,,NONE,,,,"No topology node found - likely telemetry-only (sensor, record, workstation)."
+BLUEPRINT,pac_it2_em1,IT Room 2 AC 1,IT Room 2,node-it2-ac-1,LOW,node-it2-ac-1,,,
+BLUEPRINT,pac_it2_em2,IT Room 2 AC 2,IT Room 2,node-it2-ac-2,LOW,node-it2-ac-2,,,
+BLUEPRINT,room_hq_ambient,HQ Power Room Ambient,HQ Power Room,,NONE,,,,"No topology node found - likely telemetry-only (sensor, record, workstation)."
+BLUEPRINT,pac_hq_em1,HQ Power Room AC 1,HQ Power Room,,NONE,,,,"No topology node found - likely telemetry-only (sensor, record, workstation)."
+BLUEPRINT,pac_hq_em2,HQ Power Room AC 2,HQ Power Room,,NONE,,,,"No topology node found - likely telemetry-only (sensor, record, workstation)."
+BLUEPRINT,pac_hq_em3,HQ Power Room AC 3,HQ Power Room,,NONE,,,,"No topology node found - likely telemetry-only (sensor, record, workstation)."
+BLUEPRINT,fm200_panel,FM 200 Panel,HQ Power Room,node-fm-200,HIGH,node-fm-200,MATCH,,
+BLUEPRINT,room_workstation,Work Station,HQ Power Room,,NONE,,,,"No topology node found - likely telemetry-only (sensor, record, workstation)."
+BLUEPRINT,grid_main,ZESCO Grid,ZESCO Load Room,node-grid-tx,HIGH,node-grid-tx,MATCH,,
+BLUEPRINT,dg_1,Generator 1,DG-1 Room,node-dg-1,HIGH,node-dg-1,MATCH,,
+BLUEPRINT,dg_2,Generator 2,DG-2 Room,node-dg-2,HIGH,node-dg-2,MATCH,,
+BLUEPRINT,dg_3,Generator 3,DG-3 Container,node-dg-3,HIGH,node-dg-3,MATCH,,
+BLUEPRINT,dg_4,Generator 4,DG-4 Container,node-dg-4,HIGH,node-dg-4,MATCH,,
+BLUEPRINT,dg_hq,Generator HQ,DG-HQ Container,node-dg-hq,HIGH,node-dg-hq,MATCH,,
+BLUEPRINT,site_fuel_record,Site Fuel Record,Fuel Reservoir,,NONE,,,,"No topology node found - likely telemetry-only (sensor, record, workstation)."
+TOPOLOGY,,,Server Room,node-ac-server-db,NONE,node-ac-server-db,,,Power infrastructure with no telemetry - normal for boards and busbars.
+TOPOLOGY,,,Power Room 2,node-ac-ups-db-a,NONE,node-ac-ups-db-a,,,Power infrastructure with no telemetry - normal for boards and busbars.
+TOPOLOGY,,,Power Room 1,node-ac-ups-db-b,NONE,node-ac-ups-db-b,,,Power infrastructure with no telemetry - normal for boards and busbars.
+TOPOLOGY,,,Power Room 2,node-aircon-db-a,NONE,node-aircon-db-a,,,Power infrastructure with no telemetry - normal for boards and busbars.
+TOPOLOGY,,,Power Room 1,node-aircon-db-b,NONE,node-aircon-db-b,,,Power infrastructure with no telemetry - normal for boards and busbars.
+TOPOLOGY,,,Power Room 2,node-dc-rect-db-a,NONE,node-dc-rect-db-a,,,Power infrastructure with no telemetry - normal for boards and busbars.
+TOPOLOGY,,,Power Room 1,node-dc-rect-db-b,NONE,node-dc-rect-db-b,,,Power infrastructure with no telemetry - normal for boards and busbars.
+TOPOLOGY,,,Server Room,node-dc-server-db,NONE,node-dc-server-db,,,Power infrastructure with no telemetry - normal for boards and busbars.
+TOPOLOGY,,,Genset Yard,node-dg-bus,NONE,node-dg-bus,,,Power infrastructure with no telemetry - normal for boards and busbars.
+TOPOLOGY,,,Power Room 1,node-main-main-db,NONE,node-main-main-db,,,Power infrastructure with no telemetry - normal for boards and busbars.
+TOPOLOGY,,,Power Room 1,node-maindb-1,NONE,node-maindb-1,,,Power infrastructure with no telemetry - normal for boards and busbars.
+TOPOLOGY,,,Power Room 2,node-maindb-2,NONE,node-maindb-2,,,Power infrastructure with no telemetry - normal for boards and busbars.
+TOPOLOGY,,,Power Room 1,node-pr1-ac-3,NONE,node-pr1-ac-3,,,Power infrastructure with no telemetry - normal for boards and busbars.
+TOPOLOGY,,,Power Room 1,node-tco-1,NONE,node-tco-1,,,Power infrastructure with no telemetry - normal for boards and busbars.
+TOPOLOGY,,,Power Room 2,node-tco-2,NONE,node-tco-2,,,Power infrastructure with no telemetry - normal for boards and busbars.

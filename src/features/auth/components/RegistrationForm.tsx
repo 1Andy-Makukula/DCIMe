@@ -1,7 +1,9 @@
 import React, { useState, useEffect } from "react";
+import { DEFAULT_SITE_CODE } from "@/config/sites";
 import { createClient } from "@supabase/supabase-js";
 import { useAuth } from "@/shared/context/AuthContext";
 import { supabase } from "@/shared/api/supabaseClient";
+import { BRAND_EMAIL_DOMAIN, siteLabel } from "@/shared/utils/branding";
 import {
   Select,
   SelectContent,
@@ -66,7 +68,7 @@ export function RegistrationForm({ onClose, onSaveSuccess }: RegistrationFormPro
           .order("site_name", { ascending: true });
         if (!error && data) {
           setSites(data);
-          const defaultSite = data.find((s: any) => s.site_code === "NTC") || data[0];
+          const defaultSite = data.find((s: any) => s.site_code === DEFAULT_SITE_CODE) || data[0];
           if (defaultSite) {
             setSelectedSiteUuid(defaultSite.id);
             setSite(defaultSite.site_code);
@@ -92,7 +94,7 @@ export function RegistrationForm({ onClose, onSaveSuccess }: RegistrationFormPro
     return (
       <div className="flex items-center justify-center p-12 min-h-[300px]">
         <div className="flex flex-col items-center gap-3">
-          <div className="w-8 h-8 rounded-full border-2 border-red-500 border-t-transparent animate-spin" />
+          <div className="w-8 h-8 rounded-full border-2 border-brand-500 border-t-transparent animate-spin" />
           <span className="text-xs font-bold text-gray-400 uppercase tracking-widest">Verifying IAM Clearance...</span>
         </div>
       </div>
@@ -102,8 +104,8 @@ export function RegistrationForm({ onClose, onSaveSuccess }: RegistrationFormPro
   if (!employee || employee.role !== "ADMIN") {
 
     return (
-      <div className="max-w-md mx-auto my-12 p-8 bg-white border border-red-100 rounded-3xl shadow-sm text-center space-y-4">
-        <div className="w-16 h-16 bg-red-50 rounded-full flex items-center justify-center mx-auto text-red-500 border border-red-100">
+      <div className="max-w-md mx-auto my-12 p-8 bg-white border border-danger-100 rounded-3xl shadow-sm text-center space-y-4">
+        <div className="w-16 h-16 bg-danger-50 rounded-full flex items-center justify-center mx-auto text-danger-500 border border-danger-100">
           <ShieldAlert size={32} />
         </div>
         <div className="space-y-1">
@@ -270,7 +272,7 @@ export function RegistrationForm({ onClose, onSaveSuccess }: RegistrationFormPro
                 required
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                placeholder="e.g. anderson.m@airtel.zm"
+                placeholder={`e.g. anderson.m@${BRAND_EMAIL_DOMAIN}`}
                 className="w-full pl-9 pr-4 py-3 rounded-xl bg-gray-50 border border-gray-200 text-[12px] font-semibold text-gray-900 placeholder-gray-400 focus:outline-none focus:border-gray-400 transition-all"
               />
             </div>
@@ -346,7 +348,7 @@ export function RegistrationForm({ onClose, onSaveSuccess }: RegistrationFormPro
                       value={s.id} 
                       className="text-[12px] font-semibold text-gray-900 cursor-pointer"
                     >
-                      {s.site_name} ({s.site_code})
+                      {siteLabel(s.site_name ?? s.site_code)}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -366,7 +368,7 @@ export function RegistrationForm({ onClose, onSaveSuccess }: RegistrationFormPro
               onClick={() => setRole("FIELD_TECH")}
               className={`py-3 rounded-xl text-center text-xs font-black uppercase tracking-wider transition-all border cursor-pointer ${
                 role === "FIELD_TECH"
-                  ? "bg-red-50 border-red-500 text-red-700"
+                  ? "bg-brand-50 border-brand-500 text-brand-700"
                   : "bg-gray-50 border-gray-200 text-gray-500 hover:bg-gray-100"
               }`}
             >
@@ -389,14 +391,14 @@ export function RegistrationForm({ onClose, onSaveSuccess }: RegistrationFormPro
 
         {/* Feedback Banners */}
         {error && (
-          <div className="p-3 text-xs font-semibold text-red-600 bg-red-50 border border-red-100 rounded-xl text-center">
+          <div className="p-3 text-xs font-semibold text-danger-600 bg-danger-50 border border-danger-100 rounded-xl text-center">
             {error}
           </div>
         )}
 
         {successMsg && (
-          <div className="flex items-center gap-2 p-3 text-xs font-semibold text-green-700 bg-green-50 border border-green-100 rounded-xl">
-            <ShieldCheck size={14} className="text-green-600 flex-shrink-0" />
+          <div className="flex items-center gap-2 p-3 text-xs font-semibold text-ok-700 bg-ok-50 border border-ok-100 rounded-xl">
+            <ShieldCheck size={14} className="text-ok-600 flex-shrink-0" />
             <span>{successMsg}</span>
           </div>
         )}

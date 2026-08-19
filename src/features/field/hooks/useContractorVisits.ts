@@ -162,11 +162,52 @@ export function useContractorVisits() {
     }
   };
 
+  /**
+   * Records something the contractor FOUND, as distinct from the visit itself.
+   *
+   * V1 put every observation into one free-text notes blob, so a contractor who
+   * identified three defects produced one paragraph: nothing trackable, nothing
+   * with a severity, nothing on any list of outstanding work, and the next
+   * visit rediscovered the same faults (audit A-05).
+   *
+   * `raiseWork` is deliberately optional. Not every observation deserves a job
+   * — forcing one would either fabricate work or discourage people from
+   * recording what they saw.
+   */
+  const recordFinding = async (
+    visitId: string,
+    finding: {
+      summary: string;
+      severity?: "P1" | "P2" | "P3" | "P4";
+      detail?: string | null;
+      equipmentId?: string | null;
+      raiseWork?: boolean;
+    }
+  ): Promise<string> => {
+    if (!finding.summary.trim()) {
+      throw new Error("Say what was found before saving");
+    }
+    const { data, error: rpcError } = await (supabase.rpc as any)(
+      "record_contractor_finding",
+      {
+        p_visit_id:     visitId,
+        p_summary:      finding.summary.trim(),
+        p_severity:     finding.severity ?? "P3",
+        p_detail:       finding.detail?.trim() || null,
+        p_equipment_id: finding.equipmentId ?? null,
+        p_raise_work:   finding.raiseWork ?? true,
+      }
+    );
+    if (rpcError) throw new Error(rpcError.message);
+    return data as string;
+  };
+
   return {
     visits,
     isLoading,
     error,
     refresh: fetchVisits,
     logVisit,
+    recordFinding,
   };
 }

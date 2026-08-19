@@ -1,0 +1,112 @@
+/* ═══════════════════════════════════════════════════════════════════════════
+   brand.css — THE ONE PLACE COLOUR IS DEFINED.
+
+   Every colour in the application resolves to a name in this file. Nothing
+   else should contain a hex value or a raw Tailwind palette class
+   (bg-red-500, text-emerald-600, ...). To re-brand the product, edit the
+   --color-brand-* ramp below and rebuild. Nothing else needs touching.
+
+   WHY THIS FILE EXISTS
+   The build previously hardcoded #FF0000 and `red-500` across 105 files. That
+   made the brand colour unchangeable in practice, and — worse — it made brand
+   red and "something is wrong" red the same colour, so the two meanings could
+   not be told apart or changed independently.
+
+   THE RULE
+   Pick by MEANING, never by hue:
+
+     brand-*    the product's identity: nav, primary buttons, focus rings,
+                active states, spinners, accents, the wordmark
+     danger-*   a fault, alarm, failure, breach, or destructive action
+     warn-*     degraded, due, ageing, needs attention but not yet failed
+     ok-*       healthy, verified, resolved, nominal
+     info-*     neutral annotation — notes, metadata, non-urgent status
+
+   Brand and danger MUST stay visually distinct. If the brand ever moves to a
+   red hue, shift danger toward crimson rather than letting them converge.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* `static` emits EVERY variable below, whether or not a Tailwind utility
+   happens to reference it. Without it Tailwind tree-shakes unused theme
+   variables, which silently breaks the var() references made from
+   TypeScript (charts, canvas) and from raw CSS gradients — the value just
+   resolves to nothing at runtime. A token file must always emit. */
+@theme static {
+  /* ── THE BRAND ────────────────────────────────────────────────────────────
+     Change these eleven values to re-brand the entire product.             */
+  --color-brand-50:  #FFF7ED;
+  --color-brand-100: #FFEDD5;
+  --color-brand-200: #FED7AA;
+  --color-brand-300: #FDBA74;
+  --color-brand-400: #FB923C;
+  --color-brand-500: #F97316;
+  --color-brand-600: #EA580C;
+  --color-brand-700: #C2410C;
+  --color-brand-800: #9A3412;
+  --color-brand-900: #7C2D12;
+  --color-brand-950: #431407;
+
+  /* ── STATUS ───────────────────────────────────────────────────────────────
+     Independent of the brand on purpose. These carry meaning to an operator
+     and must not drift when the brand changes.                            */
+  --color-danger-50:  #FEF2F2;
+  --color-danger-100: #FEE2E2;
+  --color-danger-200: #FECACA;
+  --color-danger-300: #FCA5A5;
+  --color-danger-400: #F87171;
+  --color-danger-500: #EF4444;
+  --color-danger-600: #DC2626;
+  --color-danger-700: #B91C1C;
+  --color-danger-800: #991B1B;
+  --color-danger-900: #7F1D1D;
+  --color-danger-950: #450A0A;
+
+  --color-warn-50:  #FFFBEB;
+  --color-warn-100: #FEF3C7;
+  --color-warn-200: #FDE68A;
+  --color-warn-300: #FCD34D;
+  --color-warn-400: #FBBF24;
+  --color-warn-500: #F59E0B;
+  --color-warn-600: #D97706;
+  --color-warn-700: #B45309;
+  --color-warn-800: #92400E;
+  --color-warn-900: #78350F;
+  --color-warn-950: #451A03;
+
+  --color-ok-50:  #ECFDF5;
+  --color-ok-100: #D1FAE5;
+  --color-ok-200: #A7F3D0;
+  --color-ok-300: #6EE7B7;
+  --color-ok-400: #34D399;
+  --color-ok-500: #10B981;
+  --color-ok-600: #059669;
+  --color-ok-700: #047857;
+  --color-ok-800: #065F46;
+  --color-ok-900: #064E3B;
+  --color-ok-950: #022C22;
+
+  --color-info-50:  #EFF6FF;
+  --color-info-100: #DBEAFE;
+  --color-info-200: #BFDBFE;
+  --color-info-300: #93C5FD;
+  --color-info-400: #60A5FA;
+  --color-info-500: #3B82F6;
+  --color-info-600: #2563EB;
+  --color-info-700: #1D4ED8;
+  --color-info-800: #1E40AF;
+  --color-info-900: #1E3A8A;
+  --color-info-950: #172554;
+
+  /* ── CHART SERIES ─────────────────────────────────────────────────────────
+     Categorical only — series 1..8 mean "a different line", never "worse".
+     Charts that encode STATUS must use danger/warn/ok instead.
+     Series 1 is the brand so single-series charts look like the product.  */
+  --color-series-1: var(--color-brand-500);
+  --color-series-2: #3B82F6;
+  --color-series-3: #10B981;
+  --color-series-4: #F59E0B;
+  --color-series-5: #8B5CF6;
+  --color-series-6: #EC4899;
+  --color-series-7: #06B6D4;
+  --color-series-8: #64748B;
+}

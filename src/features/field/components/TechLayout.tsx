@@ -1,7 +1,8 @@
 import { useEffect } from "react";
+import { Wordmark } from "@/shared/ui";
 import { NavLink, Outlet, useNavigate } from "react-router";
-import { Home, Activity, AlertOctagon, UserCheck, LogOut } from "lucide-react";
-import { AirtelMark } from "@/shared/ui";
+import { Home, Activity, AlertOctagon, UserCheck, LogOut, ClipboardList, Wrench } from "lucide-react";
+import { BrandMark } from "@/shared/ui";
 import { useAuth } from "@/shared/context/AuthContext";
 import { useCurrentSite } from "@/shared/context/SiteContext";
 
@@ -32,7 +33,7 @@ export function TechLayout() {
     return (
       <div className="h-screen w-full flex items-center justify-center bg-gray-50">
         <div className="flex flex-col items-center gap-3">
-          <div className="w-8 h-8 rounded-full border-2 border-red-500 border-t-transparent animate-spin" />
+          <div className="w-8 h-8 rounded-full border-2 border-brand-500 border-t-transparent animate-spin" />
           <span className="text-xs font-bold text-gray-400 uppercase tracking-widest">Loading Field Session...</span>
         </div>
       </div>
@@ -56,10 +57,10 @@ export function TechLayout() {
       {/* Top Header */}
       <header className="h-14 bg-white border-b border-gray-100 px-4 flex items-center justify-between shrink-0 z-10 print:hidden">
         <div className="flex items-center gap-2.5">
-          <AirtelMark size={28} />
+          <BrandMark size={28} />
           <div className="flex flex-col">
             <span className="text-[13px] font-black tracking-tight text-gray-900 leading-none">
-              DCIMe<span className="text-red-500">_Engine</span>
+              <Wordmark />
             </span>
             <span className="text-[9px] font-black text-gray-400 uppercase tracking-widest leading-none mt-1">
               Field Portal
@@ -69,21 +70,21 @@ export function TechLayout() {
         
         <div className="flex items-center gap-3">
           {currentSite && (
-            <span className="px-3 py-1 bg-red-50 text-red-600 rounded-full text-[10px] font-black uppercase tracking-wider border border-red-100">
+            <span className="px-3 py-1 bg-brand-50 text-brand-600 rounded-full text-[10px] font-black uppercase tracking-wider border border-brand-100">
               {currentSite.site_name}
             </span>
           )}
           {/* Logout Button */}
           <button 
             onClick={handleLogout}
-            className="p-2 text-gray-400 hover:text-red-500 transition-colors cursor-pointer"
+            className="p-2 text-gray-400 hover:text-brand-500 transition-colors cursor-pointer"
             title="Logout"
           >
             <LogOut size={18} />
           </button>
           {/* User Avatar */}
           <div 
-            className="w-8 h-8 rounded-full bg-red-500 text-white font-bold text-xs flex items-center justify-center shadow-sm"
+            className="w-8 h-8 rounded-full bg-brand-500 text-white font-bold text-xs flex items-center justify-center shadow-sm"
             title={user?.name || "Loading..."}
           >
             {user ? user.initials : "..."}
@@ -103,7 +104,7 @@ export function TechLayout() {
           end
           className={({ isActive }) =>
             `flex flex-col items-center justify-center flex-1 py-2 text-center transition-all ${
-              isActive ? "text-red-500 font-bold scale-105" : "text-gray-400 hover:text-gray-600"
+              isActive ? "text-brand-500 font-bold scale-105" : "text-gray-400 hover:text-gray-600"
             }`
           }
         >
@@ -112,10 +113,34 @@ export function TechLayout() {
         </NavLink>
 
         <NavLink
+          to="/tech/readings"
+          className={({ isActive }) =>
+            `flex flex-col items-center justify-center flex-1 py-2 text-center transition-all ${
+              isActive ? "text-brand-500 font-bold scale-105" : "text-gray-400 hover:text-gray-600"
+            }`
+          }
+        >
+          <ClipboardList size={20} className="mb-0.5" />
+          <span className="text-[9px] tracking-wide">Readings</span>
+        </NavLink>
+
+        <NavLink
+          to="/tech/jobs"
+          className={({ isActive }) =>
+            `flex flex-col items-center justify-center flex-1 py-2 text-center transition-all relative ${
+              isActive ? "text-brand-500 font-bold scale-105" : "text-gray-400 hover:text-gray-600"
+            }`
+          }
+        >
+          <Wrench size={20} className="mb-0.5" />
+          <span className="text-[9px] tracking-wide">Jobs</span>
+        </NavLink>
+
+        <NavLink
           to="/tech/log"
           className={({ isActive }) =>
             `flex flex-col items-center justify-center flex-1 py-2 text-center transition-all ${
-              isActive ? "text-red-500 font-bold scale-105" : "text-gray-400 hover:text-gray-600"
+              isActive ? "text-brand-500 font-bold scale-105" : "text-gray-400 hover:text-gray-600"
             }`
           }
         >
@@ -127,7 +152,7 @@ export function TechLayout() {
           to="/tech/incident"
           className={({ isActive }) =>
             `flex flex-col items-center justify-center flex-1 py-2 text-center transition-all ${
-              isActive ? "text-red-500 font-bold scale-105" : "text-gray-400 hover:text-gray-600"
+              isActive ? "text-danger-500 font-bold scale-105" : "text-gray-400 hover:text-gray-600"
             }`
           }
         >
@@ -139,7 +164,7 @@ export function TechLayout() {
           to="/tech/handover"
           className={({ isActive }) =>
             `flex flex-col items-center justify-center flex-1 py-2 text-center transition-all ${
-              isActive ? "text-red-500 font-bold scale-105" : "text-gray-400 hover:text-gray-600"
+              isActive ? "text-brand-500 font-bold scale-105" : "text-gray-400 hover:text-gray-600"
             }`
           }
         >

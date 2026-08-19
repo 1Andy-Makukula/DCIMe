@@ -1,7 +1,8 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router";
 import { Eye, EyeOff } from "lucide-react";
-import { AirtelMark, TopologyBG } from "@/shared/ui";
+import { TopologyBG } from "@/shared/ui";  // BrandMark: logo hidden
+import { PRODUCT_TAGLINE, PRODUCT_WORDMARK } from "@/shared/utils/branding";
 import { supabase } from "@/shared/api/supabaseClient";
 
 export interface LoginFormProps {
@@ -109,7 +110,7 @@ export function LoginForm() {
   return (
     <div 
       className="min-h-screen w-full flex relative overflow-hidden font-sans"
-      style={{ background: "linear-gradient(145deg, #B30000 0%, #E60000 50%, #a22020ff 100%)" }}
+      style={{ background: "linear-gradient(145deg, var(--color-brand-800) 0%, var(--color-brand-500) 50%, var(--color-brand-700) 100%)" }}
     >
       
       {/* Background topology graphic pattern overlay */}
@@ -118,14 +119,17 @@ export function LoginForm() {
       {/* LEFT SIDE: Hero Graphic (Desktop 'lg' screens) */}
       <div className="hidden lg:flex flex-1 relative flex-col items-center justify-center overflow-hidden">
         <div className="relative z-10 text-center flex flex-col items-center px-12">
+          {/* Logo hidden — the white card went with it, or it would render as an
+              empty blob on the gradient. Uncomment to restore.
           <div className="bg-white p-7 rounded-3xl shadow-[0_25px_60px_rgba(0,0,0,0.35)] mb-8 transform hover:scale-105 transition-transform">
-            <AirtelMark size={90} />
+            <BrandMark size={90} />
           </div>
+          */}
           <h1 className="text-4xl font-black text-white tracking-tight leading-tight uppercase drop-shadow-sm">
             DATA CENTER INFRASTRUCTURE <br/> MANAGEMENT ENGINE
           </h1>
-          <p className="mt-3 text-red-100 text-2xl font-black tracking-widest uppercase">
-            DCIMe_Engine
+          <p className="mt-3 text-brand-100 text-2xl font-black tracking-widest uppercase">
+            {PRODUCT_WORDMARK}
           </p>
         </div>
       </div>
@@ -139,24 +143,26 @@ export function LoginForm() {
             onSubmit={handleLogin} 
             className="bg-white/50 backdrop-blur-md border border-white/30 rounded-[32px] p-7 sm:p-10 shadow-[0_30px_90px_rgba(0,0,0,0.35)] transition-all"
           >
-            {/* Mobile Header: Huge Logo + DCIMe_Engine + Subtitle */}
+            {/* Mobile header: wordmark + subtitle */}
             <div className="flex flex-col items-center mb-8 lg:hidden">
+              {/* Logo hidden. Uncomment to restore.
               <div className="bg-white p-5 rounded-2xl shadow-md border border-gray-100 mb-4 transform hover:scale-105 transition-transform">
-                <AirtelMark size={130} />
+                <BrandMark size={130} />
               </div>
+              */}
               <h2 className="text-xl font-black uppercase text-center text-gray-900 leading-snug tracking-wider mt-1">
-                DCIMe_Engine
+                {PRODUCT_WORDMARK}
               </h2>
-              <p className="text-[11px] font-bold text-red-600 uppercase tracking-wider text-center mt-1.5">
-                Airtel Data Center Management Engine
+              <p className="text-[11px] font-bold text-brand-600 uppercase tracking-wider text-center mt-1.5">
+                {PRODUCT_TAGLINE}
               </p>
             </div>
 
             {/* Desktop Header */}
             <div className="hidden lg:block mb-8">
-              <h2 className="text-2xl font-black text-gray-900 tracking-tight">DCIMe_Engine</h2>
-              <p className="text-xs font-bold text-red-600 uppercase tracking-wider mt-1">
-                Airtel Data Center Management Engine
+              <h2 className="text-2xl font-black text-gray-900 tracking-tight">{PRODUCT_WORDMARK}</h2>
+              <p className="text-xs font-bold text-brand-600 uppercase tracking-wider mt-1">
+                {PRODUCT_TAGLINE}
               </p>
             </div>
 
@@ -167,8 +173,8 @@ export function LoginForm() {
                   Employee ID
                 </label>
                 <input
-                  className="w-full px-4 py-3.5 rounded-xl bg-white border border-gray-200 text-sm font-semibold text-gray-900 placeholder-gray-400 outline-none focus:border-red-500 focus:ring-2 focus:ring-red-500/20 transition-all shadow-xs"
-                  placeholder="e.g. ZM-4891"
+                  className="w-full px-4 py-3.5 rounded-xl bg-white border border-gray-200 text-sm font-semibold text-gray-900 placeholder-gray-400 outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20 transition-all shadow-xs"
+                  placeholder="e.g. EMP-4891"
                   value={empId}
                   onChange={(e: React.ChangeEvent<HTMLInputElement>) => setEmpId(e.target.value)}
                 />
@@ -181,7 +187,7 @@ export function LoginForm() {
                 <div className="relative">
                   <input
                     type={showPw ? "text" : "password"}
-                    className="w-full px-4 py-3.5 pr-11 rounded-xl bg-white border border-gray-200 text-sm font-semibold text-gray-900 placeholder-gray-400 outline-none focus:border-red-500 focus:ring-2 focus:ring-red-500/20 transition-all shadow-xs"
+                    className="w-full px-4 py-3.5 pr-11 rounded-xl bg-white border border-gray-200 text-sm font-semibold text-gray-900 placeholder-gray-400 outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20 transition-all shadow-xs"
                     placeholder="••••••••"
                     value={pw}
                     onChange={(e: React.ChangeEvent<HTMLInputElement>) => setPw(e.target.value)}
@@ -198,7 +204,7 @@ export function LoginForm() {
             </div>
 
             {error && (
-              <div className="mb-5 text-xs font-bold text-red-600 bg-red-50 p-3.5 rounded-xl border border-red-200 text-center leading-relaxed animate-fade-in">
+              <div className="mb-5 text-xs font-bold text-danger-600 bg-danger-50 p-3.5 rounded-xl border border-danger-200 text-center leading-relaxed animate-fade-in">
                 {error}
               </div>
             )}
@@ -207,7 +213,7 @@ export function LoginForm() {
               <button
                 type="submit"
                 disabled={isLoading}
-                className="w-full py-4 rounded-xl font-black text-white text-[13px] tracking-[0.12em] uppercase transition-all hover:bg-red-700 active:scale-[0.98] shadow-lg shadow-red-600/30 disabled:opacity-50 cursor-pointer bg-red-600"
+                className="w-full py-4 rounded-xl font-black text-white text-[13px] tracking-[0.12em] uppercase transition-all hover:bg-brand-600 active:scale-[0.98] shadow-lg shadow-brand-500/30 disabled:opacity-50 cursor-pointer bg-brand-500"
               >
                 {isLoading ? "Authenticating..." : "Sign In"}
               </button>

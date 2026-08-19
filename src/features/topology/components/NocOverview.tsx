@@ -1,4 +1,7 @@
 import React from "react";
+import { UTILITY_GRID_LABEL } from "@/shared/utils/branding";
+import { IngestionHealthCard } from "./IngestionHealthCard";
+import { siteLabel } from "@/shared/utils/branding";
 import {
   LineChart,
   Line,
@@ -26,6 +29,7 @@ import { useNocTelemetry } from "../hooks/useNocTelemetry";
 import { supabase } from "@/shared/api/supabaseClient";
 import { useCurrentSite } from "@/shared/context/SiteContext";
 import { useAuth } from "@/shared/context/AuthContext";
+import { useContractorVisits } from "@/features/field/hooks/useContractorVisits";
 
 
 // ── Shared card wrapper ──────────────────────────────────────────────────────
@@ -170,6 +174,11 @@ export function NocOverview() {
   const [searchQuery, setSearchQuery] = React.useState("");
   const [activePhotoUrl, setActivePhotoUrl] = React.useState<string | null>(null);
 
+  // Contractor inspections write to their own table, not incidents — without
+  // this, whole-site and asset-level visits (anything not linked to a fault
+  // ticket) had zero visibility anywhere on the NOC dashboard.
+  const { visits: contractorVisits, isLoading: visitsLoading } = useContractorVisits();
+
   // Open alarm count — derived from incidents state
   const openAlarmCount = incidents.filter((i) => i.status === "OPEN").length;
 
@@ -196,7 +205,7 @@ export function NocOverview() {
         ...item,
         status: item.status || "OPEN",
         notes: item.notes || "",
-        site_name: item.site_name || "",
+        site_name: siteLabel(item.site_name),
         asset_id: item.asset_id || "",
         severity: item.severity || "medium",
         created_at: item.created_at || new Date().toISOString(),
@@ -306,7 +315,7 @@ export function NocOverview() {
           <div className="flex items-center gap-2 mt-1.5">
             <GlowDot color="#19C853" />
             <span className="text-[11px] font-bold text-gray-400 uppercase tracking-[0.12em]">
-              Site {currentSite?.site_name || "—"} · Live
+              {currentSite?.site_name || "—"} · Live
             </span>
             <span className="text-[10px] text-gray-300 font-mono ml-2">
               Last sync: {lastSync} CAT
@@ -323,29 +332,29 @@ export function NocOverview() {
               const role = employee?.role || "ADMIN";
               window.open(`/topology_engine/renderer/index.html?role=${role}`, "_blank");
             }}
-            className="bg-white border border-gray-250 rounded-xl px-3 py-2 text-[10px] font-black uppercase tracking-wider text-slate-700 hover:text-red-500 hover:border-red-100 hover:bg-red-50/20 active:scale-95 transition-all shadow-sm flex items-center gap-2 cursor-pointer"
+            className="bg-white border border-gray-250 rounded-xl px-3 py-2 text-[10px] font-black uppercase tracking-wider text-slate-700 hover:text-brand-500 hover:border-brand-100 hover:bg-brand-50/20 active:scale-95 transition-all shadow-sm flex items-center gap-2 cursor-pointer"
           >
             📊 View Visual Topology
           </button>
 
           {/* Live status badge — reacts to the actual open-alarm count */}
           {openAlarmCount > 0 ? (
-            <div className="flex items-center gap-2 bg-red-50 border border-red-200 rounded-xl px-3 py-2">
+            <div className="flex items-center gap-2 bg-danger-50 border border-danger-200 rounded-xl px-3 py-2">
               <span
-                className="w-2 h-2 rounded-full bg-red-500 flex-shrink-0"
+                className="w-2 h-2 rounded-full bg-danger-500 flex-shrink-0"
                 style={{ animation: "pulse 2s infinite" }}
               />
-              <span className="text-[11px] font-black text-red-700 uppercase tracking-wider">
+              <span className="text-[11px] font-black text-danger-700 uppercase tracking-wider">
                 {openAlarmCount} Open Alarm{openAlarmCount === 1 ? "" : "s"}
               </span>
             </div>
           ) : (
-            <div className="flex items-center gap-2 bg-green-50 border border-green-100 rounded-xl px-3 py-2">
+            <div className="flex items-center gap-2 bg-ok-50 border border-ok-100 rounded-xl px-3 py-2">
               <span
-                className="w-2 h-2 rounded-full bg-green-500 flex-shrink-0"
+                className="w-2 h-2 rounded-full bg-ok-500 flex-shrink-0"
                 style={{ animation: "pulse 2s infinite" }}
               />
-              <span className="text-[11px] font-black text-green-700 uppercase tracking-wider">
+              <span className="text-[11px] font-black text-ok-700 uppercase tracking-wider">
                 All Systems Nominal
               </span>
             </div>
@@ -353,6 +362,14 @@ export function NocOverview() {
         </div>
       </div>
 
+
+      {/* Data flow first: every number below is only as current as the last
+          reading, so a silent site has to be visible before anything else. */}
+      {/* mb-5 matches the page header's rhythm. The root container sets no
+          vertical gap, so an unspaced child sits flush against the grid below. */}
+      <div className="mb-5">
+        <IngestionHealthCard />
+      </div>
 
       {/* ── Main 12-column grid ─────────────────────────────────────────────── */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
@@ -367,15 +384,15 @@ export function NocOverview() {
               {/* Active source pill */}
               <div className="flex items-center gap-2 mt-2">
                 <div className={`flex items-center gap-2 border rounded-xl px-3 py-1.5 ${
-                  isGen ? "bg-amber-50 border-amber-200 text-amber-800" : "bg-green-50 border-green-100 text-green-700"
+                  isGen ? "bg-warn-50 border-warn-200 text-warn-800" : "bg-ok-50 border-ok-100 text-ok-700"
                 }`}>
-                  <GlowDot color={isGen ? "#F59E0B" : "#19C853"} />
+                  <GlowDot color={isGen ? "var(--color-warn-500)" : "#19C853"} />
                   <span className="text-[13px] font-black tracking-tight">
                     {isGen ? "Generator Active" : "Mains Active"}
                   </span>
                 </div>
                 <span className="text-[11px] font-semibold text-gray-400">
-                  {isGen ? "Diesel Generator Feed · 400 V AC" : `ZESCO Grid · 230 V AC · PF ${pfVal}`}
+                  {isGen ? "Diesel Generator Feed · 400 V AC" : `${UTILITY_GRID_LABEL} · 230 V AC · PF ${pfVal}`}
                 </span>
               </div>
             </div>
@@ -391,7 +408,7 @@ export function NocOverview() {
                   KW
                 </span>
               </div>
-              <div className="flex items-center gap-1 justify-end text-[11px] font-bold mt-1 text-green-600">
+              <div className="flex items-center gap-1 justify-end text-[11px] font-bold mt-1 text-ok-600">
                 <Activity size={11} />
                 <span>Live Data</span>
               </div>
@@ -410,7 +427,7 @@ export function NocOverview() {
               <div className="flex items-center gap-1.5">
                 <span
                   className="w-3 h-0.5 rounded-full inline-block"
-                  style={{ backgroundColor: "#EF4444" }}
+                  style={{ backgroundColor: "var(--color-danger-500)" }}
                 />
                 <span className="text-[9px] font-bold text-gray-400 uppercase tracking-wider">
                   KW
@@ -442,10 +459,10 @@ export function NocOverview() {
                 <Line
                   type="monotone"
                   dataKey="kw"
-                  stroke="#EF4444"
+                  stroke="var(--color-danger-500)"
                   strokeWidth={2.5}
                   dot={false}
-                  activeDot={{ r: 4, fill: "#EF4444", strokeWidth: 0 }}
+                  activeDot={{ r: 4, fill: "var(--color-danger-500)", strokeWidth: 0 }}
                 />
               </LineChart>
             </ResponsiveContainer>
@@ -454,11 +471,15 @@ export function NocOverview() {
           {/* Footer meta strip */}
           <div className="flex items-center gap-6 mt-3 pt-3 border-t border-gray-50">
             {[
-              { label: "UPS Charge", value: `${latestMetrics.ups_1_battery_charge_percent || 100}%`, color: "#19C853" },
-              { label: "Site Uptime", value: isGen ? "Generator Mode" : (uptimePct === "—" ? "—" : `${uptimePct}%`), color: isGen ? "#F59E0B" : "#19C853" },
+              // Same fabricated-default bug fixed across the analytics hooks,
+              // found here on a second pass: `|| 100` / `|| 48.1` silently
+              // asserted a healthy reading whenever the real one was missing
+              // or genuinely zero, indistinguishable from an actual value.
+              { label: "UPS Charge", value: latestMetrics.ups_1_battery_charge_percent != null ? `${latestMetrics.ups_1_battery_charge_percent}%` : "—", color: "#19C853" },
+              { label: "Site Uptime", value: isGen ? "Generator Mode" : (uptimePct === "—" ? "—" : `${uptimePct}%`), color: isGen ? "var(--color-warn-500)" : "#19C853" },
 
               { label: "Phase Balance", value: "Monitoring", color: "#FFB020" },
-              { label: "DC Bus", value: `${latestMetrics.rectifier_1_dc_voltage || 48.1} V`, color: "#19C853" },
+              { label: "DC Bus", value: latestMetrics.rectifier_1_dc_voltage != null ? `${latestMetrics.rectifier_1_dc_voltage} V` : "—", color: "#19C853" },
             ].map((stat) => (
               <div key={stat.label}>
                 <div className="text-[9px] font-black text-gray-400 uppercase tracking-wider">
@@ -483,7 +504,7 @@ export function NocOverview() {
 
           {/* Total Active Assets */}
           <Card className="p-4 flex items-center gap-4">
-            <div className="w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0 bg-green-50">
+            <div className="w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0 bg-ok-50">
               <Zap size={22} color="#19C853" />
             </div>
             <div className="flex-1 min-w-0">
@@ -501,15 +522,15 @@ export function NocOverview() {
                 {currentSite?.site_name ?? "—"}
               </div>
             </div>
-            <CheckCircle2 size={20} className="text-green-400 flex-shrink-0" />
+            <CheckCircle2 size={20} className="text-ok-400 flex-shrink-0" />
           </Card>
 
           {/* Active Alarms */}
           <Card className="p-4 flex items-center gap-4">
             <div className={`w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0 ${
-              openAlarmCount > 0 ? "bg-red-50" : "bg-gray-100"
+              openAlarmCount > 0 ? "bg-danger-50" : "bg-gray-100"
             }`}>
-              <AlertTriangle size={22} color={openAlarmCount > 0 ? "#DC2626" : "#999"} />
+              <AlertTriangle size={22} color={openAlarmCount > 0 ? "var(--color-danger-600)" : "#999"} />
             </div>
             <div className="flex-1 min-w-0">
               <div className="text-[10px] font-black text-gray-400 uppercase tracking-[0.12em]">
@@ -519,7 +540,7 @@ export function NocOverview() {
                 <div className="h-7 w-12 bg-gray-100 rounded-lg animate-pulse mt-1" />
               ) : (
                 <div className={`font-black text-[28px] leading-none mt-0.5 ${
-                  openAlarmCount > 0 ? "text-red-600" : "text-gray-900"
+                  openAlarmCount > 0 ? "text-danger-600" : "text-gray-900"
                 }`}>
                   {openAlarmCount}
                 </div>
@@ -529,17 +550,17 @@ export function NocOverview() {
               </div>
             </div>
             {openAlarmCount > 0 ? (
-              <AlertTriangle size={18} className="text-red-400 flex-shrink-0 animate-pulse" />
+              <AlertTriangle size={18} className="text-danger-400 flex-shrink-0 animate-pulse" />
             ) : (
-              <CheckCircle2 size={18} className="text-green-400 flex-shrink-0" />
+              <CheckCircle2 size={18} className="text-ok-400 flex-shrink-0" />
             )}
           </Card>
 
           {/* Total Rooms + per-category breakdown */}
           <Card className="p-4">
             <div className="flex items-center gap-3 mb-3">
-              <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 bg-blue-50">
-                <Thermometer size={18} color="#3B82F6" />
+              <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 bg-info-50">
+                <Thermometer size={18} color="var(--color-info-500)" />
               </div>
               <div>
                 <div className="text-[10px] font-black text-gray-400 uppercase tracking-[0.12em]">
@@ -592,11 +613,11 @@ export function NocOverview() {
             </div>
             <div className="flex items-center gap-4">
               <div className="flex items-center gap-1.5 text-[9px] font-bold text-gray-400 uppercase tracking-wider">
-                <span className="w-2.5 h-2.5 rounded-full bg-green-500 flex-shrink-0" />
+                <span className="w-2.5 h-2.5 rounded-full bg-ok-500 flex-shrink-0" />
                 Nominal
               </div>
               <div className="flex items-center gap-1.5 text-[9px] font-bold text-gray-400 uppercase tracking-wider">
-                <span className="w-2.5 h-2.5 rounded-full bg-red-500 flex-shrink-0" />
+                <span className="w-2.5 h-2.5 rounded-full bg-danger-500 flex-shrink-0" />
                 Elevated (&gt;22°C)
               </div>
               <Thermometer size={16} color="#FFB020" />
@@ -635,7 +656,7 @@ export function NocOverview() {
                 {thermalData.map((entry, index) => (
                   <Cell
                     key={index}
-                    fill={entry.temp > 22 ? "#EF4444" : "#19C853"}
+                    fill={entry.temp > 22 ? "var(--color-danger-500)" : "#19C853"}
                   />
                 ))}
               </Bar>
@@ -649,8 +670,8 @@ export function NocOverview() {
                 key={zone.room}
                 className={`flex items-center gap-2 px-3 py-1.5 rounded-xl text-[11px] font-black ${
                   zone.temp > 22
-                    ? "bg-red-50 text-red-600"
-                    : "bg-green-50 text-green-700"
+                    ? "bg-danger-50 text-danger-600"
+                    : "bg-ok-50 text-ok-700"
                 }`}
               >
                 <span>{zone.room}</span>
@@ -675,7 +696,7 @@ export function NocOverview() {
                 Critical Alerts
               </div>
             </div>
-            <span className="bg-red-50 text-red-600 text-[9px] font-black px-2.5 py-1 rounded-full uppercase tracking-wider border border-red-100">
+            <span className="bg-danger-50 text-danger-600 text-[9px] font-black px-2.5 py-1 rounded-full uppercase tracking-wider border border-danger-100">
               {phaseAlerts.length} Active
             </span>
           </div>
@@ -686,18 +707,18 @@ export function NocOverview() {
               <div
                 key={alert.id}
                 className={`flex gap-3 px-4 py-3.5 hover:bg-gray-50 transition-colors ${
-                  alert.level === "crit" ? "bg-red-50/40" : ""
+                  alert.level === "crit" ? "bg-danger-50/40" : ""
                 }`}
               >
                 {/* Icon */}
                 <div
                   className={`w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0 mt-0.5 ${
-                    alert.level === "crit" ? "bg-red-100" : "bg-amber-50"
+                    alert.level === "crit" ? "bg-danger-100" : "bg-warn-50"
                   }`}
                 >
                   <AlertTriangle
                     size={14}
-                    color={alert.level === "crit" ? "#DC2626" : "#D97706"}
+                    color={alert.level === "crit" ? "var(--color-danger-600)" : "#D97706"}
                   />
                 </div>
 
@@ -708,8 +729,8 @@ export function NocOverview() {
                     <span
                       className={`text-[9px] font-black px-1.5 py-0.5 rounded uppercase tracking-wider ${
                         alert.level === "crit"
-                          ? "bg-red-100 text-red-700"
-                          : "bg-amber-100 text-amber-700"
+                          ? "bg-danger-100 text-danger-700"
+                          : "bg-warn-100 text-warn-700"
                       }`}
                     >
                       {alert.level === "crit" ? "CRITICAL" : "WARN"}
@@ -722,7 +743,7 @@ export function NocOverview() {
                   {/* Message */}
                   <div
                     className={`text-[11px] font-semibold leading-snug ${
-                      alert.level === "crit" ? "text-red-800" : "text-gray-700"
+                      alert.level === "crit" ? "text-danger-800" : "text-gray-700"
                     }`}
                   >
                     {alert.msg}
@@ -768,7 +789,7 @@ export function NocOverview() {
                   placeholder="Search by ticket, asset, tech..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="pl-8 pr-4 py-1.5 bg-gray-50 border border-gray-200 rounded-xl text-xs font-semibold text-gray-800 placeholder-gray-400 focus:outline-none focus:border-red-500 w-48 transition-all"
+                  className="pl-8 pr-4 py-1.5 bg-gray-50 border border-gray-200 rounded-xl text-xs font-semibold text-gray-800 placeholder-gray-400 focus:outline-none focus:border-brand-500 w-48 transition-all"
                 />
               </div>
 
@@ -796,7 +817,7 @@ export function NocOverview() {
                 title="Refresh Audits"
                 disabled={incidentsLoading}
               >
-                <RefreshCw size={13} className={incidentsLoading ? "animate-spin text-red-500" : ""} />
+                <RefreshCw size={13} className={incidentsLoading ? "animate-spin text-danger-500" : ""} />
               </button>
             </div>
           </div>
@@ -805,12 +826,12 @@ export function NocOverview() {
           <div className="space-y-3">
             {incidentsLoading && incidents.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-12 text-gray-400">
-                <RefreshCw size={20} className="animate-spin mb-2 text-red-400" />
+                <RefreshCw size={20} className="animate-spin mb-2 text-danger-400" />
                 <span className="text-xs font-semibold">Loading incident audit logs from Supabase...</span>
               </div>
             ) : filteredIncidents.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-12 text-gray-400">
-                <CheckCircle2 size={20} className="mb-2 text-green-400" />
+                <CheckCircle2 size={20} className="mb-2 text-ok-400" />
                 <span className="text-xs font-semibold">No incidents found matching current filters.</span>
               </div>
             ) : (
@@ -834,7 +855,7 @@ export function NocOverview() {
                     {/* Left accent strip */}
                     <div
                       className="absolute left-0 top-0 bottom-0 w-1 rounded-l-xl"
-                      style={{ backgroundColor: isResolved ? "#22c55e" : "#ef4444" }}
+                      style={{ backgroundColor: isResolved ? "#22c55e" : "var(--color-danger-500)" }}
                     />
 
                     {/* ── Card Header ──────────────────────────────────────── */}
@@ -846,11 +867,11 @@ export function NocOverview() {
 
                       {/* Type badge */}
                       {incident.ticket_number?.startsWith("VISIT-") ? (
-                        <span className="inline-flex items-center gap-1 bg-emerald-50 text-emerald-700 border border-emerald-100 text-[8px] font-black uppercase tracking-wider px-1.5 py-0.5 rounded">
+                        <span className="inline-flex items-center gap-1 bg-ok-50 text-ok-700 border border-ok-100 text-[8px] font-black uppercase tracking-wider px-1.5 py-0.5 rounded">
                           👷‍♂️ Visit Log
                         </span>
                       ) : (
-                        <span className="inline-flex items-center gap-1 bg-red-50 text-red-700 border border-red-100 text-[8px] font-black uppercase tracking-wider px-1.5 py-0.5 rounded">
+                        <span className="inline-flex items-center gap-1 bg-danger-50 text-danger-700 border border-danger-100 text-[8px] font-black uppercase tracking-wider px-1.5 py-0.5 rounded">
                           🚨 Fault Alert
                         </span>
                       )}
@@ -858,27 +879,27 @@ export function NocOverview() {
                       {/* Status badge */}
                       <span className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-[9px] font-black uppercase tracking-wider ${
                         isResolved
-                          ? "bg-green-50 text-green-700 border border-green-100"
-                          : "bg-red-50 text-red-700 border border-red-100 animate-pulse"
+                          ? "bg-ok-50 text-ok-700 border border-ok-100"
+                          : "bg-danger-50 text-danger-700 border border-danger-100 animate-pulse"
                       }`}>
-                        <span className={`w-1.5 h-1.5 rounded-full ${isResolved ? "bg-green-500" : "bg-red-500"}`} />
+                        <span className={`w-1.5 h-1.5 rounded-full ${isResolved ? "bg-ok-500" : "bg-danger-500"}`} />
                         {incident.status}
                       </span>
 
                       {/* Severity badge */}
                       <span className={`text-[9px] font-black uppercase tracking-wider px-2 py-0.5 rounded border ${
                         incident.severity === "critical"
-                          ? "bg-red-50 text-red-600 border-red-100"
+                          ? "bg-danger-50 text-danger-600 border-danger-100"
                           : incident.severity === "medium"
-                          ? "bg-amber-50 text-amber-600 border-amber-100"
-                          : "bg-blue-50 text-blue-600 border-blue-100"
+                          ? "bg-warn-50 text-warn-600 border-warn-100"
+                          : "bg-info-50 text-info-600 border-info-100"
                       }`}>
                         {incident.severity}
                       </span>
 
                       {/* Updates count */}
                       {incident.comments && incident.comments.length > 0 && (
-                        <span className="inline-flex items-center gap-1 bg-amber-50 text-amber-700 border border-amber-100 text-[8px] font-black uppercase tracking-wider px-1.5 py-0.5 rounded">
+                        <span className="inline-flex items-center gap-1 bg-warn-50 text-warn-700 border border-warn-100 text-[8px] font-black uppercase tracking-wider px-1.5 py-0.5 rounded">
                           {incident.comments.length} {incident.comments.length === 1 ? "Update" : "Updates"}
                         </span>
                       )}
@@ -886,8 +907,8 @@ export function NocOverview() {
                       {/* Duration/Aging — pushed to the right */}
                       <span className={`ml-auto font-bold font-mono px-2.5 py-1 rounded-full text-[10px] border ${
                         isResolved
-                          ? "bg-green-50 text-green-700 border-green-100"
-                          : "bg-amber-50 text-amber-700 border-amber-100 animate-pulse"
+                          ? "bg-ok-50 text-ok-700 border-ok-100"
+                          : "bg-warn-50 text-warn-700 border-warn-100 animate-pulse"
                       }`}>
                         {isResolved
                           ? incident.resolved_at
@@ -941,10 +962,10 @@ export function NocOverview() {
                           <div className="flex items-start gap-3">
                             {incident.photo_url && (
                               <div>
-                                <div className="text-[8px] font-black text-red-400 uppercase tracking-wider mb-1">📷 Fault Photo</div>
+                                <div className="text-[8px] font-black text-danger-400 uppercase tracking-wider mb-1">📷 Fault Photo</div>
                                 <button
                                   onClick={() => setActivePhotoUrl(incident.photo_url)}
-                                  className="block rounded-lg overflow-hidden border-2 border-red-100 hover:border-red-300 transition-all shadow-sm active:scale-95"
+                                  className="block rounded-lg overflow-hidden border-2 border-danger-100 hover:border-danger-300 transition-all shadow-sm active:scale-95"
                                   style={{ maxWidth: 100 }}
                                 >
                                   <img src={incident.photo_url} alt="Fault Evidence" className="w-full h-auto object-cover" />
@@ -953,10 +974,10 @@ export function NocOverview() {
                             )}
                             {resCmt?.photo_url && (
                               <div>
-                                <div className="text-[8px] font-black text-green-500 uppercase tracking-wider mb-1">📷 Resolution Photo</div>
+                                <div className="text-[8px] font-black text-ok-500 uppercase tracking-wider mb-1">📷 Resolution Photo</div>
                                 <button
                                   onClick={() => setActivePhotoUrl(resCmt.photo_url || null)}
-                                  className="block rounded-lg overflow-hidden border-2 border-green-100 hover:border-green-300 transition-all shadow-sm active:scale-95"
+                                  className="block rounded-lg overflow-hidden border-2 border-ok-100 hover:border-ok-300 transition-all shadow-sm active:scale-95"
                                   style={{ maxWidth: 100 }}
                                 >
                                   <img src={resCmt.photo_url} alt="Resolution" className="w-full h-auto object-cover" />
@@ -968,18 +989,18 @@ export function NocOverview() {
 
                         {/* Contractor Visits */}
                         {visits.length > 0 && (
-                          <div className="space-y-1.5 pl-3 border-l-2 border-emerald-300">
-                            <div className="text-[8px] font-black text-emerald-600 uppercase tracking-widest">
+                          <div className="space-y-1.5 pl-3 border-l-2 border-ok-300">
+                            <div className="text-[8px] font-black text-ok-600 uppercase tracking-widest">
                               👷‍♂️ Contractor Visits ({visits.length})
                             </div>
                             {visits.map((cmt, idx) => (
-                              <div key={idx} className="text-[10px] text-gray-700 leading-normal bg-emerald-50/40 p-2 rounded border border-emerald-100/40">
+                              <div key={idx} className="text-[10px] text-gray-700 leading-normal bg-ok-50/40 p-2 rounded border border-ok-100/40">
                                 <div className="font-semibold">{cmt.comment_text}</div>
                                 <div className="text-[8px] text-gray-400 font-mono mt-0.5">{formatDateTime(cmt.timestamp)}</div>
                                 {cmt.photo_url && (
                                   <button
                                     onClick={() => setActivePhotoUrl(cmt.photo_url || null)}
-                                    className="mt-1 block rounded overflow-hidden border border-slate-200 max-w-[60px] active:scale-95 hover:border-blue-400 transition-colors"
+                                    className="mt-1 block rounded overflow-hidden border border-slate-200 max-w-[60px] active:scale-95 hover:border-info-400 transition-colors"
                                   >
                                     <img src={cmt.photo_url} alt="Progress" className="w-full h-auto" />
                                   </button>
@@ -997,7 +1018,7 @@ export function NocOverview() {
                             </div>
                             {remarks.map((cmt, idx) => (
                               <div key={idx} className="text-[10px] text-gray-600 leading-normal">
-                                <span className={`font-black ${cmt.type === 'correction' ? 'text-red-500' : 'text-blue-500'}`}>
+                                <span className={`font-black ${cmt.type === 'correction' ? 'text-danger-500' : 'text-info-500'}`}>
                                   {cmt.type === 'correction' ? 'Correction: ' : 'Remark: '}
                                 </span>
                                 {cmt.comment_text}{" "}
@@ -1011,23 +1032,23 @@ export function NocOverview() {
                       {/* Right Column: Resolution Details */}
                       <div>
                         {isResolved ? (
-                          <div className="bg-green-50/50 border border-green-100 rounded-xl p-4 space-y-3 h-full">
-                            <div className="text-[9px] font-black text-green-600 uppercase tracking-wider flex items-center gap-1.5">
+                          <div className="bg-ok-50/50 border border-ok-100 rounded-xl p-4 space-y-3 h-full">
+                            <div className="text-[9px] font-black text-ok-600 uppercase tracking-wider flex items-center gap-1.5">
                               <CheckCircle2 size={12} />
                               Resolution Details
                             </div>
 
                             {/* Resolved by + receipt */}
                             <div className="flex items-start gap-3">
-                              <div className="w-7 h-7 rounded-full bg-green-100 flex items-center justify-center flex-shrink-0">
-                                <User size={12} className="text-green-600" />
+                              <div className="w-7 h-7 rounded-full bg-ok-100 flex items-center justify-center flex-shrink-0">
+                                <User size={12} className="text-ok-600" />
                               </div>
                               <div>
-                                <div className="text-xs font-bold text-green-800">{incident.resolved_by_name}</div>
-                                <div className="text-[9px] text-green-600 font-mono">{incident.resolved_by_id}</div>
+                                <div className="text-xs font-bold text-ok-800">{incident.resolved_by_name}</div>
+                                <div className="text-[9px] text-ok-600 font-mono">{incident.resolved_by_id}</div>
                                 {incident.receipt_number && (
                                   <div className="mt-1">
-                                    <span className="font-bold text-green-700 font-mono text-[9px] bg-green-100 px-1.5 py-0.5 rounded border border-green-200">
+                                    <span className="font-bold text-ok-700 font-mono text-[9px] bg-ok-100 px-1.5 py-0.5 rounded border border-ok-200">
                                       {incident.receipt_number}
                                     </span>
                                   </div>
@@ -1037,49 +1058,49 @@ export function NocOverview() {
 
                             {/* Resolved timestamp */}
                             {incident.resolved_at && (
-                              <div className="text-[10px] font-semibold text-green-600/80 font-mono">
+                              <div className="text-[10px] font-semibold text-ok-600/80 font-mono">
                                 <Clock size={9} className="inline mr-1" />{formatDateTime(incident.resolved_at)}
                               </div>
                             )}
 
                             {/* Resolution description */}
                             {incident.resolution_details && (
-                              <div className="text-[11px] text-green-900 leading-relaxed bg-white/60 border border-green-100 p-2.5 rounded-lg">
+                              <div className="text-[11px] text-ok-900 leading-relaxed bg-white/60 border border-ok-100 p-2.5 rounded-lg">
                                 {incident.resolution_details}
                               </div>
                             )}
 
                             {/* Impact + Contractor metadata */}
-                            <div className="flex flex-wrap items-center gap-2 text-[9px] font-bold pt-1 border-t border-green-100">
+                            <div className="flex flex-wrap items-center gap-2 text-[9px] font-bold pt-1 border-t border-ok-100">
                               {incident.impact && (
                                 <>
-                                  <span className="text-green-600">Impact:</span>
-                                  <span className="bg-green-100 text-green-800 px-1.5 py-0.5 rounded uppercase">{incident.impact}</span>
+                                  <span className="text-ok-600">Impact:</span>
+                                  <span className="bg-ok-100 text-ok-800 px-1.5 py-0.5 rounded uppercase">{incident.impact}</span>
                                 </>
                               )}
                               {incident.contractor_engaged && (
                                 <>
-                                  <span className="text-green-600 ml-1">Contractor:</span>
-                                  <span className="bg-green-100 text-green-800 px-1.5 py-0.5 rounded">{incident.contractor_engaged}</span>
+                                  <span className="text-ok-600 ml-1">Contractor:</span>
+                                  <span className="bg-ok-100 text-ok-800 px-1.5 py-0.5 rounded">{incident.contractor_engaged}</span>
                                 </>
                               )}
                             </div>
                           </div>
                         ) : incident.contractor_engaged ? (
-                          <div className="bg-blue-50/50 border border-blue-100 rounded-xl p-4 space-y-2 h-full">
-                            <div className="text-[9px] font-black text-blue-600 uppercase tracking-wider flex items-center gap-1.5">
+                          <div className="bg-info-50/50 border border-info-100 rounded-xl p-4 space-y-2 h-full">
+                            <div className="text-[9px] font-black text-info-600 uppercase tracking-wider flex items-center gap-1.5">
                               👷‍♂️ Contractor Engaged
                             </div>
-                            <div className="text-sm font-black text-blue-900">
+                            <div className="text-sm font-black text-info-900">
                               {incident.contractor_engaged}
                             </div>
-                            <div className="text-[10px] text-blue-600 font-semibold">
+                            <div className="text-[10px] text-info-600 font-semibold">
                               Awaiting resolution sign-off
                             </div>
                           </div>
                         ) : (
                           <div className="bg-gray-50/50 border border-gray-100 rounded-xl p-4 flex flex-col items-center justify-center h-full text-center">
-                            <AlertTriangle size={18} className="text-amber-400 mb-2" />
+                            <AlertTriangle size={18} className="text-warn-400 mb-2" />
                             <div className="text-[10px] font-black text-gray-400 uppercase tracking-wider">
                               Awaiting Field Clearance
                             </div>
@@ -1087,6 +1108,68 @@ export function NocOverview() {
                               No resolution submitted yet
                             </div>
                           </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                );
+              })
+            )}
+          </div>
+        </Card>
+
+        {/* ════════════════════════════════════════════════════════════════════
+            SECTION 6: Contractor Visit Log (col-span-12)
+        ════════════════════════════════════════════════════════════════════ */}
+        <Card className="lg:col-span-12 p-5 flex flex-col space-y-4">
+          <div className="border-b border-gray-100 pb-4">
+            <SectionLabel>Contractor Visit Log</SectionLabel>
+            <div className="text-[11px] font-semibold text-gray-400 mt-0.5">
+              Site inspections and equipment checkups — never implies a fault was resolved.
+            </div>
+          </div>
+
+          <div className="space-y-2">
+            {visitsLoading && contractorVisits.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-8 text-gray-400">
+                <RefreshCw size={18} className="animate-spin mb-2 text-brand-400" />
+                <span className="text-xs font-semibold">Loading contractor visit log...</span>
+              </div>
+            ) : contractorVisits.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-8 text-gray-400">
+                <span className="text-xs font-semibold">No contractor visits logged yet.</span>
+              </div>
+            ) : (
+              contractorVisits.slice(0, 8).map((visit) => {
+                const linkedTicket = visit.target_type === "TICKET"
+                  ? incidents.find((i) => i.id === visit.target_ref)
+                  : null;
+                const targetLabel =
+                  visit.target_type === "SITE" ? "Whole Site" :
+                  visit.target_type === "ASSET" ? (visit.target_ref || "").toUpperCase().replace(/_/g, " ") :
+                  linkedTicket ? `Ticket ${linkedTicket.ticket_number}` : "Fault Ticket";
+
+                return (
+                  <div key={visit.id} className="flex items-start gap-3 bg-gray-50/60 border border-gray-100 rounded-xl p-3">
+                    <div className="w-8 h-8 rounded-lg bg-info-50 border border-info-100 flex items-center justify-center shrink-0 text-sm">
+                      👷‍♂️
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="text-[12px] font-black text-gray-900 truncate">{visit.contractor}</span>
+                        <span className="text-[9px] font-bold text-gray-400 font-mono shrink-0">
+                          {formatDateTime(visit.occurred_at)}
+                        </span>
+                      </div>
+                      <div className="text-[11px] text-gray-600 font-semibold">{visit.purpose}</div>
+                      <div className="flex items-center gap-1.5 mt-1">
+                        <span className="text-[9px] font-black uppercase tracking-wider text-info-600 bg-info-50 border border-info-100 px-1.5 py-0.5 rounded">
+                          {targetLabel}
+                        </span>
+                        {linkedTicket && (
+                          <span className="text-[9px] font-bold text-warn-600">
+                            still {linkedTicket.status}
+                          </span>
                         )}
                       </div>
                     </div>

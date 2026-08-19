@@ -53,7 +53,7 @@ export function ShiftCheckInPrompt() {
       </button>
 
       <div className="flex items-center gap-2.5">
-        <div className="w-9 h-9 rounded-2xl bg-red-50 border border-red-100 flex items-center justify-center text-red-500 shrink-0">
+        <div className="w-9 h-9 rounded-2xl bg-brand-50 border border-brand-100 flex items-center justify-center text-brand-500 shrink-0">
           <LogIn size={16} />
         </div>
         <div>
@@ -80,7 +80,7 @@ export function ShiftCheckInPrompt() {
                   : "bg-gray-50 border-gray-200 text-gray-700 hover:bg-gray-100"
               }`}
             >
-              <Icon size={16} className={isSuggested ? "text-amber-300" : "text-gray-400"} />
+              <Icon size={16} className={isSuggested ? "text-warn-300" : "text-gray-400"} />
               <span className="block text-[11px] font-black uppercase tracking-wider mt-1.5">
                 {opt.label}
               </span>

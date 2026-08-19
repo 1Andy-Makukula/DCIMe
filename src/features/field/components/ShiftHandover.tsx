@@ -1,4 +1,6 @@
 import React, { useState, useEffect } from "react";
+import { SignaturePad, SignatureField } from "@/shared/ui";
+import { siteLabel } from "@/shared/utils/branding";
 import { useNavigate, useOutletContext } from "react-router";
 import { 
   Clock, 
@@ -21,6 +23,10 @@ export function ShiftHandover() {
   const { checkOut } = useShiftSession();
   const [notes, setNotes] = useState("");
   const [certified, setCertified] = useState(false);
+  // The handwritten mark. Certification is the intent; this is the evidence.
+  const [signature, setSignature] = useState<string | null>(null);
+  const [signedAt, setSignedAt]   = useState<string | null>(null);
+  const [padOpen, setPadOpen]     = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
   const [generatedSig, setGeneratedSig] = useState("");
@@ -66,7 +72,7 @@ export function ShiftHandover() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!certified) return;
+    if (!certified || !signature) return;
     if (!notes.trim()) {
       alert("Please provide pass-down notes for the incoming shift.");
       return;
@@ -83,13 +89,17 @@ export function ShiftHandover() {
       await submitShiftReport({
         notes: notes,
         certified: certified,
+        // The drawing itself, so a printed handover can show the mark rather
+        // than a reference number nobody can verify.
+        signature_image: signature,
+        signed_at: signedAt,
         technician_name: user?.name || "Field Tech",
         technician_id: user?.id || "EMP-UNKNOWN",
         signature_id: sigId,
         shift_duration: currentShiftHours,
         routine_logs_completed: logsCompleted ?? 0,
         incidents_filed: incidentsFiled ?? 0,
-        site_id: currentSite?.site_name || "NTC ZM 0874",
+        site_id: siteLabel(currentSite?.site_name),
         site_uuid: currentSite?.id || null
       });
 
@@ -114,7 +124,7 @@ export function ShiftHandover() {
   if (isSuccess) {
     return (
       <div className="max-w-md mx-auto bg-white rounded-3xl border border-gray-100 shadow-sm p-6 text-center space-y-6 animate-fade-in pb-12">
-        <div className="w-20 h-20 bg-green-50 rounded-full flex items-center justify-center mx-auto text-green-500 border border-green-100">
+        <div className="w-20 h-20 bg-ok-50 rounded-full flex items-center justify-center mx-auto text-ok-500 border border-ok-100">
           <ShieldCheck size={40} className="animate-pulse" />
         </div>
         
@@ -136,18 +146,18 @@ export function ShiftHandover() {
           </div>
           <div className="flex justify-between border-b border-gray-800 pb-1.5">
             <span className="text-gray-500">Routine Check:</span>
-            <span className="text-green-400 font-bold">{logsCompleted ?? 0} Logs Saved</span>
+            <span className="text-ok-400 font-bold">{logsCompleted ?? 0} Logs Saved</span>
           </div>
 
           <div className="flex justify-between">
             <span className="text-gray-500">Signature ID:</span>
-            <span className="text-red-400 font-bold font-mono truncate max-w-[200px]">{generatedSig}</span>
+            <span className="text-brand-400 font-bold font-mono truncate max-w-[200px]">{generatedSig}</span>
           </div>
         </div>
 
         <button
           onClick={() => navigate("/")}
-          className="w-full py-4 bg-red-600 text-white font-bold rounded-2xl text-sm uppercase tracking-wide active:scale-[0.98] transition-all shadow-md shadow-red-600/10"
+          className="w-full py-4 bg-brand-600 text-white font-bold rounded-2xl text-sm uppercase tracking-wide active:scale-[0.98] transition-all shadow-md shadow-brand-600/10"
         >
           Close Session (Logout)
         </button>
@@ -162,7 +172,7 @@ export function ShiftHandover() {
         <button
           type="button"
           onClick={() => navigate("/tech")}
-          className="inline-flex items-center gap-2 py-3 px-4 rounded-xl bg-gray-50 border border-gray-200 text-xs font-bold text-gray-600 hover:text-red-600 active:scale-[0.98] transition-all cursor-pointer"
+          className="inline-flex items-center gap-2 py-3 px-4 rounded-xl bg-gray-50 border border-gray-200 text-xs font-bold text-gray-600 hover:text-brand-600 active:scale-[0.98] transition-all cursor-pointer"
         >
           <ArrowLeft size={14} />
           <span>← Back</span>
@@ -191,7 +201,7 @@ export function ShiftHandover() {
           <div className="grid grid-cols-2 gap-3 pt-3 border-t border-gray-100">
             <div className="bg-gray-50 rounded-2xl p-3 border border-gray-100 text-center space-y-1">
               <p className="text-[9px] text-gray-400 font-bold uppercase tracking-wider">Routine Logs</p>
-              <p className="text-base font-black text-green-600">
+              <p className="text-base font-black text-ok-600">
                 {logsCompleted === null ? "…" : `${logsCompleted} Saved`}
               </p>
             </div>
@@ -209,7 +219,7 @@ export function ShiftHandover() {
         {/* Pass-down Notes */}
         <div className="bg-white rounded-3xl border border-gray-100 p-5 shadow-sm space-y-3">
           <div className="flex items-center gap-2">
-            <MessageSquare size={16} className="text-red-500" />
+            <MessageSquare size={16} className="text-danger-500" />
             <h2 className="text-xs font-black text-gray-400 uppercase tracking-widest">
               Notes for Incoming Shift
             </h2>
@@ -220,23 +230,34 @@ export function ShiftHandover() {
             value={notes}
             onChange={(e) => setNotes(e.target.value)}
             placeholder="e.g., Keep an eye on the ambient temp in Power Room 1, it was fluctuating slightly around 11:00..."
-            className="w-full p-4 rounded-2xl bg-gray-50 border border-gray-200 text-sm font-semibold text-gray-800 placeholder-gray-400 focus:outline-none focus:border-red-500 focus:ring-1 focus:ring-red-500 resize-none transition-colors"
+            className="w-full p-4 rounded-2xl bg-gray-50 border border-gray-200 text-sm font-semibold text-gray-800 placeholder-gray-400 focus:outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500 resize-none transition-colors"
           />
         </div>
 
         {/* Digital Signature & Submission */}
         <div className="space-y-4">
+          <div>
+            <p className="mb-2 text-[10px] font-black uppercase tracking-widest text-gray-400">
+              Sign to hand over
+            </p>
+            <SignatureField
+              value={signature}
+              onClick={() => setPadOpen(true)}
+              label={user?.name || "Outgoing technician"}
+            />
+          </div>
+
           <label 
             onClick={() => setCertified(!certified)}
             className={`flex items-start gap-3 p-4 rounded-3xl border cursor-pointer select-none transition-all ${
               certified 
-                ? "bg-green-50/50 border-green-200 text-gray-800 shadow-sm" 
+                ? "bg-ok-50/50 border-ok-200 text-gray-800 shadow-sm" 
                 : "bg-white border-gray-200 text-gray-500"
             }`}
           >
             <div className={`w-6 h-6 rounded-lg border-2 flex items-center justify-center shrink-0 transition-all ${
               certified 
-                ? "bg-green-500 border-green-500 text-white" 
+                ? "bg-ok-500 border-ok-500 text-white" 
                 : "border-gray-300 bg-white"
             }`}>
               {certified && <CheckCircle2 size={16} fill="none" strokeWidth={3} />}
@@ -248,9 +269,9 @@ export function ShiftHandover() {
 
           <button
             type="submit"
-            disabled={!certified || isSubmitting}
+            disabled={!certified || !signature || isSubmitting}
             className={`w-full py-4 rounded-2xl text-white font-black text-sm tracking-widest uppercase transition-all shadow-lg flex items-center justify-center gap-2 ${
-              !certified || isSubmitting
+              !certified || !signature || isSubmitting
                 ? "bg-gray-300 shadow-none cursor-not-allowed text-gray-400"
                 : "bg-gray-900 hover:bg-gray-800 shadow-gray-900/10 active:scale-[0.98]"
             }`}
@@ -265,6 +286,18 @@ export function ShiftHandover() {
             )}
           </button>
         </div>
+      <SignaturePad
+        open={padOpen}
+        onClose={() => setPadOpen(false)}
+        signerName={user?.name || "Outgoing technician"}
+        context="Shift handover"
+        onConfirm={(sig) => {
+          setSignature(sig.dataUrl);
+          setSignedAt(sig.signedAt);
+          setPadOpen(false);
+        }}
+      />
+
       </form>
     </div>
   );

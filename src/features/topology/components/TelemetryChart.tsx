@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
+import { SERIES } from "@/shared/theme/palette";
 import {
   ResponsiveContainer,
   LineChart,
@@ -36,16 +37,9 @@ interface TelemetryChartProps {
 }
 
 // ── Colour palette for up to 8 lines ─────────────────────────────────────────
-const LINE_COLORS = [
-  "#ef4444", // red-500
-  "#3b82f6", // blue-500
-  "#10b981", // emerald-500
-  "#f59e0b", // amber-500
-  "#8b5cf6", // violet-500
-  "#ec4899", // pink-500
-  "#06b6d4", // cyan-500
-  "#84cc16", // lime-500
-];
+// Categorical: position means "a different metric", not "a worse one".
+// Status colours would imply severity that these lines do not carry.
+const LINE_COLORS = SERIES;
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -191,7 +185,7 @@ export function TelemetryChart({ equipmentId }: TelemetryChartProps) {
   if (isLoading) {
     return (
       <div className="flex flex-col items-center justify-center py-10 gap-2 text-gray-400">
-        <Loader2 size={22} className="animate-spin text-red-500" />
+        <Loader2 size={22} className="animate-spin text-brand-500" />
         <span className="text-[10px] font-black uppercase tracking-widest">
           Loading Telemetry History…
         </span>
@@ -201,7 +195,7 @@ export function TelemetryChart({ equipmentId }: TelemetryChartProps) {
 
   if (error) {
     return (
-      <div className="flex items-center gap-3 p-4 bg-red-50 border border-red-100 rounded-2xl text-red-700">
+      <div className="flex items-center gap-3 p-4 bg-danger-50 border border-danger-100 rounded-2xl text-danger-700">
         <AlertCircle size={16} className="shrink-0" />
         <span className="text-[11px] font-bold">{error}</span>
       </div>

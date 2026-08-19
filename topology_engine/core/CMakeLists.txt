@@ -35,6 +35,26 @@ if(EMSCRIPTEN)
         "--bind"
     )
 else()
-    # Fallback to standard library compilation for desktop environments
+    # ── Native build (Stage 0: the safety net) ────────────────────────────
+    # The engine compiles for the host as well as for WASM, so the physics can
+    # be tested in milliseconds without a browser. The WASM target above is
+    # untouched by anything below.
     add_library(topology_engine STATIC src/PowerMatrix.cpp)
+
+    enable_testing()
+
+    set(TESTS_DIR    "${CMAKE_CURRENT_SOURCE_DIR}/../tests")
+    set(FIXTURES_DIR "${TESTS_DIR}/fixtures")
+
+    # Regenerates golden fixtures. Run deliberately, never in CI.
+    add_executable(golden_gen "${TESTS_DIR}/golden_gen.cpp")
+    target_link_libraries(golden_gen PRIVATE topology_engine)
+    target_compile_definitions(golden_gen PRIVATE FIXTURE_DIR="${FIXTURES_DIR}")
+
+    # Replays every scenario against its checked-in fixture.
+    add_executable(run_tests "${TESTS_DIR}/run_tests.cpp")
+    target_link_libraries(run_tests PRIVATE topology_engine)
+    target_compile_definitions(run_tests PRIVATE FIXTURE_DIR="${FIXTURES_DIR}")
+
+    add_test(NAME powermatrix_golden COMMAND run_tests)
 endif()

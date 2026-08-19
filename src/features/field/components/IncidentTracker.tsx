@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { siteLabel } from "@/shared/utils/branding";
 import { useOutletContext } from "react-router";
 import { useIncidents, Incident } from "../hooks/useIncidents";
 import { TechUser } from "./TechLayout";
@@ -131,7 +132,7 @@ export function IncidentTracker() {
           title="Refresh Log"
           disabled={isLoading}
         >
-          <RefreshCw size={15} className={isLoading ? "animate-spin text-red-500" : ""} />
+          <RefreshCw size={15} className={isLoading ? "animate-spin text-brand-500" : ""} />
         </button>
       </div>
 
@@ -141,7 +142,7 @@ export function IncidentTracker() {
           onClick={() => { setActiveTab("active"); setShowReceipt(null); }}
           className={`flex-1 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider transition-all flex items-center justify-center gap-2 ${
             activeTab === "active"
-              ? "bg-red-500 text-white shadow-sm shadow-red-500/10"
+              ? "bg-brand-500 text-white shadow-sm shadow-brand-500/10"
               : "text-gray-400 hover:text-gray-600"
           }`}
         >
@@ -152,7 +153,7 @@ export function IncidentTracker() {
           onClick={() => { setActiveTab("resolved"); setShowReceipt(null); }}
           className={`flex-1 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider transition-all flex items-center justify-center gap-2 ${
             activeTab === "resolved"
-              ? "bg-red-500 text-white shadow-sm shadow-red-500/10"
+              ? "bg-brand-500 text-white shadow-sm shadow-brand-500/10"
               : "text-gray-400 hover:text-gray-600"
           }`}
         >
@@ -163,7 +164,7 @@ export function IncidentTracker() {
 
       {/* Error State */}
       {error && (
-        <div className="bg-red-50 border border-red-100 text-red-700 p-4 rounded-2xl flex items-start gap-3 text-xs">
+        <div className="bg-danger-50 border border-danger-100 text-danger-700 p-4 rounded-2xl flex items-start gap-3 text-xs">
           <AlertCircle size={16} className="shrink-0 mt-0.5" />
           <div>
             <span className="font-bold">Error:</span> {error}
@@ -189,7 +190,7 @@ export function IncidentTracker() {
             <div className="space-y-3.5">
               {activeIncidents.length === 0 ? (
                 <div className="bg-white border border-gray-100 rounded-3xl p-8 text-center space-y-4 shadow-sm">
-                  <div className="w-16 h-16 bg-green-50 rounded-full flex items-center justify-center mx-auto text-green-500 border border-green-100">
+                  <div className="w-16 h-16 bg-ok-50 rounded-full flex items-center justify-center mx-auto text-ok-500 border border-ok-100">
                     <CheckCircle2 size={32} />
                   </div>
                   <div className="space-y-1">
@@ -207,23 +208,23 @@ export function IncidentTracker() {
                     <div
                       key={incident.id}
                       onClick={() => handleCardClick(incident)}
-                      className="bg-white border border-gray-100 hover:border-red-200 rounded-3xl p-5 shadow-sm hover:shadow-md transition-all cursor-pointer relative overflow-hidden group"
+                      className="bg-white border border-gray-100 hover:border-danger-200 rounded-3xl p-5 shadow-sm hover:shadow-md transition-all cursor-pointer relative overflow-hidden group"
                     >
                       {/* Left vertical status indicator (Solid fault red for Active Alerts) */}
-                      <div className="absolute left-0 top-0 bottom-0 w-1.5 bg-red-500" />
+                      <div className="absolute left-0 top-0 bottom-0 w-1.5 bg-danger-500" />
 
                       <div className="space-y-3 pl-1">
                         <div className="flex items-center justify-between">
                           <span className="text-[10px] font-mono font-black text-gray-400 tracking-wider">
                             {incident.ticket_number}
                           </span>
-                          <span className="text-[9px] font-black uppercase tracking-wider px-2 py-0.5 rounded-md border bg-red-50 text-red-600 border-red-100">
+                          <span className="text-[9px] font-black uppercase tracking-wider px-2 py-0.5 rounded-md border bg-danger-50 text-danger-600 border-danger-100">
                             ACTIVE
                           </span>
                         </div>
 
                         <div>
-                          <h3 className="font-black text-gray-900 text-sm tracking-tight group-hover:text-red-500 transition-colors">
+                          <h3 className="font-black text-gray-900 text-sm tracking-tight group-hover:text-danger-500 transition-colors">
                             {incident.asset_id} Alert
                           </h3>
                           <p className="text-xs text-gray-500 line-clamp-2 mt-1 font-medium">
@@ -240,10 +241,10 @@ export function IncidentTracker() {
                           {/* Dynamic Aging Counter */}
                           <span className={`px-2.5 py-1 rounded-full border flex items-center gap-1 font-bold ${
                             isOld
-                              ? "bg-red-50 text-red-600 border-red-100 animate-pulse"
-                              : "bg-amber-50 text-amber-700 border-amber-100"
+                              ? "bg-danger-50 text-danger-600 border-danger-100 animate-pulse"
+                              : "bg-warn-50 text-warn-700 border-warn-100"
                           }`}>
-                            <AlertTriangle size={10} className="text-amber-500" />
+                            <AlertTriangle size={10} className="text-warn-500" />
                             <span>
                               {days === 0 ? "Reported Today" : `Unresolved for ${days} ${days === 1 ? 'day' : 'days'}`}
                             </span>
@@ -279,7 +280,7 @@ export function IncidentTracker() {
                     onClick={() => handleCardClick(incident)}
                     className="bg-white border border-gray-100 hover:border-gray-200 rounded-3xl p-5 shadow-sm hover:shadow-md transition-all cursor-pointer relative overflow-hidden"
                   >
-                    <div className="absolute left-0 top-0 bottom-0 w-1.5 bg-green-500" />
+                    <div className="absolute left-0 top-0 bottom-0 w-1.5 bg-ok-500" />
                     
                     <div className="space-y-3 pl-1">
                       <div className="flex items-center justify-between">
@@ -287,7 +288,7 @@ export function IncidentTracker() {
                           {incident.ticket_number}
                         </span>
                         <div className="flex items-center gap-1.5">
-                          <span className="text-[9px] font-mono font-bold bg-green-50 text-green-700 border border-green-100 px-2 py-0.5 rounded-md">
+                          <span className="text-[9px] font-mono font-bold bg-ok-50 text-ok-700 border border-ok-100 px-2 py-0.5 rounded-md">
                             {incident.receipt_number}
                           </span>
                           <span className="text-[9px] font-black uppercase tracking-wider px-2 py-0.5 rounded-md bg-gray-50 border border-gray-100 text-gray-500">
@@ -310,7 +311,7 @@ export function IncidentTracker() {
                           <User size={12} />
                           <span>By: {incident.resolved_by_name}</span>
                         </div>
-                        <div className="flex items-center gap-1 text-green-600 font-bold">
+                        <div className="flex items-center gap-1 text-ok-600 font-bold">
                           <Check size={12} />
                           <span>{incident.resolved_at ? formatDate(incident.resolved_at) : ""}</span>
                         </div>
@@ -328,10 +329,10 @@ export function IncidentTracker() {
       {showReceipt && (
         <div className="fixed inset-x-0 top-0 bottom-16 z-50 bg-black/60 backdrop-blur-md flex items-center justify-center p-4">
           <div className="bg-white w-full max-w-sm rounded-[32px] border border-gray-100 shadow-2xl p-6 text-center space-y-6 animate-fade-in relative overflow-hidden">
-            <div className="absolute -top-24 -left-24 w-48 h-48 bg-green-500 rounded-full blur-3xl opacity-10 pointer-events-none" />
-            <div className="absolute -bottom-24 -right-24 w-48 h-48 bg-red-500 rounded-full blur-3xl opacity-10 pointer-events-none" />
+            <div className="absolute -top-24 -left-24 w-48 h-48 bg-ok-500 rounded-full blur-3xl opacity-10 pointer-events-none" />
+            <div className="absolute -bottom-24 -right-24 w-48 h-48 bg-brand-500 rounded-full blur-3xl opacity-10 pointer-events-none" />
 
-            <div className="w-16 h-16 bg-green-50 rounded-full flex items-center justify-center mx-auto text-green-600 border border-green-100">
+            <div className="w-16 h-16 bg-ok-50 rounded-full flex items-center justify-center mx-auto text-ok-600 border border-ok-100">
               <CheckCircle2 size={36} className="animate-bounce" />
             </div>
 
@@ -345,11 +346,11 @@ export function IncidentTracker() {
             <div className="bg-gray-50 rounded-2xl p-4 text-left border border-gray-100 font-mono text-[11px] space-y-2.5 relative">
               <div className="border-b border-dashed border-gray-200 pb-2 flex justify-between items-center">
                 <span className="font-black text-gray-400">RECEIPT NUMBER</span>
-                <span className="font-black text-green-600 text-xs">{showReceipt}</span>
+                <span className="font-black text-ok-600 text-xs">{showReceipt}</span>
               </div>
               <div className="flex justify-between">
                 <span className="text-gray-400">Site Name:</span>
-                <span className="font-bold text-gray-800">{currentSite?.site_name || "NTC ZM 0874"}</span>
+                <span className="font-bold text-gray-800">{siteLabel(currentSite?.site_name)}</span>
               </div>
               <div className="flex justify-between">
                 <span className="text-gray-400">Resolved By:</span>
@@ -407,7 +408,7 @@ export function IncidentTracker() {
                   <div className="bg-gray-50 border border-gray-100 rounded-2xl p-4 flex flex-col justify-between">
                     <span className="text-[9px] font-black text-gray-400 uppercase tracking-wider block">Operational Status</span>
                     <span className={`text-xs font-black uppercase mt-1.5 inline-block ${
-                      selectedIncident.status === "OPEN" ? "text-red-500 font-black" : "text-green-600"
+                      selectedIncident.status === "OPEN" ? "text-danger-500 font-black" : "text-ok-600"
                     }`}>
                       ● {selectedIncident.status === "OPEN" ? "ACTIVE OUTAGE / ALERT" : "RESOLVED & CLEARED"}
                     </span>
@@ -419,7 +420,7 @@ export function IncidentTracker() {
                       <Building2 size={16} className="text-gray-400 shrink-0 mt-0.5" />
                       <div>
                         <p className="text-[9px] font-black text-gray-400 uppercase tracking-wider">Site Location</p>
-                        <p className="text-xs font-bold text-gray-800">{selectedIncident.site_name}</p>
+                        <p className="text-xs font-bold text-gray-800">{siteLabel(selectedIncident.site_name)}</p>
                       </div>
                     </div>
 
@@ -481,8 +482,8 @@ export function IncidentTracker() {
                               <div className="flex items-center justify-between gap-2">
                                 <span className={`text-[8px] font-black uppercase tracking-wider px-1.5 py-0.5 rounded ${
                                   cmt.type === "correction"
-                                    ? "bg-red-50 text-red-600 border border-red-100"
-                                    : "bg-blue-50 text-blue-600 border border-blue-100"
+                                    ? "bg-danger-50 text-danger-600 border border-danger-100"
+                                    : "bg-info-50 text-info-600 border border-info-100"
                                 }`}>
                                   {cmt.type === "correction" ? "Correction" : "Additional"}
                                 </span>
@@ -510,16 +511,16 @@ export function IncidentTracker() {
                   {/* Resolved Archive Details */}
                   {selectedIncident.status === "RESOLVED" && (
                     <div className="border-t border-gray-100 pt-5 space-y-4">
-                      <div className="bg-green-50/50 border border-green-100 rounded-2xl p-4 space-y-3">
-                        <h4 className="text-xs font-black text-green-850 flex items-center gap-1.5">
-                          <CheckCircle2 size={14} className="text-green-600" />
+                      <div className="bg-ok-50/50 border border-ok-100 rounded-2xl p-4 space-y-3">
+                        <h4 className="text-xs font-black text-ok-850 flex items-center gap-1.5">
+                          <CheckCircle2 size={14} className="text-ok-600" />
                           <span>Resolution Summary</span>
                         </h4>
                         
                         <div className="grid grid-cols-2 gap-2 text-[10px] font-mono">
                           <div>
                             <span className="text-gray-400 block">RECEIPT</span>
-                            <span className="font-bold text-green-700">{selectedIncident.receipt_number}</span>
+                            <span className="font-bold text-ok-700">{selectedIncident.receipt_number}</span>
                           </div>
                           <div>
                             <span className="text-gray-400 block">RESOLVER</span>
@@ -535,7 +536,7 @@ export function IncidentTracker() {
                           </div>
                         </div>
 
-                        <div className="border-t border-green-100/60 pt-2 text-xs font-medium text-gray-700 leading-relaxed">
+                        <div className="border-t border-ok-100/60 pt-2 text-xs font-medium text-gray-700 leading-relaxed">
                           <span className="font-bold text-gray-500 block text-[9px] uppercase tracking-wider mb-0.5">Contractor Details</span>
                           {selectedIncident.resolution_details}
                         </div>
@@ -548,7 +549,7 @@ export function IncidentTracker() {
                     <div className="pt-2 shrink-0">
                       <button
                         onClick={handleStartResolution}
-                        className="w-full py-4 bg-red-600 hover:bg-red-700 text-white font-black rounded-2xl text-xs uppercase tracking-wider shadow-md shadow-red-600/10 active:scale-98 transition-all flex items-center justify-center gap-1.5 cursor-pointer"
+                        className="w-full py-4 bg-danger-600 hover:bg-danger-700 text-white font-black rounded-2xl text-xs uppercase tracking-wider shadow-md shadow-danger-600/10 active:scale-98 transition-all flex items-center justify-center gap-1.5 cursor-pointer"
                       >
                         <Check size={14} />
                         <span>Resolve Alert</span>
@@ -565,7 +566,7 @@ export function IncidentTracker() {
                   {/* Soothing High-Contrast Gray Container */}
                   <div className="bg-gray-50 border border-gray-250 rounded-2xl p-4 space-y-1 shadow-sm">
                     <h3 className="text-xs font-black text-gray-900 flex items-center gap-1.5">
-                      <ShieldAlert size={14} className="text-red-500" />
+                      <ShieldAlert size={14} className="text-danger-500" />
                       <span>Resolution Clearance File</span>
                     </h3>
                     <p className="text-[10px] text-gray-600 font-medium leading-normal">
@@ -579,7 +580,7 @@ export function IncidentTracker() {
                       <label className="text-[9px] font-black text-gray-400 uppercase tracking-wider block">Site Name</label>
                       <input
                         type="text"
-                        value={currentSite?.site_name || "NTC ZM 0874"}
+                        value={siteLabel(currentSite?.site_name)}
                         disabled
                         className="w-full p-3.5 rounded-xl bg-gray-100 border border-gray-200 text-xs font-bold text-gray-500 cursor-not-allowed"
                       />
@@ -601,7 +602,7 @@ export function IncidentTracker() {
                         value={resImpact}
                         onChange={(e) => setResImpact(e.target.value)}
                         placeholder="Type operational impact comments (e.g., NONE, NETWORK LOSS, DEGRADED REDUNDANCY)"
-                        className="w-full p-3.5 rounded-xl bg-gray-50 border border-gray-200 text-xs font-semibold text-gray-800 placeholder-gray-400 focus:outline-none focus:border-red-500 resize-none"
+                        className="w-full p-3.5 rounded-xl bg-gray-50 border border-gray-200 text-xs font-semibold text-gray-800 placeholder-gray-400 focus:outline-none focus:border-danger-500 resize-none"
                         required
                       />
                     </div>
@@ -613,7 +614,7 @@ export function IncidentTracker() {
                         type="datetime-local"
                         value={resResolvedAt}
                         onChange={(e) => setResResolvedAt(e.target.value)}
-                        className="w-full p-3.5 rounded-xl bg-gray-50 border border-gray-200 text-xs font-semibold text-gray-900 focus:outline-none focus:border-red-500"
+                        className="w-full p-3.5 rounded-xl bg-gray-50 border border-gray-200 text-xs font-semibold text-gray-900 focus:outline-none focus:border-brand-500"
                       />
                     </div>
 
@@ -625,7 +626,7 @@ export function IncidentTracker() {
                         value={resContractor}
                         onChange={(e) => setResContractor(e.target.value)}
                         placeholder="e.g. Huawei Power Support, Cummins Engineers"
-                        className="w-full p-3.5 rounded-xl bg-gray-50 border border-gray-200 text-xs font-semibold text-gray-800 focus:outline-none focus:border-red-500"
+                        className="w-full p-3.5 rounded-xl bg-gray-50 border border-gray-200 text-xs font-semibold text-gray-800 focus:outline-none focus:border-danger-500"
                         required
                       />
                     </div>
@@ -638,7 +639,7 @@ export function IncidentTracker() {
                         value={resDetails}
                         onChange={(e) => setResDetails(e.target.value)}
                         placeholder="Detail exact work done (e.g. Swapped phase contactor, refilled coolant, re-calibrated float valves)"
-                        className="w-full p-4 rounded-xl bg-gray-50 border border-gray-200 text-xs font-semibold text-gray-800 focus:outline-none focus:border-red-500 resize-none"
+                        className="w-full p-4 rounded-xl bg-gray-50 border border-gray-200 text-xs font-semibold text-gray-800 focus:outline-none focus:border-danger-500 resize-none"
                         required
                       />
                     </div>
@@ -656,7 +657,7 @@ export function IncidentTracker() {
                     <button
                       type="submit"
                       disabled={isSubmittingResolution}
-                      className="py-3.5 bg-green-600 hover:bg-green-700 text-white font-black rounded-2xl text-xs uppercase tracking-wider active:scale-98 transition-all flex items-center justify-center gap-1 cursor-pointer shadow-md shadow-green-600/10"
+                      className="py-3.5 bg-ok-600 hover:bg-ok-700 text-white font-black rounded-2xl text-xs uppercase tracking-wider active:scale-98 transition-all flex items-center justify-center gap-1 cursor-pointer shadow-md shadow-ok-600/10"
                     >
                       {isSubmittingResolution ? "Dispatching..." : "Submit Resolution"}
                     </button>

@@ -46,6 +46,352 @@ void PowerMatrix::addNode(const Node& node) {
     }
 }
 
+// ═════════════════════════════════════════════════════════════════════════════
+// GRAPH LIFECYCLE (Stage 4a)
+//
+//   beginLoad() -> addNode()* -> addEdge()* -> buildGraph() -> [frozen]
+//
+// Structure is immutable after buildGraph(); only state mutates thereafter.
+// ═════════════════════════════════════════════════════════════════════════════
+
+int PowerMatrix::indexOf(const std::string& id) const {
+    auto it = id_index.find(id);
+    return (it == id_index.end()) ? -1 : it->second;
+}
+
+void PowerMatrix::beginLoad() {
+    nodes.clear();
+    pending_edges.clear();
+    edges.clear();
+    id_index.clear();
+    out_edges.clear();
+    in_edges.clear();
+    policies.clear();
+    topo_order.clear();
+    graph_issues.clear();
+    graph_built = false;
+}
+
+void PowerMatrix::addEdge(const std::string& source_id,
+                          const std::string& target_id,
+                          int priority,
+                          const std::string& source_port,
+                          const std::string& target_port) {
+    // Deliberately does NOT resolve ids here: edges may be declared before the
+    // nodes they reference. Resolution happens once, in buildGraph().
+    PendingEdge pe;
+    pe.source_id   = source_id;
+    pe.target_id   = target_id;
+    pe.source_port = source_port;
+    pe.target_port = target_port;
+    pe.priority    = priority;
+    pending_edges.push_back(pe);
+    graph_built = false;
+}
+
+void PowerMatrix::setInputPolicy(const std::string& id, const std::string& policy) {
+    // Policies are stored parallel to nodes[] rather than on Node itself, so the
+    // embind value_object contract stays unchanged and the existing renderer
+    // keeps working without supplying a new field.
+    if (policies.size() < nodes.size()) policies.resize(nodes.size(), POLICY_ANY);
+    const int idx = indexOf(id);
+    int target = idx;
+    if (target < 0) {
+        // id_index is only populated by buildGraph(); fall back to a scan so
+        // policies can be set during the load phase.
+        for (size_t i = 0; i < nodes.size(); ++i) {
+            if (nodes[i].id == id) { target = static_cast<int>(i); break; }
+        }
+    }
+    if (target < 0) return;
+    if (policies.size() <= static_cast<size_t>(target)) policies.resize(target + 1, POLICY_ANY);
+
+    if      (policy == "ALL")      policies[target] = POLICY_ALL;
+    else if (policy == "PRIORITY") policies[target] = POLICY_PRIORITY;
+    else                           policies[target] = POLICY_ANY;
+}
+
+bool PowerMatrix::buildGraph() {
+    graph_issues.clear();
+    edges.clear();
+    id_index.clear();
+    out_edges.assign(nodes.size(), {});
+    in_edges.assign(nodes.size(), {});
+    topo_order.clear();
+    if (policies.size() < nodes.size()) policies.resize(nodes.size(), POLICY_ANY);
+
+    // ── 1. Index the nodes ────────────────────────────────────────────────────
+    for (size_t i = 0; i < nodes.size(); ++i) {
+        if (id_index.count(nodes[i].id)) {
+            graph_issues.push_back("DUPLICATE_NODE: " + nodes[i].id);
+            continue;
+        }
+        id_index[nodes[i].id] = static_cast<int>(i);
+    }
+
+    // ── 2. Resolve edges to indices ───────────────────────────────────────────
+    for (const auto& pe : pending_edges) {
+        const int s = indexOf(pe.source_id);
+        const int t = indexOf(pe.target_id);
+        if (s < 0) { graph_issues.push_back("DANGLING_EDGE: unknown source " + pe.source_id); continue; }
+        if (t < 0) { graph_issues.push_back("DANGLING_EDGE: unknown target " + pe.target_id); continue; }
+        if (s == t) { graph_issues.push_back("SELF_LOOP: " + pe.source_id); continue; }
+
+        Edge e;
+        e.source      = s;
+        e.target      = t;
+        e.priority    = pe.priority;
+        e.source_port = pe.source_port;
+        e.target_port = pe.target_port;
+
+        const int ei = static_cast<int>(edges.size());
+        edges.push_back(e);
+        out_edges[s].push_back(ei);
+        in_edges[t].push_back(ei);
+    }
+
+    // ── 3. Topological order, Kahn's algorithm ────────────────────────────────
+    // Computed once at build time and reused every tick, replacing the two-pass
+    // type-tier sweep. Sources (no feeders) come first.
+    std::vector<int> indegree(nodes.size(), 0);
+    for (size_t i = 0; i < nodes.size(); ++i) {
+        indegree[i] = static_cast<int>(in_edges[i].size());
+    }
+
+    std::vector<int> queue;
+    queue.reserve(nodes.size());
+    for (size_t i = 0; i < nodes.size(); ++i) {
+        if (indegree[i] == 0) queue.push_back(static_cast<int>(i));
+    }
+
+    size_t head = 0;
+    while (head < queue.size()) {
+        const int n = queue[head++];
+        topo_order.push_back(n);
+        for (int ei : out_edges[n]) {
+            const int t = edges[ei].target;
+            if (--indegree[t] == 0) queue.push_back(t);
+        }
+    }
+
+    // ── 4. Cycle detection ────────────────────────────────────────────────────
+    // Anything left unordered sits in, or downstream of, a cycle. Power cannot
+    // flow in a loop; this is a wiring error in the data, and reporting it is
+    // far better than letting a traversal spin.
+    if (topo_order.size() != nodes.size()) {
+        for (size_t i = 0; i < nodes.size(); ++i) {
+            if (indegree[i] > 0) graph_issues.push_back("CYCLE: " + nodes[i].id);
+        }
+        graph_built = false;
+        return false;
+    }
+
+    // Snapshot the rated draw before any per-type pass can overwrite kw_load.
+    rated_kw.assign(nodes.size(), 0.0);
+    for (size_t i = 0; i < nodes.size(); ++i) rated_kw[i] = nodes[i].kw_load;
+
+    graph_built = true;
+    return graph_issues.empty();
+}
+
+std::vector<std::string> PowerMatrix::getTopoOrder() const {
+    std::vector<std::string> out;
+    out.reserve(topo_order.size());
+    for (int i : topo_order) out.push_back(nodes[i].id);
+    return out;
+}
+
+std::vector<std::string> PowerMatrix::getFeeders(const std::string& id) const {
+    std::vector<std::string> out;
+    const int idx = indexOf(id);
+    if (idx < 0 || static_cast<size_t>(idx) >= in_edges.size()) return out;
+    for (int ei : in_edges[idx]) out.push_back(nodes[edges[ei].source].id);
+    return out;
+}
+
+std::vector<std::string> PowerMatrix::getLoads(const std::string& id) const {
+    std::vector<std::string> out;
+    const int idx = indexOf(id);
+    if (idx < 0 || static_cast<size_t>(idx) >= out_edges.size()) return out;
+    for (int ei : out_edges[idx]) out.push_back(nodes[edges[ei].target].id);
+    return out;
+}
+
+// ═════════════════════════════════════════════════════════════════════════════
+// TWO-PHASE EVALUATION (Stage 4b)
+// ═════════════════════════════════════════════════════════════════════════════
+
+void PowerMatrix::setGeneratorPair(const std::string& id, int pair) {
+    generator_pairs[id] = pair;
+}
+
+bool PowerMatrix::generatorRunning(const std::string& id) const {
+    // Mirrors the rotation state machine in updateState(). Pair A is DG1 & DG3,
+    // Pair B is DG2 & DG4 — confirmed by the Stage 0 golden fixtures, where
+    // dg_run_hours_0 and _2 increment together.
+    //
+    // Membership comes from the loader when supplied. The literal id comparisons
+    // below are the fallback for callers that never register pairs, and are the
+    // reason this function used to break whenever equipment was renamed.
+    bool is_pair_a = false, is_pair_b = false, is_hq = false;
+
+    auto it = generator_pairs.find(id);
+    if (it != generator_pairs.end()) {
+        is_pair_a = (it->second == 0);
+        is_pair_b = (it->second == 1);
+        is_hq     = (it->second == 2);
+    } else {
+        is_pair_a = (id == "node-dg-1" || id == "node-dg-3" || id == "dg_1" || id == "dg_3");
+        is_pair_b = (id == "node-dg-2" || id == "node-dg-4" || id == "dg_2" || id == "dg_4");
+        is_hq     = (id == "node-dg-hq" || id == "dg_hq");
+    }
+
+    if (is_hq) {
+        const bool gen_running = (dg_pair_status == "pair_a_running" ||
+                                  dg_pair_status == "pair_b_running");
+        return (fuel_liters < 100.0 && !grid_active && gen_running);
+    }
+    if (is_pair_a) {
+        // During pair_b_starting, Pair A is still carrying the load — the
+        // three-generator overlap the fuel model already accounts for.
+        return (dg_pair_status == "pair_a_running" || dg_pair_status == "pair_b_starting");
+    }
+    if (is_pair_b) {
+        return (dg_pair_status == "pair_b_running");
+    }
+    return false;
+}
+
+void PowerMatrix::computeEnergisation() {
+    energised.assign(nodes.size(), 0);
+    selected_feeder.assign(nodes.size(), -1);
+    if (!graph_built) return;
+
+    // Topological order guarantees every feeder is resolved before the node it
+    // feeds, so one sweep suffices — no iteration to convergence.
+    for (int idx : topo_order) {
+        const Node& n = nodes[idx];
+
+        // A node can never pass power it does not itself have.
+        if (fire_alarm_active || n.is_faulted) { energised[idx] = 0; continue; }
+
+        const std::vector<int>& ins = in_edges[idx];
+
+        if (ins.empty()) {
+            // A source. Availability comes from the outside world, not the graph.
+            if      (n.type == "grid_tx")   energised[idx] = grid_active ? 1 : 0;
+            else if (n.type == "generator") energised[idx] = generatorRunning(n.id) ? 1 : 0;
+            else                            energised[idx] = 1;  // unfed equipment
+            continue;
+        }
+
+        switch (policies[idx]) {
+            case POLICY_ALL: {
+                // Series: every input must be live.
+                bool all_live = true;
+                for (int ei : ins) if (!energised[edges[ei].source]) { all_live = false; break; }
+                energised[idx] = all_live ? 1 : 0;
+                break;
+            }
+            case POLICY_PRIORITY: {
+                // A changeover. Aliveness is the same as ANY — the priority
+                // decides WHICH source is carrying, which is what separates
+                // "on mains" from "on generator" in the status line.
+                int best_edge = -1, best_priority = 0;
+                for (int ei : ins) {
+                    if (!energised[edges[ei].source]) continue;
+                    if (best_edge < 0 || edges[ei].priority < best_priority) {
+                        best_edge     = ei;
+                        best_priority = edges[ei].priority;
+                    }
+                }
+                selected_feeder[idx] = best_edge;
+                energised[idx]       = (best_edge >= 0) ? 1 : 0;
+                break;
+            }
+            case POLICY_ANY:
+            default: {
+                // Redundancy. This is the branch that keeps a dual-corded rack
+                // alive when one UPS trips — the thing a type-tier cascade
+                // could not express at all.
+                bool any_live = false;
+                for (int ei : ins) if (energised[edges[ei].source]) { any_live = true; break; }
+                energised[idx] = any_live ? 1 : 0;
+                break;
+            }
+        }
+    }
+}
+
+void PowerMatrix::accumulateLoad() {
+    accum_load.assign(nodes.size(), 0.0);
+    if (!graph_built) return;
+
+    // Seed with each node's own draw. Only equipment that actually consumes
+    // has an intrinsic load; distribution gear simply carries what is below it.
+    for (size_t i = 0; i < nodes.size(); ++i) {
+        const Node& n = nodes[i];
+        const bool is_consumer = (n.type == "server" || n.type == "cooling");
+        // rated_kw, not n.kw_load: the latter has already been rewritten by the
+        // per-type passes and may read zero for a node they believed unpowered.
+        const double rated = (i < rated_kw.size()) ? rated_kw[i] : 0.0;
+        accum_load[i] = (is_consumer && energised[i]) ? rated : 0.0;
+    }
+
+    // Reverse topological order visits every load before its feeders, so by the
+    // time a node is processed its own total is already complete.
+    for (auto it = topo_order.rbegin(); it != topo_order.rend(); ++it) {
+        const int idx = *it;
+        if (accum_load[idx] <= 0.0) continue;
+
+        // Push the draw up only through feeds that are actually carrying it.
+        std::vector<int> live;
+        for (int ei : in_edges[idx]) {
+            if (energised[edges[ei].source]) live.push_back(ei);
+        }
+        if (live.empty()) continue;
+
+        // A POLICY_PRIORITY node draws through its selected feed alone — a
+        // changeover carries on one source at a time, never both.
+        if (policies[idx] == POLICY_PRIORITY && selected_feeder[idx] >= 0) {
+            accum_load[edges[selected_feeder[idx]].source] += accum_load[idx];
+            continue;
+        }
+
+        // Otherwise the draw splits evenly across live feeds. When one leg of a
+        // dual-corded pair dies, the survivor picks up the whole load on the
+        // next frame — which is exactly the N+1 headroom question.
+        const double share = accum_load[idx] / static_cast<double>(live.size());
+        for (int ei : live) accum_load[edges[ei].source] += share;
+    }
+}
+
+bool PowerMatrix::isEnergised(const std::string& id) const {
+    const int idx = indexOf(id);
+    if (idx < 0 || static_cast<size_t>(idx) >= energised.size()) return false;
+    return energised[idx] != 0;
+}
+
+double PowerMatrix::getAccumulatedLoad(const std::string& id) const {
+    const int idx = indexOf(id);
+    if (idx < 0 || static_cast<size_t>(idx) >= accum_load.size()) return 0.0;
+    return accum_load[idx];
+}
+
+double PowerMatrix::getHeadroom(const std::string& id) const {
+    const int idx = indexOf(id);
+    if (idx < 0 || static_cast<size_t>(idx) >= accum_load.size()) return 0.0;
+    return nodes[idx].capacity - accum_load[idx];
+}
+
+std::string PowerMatrix::getSelectedFeeder(const std::string& id) const {
+    const int idx = indexOf(id);
+    if (idx < 0 || static_cast<size_t>(idx) >= selected_feeder.size()) return "";
+    const int ei = selected_feeder[idx];
+    if (ei < 0) return "";
+    return nodes[edges[ei].source].id;
+}
+
 void PowerMatrix::updateNodeTelemetry(const std::string& id, double voltage, double current) {
     for (auto& node : nodes) {
         if (node.id == id) {
@@ -287,6 +633,17 @@ void PowerMatrix::updateState(double dt) {
 // FIX: Two-pass strategy + O(1) index map.
 //   Pass 1: Source tier  — grid_tx, generator, tco, main_db
 void PowerMatrix::runMatrixUpdate() {
+
+    // ── Phase 1 (Stage 4b): forward pass over the real graph ─────────────────
+    // Resolves, for every node, whether it is receiving power this frame —
+    // combining multiple feeds through each node's InputPolicy. The per-type
+    // logic below then decides what that MEANS: status text, load, battery
+    // drain, thermal drift.
+    //
+    // With no graph loaded, energised[] stays empty and every type block falls
+    // back to the original tier-derived flags, so an un-migrated caller sees
+    // identical behaviour.
+    computeEnergisation();
 
     // ── Pre-pass: build O(1) index map ───────────────────────────────────────
     std::unordered_map<std::string, size_t> nodeIdx;
@@ -641,6 +998,77 @@ void PowerMatrix::runMatrixUpdate() {
                 node.kw_load = 0.0;
             }
             continue;
+        }
+    }
+
+    // ═════════════════════════════════════════════════════════════════════════
+    // PHASE 2 (Stage 4b): the graph is authoritative for energisation
+    //
+    // Everything above derives "am I powered?" from global flags plus substring
+    // matching on node ids (node.id.find("-db-a")). That cannot express a
+    // dual-corded rack, and it silently mis-assigns any node whose id does not
+    // follow the naming convention.
+    //
+    // When a graph has been loaded, the traversal result overrides those
+    // guesses. The per-type logic above still owns everything else — battery
+    // drain, thermal drift, generator rotation, status vocabulary.
+    //
+    // With no graph this block does not run, so the legacy behaviour and the
+    // Stage 0 golden fixtures are untouched.
+    // ═════════════════════════════════════════════════════════════════════════
+    if (!graph_built) return;
+
+    for (size_t i = 0; i < nodes.size(); ++i) {
+        Node& n = nodes[i];
+        const bool live = (energised[i] != 0);
+
+        if (!live) {
+            n.is_active = false;
+            n.load_pct  = 0.0;
+            n.kw_load   = 0.0;
+            if (n.is_faulted)             n.status = "FAULTED";
+            else if (fire_alarm_active)   n.status = "EMERGENCY SHUTDOWN";
+            else                          n.status = "NO VOLTAGE";
+        } else if (!n.is_active) {
+            // The graph says powered but the tier logic said otherwise — the
+            // graph wins, because it followed the actual cabling.
+            n.is_active = true;
+            if (n.status == "NO VOLTAGE" || n.status == "BLACKOUT") n.status = "ONLINE";
+        }
+    }
+
+    // Reverse pass: roll every consumer's draw upstream.
+    accumulateLoad();
+
+    for (size_t i = 0; i < nodes.size(); ++i) {
+        Node& n = nodes[i];
+        const bool is_consumer = (n.type == "server" || n.type == "cooling");
+
+        // Distribution and conversion gear carries what is below it rather than
+        // drawing a figure of its own. This is what makes headroom — and so
+        // stranded capacity — computable at all.
+        if (is_consumer) {
+            // The graph decides whether a consumer draws; the rated figure says
+            // how much.
+            n.kw_load = energised[i] ? ((i < rated_kw.size()) ? rated_kw[i] : n.kw_load) : 0.0;
+        } else if (energised[i]) {
+            n.kw_load = accum_load[i];
+        }
+        if (n.capacity > 0.0) {
+            n.load_pct = (n.kw_load / n.capacity) * 100.0;
+        }
+    }
+
+    // Annotate changeovers with the source actually carrying them.
+    for (size_t i = 0; i < nodes.size(); ++i) {
+        if (policies[i] != POLICY_PRIORITY || !energised[i]) continue;
+        const int ei = selected_feeder[i];
+        if (ei < 0) continue;
+        const std::string& src = nodes[edges[ei].source].id;
+        if (src.find("dg") != std::string::npos || src.find("gen") != std::string::npos) {
+            nodes[i].status = "ON GENERATOR";
+        } else {
+            nodes[i].status = "ON MAINS";
         }
     }
 }

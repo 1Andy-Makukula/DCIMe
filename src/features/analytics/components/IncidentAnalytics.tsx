@@ -1,10 +1,11 @@
-import { useState } from 'react';
+import { useOutletContext } from 'react-router';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/app/components/ui/card";
 import { Badge } from "@/app/components/ui/badge";
 import { Skeleton } from "@/app/components/ui/skeleton";
 import { Accordion, AccordionItem, AccordionTrigger, AccordionContent } from "@/app/components/ui/accordion";
 import { AlertCircle, Clock, CheckCircle2, User } from 'lucide-react';
 import { useDashboardData } from '../hooks/useDashboardData';
+import { AnalyticsOutletContext } from './AnalyticsLayout';
 import {
   ScatterChart,
   Scatter,
@@ -18,8 +19,8 @@ import {
 } from 'recharts';
 
 export function IncidentAnalytics() {
-  const [timePeriod] = useState("Today");
-  const { isLoading, isUsingMockData, incidentBubbles, ticketsLedger, kpis } = useDashboardData();
+  const { range } = useOutletContext<AnalyticsOutletContext>();
+  const { isLoading, isUsingMockData, incidentBubbles, ticketsLedger, kpis } = useDashboardData(range);
 
   if (isLoading) {
     return (
@@ -70,14 +71,14 @@ export function IncidentAnalytics() {
         </div>
         <div className="flex items-center gap-3">
           <Badge variant="outline" className="bg-slate-50 border-gray-200 text-xs font-black uppercase tracking-wider h-10 px-4 rounded-xl text-slate-900 flex items-center justify-center">
-            {timePeriod}
+            {range.label}
           </Badge>
         </div>
       </div>
 
       {isUsingMockData && (
-        <div className="flex items-center gap-3 bg-amber-50 border border-amber-100/60 text-amber-800 p-4 rounded-3xl text-xs font-semibold">
-          <AlertCircle className="w-4.5 h-4.5 text-amber-600 shrink-0" />
+        <div className="flex items-center gap-3 bg-warn-50 border border-warn-100/60 text-warn-800 p-4 rounded-3xl text-xs font-semibold">
+          <AlertCircle className="w-4.5 h-4.5 text-warn-600 shrink-0" />
           <span>Operational Notice: Telemetry database table contains no records. Displaying baseline simulated data for dashboard verification.</span>
         </div>
       )}
@@ -87,7 +88,7 @@ export function IncidentAnalytics() {
         {/* KPI 1: Total Incidents */}
         <Card className="bg-white border-gray-100 rounded-3xl shadow-sm">
           <CardHeader className="pb-2">
-            <CardDescription className="text-[10px] font-black uppercase tracking-widest text-gray-400">TOTAL INCIDENTS (MTD)</CardDescription>
+            <CardDescription className="text-[10px] font-black uppercase tracking-widest text-gray-400">TOTAL INCIDENTS</CardDescription>
           </CardHeader>
           <CardContent>
             <div className="flex items-baseline gap-2">
@@ -95,7 +96,7 @@ export function IncidentAnalytics() {
               <span className="text-xs font-black text-gray-400 uppercase tracking-wider">Tickets</span>
             </div>
             <p className="text-[10px] text-gray-400 font-semibold mt-1 flex items-center gap-1">
-              <AlertCircle size={11} className="text-slate-400" /> Month-to-date logged outages/alarms
+              <AlertCircle size={11} className="text-slate-400" /> Logged outages/alarms — {range.label}
             </p>
           </CardContent>
         </Card>
@@ -108,12 +109,12 @@ export function IncidentAnalytics() {
           <CardContent>
             <div className="flex items-baseline gap-2">
               <span className="text-2xl font-black text-slate-900 font-mono">{kpis.incidents.openTickets}</span>
-              <span className={`text-xs font-black px-1.5 py-0.5 rounded border ${kpis.incidents.openTickets > 0 ? "bg-amber-50 text-amber-700 border-amber-100" : "bg-emerald-50 text-emerald-700 border-emerald-100"}`}>
+              <span className={`text-xs font-black px-1.5 py-0.5 rounded border ${kpis.incidents.openTickets > 0 ? "bg-warn-50 text-warn-700 border-warn-100" : "bg-ok-50 text-ok-700 border-ok-100"}`}>
                 {kpis.incidents.openTickets > 0 ? "Action Required" : "All Clear"}
               </span>
             </div>
             <p className="text-[10px] text-gray-400 font-semibold mt-1 flex items-center gap-1">
-              <Clock size={11} className="text-amber-500" /> Active outstanding repairs
+              <Clock size={11} className="text-warn-500" /> Active outstanding repairs
             </p>
           </CardContent>
         </Card>
@@ -129,7 +130,7 @@ export function IncidentAnalytics() {
               <span className="text-xs font-black text-gray-400 uppercase tracking-wider">Hours</span>
             </div>
             <p className="text-[10px] text-gray-400 font-semibold mt-1 flex items-center gap-1">
-              <CheckCircle2 size={11} className="text-emerald-500" /> Average close-out cycle time
+              <CheckCircle2 size={11} className="text-ok-500" /> Average close-out cycle time
             </p>
           </CardContent>
         </Card>
@@ -153,8 +154,8 @@ export function IncidentAnalytics() {
                   <ZAxis type="number" dataKey="severity" range={[100, 1000]} name="Severity Score" />
                   <Tooltip cursor={{ strokeDasharray: '3 3' }} contentStyle={{ background: '#fff', borderRadius: '12px', border: '1px solid #F1F5F9', fontSize: '11px', fontWeight: 'bold' }} />
                   <Legend verticalAlign="top" height={36} iconSize={8} wrapperStyle={{ fontSize: '9px', fontWeight: 'black', textTransform: 'uppercase' }} />
-                  <Scatter name="Resolved Tickets" data={incidentBubbles.filter(d => d.status === "Resolved")} fill="#10B981" shape="circle" />
-                  <Scatter name="Open Tickets" data={incidentBubbles.filter(d => d.status === "Open")} fill="#EF4444" shape="circle" />
+                  <Scatter name="Resolved Tickets" data={incidentBubbles.filter(d => d.status === "Resolved")} fill="var(--color-ok-500)" shape="circle" />
+                  <Scatter name="Open Tickets" data={incidentBubbles.filter(d => d.status === "Open")} fill="var(--color-danger-500)" shape="circle" />
                 </ScatterChart>
               </ResponsiveContainer>
             </div>
@@ -168,12 +169,18 @@ export function IncidentAnalytics() {
             <CardTitle className="text-sm font-black text-gray-900 uppercase tracking-tight mt-0.5">Incident Details & Resolutions</CardTitle>
           </CardHeader>
           <CardContent className="p-6 flex-1 overflow-y-auto max-h-[300px]">
+            {ticketsLedger.length === 0 ? (
+              <div className="flex flex-col items-center justify-center h-full py-8 text-center gap-2">
+                <CheckCircle2 className="w-8 h-8 text-ok-300" />
+                <p className="text-[11px] font-bold text-slate-400">No incidents logged for this period.</p>
+              </div>
+            ) : (
             <Accordion type="single" collapsible className="w-full space-y-2">
               {ticketsLedger.map((t) => (
                 <AccordionItem key={t.id} value={t.id} className="border border-slate-100 rounded-2xl px-4 py-1.5 bg-slate-50/30">
                   <AccordionTrigger className="hover:no-underline text-xs font-black text-slate-800 py-3 flex justify-between items-center w-full">
                     <div className="flex items-center gap-2">
-                      <Badge variant="outline" className={`shadow-none font-black text-[8px] tracking-wider uppercase ${t.status === "Resolved" ? "bg-green-50 text-green-700 border-green-200/50" : "bg-red-50 text-red-700 border-red-200/50"}`}>
+                      <Badge variant="outline" className={`shadow-none font-black text-[8px] tracking-wider uppercase ${t.status === "Resolved" ? "bg-ok-50 text-ok-700 border-ok-200/50" : "bg-danger-50 text-danger-700 border-danger-200/50"}`}>
                         {t.status}
                       </Badge>
                       <span>{t.id}: {t.name}</span>
@@ -190,6 +197,7 @@ export function IncidentAnalytics() {
                 </AccordionItem>
               ))}
             </Accordion>
+            )}
           </CardContent>
         </Card>
       </div>

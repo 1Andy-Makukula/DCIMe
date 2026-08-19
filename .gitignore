@@ -22,3 +22,9 @@ Thumbs.db
 .idea/
 .vercel
 .env*
+
+# C++ engine build output
+build/
+build-wasm/
+.build/
+.build_test/
