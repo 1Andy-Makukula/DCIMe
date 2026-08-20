@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
+import { useRealtimeTable } from "@/shared/api/realtime";
 import { siteLabel } from "@/shared/utils/branding";
 import { supabase } from "@/shared/api/supabaseClient";
 import { useCurrentSite } from "@/shared/context/SiteContext";
@@ -590,32 +591,13 @@ export function AlertsLog() {
     }
   }, [currentSite?.id, range.start.getTime(), range.end.getTime()]);
 
-  useEffect(() => {
-    fetchIncidents();
+  useEffect(() => { fetchIncidents(); }, [fetchIncidents]);
 
-    const siteId = currentSite?.id;
-
-    // Subscribe to realtime changes filtered by site_uuid
-    const channel = supabase
-      .channel(`incidents_realtime_${siteId ?? 'global'}`)
-      .on(
-        "postgres_changes",
-        {
-          event: "*",
-          schema: "public",
-          table: "incidents",
-          ...(siteId ? { filter: `site_uuid=eq.${siteId}` } : {})
-        },
-        () => {
-          fetchIncidents();
-        }
-      )
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, [fetchIncidents, currentSite?.id]);
+  useRealtimeTable({
+    table:    "incidents",
+    filter:   currentSite?.id ? `site_uuid=eq.${currentSite.id}` : undefined,
+    onChange: fetchIncidents
+  });
 
   // ── Counters ──────────────────────────────────────────────────────────────
   const criticalCount = activeAlerts.filter((a) => a.severity === "critical").length;

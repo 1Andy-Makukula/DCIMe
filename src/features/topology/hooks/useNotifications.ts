@@ -1,5 +1,6 @@
 // src/features/topology/hooks/useNotifications.ts
 import { useState, useEffect, useCallback, useMemo, useRef } from "react";
+import { useRealtimeTable } from "@/shared/api/realtime";
 import { supabase } from "@/shared/api/supabaseClient";
 import { useCurrentSite } from "@/shared/context/SiteContext";
 import { useAuth } from "@/shared/context/AuthContext";
@@ -199,31 +200,17 @@ export function useNotifications() {
   useEffect(() => {
     fetchAll();
 
-    const siteId = currentSite?.id;
-    if (!siteId) return;
-
-    // Core tables on one channel; each change just re-derives the feed, which
-    // keeps ordering and dedupe logic in a single place.
-    const channel = supabase
-      .channel(`notifications_${siteId}`)
-      .on("postgres_changes", { event: "*", schema: "public", table: "incidents", filter: `site_uuid=eq.${siteId}` }, () => fetchAll())
-      .on("postgres_changes", { event: "*", schema: "public", table: "telemetry_logs", filter: `site_uuid=eq.${siteId}` }, () => fetchAll())
-      .on("postgres_changes", { event: "*", schema: "public", table: "shift_reports", filter: `site_uuid=eq.${siteId}` }, () => fetchAll())
-      .subscribe();
-
-    // contractor_visits lives on its own channel deliberately: until the
-    // 20260802 migration is applied the table doesn't exist, and a failed
-    // subscription must not take incidents and telemetry down with it.
-    const visitsChannel = supabase
-      .channel(`notifications_visits_${siteId}`)
-      .on("postgres_changes", { event: "*", schema: "public", table: "contractor_visits", filter: `site_uuid=eq.${siteId}` }, () => fetchAll())
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-      supabase.removeChannel(visitsChannel);
-    };
   }, [fetchAll, currentSite?.id]);
+
+  // Each source re-derives the whole feed, which keeps ordering and dedupe in
+  // one place. Separate subscriptions rather than one shared channel: a table
+  // that does not exist yet must not take the others down with it.
+  const siteFilter = currentSite?.id ? `site_uuid=eq.${currentSite.id}` : undefined;
+  const live = { filter: siteFilter, enabled: !!currentSite?.id, onChange: fetchAll };
+  useRealtimeTable({ table: "incidents",         ...live });
+  useRealtimeTable({ table: "telemetry_logs",    ...live });
+  useRealtimeTable({ table: "shift_reports",     ...live });
+  useRealtimeTable({ table: "contractor_visits", ...live });
 
   const unreadCount = useMemo(
     () => notifications.filter((n) => !readIds.has(n.id)).length,

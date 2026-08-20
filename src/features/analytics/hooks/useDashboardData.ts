@@ -1,4 +1,5 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
+import { useRealtimeTable } from "@/shared/api/realtime";
 import { UTILITY_GRID_LABEL } from "@/shared/utils/branding";
 import { supabase } from '@/shared/api/supabaseClient';
 import { useCurrentSite } from '@/shared/context/SiteContext';
@@ -297,6 +298,10 @@ export function useDashboardData(range?: DateRangeValue) {
   });
 
   const fetchCountRef = useRef(0);
+
+  // Bumped by the realtime subscriptions below to re-run the fetch. fetchData
+  // lives inside the effect, so it cannot be called from outside it.
+  const [liveNonce, setLiveNonce] = useState(0);
 
   useEffect(() => {
     async function fetchData() {
@@ -649,48 +654,16 @@ export function useDashboardData(range?: DateRangeValue) {
 
     fetchData();
 
-    const siteId = currentSite?.id;
 
-    const channelLogs = supabase
-      .channel(`analytics_telemetry_logs_realtime_${siteId ?? 'global'}`)
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'telemetry_logs',
-          ...(siteId ? { filter: `site_uuid=eq.${siteId}` } : {})
-        },
-        () => {
-          fetchData();
-        }
-      )
-      .subscribe();
-
-    const channelIncidents = supabase
-      .channel(`analytics_incidents_realtime_${siteId ?? 'global'}`)
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'incidents',
-          ...(siteId ? { filter: `site_uuid=eq.${siteId}` } : {})
-        },
-        () => {
-          fetchData();
-        }
-      )
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channelLogs);
-      supabase.removeChannel(channelIncidents);
-    };
   // activeRange.start/end as primitive timestamps, not the Date/object
   // itself — a new Date instance with the same value must not be treated as
   // a changed dependency and refetch on every render.
-  }, [currentSite?.id, activeRange.start.getTime(), activeRange.end.getTime()]);
+  }, [currentSite?.id, activeRange.start.getTime(), activeRange.end.getTime(), liveNonce]);
+
+  const siteFilter = currentSite?.id ? `site_uuid=eq.${currentSite.id}` : undefined;
+  const bump = useCallback(() => setLiveNonce(n => n + 1), []);
+  useRealtimeTable({ table: "telemetry_logs", filter: siteFilter, onChange: bump });
+  useRealtimeTable({ table: "incidents",      filter: siteFilter, onChange: bump });
 
   return {
     isLoading,

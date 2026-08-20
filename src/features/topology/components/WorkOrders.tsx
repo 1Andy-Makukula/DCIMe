@@ -2,7 +2,9 @@ import { useState } from "react";
 import {
   Plus, RefreshCw, CheckCircle2, X, Wrench, User, Users, Clock, AlertTriangle
 } from "lucide-react";
-import { useWorkOrders, type WorkState, type NewWorkOrder } from "../hooks/useWorkOrders";
+import { useWorkOrders, type WorkState, type NewWorkOrder, type WorkOrder } from "../hooks/useWorkOrders";
+import { SignaturePad } from "@/shared/ui";
+import { useAuth } from "@/shared/context/AuthContext";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Admin work orders — the half of the job flow that did not exist.
@@ -43,6 +45,10 @@ const EMPTY: NewWorkOrder = {
 
 export function WorkOrders() {
   const { orders, techs, isLoading, error, refresh, create, close, cancel } = useWorkOrders();
+  const { employee } = useAuth();
+  // The job awaiting a closing signature. Closing opens the pad rather than
+  // committing straight away, so the confirmation is attributable to a person.
+  const [closing, setClosing] = useState<WorkOrder | null>(null);
   const [showNew, setShowNew] = useState(false);
   const [draft, setDraft]     = useState<NewWorkOrder>(EMPTY);
   const [busy, setBusy]       = useState(false);
@@ -257,12 +263,38 @@ export function WorkOrders() {
                       <p className="mt-0.5 text-[11px] font-semibold text-gray-700">{o.resolution_note}</p>
                     </div>
                   )}
+
+                  {/* Who confirmed the work, and the mark they made. */}
+                  {o.signature_image && (
+                    <div className="mt-2 flex items-end gap-3 rounded-lg border border-gray-200 bg-white px-3 py-2">
+                      <img
+                        src={o.signature_image}
+                        alt="Closing signature"
+                        className="max-h-10 w-auto max-w-[9rem] object-contain"
+                      />
+                      <div className="min-w-0 border-t border-gray-300 pt-1">
+                        <p className="font-mono text-[9px] uppercase tracking-widest text-gray-400">
+                          Closed by
+                        </p>
+                        <p className="truncate text-[10px] font-black text-gray-700">
+                          {o.signed_name ?? "Administrator"}
+                        </p>
+                        {o.signed_at && (
+                          <p className="font-mono text-[9px] text-gray-400">
+                            {new Date(o.signed_at).toLocaleString(undefined, {
+                              month: "short", day: "numeric", hour: "2-digit", minute: "2-digit", hour12: false
+                            })}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                  )}
                 </div>
 
                 {o.state === "RESOLVED" && (
                   <div className="flex shrink-0 flex-col gap-1.5">
                     <button
-                      onClick={async () => { await close(o.id); say("Job closed"); }}
+                      onClick={() => setClosing(o)}
                       className="flex items-center gap-1.5 rounded-xl bg-ok-500 px-3 py-2 text-[10px] font-black uppercase tracking-wider text-white transition-colors hover:bg-ok-600">
                       <CheckCircle2 size={13} /> Close
                     </button>
@@ -278,6 +310,27 @@ export function WorkOrders() {
           ))}
         </div>
       </div>
+
+      <SignaturePad
+        open={!!closing}
+        onClose={() => setClosing(null)}
+        signerName={employee?.full_name || "Administrator"}
+        context={closing ? `Closing: ${closing.title}` : undefined}
+        confirmLabel="Sign and close"
+        onConfirm={async (sig) => {
+          const job = closing;
+          setClosing(null);
+          if (!job) return;
+          try {
+            await close(job.id, sig, employee?.full_name || "Administrator");
+            say("Job closed and signed");
+          } catch (e: any) {
+            say(e?.code === "PGRST204"
+              ? "Signature columns missing. Apply 20260829_countersignatures.sql."
+              : e?.message ?? "Could not close the job");
+          }
+        }}
+      />
     </div>
   );
 }

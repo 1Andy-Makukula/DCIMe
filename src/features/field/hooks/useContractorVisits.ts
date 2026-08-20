@@ -1,5 +1,6 @@
 // src/features/field/hooks/useContractorVisits.ts
 import { useState, useEffect, useCallback, useRef } from "react";
+import { useRealtimeTable } from "@/shared/api/realtime";
 import { supabase } from "@/shared/api/supabaseClient";
 import { useCurrentSite } from "@/shared/context/SiteContext";
 
@@ -76,30 +77,14 @@ export function useContractorVisits() {
     }
   }, [currentSite?.id]);
 
-  useEffect(() => {
-    fetchVisits();
+  useEffect(() => { fetchVisits(); }, [fetchVisits]);
 
-    const siteId = currentSite?.id;
-    if (!siteId) return;
-
-    const channel = supabase
-      .channel(`contractor_visits_realtime_${siteId}`)
-      .on(
-        "postgres_changes",
-        {
-          event: "*",
-          schema: "public",
-          table: "contractor_visits",
-          filter: `site_uuid=eq.${siteId}`,
-        },
-        () => fetchVisits()
-      )
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, [fetchVisits, currentSite?.id]);
+  useRealtimeTable({
+    table:   "contractor_visits",
+    filter:  currentSite?.id ? `site_uuid=eq.${currentSite.id}` : undefined,
+    enabled: !!currentSite?.id,
+    onChange: fetchVisits
+  });
 
   /**
    * Records an inspection. Deliberately writes nothing to `incidents` —

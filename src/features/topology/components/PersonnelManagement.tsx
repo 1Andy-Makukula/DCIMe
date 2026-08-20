@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { useRealtimeTable } from "@/shared/api/realtime";
 import { siteLabel } from "@/shared/utils/branding";
 import { supabase } from "@/shared/api/supabaseClient";
 import { useCurrentSite } from "@/shared/context/SiteContext";
@@ -592,21 +593,10 @@ export function PersonnelManagement() {
   useEffect(() => {
     fetchRoster();
     fetchActiveSessions();
-
-    // Check-ins and check-outs must move the live counter without a reload.
-    const channel = supabase
-      .channel("personnel_shift_sessions")
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "shift_sessions" },
-        () => fetchActiveSessions()
-      )
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
   }, []);
+
+  // Check-ins and check-outs must move the live counter without a reload.
+  useRealtimeTable({ table: "shift_sessions", onChange: fetchActiveSessions });
 
   // ── Computed stats ──────────────────────────────────────────────────────
   const totalCleared  = roster.filter((p) => p.status !== "Revoked").length;

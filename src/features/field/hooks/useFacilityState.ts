@@ -1,5 +1,6 @@
 // src/features/field/hooks/useFacilityState.ts
 import { useState, useEffect, useCallback } from "react";
+import { useRealtimeTable } from "@/shared/api/realtime";
 import { supabase } from "@/shared/api/supabaseClient";
 import { useCurrentSite } from "@/shared/context/SiteContext";
 import { useAuth } from "@/shared/context/AuthContext";
@@ -88,35 +89,18 @@ export function useFacilityState() {
     fetchFacilityState();
   }, [fetchFacilityState]);
 
-  // Subscribe to real-time changes
-  useEffect(() => {
-    if (!currentSite?.id) return;
-    let active = true;
-
-    const channel = supabase
-      .channel(`facility_states_realtime_${currentSite.id}`)
-      .on(
-        "postgres_changes",
-        {
-          event: "*",
-          schema: "public",
-          table: "facility_states",
-          filter: `site_uuid=eq.${currentSite.id}`
-        },
-        (payload) => {
-          if (!active) return;
-          if (payload.new && (payload.new as any).fsm_mode) {
-            setFsmModeState((payload.new as any).fsm_mode as FsmMode);
-          }
-        }
-      )
-      .subscribe();
-
-    return () => {
-      active = false;
-      supabase.removeChannel(channel);
-    };
-  }, [currentSite?.id]);
+  // Applies the change directly rather than refetching: the row carries the
+  // new mode, so a round trip would only add latency to a state operators
+  // watch for.
+  useRealtimeTable({
+    table:   "facility_states",
+    filter:  currentSite?.id ? `site_uuid=eq.${currentSite.id}` : undefined,
+    enabled: !!currentSite?.id,
+    onChange: (payload) => {
+      const mode = payload.new?.fsm_mode;
+      if (mode) setFsmModeState(mode as FsmMode);
+    }
+  });
 
   return {
     fsmMode,

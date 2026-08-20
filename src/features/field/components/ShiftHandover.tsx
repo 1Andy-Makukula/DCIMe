@@ -242,6 +242,7 @@ export function ShiftHandover() {
             </p>
             <SignatureField
               value={signature}
+              signedAt={signedAt}
               onClick={() => setPadOpen(true)}
               label={user?.name || "Outgoing technician"}
             />

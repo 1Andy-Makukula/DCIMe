@@ -1,5 +1,6 @@
 // src/features/field/hooks/useSiteEquipment.ts
 import { useState, useEffect, useCallback } from "react";
+import { useRealtimeTable } from "@/shared/api/realtime";
 import { supabase } from "@/shared/api/supabaseClient";
 import { useCurrentSite } from "@/shared/context/SiteContext";
 import { SITE_BLUEPRINTS, DEFAULT_SITE_CODE } from "@/config/sites";
@@ -141,31 +142,14 @@ export function useSiteEquipment() {
     }
   }, [currentSite?.id, siteCode]);
 
-  useEffect(() => {
-    fetchEquipment();
+  useEffect(() => { fetchEquipment(); }, [fetchEquipment]);
 
-    if (!currentSite?.id) return;
-
-    const channel = supabase
-      .channel(`equipment_registry_realtime_${currentSite.id}`)
-      .on(
-        "postgres_changes",
-        {
-          event: "*",
-          schema: "public",
-          table: "equipment_registry",
-          filter: `site_uuid=eq.${currentSite.id}`
-        },
-        () => {
-          fetchEquipment();
-        }
-      )
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, [fetchEquipment, currentSite?.id]);
+  useRealtimeTable({
+    table:    "equipment_registry",
+    filter:   currentSite?.id ? `site_uuid=eq.${currentSite.id}` : undefined,
+    enabled:  !!currentSite?.id,
+    onChange: fetchEquipment
+  });
 
   return {
     groupedEquipment,

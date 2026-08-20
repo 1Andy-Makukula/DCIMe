@@ -19,9 +19,10 @@ import {
 } from "lucide-react";
 import { generateLegacyMonthlyReport } from "../../../shared/utils/excelExportEngine";
 import { useCurrentSite } from "@/shared/context/SiteContext";
+import { useAuth } from "@/shared/context/AuthContext";
 import { supabase } from "@/shared/api/supabaseClient";
 import { PrintableChecklist } from "../../field/components/PrintableChecklist";
-import { DateRangePicker } from "@/shared/ui";
+import { DateRangePicker, DocumentSignatures, type SignatureResult } from "@/shared/ui";
 import { useDateRange } from "@/shared/utils/useDateRange";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -52,6 +53,12 @@ interface ShiftLog {
   notes: string;
   alertsAcked: number;
   signedOff: boolean;
+  // The document's two marks. Captured in the field, accepted in the office.
+  signatureImage:    string | null;
+  signedAt:          string | null;
+  countersignImage:  string | null;
+  countersignedAt:   string | null;
+  countersignedName: string | null;
 }
 
 
@@ -76,9 +83,13 @@ function VerificationBadge({ status }: { status: VerificationStatus }) {
 
 // ── Full-report modal ─────────────────────────────────────────────────────────
 function ReportModal({
+  adminName,
+  onCountersign,
   log,
   onClose,
 }: {
+  adminName: string;
+  onCountersign: (log: ShiftLog, sig: SignatureResult) => Promise<void>;
   log: ShiftLog;
   onClose: () => void;
 }) {
@@ -197,6 +208,24 @@ function ReportModal({
               </div>
             </div>
           </div>
+
+          {/* The two parties to the handover. */}
+          <DocumentSignatures
+            context={`Shift handover · ${log.date} · ${log.shiftLabel}`}
+            author={{
+              role: "Submitted by",
+              name: log.author,
+              image: log.signatureImage,
+              signedAt: log.signedAt
+            }}
+            counter={{
+              role: "Accepted by",
+              name: log.countersignedName ?? adminName,
+              image: log.countersignImage,
+              signedAt: log.countersignedAt
+            }}
+            onSign={(sig) => onCountersign(log, sig)}
+          />
         </div>
       </div>
     </div>
@@ -325,6 +354,7 @@ function ShiftCard({
 // ── Main Component ────────────────────────────────────────────────────────────
 export function ShiftReports() {
   const { currentSite } = useCurrentSite();
+  const { employee } = useAuth();
   const siteCode = currentSite?.site_code || DEFAULT_SITE_CODE;
   const [activeTab, setActiveTab] = useState<"shifts" | "checklists">("shifts");
   // The old local dateRange/showPicker state drove a label in the button but
@@ -392,7 +422,12 @@ export function ShiftReports() {
             ],
             notes: report.notes || "No pass-down notes submitted.",
             alertsAcked: report.incidents_filed || 0,
-            signedOff: report.certified || false
+            signedOff: report.certified || false,
+            signatureImage:    report.signature_image    ?? null,
+            signedAt:          report.signed_at          ?? null,
+            countersignImage:  report.countersign_image  ?? null,
+            countersignedAt:   report.countersigned_at   ?? null,
+            countersignedName: report.countersigned_name ?? null
           };
         });
         setDbReports(mapped);
@@ -459,6 +494,36 @@ export function ShiftReports() {
   };
 
   // Derived counts
+  const adminName = employee?.full_name || "Administrator";
+
+  /**
+   * Records the acceptance signature against the report.
+   *
+   * The signer's NAME is denormalised alongside the id: the printed document
+   * has to keep reading correctly even if that employee row is later removed.
+   */
+  const handleCountersign = async (log: ShiftLog, sig: SignatureResult) => {
+    const { error } = await (supabase.from as any)("shift_reports")
+      .update({
+        countersign_image:  sig.dataUrl,
+        countersigned_at:   sig.signedAt,
+        countersigned_by:   employee?.id ?? null,
+        countersigned_name: adminName
+      })
+      .eq("log_id", log.id);
+
+    if (error) {
+      console.error("[DCIMe] Countersign failed:", error);
+      // PGRST204 means the columns are not on the remote yet.
+      alert(error.code === "PGRST204"
+        ? "Countersignature columns are missing. Apply supabase/migrations/20260829_countersignatures.sql."
+        : error.message);
+      return;
+    }
+    await fetchDbReports();
+    setActiveReport(null);
+  };
+
   const verifiedCount = allShiftLogs.filter((l) => l.verificationStatus === "verified").length;
   const discrepancyCount = allShiftLogs.filter((l) => l.verificationStatus === "discrepancy").length;
   const totalAlertsAcked = allShiftLogs.reduce((sum, l) => sum + l.alertsAcked, 0);
@@ -486,6 +551,8 @@ export function ShiftReports() {
       {activeReport && (
         <ReportModal
           log={activeReport}
+          adminName={adminName}
+          onCountersign={handleCountersign}
           onClose={() => setActiveReport(null)}
         />
       )}

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Check, Eraser, RotateCcw, Smartphone, Undo2, X } from "lucide-react";
+import { Check, Eraser, PenLine, Undo2, X } from "lucide-react";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Handwritten signature capture.
@@ -12,15 +12,20 @@ import { Check, Eraser, RotateCcw, Smartphone, Undo2, X } from "lucide-react";
 // handlers — separate mouse/touch listeners would double-fire on hybrid devices
 // and drop pressure and pen data entirely.
 //
-// ROTATION. A phone held upright gives a signing strip barely wider than a
-// thumb. The pad rotates its surface a quarter turn on narrow portrait screens
-// so the phone's long edge becomes the writing line, which is how a signature
-// is actually written. Pointer coordinates are transformed back through the
-// same rotation, so the ink lands where the finger is.
+// NO ROTATION. An earlier version turned the surface a quarter turn on narrow
+// screens to lengthen the writing line. It cost more than it bought: the
+// rotated box stood ~660px tall on a phone, which pushed the footer — and with
+// it the confirm button — off the bottom of the screen, so a signature could be
+// drawn but never submitted. The pad is upright everywhere now, and the sheet
+// simply takes the width it is given.
+//
+// TRIMMED OUTPUT. The exported PNG is cropped to the ink. Exporting the whole
+// canvas embeds a mostly-empty image, which then renders as a tiny mark inside
+// whatever field displays it — the signature has to fill its box.
 // ─────────────────────────────────────────────────────────────────────────────
 
 export interface SignatureResult {
-  /** PNG data URL, transparent background, trimmed to the ink. */
+  /** PNG data URL, transparent background, cropped to the ink. */
   dataUrl: string;
   /** ISO timestamp of the moment it was confirmed. */
   signedAt: string;
@@ -36,32 +41,21 @@ export interface SignaturePadProps {
   signerName?: string;
   /** What is being signed for, e.g. "Shift handover · 14:00 - 22:00". */
   context?: string;
+  /** Overrides the confirm button label, e.g. "Countersign". */
+  confirmLabel?: string;
 }
 
 type Point = { x: number; y: number };
 
+const INK = "#0f172a";
+
 export function SignaturePad({
-  open, onClose, onConfirm, signerName, context
+  open, onClose, onConfirm, signerName, context, confirmLabel = "Submit signature"
 }: SignaturePadProps) {
   const canvasRef  = useRef<HTMLCanvasElement>(null);
   const strokesRef = useRef<Point[][]>([]);
   const activeRef  = useRef<Point[] | null>(null);
   const [strokeCount, setStrokeCount] = useState(0);
-
-  // A quarter turn is applied only where it helps: a narrow, taller-than-wide
-  // viewport. On a tablet or desktop the surface is already wide enough.
-  const [rotated, setRotated] = useState(false);
-  useEffect(() => {
-    if (!open) return;
-    const decide = () => setRotated(window.innerWidth < 640 && window.innerHeight > window.innerWidth);
-    decide();
-    window.addEventListener("resize", decide);
-    window.addEventListener("orientationchange", decide);
-    return () => {
-      window.removeEventListener("resize", decide);
-      window.removeEventListener("orientationchange", decide);
-    };
-  }, [open]);
 
   /** Repaints every stroke. Called on resize, undo and clear. */
   const redraw = useCallback(() => {
@@ -76,7 +70,8 @@ export function SignaturePad({
     ctx.lineWidth   = 2.4;
     ctx.lineCap     = "round";
     ctx.lineJoin    = "round";
-    ctx.strokeStyle = "#0f172a";
+    ctx.strokeStyle = INK;
+    ctx.fillStyle   = INK;
 
     for (const stroke of strokesRef.current) {
       if (stroke.length === 0) continue;
@@ -84,7 +79,6 @@ export function SignaturePad({
         // A deliberate dot still has to appear.
         ctx.beginPath();
         ctx.arc(stroke[0].x, stroke[0].y, 1.2, 0, Math.PI * 2);
-        ctx.fillStyle = "#0f172a";
         ctx.fill();
         continue;
       }
@@ -111,12 +105,9 @@ export function SignaturePad({
     if (!canvas) return;
     const dpr = window.devicePixelRatio || 1;
     const { width, height } = canvas.getBoundingClientRect();
-    // The rect of a rotated element is its bounding box, so the canvas is sized
-    // from its layout box instead — that is unaffected by the transform.
-    const w = canvas.offsetWidth  || width;
-    const h = canvas.offsetHeight || height;
-    canvas.width  = Math.round(w * dpr);
-    canvas.height = Math.round(h * dpr);
+    if (!width || !height) return;
+    canvas.width  = Math.round(width * dpr);
+    canvas.height = Math.round(height * dpr);
     redraw();
   }, [redraw]);
 
@@ -124,28 +115,19 @@ export function SignaturePad({
     if (!open) return;
     const id = window.setTimeout(resize, 0);   // after layout settles
     window.addEventListener("resize", resize);
-    return () => { window.clearTimeout(id); window.removeEventListener("resize", resize); };
-  }, [open, rotated, resize]);
+    window.addEventListener("orientationchange", resize);
+    return () => {
+      window.clearTimeout(id);
+      window.removeEventListener("resize", resize);
+      window.removeEventListener("orientationchange", resize);
+    };
+  }, [open, resize]);
 
-  /**
-   * Client coordinates -> canvas coordinates, undoing the CSS rotation.
-   *
-   * Rotating about the element centre means a plain left/top subtraction is
-   * wrong: the browser reports the position within the rotated bounding box.
-   * Rotating the offset back by the same angle recovers the true point.
-   */
+  /** Client coordinates -> canvas coordinates. Upright, so a plain offset. */
   const toCanvas = useCallback((e: React.PointerEvent<HTMLCanvasElement>): Point => {
-    const canvas = canvasRef.current!;
-    const rect = canvas.getBoundingClientRect();
-    const cx = rect.left + rect.width / 2;
-    const cy = rect.top  + rect.height / 2;
-    const dx = e.clientX - cx;
-    const dy = e.clientY - cy;
-    const a  = ((rotated ? -90 : 0) * Math.PI) / 180;
-    const rx = dx * Math.cos(a) - dy * Math.sin(a);
-    const ry = dx * Math.sin(a) + dy * Math.cos(a);
-    return { x: rx + canvas.offsetWidth / 2, y: ry + canvas.offsetHeight / 2 };
-  }, [rotated]);
+    const rect = e.currentTarget.getBoundingClientRect();
+    return { x: e.clientX - rect.left, y: e.clientY - rect.top };
+  }, []);
 
   const onDown = (e: React.PointerEvent<HTMLCanvasElement>) => {
     // Capture keeps the stroke alive if the finger leaves the canvas, so a
@@ -153,6 +135,9 @@ export function SignaturePad({
     e.currentTarget.setPointerCapture(e.pointerId);
     activeRef.current = [toCanvas(e)];
     strokesRef.current.push(activeRef.current);
+    // Count immediately rather than on pointerup: the confirm button must
+    // enable as soon as there is ink, not only once the pen is lifted.
+    setStrokeCount(strokesRef.current.length);
   };
 
   const onMove = (e: React.PointerEvent<HTMLCanvasElement>) => {
@@ -176,23 +161,73 @@ export function SignaturePad({
     redraw();
   };
 
-  const clear = () => {
+  const clear = useCallback(() => {
     strokesRef.current = [];
+    activeRef.current = null;
     setStrokeCount(0);
     redraw();
-  };
+  }, [redraw]);
 
-  useEffect(() => { if (open) clear(); }, [open]);   // never inherit old ink
+  useEffect(() => { if (open) clear(); }, [open, clear]);   // never inherit old ink
+
+  /**
+   * Crops the canvas to the drawn ink before export.
+   *
+   * Without this the PNG is the full sheet, so a signature occupying a third of
+   * the width comes back as a small mark floating in a large transparent image
+   * — and every field that displays it has to show it tiny to fit the padding.
+   */
+  const exportTrimmed = (canvas: HTMLCanvasElement): string => {
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return canvas.toDataURL("image/png");
+
+    const { width: w, height: h } = canvas;
+    const { data } = ctx.getImageData(0, 0, w, h);
+
+    let minX = w, minY = h, maxX = -1, maxY = -1;
+    for (let y = 0; y < h; y++) {
+      for (let x = 0; x < w; x++) {
+        // Alpha only: the ink is opaque and the background was cleared, so a
+        // non-zero alpha is a drawn pixel.
+        if (data[(y * w + x) * 4 + 3] !== 0) {
+          if (x < minX) minX = x;
+          if (x > maxX) maxX = x;
+          if (y < minY) minY = y;
+          if (y > maxY) maxY = y;
+        }
+      }
+    }
+    if (maxX < 0) return canvas.toDataURL("image/png");   // nothing drawn
+
+    const pad = Math.round(8 * (window.devicePixelRatio || 1));
+    const sx = Math.max(0, minX - pad);
+    const sy = Math.max(0, minY - pad);
+    const sw = Math.min(w, maxX + pad) - sx;
+    const sh = Math.min(h, maxY + pad) - sy;
+
+    const out = document.createElement("canvas");
+    out.width = sw; out.height = sh;
+    out.getContext("2d")?.drawImage(canvas, sx, sy, sw, sh, 0, 0, sw, sh);
+    return out.toDataURL("image/png");
+  };
 
   const confirm = () => {
     const canvas = canvasRef.current;
     if (!canvas || strokesRef.current.length === 0) return;
     onConfirm({
-      dataUrl: canvas.toDataURL("image/png"),
+      dataUrl: exportTrimmed(canvas),
       signedAt: new Date().toISOString(),
       strokeCount: strokesRef.current.length
     });
   };
+
+  // Escape cancels, so the pad never traps someone on a touchscreen PC.
+  useEffect(() => {
+    if (!open) return;
+    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [open, onClose]);
 
   if (!open) return null;
 
@@ -205,7 +240,7 @@ export function SignaturePad({
       aria-modal="true"
       aria-label="Sign"
     >
-      <div className="flex items-start justify-between p-4">
+      <div className="flex shrink-0 items-start justify-between p-4">
         <div className="min-w-0">
           <p className="font-mono text-[10px] uppercase tracking-[0.14em] text-white/50">
             Signature
@@ -226,33 +261,21 @@ export function SignaturePad({
         </button>
       </div>
 
-      {rotated && (
-        <p className="flex items-center justify-center gap-2 pb-2 text-[11px] font-semibold text-white/70">
-          <Smartphone size={13} className="rotate-90" />
-          Turn your phone sideways to sign
-        </p>
-      )}
-
-      <div className="flex flex-1 items-center justify-center px-4 pb-4">
-        <div
-          className="relative w-full overflow-hidden rounded-3xl bg-white shadow-2xl"
-          style={
-            rotated
-              // Swapped extents plus a quarter turn: the surface fills the
-              // screen's long axis while the page itself stays upright.
-              ? {
-                  width:  "min(78vh, 40rem)",
-                  height: "min(70vw, 22rem)",
-                  transform: "rotate(90deg)"
-                }
-              : { height: "min(60vh, 22rem)" }
-          }
-        >
+      {/* min-h-0 lets this flex child shrink; without it the sheet's height
+          would push the footer past the bottom of the viewport, which is
+          exactly how the confirm button became unreachable before. */}
+      <div className="flex min-h-0 flex-1 items-center justify-center px-4 pb-4">
+        <div className="relative h-full max-h-[26rem] w-full max-w-3xl overflow-hidden rounded-3xl bg-white shadow-2xl">
           {/* The signing line, drawn under the ink so it reads as paper. */}
           <div className="pointer-events-none absolute inset-x-8 bottom-12 border-b-2 border-dashed border-slate-200" />
           <span className="pointer-events-none absolute bottom-5 left-8 font-mono text-[10px] uppercase tracking-widest text-slate-300">
             Sign above the line
           </span>
+          {!hasInk && (
+            <span className="pointer-events-none absolute inset-x-0 top-1/2 flex -translate-y-1/2 items-center justify-center gap-2 text-[12px] font-bold text-slate-300">
+              <PenLine size={15} /> Draw your signature here
+            </span>
+          )}
 
           <canvas
             ref={canvasRef}
@@ -267,19 +290,19 @@ export function SignaturePad({
         </div>
       </div>
 
-      <div className="flex items-center justify-between gap-2 border-t border-white/10 bg-slate-900/40 p-4">
+      <div className="flex shrink-0 flex-wrap items-center justify-between gap-2 border-t border-white/10 bg-slate-900/60 p-4">
         <div className="flex gap-2">
           <button
             onClick={undo}
             disabled={!hasInk}
-            className="flex items-center gap-1.5 rounded-xl border border-white/15 px-3 py-2.5 text-[11px] font-bold uppercase tracking-wider text-white/80 transition-colors hover:bg-white/10 disabled:opacity-30"
+            className="flex items-center gap-1.5 rounded-xl border border-white/15 px-3.5 py-2.5 text-[11px] font-bold uppercase tracking-wider text-white/80 transition-colors hover:bg-white/10 disabled:opacity-30"
           >
             <Undo2 size={14} /> Undo
           </button>
           <button
             onClick={clear}
             disabled={!hasInk}
-            className="flex items-center gap-1.5 rounded-xl border border-white/15 px-3 py-2.5 text-[11px] font-bold uppercase tracking-wider text-white/80 transition-colors hover:bg-white/10 disabled:opacity-30"
+            className="flex items-center gap-1.5 rounded-xl border border-white/15 px-3.5 py-2.5 text-[11px] font-bold uppercase tracking-wider text-white/80 transition-colors hover:bg-white/10 disabled:opacity-30"
           >
             <Eraser size={14} /> Clear
           </button>
@@ -288,9 +311,9 @@ export function SignaturePad({
         <button
           onClick={confirm}
           disabled={!hasInk}
-          className="flex items-center gap-2 rounded-xl bg-white px-5 py-2.5 text-[12px] font-black uppercase tracking-wider text-slate-900 transition-colors disabled:bg-white/20 disabled:text-white/40"
+          className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-brand-500 px-6 py-3 text-[12px] font-black uppercase tracking-wider text-white shadow-lg transition-colors hover:bg-brand-600 disabled:bg-white/15 disabled:text-white/40 disabled:shadow-none sm:flex-none"
         >
-          <Check size={15} /> {hasInk ? "Confirm signature" : "Sign to continue"}
+          <Check size={16} /> {hasInk ? confirmLabel : "Sign to continue"}
         </button>
       </div>
     </div>
@@ -300,33 +323,55 @@ export function SignaturePad({
 /**
  * A signature on a form: an empty line until signed, the mark itself after.
  * Clicking either opens the pad.
+ *
+ * Sized like an input rather than a large drop zone — the signature is one
+ * field among several, and the captured mark is cropped to its ink so it fills
+ * this box instead of floating in it.
  */
 export function SignatureField({
-  value, onClick, label, className = ""
+  value, onClick, label, signedAt, className = ""
 }: {
   value: string | null;
   onClick: () => void;
   label: string;
+  /** ISO timestamp, shown under the mark once signed. */
+  signedAt?: string | null;
   className?: string;
 }) {
   return (
     <button
       type="button"
       onClick={onClick}
-      className={`group relative flex w-full flex-col items-center justify-end rounded-2xl border-2 border-dashed p-3 transition-colors ${
-        value ? "border-ok-200 bg-ok-50/30" : "border-gray-200 hover:border-gray-300 hover:bg-gray-50"
+      className={`group relative flex w-full flex-col justify-end rounded-2xl border-2 border-dashed px-3 pb-2 pt-2 transition-colors ${
+        value
+          ? "border-ok-300 bg-ok-50/40 hover:border-ok-400"
+          : "border-gray-200 hover:border-brand-300 hover:bg-brand-50/40"
       } ${className}`}
-      style={{ minHeight: "6.5rem" }}
+      style={{ minHeight: "5rem" }}
     >
       {value ? (
-        <img src={value} alt={`${label} signature`} className="max-h-16 w-auto object-contain" />
+        <img
+          src={value}
+          alt={`${label} signature`}
+          className="mx-auto max-h-14 w-auto max-w-full object-contain"
+        />
       ) : (
-        <span className="flex flex-1 items-center gap-1.5 text-[11px] font-bold text-gray-400 group-hover:text-gray-600">
-          <RotateCcw size={13} /> Tap to sign
+        <span className="flex flex-1 items-center justify-center gap-1.5 text-[11px] font-bold text-gray-400 group-hover:text-brand-500">
+          <PenLine size={13} /> Tap to sign
         </span>
       )}
-      <span className="mt-2 w-full border-t border-gray-300 pt-1.5 font-mono text-[9px] uppercase tracking-widest text-gray-400">
-        {label}
+
+      <span className="mt-1.5 flex w-full items-center justify-between gap-2 border-t border-gray-300 pt-1.5">
+        <span className="font-mono text-[9px] uppercase tracking-widest text-gray-400">
+          {label}
+        </span>
+        {value && signedAt && (
+          <span className="font-mono text-[9px] text-gray-400">
+            {new Date(signedAt).toLocaleString(undefined, {
+              month: "short", day: "numeric", hour: "2-digit", minute: "2-digit", hour12: false
+            })}
+          </span>
+        )}
       </span>
     </button>
   );

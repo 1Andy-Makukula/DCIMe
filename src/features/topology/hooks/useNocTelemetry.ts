@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from "react";
+import { useRealtimeTable } from "@/shared/api/realtime";
 import { supabase } from "@/shared/api/supabaseClient";
 import { useCurrentSite } from "@/shared/context/SiteContext";
 
@@ -174,39 +175,6 @@ export function useNocTelemetry(): UseNocTelemetryResult {
   useEffect(() => {
     fetchAll();
 
-    const siteId = currentSite?.id;
-
-    // H-6 FIX: filter realtime subscriptions by site_uuid.
-    // Without this, every client receives all-site change events for these
-    // tables and triggers a full refetch — both wasteful and a data leak risk.
-    const channelLogs = supabase
-      .channel(`noc_telemetry_logs_realtime_${siteId ?? 'global'}`)
-      .on(
-        "postgres_changes",
-        {
-          event: "*",
-          schema: "public",
-          table: "telemetry_logs",
-          ...(siteId ? { filter: `site_uuid=eq.${siteId}` } : {})
-        },
-        () => fetchAll()
-      )
-      .subscribe();
-
-    const channelIncidents = supabase
-      .channel(`noc_incidents_realtime_${siteId ?? 'global'}`)
-      .on(
-        "postgres_changes",
-        {
-          event: "*",
-          schema: "public",
-          table: "incidents",
-          ...(siteId ? { filter: `site_uuid=eq.${siteId}` } : {})
-        },
-        () => fetchAll()
-      )
-      .subscribe();
-
     // POLLING SAFETY NET.
     //
     // The two subscriptions above only deliver if the table belongs to the
@@ -232,10 +200,13 @@ export function useNocTelemetry(): UseNocTelemetryResult {
     return () => {
       window.clearInterval(poll);
       document.removeEventListener("visibilitychange", onVisible);
-      supabase.removeChannel(channelLogs);
-      supabase.removeChannel(channelIncidents);
     };
   }, [fetchAll, currentSite?.id]);
+
+  // H-6: scoped per site, so a client never receives another site's events.
+  const siteFilter = currentSite?.id ? `site_uuid=eq.${currentSite.id}` : undefined;
+  useRealtimeTable({ table: "telemetry_logs", filter: siteFilter, onChange: fetchAll });
+  useRealtimeTable({ table: "incidents",      filter: siteFilter, onChange: fetchAll });
 
   return {
     loadChartData,

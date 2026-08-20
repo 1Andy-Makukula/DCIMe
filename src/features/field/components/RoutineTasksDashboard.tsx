@@ -1,5 +1,6 @@
 // src/features/field/components/RoutineTasksDashboard.tsx
 import { useState, useMemo, useEffect, useCallback } from 'react';
+import { useRealtimeTable } from "@/shared/api/realtime";
 import { Save, CheckCircle2, Loader2, Zap, AlertTriangle, ArrowLeft, Plug, ClipboardList, Share2, History, EyeOff } from 'lucide-react';
 import { supabase } from '@/shared/api/supabaseClient';
 import { useAuth } from '@/shared/context/AuthContext';
@@ -475,28 +476,20 @@ export const RoutineTasksDashboard = ({
     }
   }, [siteCode, currentSite?.site_name, currentSite?.id, employee?.full_name, targetHour]);
 
-  useEffect(() => {
-    fetchDatabaseHistory();
+  useEffect(() => { fetchDatabaseHistory(); }, [fetchDatabaseHistory]);
 
-    const channel = supabase
-      .channel('telemetry_history_realtime')
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'telemetry_logs' },
-        (payload) => {
-          const m = (payload.new as any)?.metrics || {};
-          // Only fetch history if the changed record belongs to the current site
-          if (!payload.new || m.site_id === siteCode || m.site_uuid === currentSite?.id) {
-            fetchDatabaseHistory();
-          }
-        }
-      )
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, [fetchDatabaseHistory, siteCode, currentSite?.id]);
+  useRealtimeTable({
+    table: "telemetry_logs",
+    onChange: (payload) => {
+      // Filtered in the callback rather than server-side: this table stores
+      // the site inside the metrics JSON as well, and older rows predate the
+      // site_uuid column being populated.
+      const m = (payload.new as any)?.metrics || {};
+      if (!payload.new || m.site_id === siteCode || m.site_uuid === currentSite?.id) {
+        fetchDatabaseHistory();
+      }
+    }
+  });
 
   const handleShareAndSave = async () => {
     // iOS Safari only permits window.open while the tap's transient user

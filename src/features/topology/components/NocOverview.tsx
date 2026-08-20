@@ -1,4 +1,5 @@
 import React from "react";
+import { useRealtimeTable } from "@/shared/api/realtime";
 import { UTILITY_GRID_LABEL } from "@/shared/utils/branding";
 import { IngestionHealthCard } from "./IngestionHealthCard";
 import { siteLabel } from "@/shared/utils/branding";
@@ -222,29 +223,14 @@ export function NocOverview() {
     }
   };
 
-  React.useEffect(() => {
-    fetchIncidents();
+  React.useEffect(() => { fetchIncidents(); }, [currentSite?.id]);
 
-    // Live-refresh the incident feed, scoped to this site.
-    const siteId = currentSite?.id;
-    const channel = supabase
-      .channel(`noc_overview_incidents_${siteId ?? "global"}`)
-      .on(
-        "postgres_changes",
-        {
-          event: "*",
-          schema: "public",
-          table: "incidents",
-          ...(siteId ? { filter: `site_uuid=eq.${siteId}` } : {}),
-        },
-        () => fetchIncidents()
-      )
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, [currentSite?.id]);
+  // Live incident feed, scoped to this site.
+  useRealtimeTable({
+    table:    "incidents",
+    filter:   currentSite?.id ? `site_uuid=eq.${currentSite.id}` : undefined,
+    onChange: fetchIncidents
+  });
 
 
   // Filter and search logic

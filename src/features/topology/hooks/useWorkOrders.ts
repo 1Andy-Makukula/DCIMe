@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/shared/api/supabaseClient";
 import { useCurrentSite } from "@/shared/context/SiteContext";
+import type { SignatureResult } from "@/shared/ui";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // The admin half of the work item spine.
@@ -33,6 +34,10 @@ export interface WorkOrder {
   resolved_at:     string | null;
   resolution_note: string | null;
   created_at:      string;
+  /** The mark of whoever confirmed the work, captured at close. */
+  signature_image: string | null;
+  signed_at:       string | null;
+  signed_name:     string | null;
 }
 
 export interface Technician { id: string; full_name: string; role: string; }
@@ -61,7 +66,7 @@ export function useWorkOrders() {
     try {
       setError(null);
       const { data, error: e } = await from("work_items")
-        .select("id,title,detail,kind,severity,state,origin,assignee_id,due_at,resolved_at,resolution_note,created_at,employees:assignee_id(full_name)")
+        .select("id,title,detail,kind,severity,state,origin,assignee_id,due_at,resolved_at,resolution_note,created_at,signature_image,signed_at,signed_name,employees:assignee_id(full_name)")
         .eq("site_uuid", siteId)
         .order("created_at", { ascending: false })
         .limit(200);
@@ -129,12 +134,25 @@ export function useWorkOrders() {
   }, [fetchAll]);
 
   /**
-   * RESOLVED -> CLOSED. The technician says the work is done; the admin
-   * confirms it. Without this the queue had no terminal state and resolved
-   * jobs accumulated forever.
+   * RESOLVED -> CLOSED, against a handwritten signature.
+   *
+   * The technician says the work is done; a named person confirms it. Closing
+   * on a bare button press attributes the decision to an account rather than a
+   * person — the signature is what makes the record answerable later.
+   *
+   * signed_name is denormalised beside signed_by's absence deliberately: the
+   * closed record has to keep reading correctly on a printed job card even if
+   * the employee row is later removed.
    */
-  const close = useCallback(async (id: string) => {
-    const { error: e } = await from("work_items").update({ state: "CLOSED" }).eq("id", id);
+  const close = useCallback(async (id: string, sig: SignatureResult, signerName: string) => {
+    const { error: e } = await from("work_items")
+      .update({
+        state:           "CLOSED",
+        signature_image: sig.dataUrl,
+        signed_at:       sig.signedAt,
+        signed_name:     signerName
+      })
+      .eq("id", id);
     if (e) throw e;
     await fetchAll();
   }, [fetchAll]);

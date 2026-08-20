@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from "react";
+import { useRealtimeTable } from "@/shared/api/realtime";
 import { siteLabel } from "@/shared/utils/branding";
 import { supabase } from "@/shared/api/supabaseClient";
 import { useCurrentSite } from "@/shared/context/SiteContext";
@@ -79,31 +80,14 @@ export function useShiftReports() {
     }
   }, [currentSite?.id]);
 
-  // Fetch on mount and subscribe to realtime changes (H-6 site isolation)
-  useEffect(() => {
-    fetchShiftReports();
+  useEffect(() => { fetchShiftReports(); }, [fetchShiftReports]);
 
-    const siteId = currentSite?.id;
-    const channel = supabase
-      .channel(`shift_reports_realtime_${siteId ?? 'global'}`)
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'shift_reports',
-          ...(siteId ? { filter: `site_uuid=eq.${siteId}` } : {})
-        },
-        () => {
-          fetchShiftReports();
-        }
-      )
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, [fetchShiftReports, currentSite?.id]);
+  // H-6 site isolation.
+  useRealtimeTable({
+    table:    "shift_reports",
+    filter:   currentSite?.id ? `site_uuid=eq.${currentSite.id}` : undefined,
+    onChange: fetchShiftReports
+  });
 
   // Submit a new shift report (Handover)
   const submitShiftReport = async (payload: {

@@ -8,3 +8,4 @@ export * from "./FInput";
 export * from "./DateRangePicker";
 export * from "./NavMenu";
 export * from "./SignaturePad";
+export * from "./DocumentSignatures";

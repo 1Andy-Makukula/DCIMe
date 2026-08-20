@@ -1,5 +1,6 @@
 // src/features/field/hooks/useTelemetryData.ts
 import { useState, useEffect } from 'react';
+import { useRealtimeTable } from "@/shared/api/realtime";
 import { supabase } from '@/shared/api/supabaseClient';
 import { useAuth } from '@/shared/context/AuthContext';
 import { useCurrentSite } from '@/shared/context/SiteContext';
@@ -30,6 +31,9 @@ export function useTelemetryData(
   // Null when the technician skipped check-in — logging stays allowed.
   const { shiftSessionId } = useShiftSession();
   const siteCode = currentSite?.site_code || DEFAULT_SITE_CODE;
+  // Realtime filter for the hour currently on screen, published by the
+  // fetch effect because it depends on the resolved slot timestamp.
+  const [liveFilter, setLiveFilter] = useState<string | null>(null);
   const blueprint = SITE_BLUEPRINTS[siteCode] || SITE_BLUEPRINTS[DEFAULT_SITE_CODE];
 
   // Exhaustive State Initialization
@@ -332,44 +336,42 @@ export function useTelemetryData(
       ? `target_hour=eq.${targetHourISO},site_uuid=eq.${siteUuid}`
       : `target_hour=eq.${targetHourISO}`;
 
-    const channel = supabase
-      .channel(`telemetry_logs_realtime_${targetHourISO}_${siteUuid ?? 'global'}`)
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'telemetry_logs',
-          filter: realtimeFilter
-        },
-        (payload) => {
-          if (!active) return;
-          if (payload.eventType === 'DELETE') {
-            setFormData({});
-            setIsEditMode(false);
-          } else {
-            const metrics = payload.new?.metrics as Record<string, any>;
-            // Secondary JS-side guard — defence-in-depth in case filter isn't
-            // supported on this Supabase plan (some plans don't allow multi-column filters)
-            if (metrics && (metrics.site_id === siteCode || metrics.site_uuid === siteUuid)) {
-              setFormData(metrics);
-              setIsEditMode(true);
-              localStorage.setItem(cacheKey, JSON.stringify(metrics));
-              setActivePowerSource(metrics['fsm_mode'] === 'OUTAGE' || metrics['fsm_mode'] === 'ON_LOAD_TEST' || metrics['grid_status'] === 'OFF' ? 'GENERATOR' : 'MAINS');
-            }
-          }
-        }
-      )
-      .subscribe();
+    setLiveFilter(realtimeFilter);
 
     return () => {
       active = false;
-      supabase.removeChannel(channel);
     };
   // M-1 FIX: add currentSite?.id to deps — if the site UUID changes (admin
   // switches sites), the subscription must re-register with the new filter.
   // slotDateKey: scrubbing to another day must refetch that day's slot.
   }, [targetHour, siteCode, currentSite?.id, slotDateKey]);
+
+  // The filter is computed inside the effect above (it needs targetHourISO),
+  // so it is published to state and consumed here.
+  useRealtimeTable({
+    table:   "telemetry_logs",
+    filter:  liveFilter ?? undefined,
+    enabled: !!liveFilter,
+    onChange: (payload) => {
+      if (payload.eventType === "DELETE") {
+        setFormData({});
+        setIsEditMode(false);
+        return;
+      }
+      const metrics = (payload.new as any)?.metrics as Record<string, any> | undefined;
+      // Defence in depth: multi-column filters are not supported on every
+      // Supabase plan, so the site is checked again here.
+      if (metrics && (metrics.site_id === siteCode || metrics.site_uuid === currentSite?.id)) {
+        setFormData(metrics);
+        setIsEditMode(true);
+        localStorage.setItem(getCacheKey(targetHour), JSON.stringify(metrics));
+        setActivePowerSource(
+          metrics["fsm_mode"] === "OUTAGE" || metrics["fsm_mode"] === "ON_LOAD_TEST" || metrics["grid_status"] === "OFF"
+            ? "GENERATOR" : "MAINS"
+        );
+      }
+    }
+  });
 
   // Ambient temperature & humidity inputs are preserved directly as raw values
 

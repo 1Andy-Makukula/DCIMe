@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from "react";
+import { useRealtimeTable } from "@/shared/api/realtime";
 import { siteLabel } from "@/shared/utils/branding";
 import { supabase } from "@/shared/api/supabaseClient";
 import { useCurrentSite } from "@/shared/context/SiteContext";
@@ -98,33 +99,14 @@ export function useIncidents() {
     }
   }, [currentSite?.id]);
 
-  // Fetch on mount and subscribe to realtime changes
-  useEffect(() => {
-    fetchIncidents();
+  useEffect(() => { fetchIncidents(); }, [fetchIncidents]);
 
-    const siteId = currentSite?.id;
-
-    // H-6 FIX: filter realtime subscription by site_uuid.
-    const channel = supabase
-      .channel(`incidents_realtime_${siteId ?? 'global'}`)
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'incidents',
-          ...(siteId ? { filter: `site_uuid=eq.${siteId}` } : {})
-        },
-        () => {
-          fetchIncidents();
-        }
-      )
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, [fetchIncidents, currentSite?.id]);
+  // H-6: scoped to this site, so a client never sees another site's changes.
+  useRealtimeTable({
+    table:    "incidents",
+    filter:   currentSite?.id ? `site_uuid=eq.${currentSite.id}` : undefined,
+    onChange: fetchIncidents
+  });
 
   // Report a new incident
   const reportIncident = async (payload: {
