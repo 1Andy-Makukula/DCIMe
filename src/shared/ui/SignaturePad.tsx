@@ -207,7 +207,13 @@ export function SignaturePad({
 
     const out = document.createElement("canvas");
     out.width = sw; out.height = sh;
-    out.getContext("2d")?.drawImage(canvas, sx, sy, sw, sh, 0, 0, sw, sh);
+    const octx = out.getContext("2d");
+    // If the offscreen context is unavailable, return the FULL canvas. The
+    // optional-chain version silently skipped the draw and exported a blank
+    // PNG — losing the signature outright, which is far worse than exporting
+    // one with too much padding.
+    if (!octx) return canvas.toDataURL("image/png");
+    octx.drawImage(canvas, sx, sy, sw, sh, 0, 0, sw, sh);
     return out.toDataURL("image/png");
   };
 
@@ -290,19 +296,24 @@ export function SignaturePad({
         </div>
       </div>
 
-      <div className="flex shrink-0 flex-wrap items-center justify-between gap-2 border-t border-white/10 bg-slate-900/60 p-4">
+      {/* The controls.
+          These were previously styled `opacity-30` and `bg-white/15` while
+          disabled, which on a dark backdrop made them invisible — so opening
+          the pad looked like it had no Clear and no Submit at all. Disabled now
+          means visibly present and obviously inactive, never absent. */}
+      <div className="flex shrink-0 flex-wrap items-center justify-between gap-2 border-t border-white/20 bg-slate-950/80 p-4">
         <div className="flex gap-2">
           <button
             onClick={undo}
             disabled={!hasInk}
-            className="flex items-center gap-1.5 rounded-xl border border-white/15 px-3.5 py-2.5 text-[11px] font-bold uppercase tracking-wider text-white/80 transition-colors hover:bg-white/10 disabled:opacity-30"
+            className="flex items-center gap-1.5 rounded-xl border-2 border-white/30 px-4 py-2.5 text-[11px] font-black uppercase tracking-wider text-white transition-colors hover:bg-white/15 disabled:border-white/15 disabled:text-white/45"
           >
             <Undo2 size={14} /> Undo
           </button>
           <button
             onClick={clear}
             disabled={!hasInk}
-            className="flex items-center gap-1.5 rounded-xl border border-white/15 px-3.5 py-2.5 text-[11px] font-bold uppercase tracking-wider text-white/80 transition-colors hover:bg-white/10 disabled:opacity-30"
+            className="flex items-center gap-1.5 rounded-xl border-2 border-white/30 px-4 py-2.5 text-[11px] font-black uppercase tracking-wider text-white transition-colors hover:bg-white/15 disabled:border-white/15 disabled:text-white/45"
           >
             <Eraser size={14} /> Clear
           </button>
@@ -311,7 +322,7 @@ export function SignaturePad({
         <button
           onClick={confirm}
           disabled={!hasInk}
-          className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-brand-500 px-6 py-3 text-[12px] font-black uppercase tracking-wider text-white shadow-lg transition-colors hover:bg-brand-600 disabled:bg-white/15 disabled:text-white/40 disabled:shadow-none sm:flex-none"
+          className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-brand-500 px-6 py-3 text-[12px] font-black uppercase tracking-wider text-white shadow-lg transition-colors hover:bg-brand-600 disabled:border-2 disabled:border-white/25 disabled:bg-white/10 disabled:text-white/60 disabled:shadow-none sm:flex-none"
         >
           <Check size={16} /> {hasInk ? confirmLabel : "Sign to continue"}
         </button>

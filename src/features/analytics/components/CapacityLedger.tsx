@@ -39,9 +39,13 @@ function Stat({ label, value, unit, hint }: {
   label: string; value: string; unit?: string; hint?: string;
 }) {
   return (
-    <div className="rounded-2xl border border-gray-200 bg-white p-4">
-      <p className="font-mono text-[10px] uppercase tracking-[0.12em] text-gray-400">{label}</p>
-      <p className="mt-1 text-[22px] font-black tabular-nums leading-none text-gray-900">
+    <div className="min-w-0 rounded-2xl border border-gray-200 bg-white p-4">
+      <p className="font-mono text-[10px] uppercase leading-snug tracking-[0.12em] text-gray-400">
+        {label}
+      </p>
+      {/* whitespace-nowrap keeps "12.4 kW" from breaking between the number
+          and its unit, which reads as two separate figures. */}
+      <p className="mt-1 whitespace-nowrap text-[22px] font-black tabular-nums leading-none text-gray-900">
         {value}
         {unit && <span className="ml-1 text-[12px] font-bold text-gray-400">{unit}</span>}
       </p>
@@ -53,19 +57,21 @@ function Stat({ label, value, unit, hint }: {
 function RedundancyRow({ g }: { g: RedundancyGroup }) {
   return (
     <tr className="border-b border-gray-100 last:border-0">
-      <td className="py-2.5 pr-3">
-        <p className="text-[12px] font-bold text-gray-900">{g.name}</p>
-        <p className="font-mono text-[10px] uppercase tracking-wider text-gray-400">
+      <td className="px-4 py-2.5">
+        {/* break-words so a long equipment name wraps inside its column
+            instead of forcing the table wider than the scroll container. */}
+        <p className="break-words text-[12px] font-bold leading-snug text-gray-900">{g.name}</p>
+        <p className="mt-0.5 font-mono text-[10px] uppercase tracking-wider text-gray-400">
           {g.feeders} feeds · {g.policy}
         </p>
       </td>
-      <td className="py-2.5 pr-3 text-right font-mono text-[12px] tabular-nums text-gray-700">
+      <td className="whitespace-nowrap py-2.5 pr-3 text-right font-mono text-[12px] tabular-nums text-gray-700">
         {g.load_kw.toFixed(1)}
       </td>
-      <td className="py-2.5 pr-3 text-right font-mono text-[12px] tabular-nums text-gray-700">
+      <td className="whitespace-nowrap py-2.5 pr-3 text-right font-mono text-[12px] tabular-nums text-gray-700">
         {g.n_plus_1_kw.toFixed(1)}
       </td>
-      <td className="py-2.5 text-right">
+      <td className="whitespace-nowrap px-4 py-2.5 text-right">
         {g.n_plus_1_ok ? (
           <span className="inline-flex items-center gap-1 rounded-full bg-ok-50 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-ok-700">
             <ShieldCheck size={11} /> N+1
@@ -134,13 +140,16 @@ export function CapacityLedger() {
             {siteLabel(currentSite?.site_name)} · derived from the power topology
           </p>
         </div>
-        <div className={`rounded-xl border px-3 py-2 ${p.cls}`}>
+        <div className={`min-w-0 max-w-full rounded-xl border px-3 py-2 sm:max-w-[18rem] ${p.cls}`}>
           <p className="text-[11px] font-black uppercase tracking-wider">{p.label}</p>
-          <p className="mt-0.5 max-w-[16rem] text-[10px] leading-snug opacity-80">{p.note}</p>
+          <p className="mt-0.5 text-[10px] leading-snug opacity-80">{p.note}</p>
         </div>
       </div>
 
-      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+      {/* One tile per row on a phone. Two columns were forced at every width,
+          which crushed a 22px figure, its label and its hint into half a
+          narrow screen. */}
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
         <Stat label="IT load" value={summary.it_load_kw.toFixed(1)} unit="kW"
               hint="At the conversion tier — UPS and rectifier output" />
         <Stat label="Cooling load" value={summary.cooling_load_kw.toFixed(1)} unit="kW"
@@ -152,7 +161,11 @@ export function CapacityLedger() {
                     : "A single failure would drop load"} />
       </div>
 
-      <section className="overflow-hidden rounded-2xl border border-gray-200 bg-white">
+      {/* min-w-0 lets this shrink so the table below scrolls inside it. Without
+          it a flex child refuses to go below its content width and the whole
+          page scrolls sideways instead — the same trap that squeezed the asset
+          ID column. */}
+      <section className="min-w-0 overflow-hidden rounded-2xl border border-gray-200 bg-white">
         <div className="border-b border-gray-100 px-4 py-3">
           <h3 className="text-[12px] font-black uppercase tracking-wider text-gray-900">
             Redundant groups
@@ -163,7 +176,7 @@ export function CapacityLedger() {
           </p>
         </div>
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[30rem]">
+          <table className="w-full min-w-[34rem]">
             <thead>
               <tr className="border-b border-gray-100">
                 <th className="px-4 py-2 text-left font-mono text-[10px] uppercase tracking-wider text-gray-400">Fed equipment</th>
@@ -172,7 +185,7 @@ export function CapacityLedger() {
                 <th className="px-4 py-2 text-right font-mono text-[10px] uppercase tracking-wider text-gray-400">Status</th>
               </tr>
             </thead>
-            <tbody className="px-4">
+            <tbody>
               {summary.redundancy.map(g => (
                 <RedundancyRow key={g.target} g={g} />
               ))}

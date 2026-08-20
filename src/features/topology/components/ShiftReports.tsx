@@ -20,9 +20,10 @@ import {
 import { generateLegacyMonthlyReport } from "../../../shared/utils/excelExportEngine";
 import { useCurrentSite } from "@/shared/context/SiteContext";
 import { useAuth } from "@/shared/context/AuthContext";
+import { resolveSignerName, signingBlockedReason } from "@/shared/utils/identity";
 import { supabase } from "@/shared/api/supabaseClient";
 import { PrintableChecklist } from "../../field/components/PrintableChecklist";
-import { DateRangePicker, DocumentSignatures, type SignatureResult } from "@/shared/ui";
+import { DateRangePicker, DocumentSignatures, type SignatureResult, FSelect } from "@/shared/ui";
 import { useDateRange } from "@/shared/utils/useDateRange";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -84,11 +85,14 @@ function VerificationBadge({ status }: { status: VerificationStatus }) {
 // ── Full-report modal ─────────────────────────────────────────────────────────
 function ReportModal({
   adminName,
+  signingBlocked,
   onCountersign,
   log,
   onClose,
 }: {
   adminName: string;
+  /** Non-null when this user cannot sign; shown instead of the action. */
+  signingBlocked: string | null;
   onCountersign: (log: ShiftLog, sig: SignatureResult) => Promise<void>;
   log: ShiftLog;
   onClose: () => void;
@@ -224,7 +228,8 @@ function ReportModal({
               image: log.countersignImage,
               signedAt: log.countersignedAt
             }}
-            onSign={(sig) => onCountersign(log, sig)}
+            onSign={signingBlocked ? undefined : (sig) => onCountersign(log, sig)}
+            unavailableReason={signingBlocked}
           />
         </div>
       </div>
@@ -494,7 +499,10 @@ export function ShiftReports() {
   };
 
   // Derived counts
-  const adminName = employee?.full_name || "Administrator";
+  // Name, else badge ID, else email — all real attributions. Never a
+  // placeholder like "Administrator", which names nobody. Requiring full_name
+  // alone made the countersign button disappear for accounts without one.
+  const adminName = resolveSignerName(employee);
 
   /**
    * Records the acceptance signature against the report.
@@ -503,22 +511,32 @@ export function ShiftReports() {
    * has to keep reading correctly even if that employee row is later removed.
    */
   const handleCountersign = async (log: ShiftLog, sig: SignatureResult) => {
-    const { error } = await (supabase.from as any)("shift_reports")
+    if (!adminName) throw new Error("Cannot countersign without a signed-in identity.");
+
+    const { data, error } = await (supabase.from as any)("shift_reports")
       .update({
         countersign_image:  sig.dataUrl,
         countersigned_at:   sig.signedAt,
         countersigned_by:   employee?.id ?? null,
         countersigned_name: adminName
       })
-      .eq("log_id", log.id);
+      .eq("log_id", log.id)
+      // Only ever the FIRST countersignature. Re-running this would overwrite
+      // an existing mark, and a signature is evidence, not a mutable field.
+      .is("countersign_image", null)
+      .select("log_id");
 
     if (error) {
       console.error("[DCIMe] Countersign failed:", error);
       // PGRST204 means the columns are not on the remote yet.
-      alert(error.code === "PGRST204"
+      throw new Error(error.code === "PGRST204"
         ? "Countersignature columns are missing. Apply supabase/migrations/20260829_countersignatures.sql."
         : error.message);
-      return;
+    }
+    // No error and no rows means RLS filtered the row, or it was countersigned
+    // by someone else first. Either way the mark was NOT saved.
+    if (!data || data.length === 0) {
+      throw new Error("Not countersigned — the report may already have been signed, or you may not have permission.");
     }
     await fetchDbReports();
     setActiveReport(null);
@@ -552,6 +570,7 @@ export function ShiftReports() {
         <ReportModal
           log={activeReport}
           adminName={adminName}
+          signingBlocked={signingBlockedReason(employee)}
           onCountersign={handleCountersign}
           onClose={() => setActiveReport(null)}
         />
@@ -623,28 +642,24 @@ export function ShiftReports() {
                 {/* Which month the compliance form covers — separate from the
                     browse range above, since the template is fixed to one
                     calendar month at a time. */}
-                <select
-                  value={exportMonth}
-                  onChange={(e) => setExportMonth(Number(e.target.value))}
-                  className="h-9 px-2.5 rounded-xl border border-gray-200 bg-white text-[11px] font-black text-gray-700 uppercase tracking-wider cursor-pointer"
-                  title="Month to export"
-                >
-                  {Array.from({ length: 12 }, (_, m) => (
-                    <option key={m} value={m}>
-                      {new Date(2000, m, 1).toLocaleString("en-US", { month: "short" })}
-                    </option>
-                  ))}
-                </select>
-                <select
-                  value={exportYear}
-                  onChange={(e) => setExportYear(Number(e.target.value))}
-                  className="h-9 px-2.5 rounded-xl border border-gray-200 bg-white text-[11px] font-black text-gray-700 uppercase tracking-wider cursor-pointer"
-                  title="Year to export"
-                >
-                  {Array.from({ length: 4 }, (_, i) => now.getFullYear() - i).map((y) => (
-                    <option key={y} value={y}>{y}</option>
-                  ))}
-                </select>
+                <FSelect
+                  ariaLabel="Month to export"
+                  className="w-28"
+                  value={String(exportMonth)}
+                  onChange={(v) => setExportMonth(Number(v))}
+                  options={Array.from({ length: 12 }, (_, m) => ({
+                    value: String(m),
+                    label: new Date(2000, m, 1).toLocaleString("en-US", { month: "short" })
+                  }))}
+                />
+                <FSelect
+                  ariaLabel="Year to export"
+                  className="w-24"
+                  value={String(exportYear)}
+                  onChange={(v) => setExportYear(Number(v))}
+                  options={Array.from({ length: 4 }, (_, i) => now.getFullYear() - i)
+                    .map((y) => ({ value: String(y), label: String(y) }))}
+                />
                 <button
                   onClick={handleExport}
                   disabled={isExporting}

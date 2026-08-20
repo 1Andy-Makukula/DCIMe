@@ -30,6 +30,8 @@ export interface WorkOrder {
   origin:          string;
   assignee_id:     string | null;
   assignee_name:   string | null;
+  /** Shortlist it was offered to. null = broadcast to the whole site. */
+  offered_to:      string[] | null;
   due_at:          string | null;
   resolved_at:     string | null;
   resolution_note: string | null;
@@ -43,13 +45,20 @@ export interface WorkOrder {
 export interface Technician { id: string; full_name: string; role: string; }
 
 export interface NewWorkOrder {
-  title:       string;
-  detail:      string;
-  kind:        string;
-  severity:    string;
-  /** null means "leave it in the shared pool for any technician to claim". */
-  assignee_id: string | null;
-  due_at:      string | null;
+  title:    string;
+  detail:   string;
+  kind:     string;
+  severity: string;
+  /**
+   * Who the job is OFFERED to. An empty array broadcasts to the whole site.
+   *
+   * Offering is not assigning: ownership is only established when somebody
+   * accepts, which is what makes the response clock and the accountability
+   * trail mean anything. One name here still requires that person to accept.
+   */
+  offered_to: string[];
+  /** LOCAL "YYYY-MM-DDTHH:mm" as the datetime-local control produces it. */
+  due_at:   string | null;
 }
 
 export function useWorkOrders() {
@@ -66,7 +75,7 @@ export function useWorkOrders() {
     try {
       setError(null);
       const { data, error: e } = await from("work_items")
-        .select("id,title,detail,kind,severity,state,origin,assignee_id,due_at,resolved_at,resolution_note,created_at,signature_image,signed_at,signed_name,employees:assignee_id(full_name)")
+        .select("id,title,detail,kind,severity,state,origin,assignee_id,offered_to,due_at,resolved_at,resolution_note,created_at,signature_image,signed_at,signed_name,employees:assignee_id(full_name)")
         .eq("site_uuid", siteId)
         .order("created_at", { ascending: false })
         .limit(200);
@@ -114,8 +123,12 @@ export function useWorkOrders() {
       detail:      draft.detail.trim() || null,
       kind:        draft.kind,
       severity:    draft.severity,
-      assignee_id: draft.assignee_id,
-      due_at:      draft.due_at,
+      // NULL rather than an empty array: "offered to nobody in particular" is
+      // a broadcast, and an empty array would read as "offered to no one".
+      offered_to:  draft.offered_to.length > 0 ? draft.offered_to : null,
+      // Local -> UTC happens once, here. The form must keep the control's
+      // own format or the field cannot render its own value back.
+      due_at:      draft.due_at ? new Date(draft.due_at).toISOString() : null,
       // ORIGIN matters for the audit trail: it separates a job a person chose
       // to raise from one a threshold crossing produced.
       origin:      "ADMIN",
@@ -145,15 +158,33 @@ export function useWorkOrders() {
    * the employee row is later removed.
    */
   const close = useCallback(async (id: string, sig: SignatureResult, signerName: string) => {
-    const { error: e } = await from("work_items")
+    // An unattributed signature is worse than none: the whole point of the
+    // mark is that a named person stands behind the decision.
+    const who = signerName.trim();
+    if (!who) throw new Error("Cannot sign without a signed-in identity. Sign in again and retry.");
+
+    const { data, error: e } = await from("work_items")
       .update({
         state:           "CLOSED",
         signature_image: sig.dataUrl,
         signed_at:       sig.signedAt,
-        signed_name:     signerName
+        signed_name:     who
       })
-      .eq("id", id);
+      .eq("id", id)
+      // Constrained to RESOLVED, which the state-machine trigger does NOT
+      // cover: it only validates when the state actually changes, so closing
+      // an already-CLOSED row passes straight through and overwrites the first
+      // signer's mark. Two admins on the same job would silently replace each
+      // other's signature.
+      .eq("state", "RESOLVED")
+      .select("id");
     if (e) throw e;
+    // PostgREST reports no error when RLS filters the row away or the guard
+    // above matched nothing. Without this check the UI announces success for
+    // an update that never happened.
+    if (!data || data.length === 0) {
+      throw new Error("That job was not closed — it may have been closed already, or you may not have permission.");
+    }
     await fetchAll();
   }, [fetchAll]);
 

@@ -4,6 +4,7 @@ import {
   Loader2, Trash2, ArrowRight, Info
 } from "lucide-react";
 import { toast } from "sonner";
+import { ManualEntryForm } from "./ManualEntryForm";
 import ExcelJS from "exceljs";
 import {
   useCommissioningImport,
@@ -109,6 +110,7 @@ export function CommissioningImport() {
   } = useCommissioningImport();
 
   const [kind, setKind] = useState<ImportKind>("EQUIPMENT");
+  const [source, setSource] = useState<"file" | "manual">("file");
   const fileRef = useRef<HTMLInputElement>(null);
 
   const onFile = async (file: File) => {
@@ -147,9 +149,9 @@ export function CommissioningImport() {
           Bulk Import
         </h1>
         <p className="mt-1 max-w-2xl text-[11px] leading-relaxed text-gray-500">
-          Load equipment and cabling from a spreadsheet. Nothing reaches the live
-          facility until every row passes — you can fix your file and re-upload
-          as many times as you need.
+          Load equipment and cabling from a spreadsheet, or type in a few items
+          by hand. Nothing reaches the live facility until every row passes, so
+          you can correct and retry as many times as you need.
         </p>
       </div>
 
@@ -188,20 +190,51 @@ export function CommissioningImport() {
             </p>
           </div>
 
-          <button
-            onClick={() => fileRef.current?.click()}
-            disabled={isBusy}
-            className="flex flex-col items-center justify-center gap-2 rounded-2xl border-2 border-dashed border-gray-300 py-12 transition-colors hover:border-gray-400 hover:bg-gray-50"
-          >
-            {isBusy ? <Loader2 size={26} className="animate-spin text-gray-400" />
-                    : <Upload size={26} className="text-gray-400" />}
-            <span className="text-[13px] font-bold text-gray-700">Choose a spreadsheet</span>
-            <span className="text-[11px] text-gray-400">.xlsx — first sheet is used</span>
-          </button>
-          <input
-            ref={fileRef} type="file" accept=".xlsx" className="hidden"
-            onChange={e => { const f = e.target.files?.[0]; if (f) onFile(f); e.target.value = ""; }}
-          />
+          {/* Two ways in, one pipeline. A file for commissioning a site, a
+              form for the single item somebody forgot — both stage the same
+              rows and go through the same validation. */}
+          <div className="flex gap-1 rounded-xl bg-gray-100 p-1">
+            {([["file", "From a spreadsheet"], ["manual", "Type it in"]] as const).map(([k, label]) => (
+              <button key={k} onClick={() => setSource(k)}
+                className={`flex-1 rounded-lg py-2 text-[11px] font-black uppercase tracking-wider transition-all ${
+                  source === k ? "bg-white text-gray-900 shadow-sm" : "text-gray-400 hover:text-gray-600"
+                }`}>
+                {label}
+              </button>
+            ))}
+          </div>
+
+          {source === "file" ? (
+            <>
+              <button
+                onClick={() => fileRef.current?.click()}
+                disabled={isBusy}
+                className="flex w-full flex-col items-center justify-center gap-2 rounded-2xl border-2 border-dashed border-gray-300 py-12 transition-colors hover:border-gray-400 hover:bg-gray-50"
+              >
+                {isBusy ? <Loader2 size={26} className="animate-spin text-gray-400" />
+                        : <Upload size={26} className="text-gray-400" />}
+                <span className="text-[13px] font-bold text-gray-700">Choose a spreadsheet</span>
+                <span className="text-[11px] text-gray-400">.xlsx — first sheet is used</span>
+              </button>
+              <input
+                ref={fileRef} type="file" accept=".xlsx" className="hidden"
+                onChange={e => { const f = e.target.files?.[0]; if (f) onFile(f); e.target.value = ""; }}
+              />
+            </>
+          ) : (
+            <ManualEntryForm
+              kind={kind}
+              busy={isBusy}
+              onStage={async rows => {
+                try {
+                  await stage(kind, "Manual entry", rows);
+                  toast.success(`${rows.length} row${rows.length === 1 ? "" : "s"} staged`);
+                } catch (e: any) {
+                  toast.error(e?.message ?? "Could not stage those rows");
+                }
+              }}
+            />
+          )}
         </>
       )}
 

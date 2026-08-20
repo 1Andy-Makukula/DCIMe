@@ -76,7 +76,8 @@ $Migrations = @(
     "20260825_neutral_identifiers.sql",        # renames data; run before seeds
     "20260827_signatures.sql",                 # signature columns; additive
     "20260828_realtime_publication.sql",       # makes postgres_changes actually fire
-    "20260829_countersignatures.sql"           # admin countersign; additive
+    "20260829_countersignatures.sql",          # admin countersign; additive
+    "20260830_assignment_and_vendor_status.sql" # offered_to + vendor flags
 )
 
 # Seeds populate SITE 1 — not a sandbox. They were retargeted when the sandbox

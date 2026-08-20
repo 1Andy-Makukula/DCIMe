@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { FSelect } from "@/shared/ui";
 import {
   Loader2, Plus, Trash2, CalendarClock, Gauge, AlertTriangle, CheckCircle2, X
 } from "lucide-react";
@@ -228,16 +229,17 @@ export function EquipmentSchedules({
             </label>
           </div>
 
-          <label className="flex flex-col gap-1">
-            <span className="font-mono text-[10px] uppercase tracking-wider text-gray-400">Priority</span>
-            <select value={severity} onChange={e => setSeverity(e.target.value)}
-              className="rounded-xl border border-gray-200 bg-white px-3 py-2 text-[12px] focus:border-gray-400 focus:outline-none">
-              <option value="P1">P1 · Critical</option>
-              <option value="P2">P2 · High</option>
-              <option value="P3">P3 · Medium</option>
-              <option value="P4">P4 · Low</option>
-            </select>
-          </label>
+          <FSelect
+            label="Priority"
+            value={severity}
+            onChange={setSeverity}
+            options={[
+              { value: "P1", label: "P1 · Critical" },
+              { value: "P2", label: "P2 · High" },
+              { value: "P3", label: "P3 · Medium" },
+              { value: "P4", label: "P4 · Low" }
+            ]}
+          />
 
           {/* Fleet-wide is the right default for a model-level interval, but it
               is only offered when the machine actually came from a template. */}

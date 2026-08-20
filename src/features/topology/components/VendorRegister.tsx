@@ -1,7 +1,6 @@
 import { useState } from "react";
 import {
-  Loader2, AlertTriangle, RefreshCw, Plus, Building2, Check, X, Inbox
-} from "lucide-react";
+  Loader2, AlertTriangle, RefreshCw, Plus, Building2, Check, X, Inbox, Flag, Archive, Trash2, RotateCcw } from "lucide-react";
 import { toast } from "sonner";
 import { useVendors, type VendorActivity } from "@/features/topology/hooks/useVendors";
 
@@ -12,12 +11,17 @@ import { useVendors, type VendorActivity } from "@/features/topology/hooks/useVe
 // they find, and how much of it is still open.
 // ─────────────────────────────────────────────────────────────────────────────
 
-function VendorRow({ v, onSave }: {
+function VendorRow({ v, onSave, onFlag, onSetActive, onDelete }: {
   v: VendorActivity;
   onSave: (patch: Record<string, unknown>) => Promise<void>;
+  onFlag: (reason: string | null) => void;
+  onSetActive: (active: boolean) => void;
+  onDelete: () => void;
 }) {
-  const [editing, setEditing] = useState(false);
-  const [busy, setBusy]       = useState(false);
+  const [editing, setEditing]   = useState(false);
+  const [flagging, setFlagging] = useState(false);
+  const [flagWhy, setFlagWhy]   = useState("");
+  const [busy, setBusy]         = useState(false);
   const [contact, setContact] = useState("");
   const [phone, setPhone]     = useState("");
   const [spec, setSpec]       = useState(v.speciality ?? "");
@@ -43,11 +47,29 @@ function VendorRow({ v, onSave }: {
     }
   };
 
+  const hasHistory = v.visits > 0 || v.findings > 0;
+
   return (
-    <div className="rounded-2xl border border-gray-200 bg-white p-4">
+    <div className={`rounded-2xl border bg-white p-4 ${
+      v.flagged_reason ? "border-warn-300 ring-1 ring-warn-200"
+      : !v.is_active   ? "border-gray-200 opacity-70"
+      : "border-gray-200"
+    }`}>
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="min-w-0">
-          <p className="text-[13px] font-black text-gray-900">{v.vendor_name}</p>
+          <div className="flex flex-wrap items-center gap-1.5">
+            <p className="text-[13px] font-black text-gray-900">{v.vendor_name}</p>
+            {!v.is_active && (
+              <span className="rounded bg-gray-100 px-1.5 py-0.5 text-[9px] font-black uppercase tracking-wider text-gray-500">
+                Retired
+              </span>
+            )}
+            {v.flagged_reason && (
+              <span className="flex items-center gap-1 rounded bg-warn-100 px-1.5 py-0.5 text-[9px] font-black uppercase tracking-wider text-warn-700">
+                <Flag size={9} /> Flagged
+              </span>
+            )}
+          </div>
           <p className="mt-0.5 font-mono text-[10px] uppercase tracking-wider text-gray-400">
             {v.speciality || "No speciality recorded"}
             {v.sla_hours !== null && ` · ${v.sla_hours}h response agreed`}
@@ -82,6 +104,75 @@ function VendorRow({ v, onSave }: {
         </p>
       )}
 
+      {v.flagged_reason && (
+        <div className="mt-3 rounded-xl border border-warn-200 bg-warn-50 px-3 py-2">
+          <p className="font-mono text-[9px] uppercase tracking-widest text-warn-600">
+            Flagged for review
+          </p>
+          <p className="mt-0.5 text-[11px] font-semibold text-warn-800">{v.flagged_reason}</p>
+          {v.flagged_at && (
+            <p className="mt-0.5 font-mono text-[9px] text-warn-500">
+              {new Date(v.flagged_at).toLocaleDateString()}
+            </p>
+          )}
+        </div>
+      )}
+
+      {/* Lifecycle. Deleting is offered only when there is no history to lose;
+          everything else is retired, which keeps the record intact. */}
+      <div className="mt-3 flex flex-wrap gap-1.5 border-t border-gray-100 pt-3">
+        <button
+          onClick={() => v.flagged_reason ? onFlag(null) : setFlagging(true)}
+          className={`flex items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-[10px] font-bold uppercase tracking-wider transition-colors ${
+            v.flagged_reason
+              ? "border-warn-300 bg-warn-50 text-warn-700 hover:bg-warn-100"
+              : "border-gray-200 text-gray-500 hover:bg-gray-50"
+          }`}
+        >
+          <Flag size={11} /> {v.flagged_reason ? "Clear flag" : "Flag"}
+        </button>
+
+        <button
+          onClick={() => onSetActive(!v.is_active)}
+          className="flex items-center gap-1.5 rounded-lg border border-gray-200 px-2.5 py-1.5 text-[10px] font-bold uppercase tracking-wider text-gray-500 transition-colors hover:bg-gray-50"
+        >
+          {v.is_active ? <><Archive size={11} /> Retire</> : <><RotateCcw size={11} /> Restore</>}
+        </button>
+
+        <button
+          onClick={onDelete}
+          disabled={hasHistory}
+          title={hasHistory
+            ? `${v.visits} visit(s) and ${v.findings} finding(s) on record — retire instead, so the history survives.`
+            : "Permanently remove this vendor"}
+          className="flex items-center gap-1.5 rounded-lg border border-gray-200 px-2.5 py-1.5 text-[10px] font-bold uppercase tracking-wider text-danger-500 transition-colors hover:bg-danger-50 disabled:cursor-not-allowed disabled:border-gray-100 disabled:text-gray-300 disabled:hover:bg-transparent"
+        >
+          <Trash2 size={11} /> Delete
+        </button>
+      </div>
+
+      {flagging && (
+        <div className="mt-2 flex gap-2">
+          <input
+            autoFocus
+            value={flagWhy}
+            onChange={e => setFlagWhy(e.target.value)}
+            onKeyDown={e => { if (e.key === "Enter" && flagWhy.trim()) { onFlag(flagWhy); setFlagging(false); setFlagWhy(""); } }}
+            placeholder="Why does this vendor need review?"
+            className="min-w-0 flex-1 rounded-xl border border-warn-200 bg-warn-50/50 px-3 py-2 text-[12px] text-gray-900 focus:border-warn-400 focus:outline-none"
+          />
+          <button
+            onClick={() => { onFlag(flagWhy); setFlagging(false); setFlagWhy(""); }}
+            disabled={!flagWhy.trim()}
+            className="rounded-xl bg-warn-500 px-3 text-[11px] font-black uppercase tracking-wider text-white disabled:bg-gray-200 disabled:text-gray-400"
+          >
+            Flag
+          </button>
+          <button onClick={() => { setFlagging(false); setFlagWhy(""); }} aria-label="Cancel"
+            className="rounded-xl px-2 text-gray-400 hover:bg-gray-100"><X size={15} /></button>
+        </div>
+      )}
+
       {editing && (
         <div className="mt-3 flex flex-col gap-2 border-t border-gray-100 pt-3">
           <div className="grid grid-cols-2 gap-2">
@@ -111,7 +202,7 @@ function VendorRow({ v, onSave }: {
 }
 
 export function VendorRegister() {
-  const { vendors, isLoading, error, refresh, update, create } = useVendors();
+  const { vendors, isLoading, error, refresh, update, create, flag, setActive, remove } = useVendors();
   const [adding, setAdding] = useState(false);
   const [name, setName]     = useState("");
 
@@ -189,7 +280,30 @@ export function VendorRegister() {
       ) : (
         <div className="grid gap-3 lg:grid-cols-2">
           {vendors.map(v => (
-            <VendorRow key={v.vendor_id} v={v} onSave={patch => update(v.vendor_id, patch)} />
+            <VendorRow
+              key={v.vendor_id}
+              v={v}
+              onSave={patch => update(v.vendor_id, patch)}
+              onFlag={async reason => {
+                try {
+                  await flag(v.vendor_id, reason);
+                  toast.success(reason ? "Vendor flagged for review" : "Flag cleared");
+                } catch (e: any) { toast.error(e?.message ?? "Could not update the flag"); }
+              }}
+              onSetActive={async active => {
+                try {
+                  await setActive(v.vendor_id, active);
+                  toast.success(active ? "Vendor restored" : "Vendor retired");
+                } catch (e: any) { toast.error(e?.message ?? "Could not change status"); }
+              }}
+              onDelete={async () => {
+                // Irreversible, so it asks. The hook refuses outright when
+                // there is history, which the button already reflects.
+                if (!window.confirm(`Permanently delete ${v.vendor_name}? This cannot be undone.`)) return;
+                try { await remove(v.vendor_id); toast.success("Vendor deleted"); }
+                catch (e: any) { toast.error(e?.message ?? "Could not delete"); }
+              }}
+            />
           ))}
         </div>
       )}

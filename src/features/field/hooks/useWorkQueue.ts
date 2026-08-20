@@ -30,6 +30,8 @@ export interface WorkItem {
   source_kind:       string | null;
   assignee_id:       string | null;
   assignee_name:     string | null;
+  /** Shortlist this was offered to. null = broadcast to the whole site. */
+  offered_to:        string[] | null;
   due_at:            string | null;
   respond_by:        string | null;
   resolve_by:        string | null;
@@ -43,10 +45,16 @@ export interface WorkItem {
 
 export interface UseWorkQueueResult {
   items:      WorkItem[];
-  /** Assigned to the signed-in technician specifically. */
+  /** Accepted by the signed-in technician. */
   mine:       WorkItem[];
-  /** Assigned to nobody — anyone can pick these up. */
-  unassigned: WorkItem[];
+  /**
+   * Offered but not yet accepted by anyone, and visible to this technician —
+   * either broadcast to the site, or naming them specifically.
+   *
+   * Work offered to OTHER named technicians is deliberately excluded: showing
+   * it invites someone to take a job that was dispatched to a colleague.
+   */
+  offered:    WorkItem[];
   /** Open count, for the tab badge. */
   openCount:  number;
   breached:   number;
@@ -156,10 +164,15 @@ export function useWorkQueue(): UseWorkQueueResult {
     refresh();
   }, [myId, refresh]);
 
+  const unclaimed = items.filter(i => i.assignee_id === null);
+
   return {
     items,
-    mine:       items.filter(i => i.assignee_id === myId),
-    unassigned: items.filter(i => i.assignee_id === null),
+    mine:    items.filter(i => i.assignee_id === myId),
+    offered: unclaimed.filter(i =>
+      // null offered_to is a broadcast; an array names who may accept.
+      i.offered_to === null || (myId !== null && i.offered_to.includes(myId))
+    ),
     openCount:  items.length,
     breached:   items.filter(i => i.is_breached).length,
     isLoading,

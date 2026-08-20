@@ -25,9 +25,13 @@ function Stat({ label, value, tone = "plain", hint }: {
     warn:  "text-warn-600", bad:  "text-danger-600"
   }[tone];
   return (
-    <div className="rounded-2xl border border-gray-200 bg-white p-4">
-      <p className="font-mono text-[10px] uppercase tracking-[0.12em] text-gray-400">{label}</p>
-      <p className={`mt-1 text-[22px] font-black tabular-nums leading-none ${cls}`}>{value}</p>
+    <div className="min-w-0 rounded-2xl border border-gray-200 bg-white p-4">
+      <p className="font-mono text-[10px] uppercase leading-snug tracking-[0.12em] text-gray-400">
+        {label}
+      </p>
+      <p className={`mt-1 whitespace-nowrap text-[22px] font-black tabular-nums leading-none ${cls}`}>
+        {value}
+      </p>
       {hint && <p className="mt-1.5 text-[10px] leading-snug text-gray-400">{hint}</p>}
     </div>
   );
@@ -100,7 +104,7 @@ export function SlaPanel() {
         </button>
       </div>
 
-      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
         <Stat
           label="Open work" value={String(p.open_total)}
           tone={critical > 0 ? "warn" : "plain"}

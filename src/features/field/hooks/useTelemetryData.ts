@@ -356,6 +356,11 @@ export function useTelemetryData(
       if (payload.eventType === "DELETE") {
         setFormData({});
         setIsEditMode(false);
+        // The cache has to go with it. Step A of the fetch effect restores
+        // from localStorage before the network responds, so leaving the entry
+        // behind resurrects the deleted reading on the next mount — and marks
+        // the slot as already submitted.
+        try { localStorage.removeItem(getCacheKey(targetHour)); } catch { /* private mode */ }
         return;
       }
       const metrics = (payload.new as any)?.metrics as Record<string, any> | undefined;

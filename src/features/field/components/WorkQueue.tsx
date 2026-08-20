@@ -97,7 +97,8 @@ function JobCard({
             {item.state === "OPEN" && (
               <button onClick={onClaim}
                 className="flex w-full items-center justify-center gap-2 rounded-xl bg-gray-900 py-2.5 text-[12px] font-bold text-white active:scale-[0.98]">
-                <Hand size={14} /> Take this job
+                <Hand size={14} />
+                {item.offered_to === null ? "Accept this job" : "Accept — offered to you"}
               </button>
             )}
             {item.state === "ACKNOWLEDGED" && (
@@ -132,8 +133,8 @@ function JobCard({
 }
 
 export function WorkQueue() {
-  const { items, mine, unassigned, breached, isLoading, error, refresh, claim, advance } = useWorkQueue();
-  const [tab, setTab] = useState<"all" | "mine">("all");
+  const { items, mine, offered, breached, isLoading, error, refresh, claim, advance } = useWorkQueue();
+  const [tab, setTab] = useState<"all" | "offered" | "mine">("all");
 
   const act = async (fn: () => Promise<void>, ok: string) => {
     try { await fn(); toast.success(ok); }
@@ -163,7 +164,7 @@ export function WorkQueue() {
     );
   }
 
-  const shown = tab === "mine" ? mine : items;
+  const shown = tab === "mine" ? mine : tab === "offered" ? offered : items;
 
   return (
     <div className="flex flex-col gap-3 pb-4">
@@ -182,11 +183,19 @@ export function WorkQueue() {
       </div>
 
       <div className="flex gap-1 rounded-xl bg-gray-100 p-1">
-        {([["all", `All (${items.length})`], ["mine", `Mine (${mine.length})`]] as const).map(([k, label]) => (
+        {([
+          ["all",     `All (${items.length})`],
+          ["offered", `Offered (${offered.length})`],
+          ["mine",    `Mine (${mine.length})`]
+        ] as const).map(([k, label]) => (
           <button key={k} onClick={() => setTab(k)}
-            className={`flex-1 rounded-lg py-2 text-[12px] font-bold transition-colors ${
+            className={`relative flex-1 rounded-lg py-2 text-[12px] font-bold transition-colors ${
               tab === k ? "bg-white text-gray-900 shadow-sm" : "text-gray-500"}`}>
             {label}
+            {/* Unaccepted work is the one thing a technician must not miss. */}
+            {k === "offered" && offered.length > 0 && tab !== k && (
+              <span className="absolute right-1 top-1 h-1.5 w-1.5 rounded-full bg-brand-500" />
+            )}
           </button>
         ))}
       </div>
@@ -195,11 +204,13 @@ export function WorkQueue() {
         <div className="flex min-h-[16rem] flex-col items-center justify-center gap-2 text-center">
           <Inbox size={26} className="text-gray-300" />
           <p className="text-[13px] font-bold text-gray-700">
-            {tab === "mine" ? "Nothing assigned to you" : "No open jobs"}
+            {tab === "mine"    ? "Nothing accepted by you"
+             : tab === "offered" ? "Nothing waiting on you"
+             : "No open jobs"}
           </p>
           <p className="max-w-[15rem] text-[11px] text-gray-400">
-            {tab === "mine" && unassigned.length > 0
-              ? `${unassigned.length} unassigned job${unassigned.length === 1 ? "" : "s"} waiting to be picked up.`
+            {tab === "mine" && offered.length > 0
+              ? `${offered.length} job${offered.length === 1 ? "" : "s"} offered to you — accept one to get started.`
               : "Jobs appear here when a reading goes out of range or someone raises one."}
           </p>
         </div>

@@ -33,6 +33,12 @@ export interface DocumentSignaturesProps {
   onSign?: (result: SignatureResult) => void | Promise<void>;
   /** Context line shown in the pad, e.g. "Shift handover · 2026-08-19". */
   context?: string;
+  /**
+   * Why signing is unavailable. Shown in place of the button — a feature that
+   * simply disappears reads as broken, which is exactly how this presented
+   * when the identity guard was too strict.
+   */
+  unavailableReason?: string | null;
   className?: string;
 }
 
@@ -73,10 +79,11 @@ function Slot({ slot, placeholder }: { slot: SignatureSlot; placeholder: string 
 }
 
 export function DocumentSignatures({
-  author, counter, onSign, context, className = ""
+  author, counter, onSign, context, unavailableReason, className = ""
 }: DocumentSignaturesProps) {
   const [padOpen, setPadOpen] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [failed, setFailed] = useState<string | null>(null);
 
   const canSign = !!onSign && !counter.image;
 
@@ -102,6 +109,18 @@ export function DocumentSignatures({
         </button>
       )}
 
+      {!counter.image && !onSign && unavailableReason && (
+        <p className="mt-3 rounded-xl border border-warn-200 bg-warn-50 px-3 py-2 text-[10px] font-bold text-warn-700">
+          {unavailableReason}
+        </p>
+      )}
+
+      {failed && (
+        <p className="mt-3 rounded-xl border border-danger-200 bg-danger-50 px-3 py-2 text-[10px] font-bold text-danger-700">
+          {failed}
+        </p>
+      )}
+
       {counter.image && (
         <p className="mt-3 flex items-center gap-1.5 rounded-xl border border-ok-200 bg-ok-50 px-3 py-2 text-[10px] font-bold text-ok-700">
           <ShieldCheck size={13} />
@@ -119,7 +138,17 @@ export function DocumentSignatures({
           setPadOpen(false);
           if (!onSign) return;
           setBusy(true);
-          try { await onSign(result); } finally { setBusy(false); }
+          setFailed(null);
+          try {
+            await onSign(result);
+          } catch (err: any) {
+            // Without this the rejection is unhandled and the pad simply
+            // closes, so a failed save is indistinguishable from a successful
+            // one. The mark is lost either way — say so.
+            setFailed(err?.message ?? "The signature could not be saved. Try again.");
+          } finally {
+            setBusy(false);
+          }
         }}
       />
     </div>

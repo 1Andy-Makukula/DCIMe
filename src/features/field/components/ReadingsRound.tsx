@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { toast } from "sonner";
-import { Clock } from "lucide-react";
+import { Clock, ClipboardList, AlertTriangle } from "lucide-react";
 import { useTelemetryMutation } from "@/features/field/hooks/useTelemetryMutation";
 import { DynamicReadingForm } from "./DynamicReadingForm";
 import type { Frequency } from "@/features/field/hooks/useFormDefinition";
@@ -68,8 +68,36 @@ export function ReadingsRound() {
 
   return (
     <div className="mx-auto flex w-full max-w-3xl flex-col gap-4 p-4">
-      <div className="flex items-center gap-2 overflow-x-auto">
-        <Clock size={14} className="shrink-0 text-gray-400" />
+      {/* The screen opened straight onto frequency buttons and a form, which
+          said nothing about what a round IS or why anyone should walk one.
+          The consequence — an out-of-range value raising a job by itself — is
+          the part that makes people bother, so it is stated up front. */}
+      <div>
+        <h1 className="text-[17px] font-black leading-none tracking-tight text-gray-900">
+          Readings Round
+        </h1>
+        <p className="mt-1.5 text-[12px] font-medium leading-relaxed text-gray-500">
+          Walk the site and record each meter at its scheduled interval. Anything
+          outside its safe range raises a job automatically and shows on the
+          admin dashboard straight away — so a rising temperature becomes work
+          before it becomes an outage.
+        </p>
+        <div className="mt-2 flex flex-wrap items-center gap-1.5">
+          <span className="flex items-center gap-1 rounded-lg bg-gray-100 px-2 py-1 text-[10px] font-bold text-gray-500">
+            <ClipboardList size={11} /> Values come from the equipment registry
+          </span>
+          <span className="flex items-center gap-1 rounded-lg bg-warn-50 px-2 py-1 text-[10px] font-bold text-warn-700">
+            <AlertTriangle size={11} /> Out-of-range raises a job
+          </span>
+        </div>
+      </div>
+
+      <div>
+        <p className="mb-1.5 text-[10px] font-black uppercase tracking-widest text-gray-400">
+          Which round are you walking?
+        </p>
+        <div className="flex items-center gap-2 overflow-x-auto">
+          <Clock size={14} className="shrink-0 text-gray-400" />
         {ROUNDS.map(r => (
           <button
             key={r.value}
@@ -85,6 +113,7 @@ export function ReadingsRound() {
             {r.label}
           </button>
         ))}
+        </div>
       </div>
 
       <DynamicReadingForm

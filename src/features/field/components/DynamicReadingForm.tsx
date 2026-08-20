@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { FSelect } from "@/shared/ui";
 import { AlertTriangle, Check, ChevronDown, Loader2, RefreshCw, Info } from "lucide-react";
 import {
   useFormDefinition,
@@ -62,18 +63,23 @@ function Field({
       </label>
 
       {def.input_type === "select" && def.options ? (
-        <select id={id} className={common} value={value} onChange={e => onChange(e.target.value)}>
-          <option value="">—</option>
-          {def.options.map(o => <option key={o} value={o}>{o}</option>)}
-        </select>
+        <FSelect
+          ariaLabel={def.display_label}
+          value={value}
+          onChange={onChange}
+          placeholder="—"
+          options={def.options.map(o => ({ value: o, label: o }))}
+        />
       ) : def.input_type === "textarea" ? (
         <textarea id={id} className={common} rows={2} value={value} onChange={e => onChange(e.target.value)} />
       ) : def.input_type === "boolean" ? (
-        <select id={id} className={common} value={value} onChange={e => onChange(e.target.value)}>
-          <option value="">—</option>
-          <option value="true">Yes</option>
-          <option value="false">No</option>
-        </select>
+        <FSelect
+          ariaLabel={def.display_label}
+          value={value}
+          onChange={onChange}
+          placeholder="—"
+          options={[{ value: "true", label: "Yes" }, { value: "false", label: "No" }]}
+        />
       ) : (
         <input
           id={id}

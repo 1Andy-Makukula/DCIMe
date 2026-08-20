@@ -3,8 +3,9 @@ import {
   Plus, RefreshCw, CheckCircle2, X, Wrench, User, Users, Clock, AlertTriangle
 } from "lucide-react";
 import { useWorkOrders, type WorkState, type NewWorkOrder, type WorkOrder } from "../hooks/useWorkOrders";
-import { SignaturePad } from "@/shared/ui";
+import { SignaturePad, FSelect, FMultiSelect } from "@/shared/ui";
 import { useAuth } from "@/shared/context/AuthContext";
+import { resolveSignerName, signingBlockedReason } from "@/shared/utils/identity";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Admin work orders — the half of the job flow that did not exist.
@@ -40,7 +41,7 @@ const SEV_STYLE: Record<string, string> = {
 };
 
 const EMPTY: NewWorkOrder = {
-  title: "", detail: "", kind: "FAULT", severity: "P3", assignee_id: null, due_at: null
+  title: "", detail: "", kind: "FAULT", severity: "P3", offered_to: [], due_at: null
 };
 
 export function WorkOrders() {
@@ -49,6 +50,8 @@ export function WorkOrders() {
   // The job awaiting a closing signature. Closing opens the pad rather than
   // committing straight away, so the confirmation is attributable to a person.
   const [closing, setClosing] = useState<WorkOrder | null>(null);
+  const signerName    = resolveSignerName(employee);
+  const signingBlocked = signingBlockedReason(employee);
   const [showNew, setShowNew] = useState(false);
   const [draft, setDraft]     = useState<NewWorkOrder>(EMPTY);
   const [busy, setBusy]       = useState(false);
@@ -68,7 +71,9 @@ export function WorkOrders() {
     try {
       await create(draft);
       setDraft(EMPTY); setShowNew(false);
-      say(draft.assignee_id ? "Job assigned" : "Job posted to the pool");
+      say(draft.offered_to.length === 0
+        ? "Job broadcast to all technicians"
+        : `Job offered to ${draft.offered_to.length} technician${draft.offered_to.length === 1 ? "" : "s"}`);
     } catch (e: any) {
       say(e.message ?? "Could not create the job");
     } finally { setBusy(false); }
@@ -137,55 +142,60 @@ export function WorkOrders() {
               </div>
 
               <div>
-                <label className="mb-1.5 block text-[10px] font-black uppercase tracking-widest text-gray-400">Kind</label>
-                <select
+                <FSelect
+                  label="Kind"
                   value={draft.kind}
-                  onChange={e => setDraft({ ...draft, kind: e.target.value })}
-                  className="w-full rounded-xl border border-gray-200 bg-gray-50 px-3.5 py-2.5 text-[12px] font-bold outline-none focus:border-brand-400"
-                >
-                  {KINDS.map(k => <option key={k} value={k}>{k}</option>)}
-                </select>
+                  onChange={v => setDraft({ ...draft, kind: v })}
+                  options={KINDS.map(k => ({ value: k, label: k }))}
+                />
               </div>
 
               <div>
-                <label className="mb-1.5 block text-[10px] font-black uppercase tracking-widest text-gray-400">Severity</label>
-                <select
+                {/* The response target rides along with each option, so the
+                    choice is made against what it commits you to. */}
+                <FSelect
+                  label="Severity"
                   value={draft.severity}
-                  onChange={e => setDraft({ ...draft, severity: e.target.value })}
-                  className="w-full rounded-xl border border-gray-200 bg-gray-50 px-3.5 py-2.5 text-[12px] font-bold outline-none focus:border-brand-400"
-                >
-                  {SEVERITIES.map(s => <option key={s.v} value={s.v}>{s.label}</option>)}
-                </select>
+                  onChange={v => setDraft({ ...draft, severity: v })}
+                  options={SEVERITIES.map(s => ({ value: s.v, label: s.label, hint: s.hint }))}
+                />
                 <p className="mt-1 text-[10px] font-semibold text-gray-400">
                   {SEVERITIES.find(s => s.v === draft.severity)?.hint}
                 </p>
               </div>
 
               <div>
-                <label className="mb-1.5 block text-[10px] font-black uppercase tracking-widest text-gray-400">
-                  Assign to
-                </label>
-                <select
-                  value={draft.assignee_id ?? ""}
-                  onChange={e => setDraft({ ...draft, assignee_id: e.target.value || null })}
-                  className="w-full rounded-xl border border-gray-200 bg-gray-50 px-3.5 py-2.5 text-[12px] font-bold outline-none focus:border-brand-400"
-                >
-                  {/* Unassigned is a deliberate choice, not a blank field: it
-                      posts the job to the pool for any technician to claim. */}
-                  <option value="">Anyone · shared pool</option>
-                  {techs.map(t => <option key={t.id} value={t.id}>{t.full_name}</option>)}
-                </select>
+                {/* Offering, not assigning. Ownership starts when somebody
+                    accepts, which is what makes the response clock real. */}
+                <FMultiSelect
+                  label="Offer to"
+                  value={draft.offered_to}
+                  onChange={v => setDraft({ ...draft, offered_to: v })}
+                  allowAll
+                  allLabel="Broadcast to all technicians"
+                  allHint="Anyone on site can accept it"
+                  placeholder="Pick technicians..."
+                  options={techs.map(x => ({
+                    value: x.id,
+                    label: x.full_name,
+                    hint: x.role === "ADMIN" ? "Administrator" : undefined
+                  }))}
+                />
               </div>
 
               <div>
                 <label className="mb-1.5 block text-[10px] font-black uppercase tracking-widest text-gray-400">
                   Due <span className="font-bold normal-case tracking-normal text-gray-300">optional</span>
                 </label>
+                {/* Held in the control's own local format. Converting to ISO
+                    here fed back a value it cannot parse, so the field blanked
+                    itself on every keystroke. The conversion happens once, at
+                    the API boundary in useWorkOrders.create(). */}
                 <input
                   type="datetime-local"
                   value={draft.due_at ?? ""}
-                  onChange={e => setDraft({ ...draft, due_at: e.target.value ? new Date(e.target.value).toISOString() : null })}
-                  className="w-full rounded-xl border border-gray-200 bg-gray-50 px-3.5 py-2.5 text-[12px] font-bold outline-none focus:border-brand-400"
+                  onChange={e => setDraft({ ...draft, due_at: e.target.value || null })}
+                  className="w-full rounded-xl border border-gray-200 bg-gray-50 px-3.5 py-2.5 text-[12px] font-bold text-gray-900 outline-none focus:border-brand-400"
                 />
               </div>
             </div>
@@ -197,7 +207,7 @@ export function WorkOrders() {
               </button>
               <button onClick={submit} disabled={!draft.title.trim() || busy}
                 className="rounded-xl bg-gray-900 px-5 py-2.5 text-[11px] font-black uppercase tracking-wider text-white transition-colors hover:bg-gray-700 disabled:bg-gray-200 disabled:text-gray-400">
-                {busy ? "Creating..." : draft.assignee_id ? "Assign Job" : "Post to Pool"}
+                {busy ? "Creating..." : draft.offered_to.length === 0 ? "Broadcast Job" : "Offer Job"}
               </button>
             </div>
           </div>
@@ -247,7 +257,9 @@ export function WorkOrders() {
                     <span className="flex items-center gap-1">
                       {o.assignee_name
                         ? <><User size={11} /> {o.assignee_name}</>
-                        : <><Users size={11} /> Shared pool</>}
+                        : o.offered_to === null
+                          ? <><Users size={11} /> Broadcast · awaiting acceptance</>
+                          : <><Users size={11} /> Offered to {o.offered_to.length} · awaiting acceptance</>}
                     </span>
                     {o.due_at && (
                       <span className="flex items-center gap-1">
@@ -295,7 +307,9 @@ export function WorkOrders() {
                   <div className="flex shrink-0 flex-col gap-1.5">
                     <button
                       onClick={() => setClosing(o)}
-                      className="flex items-center gap-1.5 rounded-xl bg-ok-500 px-3 py-2 text-[10px] font-black uppercase tracking-wider text-white transition-colors hover:bg-ok-600">
+                      disabled={!!signingBlocked}
+                      title={signingBlocked ?? undefined}
+                      className="flex items-center gap-1.5 rounded-xl bg-ok-500 px-3 py-2 text-[10px] font-black uppercase tracking-wider text-white transition-colors hover:bg-ok-600 disabled:bg-gray-200 disabled:text-gray-400">
                       <CheckCircle2 size={13} /> Close
                     </button>
                     <button
@@ -314,7 +328,7 @@ export function WorkOrders() {
       <SignaturePad
         open={!!closing}
         onClose={() => setClosing(null)}
-        signerName={employee?.full_name || "Administrator"}
+        signerName={signerName || undefined}
         context={closing ? `Closing: ${closing.title}` : undefined}
         confirmLabel="Sign and close"
         onConfirm={async (sig) => {
@@ -322,7 +336,7 @@ export function WorkOrders() {
           setClosing(null);
           if (!job) return;
           try {
-            await close(job.id, sig, employee?.full_name || "Administrator");
+            await close(job.id, sig, signerName);
             say("Job closed and signed");
           } catch (e: any) {
             say(e?.code === "PGRST204"
