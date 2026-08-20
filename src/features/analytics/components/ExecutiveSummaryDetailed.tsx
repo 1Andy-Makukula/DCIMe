@@ -23,6 +23,8 @@ import {
   IncidentLedgerRow,
 } from "../hooks/useExecutiveSummary";
 import { useSiteCommentary, CommentaryType } from "../hooks/useSiteCommentary";
+import { useReportSignoff, type SignoffRole } from "../hooks/useReportSignoff";
+import { SignaturePad } from "@/shared/ui";
 
 const VERDICT_META: Record<Verdict, { label: string; cls: string; dot: string; Icon: typeof ShieldCheck }> = {
   HEALTHY:  { label: "Healthy",  cls: "text-ok-700 bg-ok-50 border-ok-100", dot: "bg-ok-500", Icon: ShieldCheck },
@@ -268,6 +270,16 @@ export function ExecutiveSummaryDetailed() {
   const { commentary, ongoing, addNote, resolveOngoing } = useSiteCommentary();
   const todayLabel = new Date().toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" });
 
+  // The signature belongs to ONE edition of this report. Local date, not UTC:
+  // the period must match the day the report is labelled with on screen.
+  const periodKey = (() => {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+  })();
+  const { signoff, sign } = useReportSignoff("EXEC_SUMMARY", periodKey);
+  const [signingRole, setSigningRole] = useState<SignoffRole | null>(null);
+  const [signError, setSignError] = useState<string | null>(null);
+
   if (isLoading) {
     return (
       <div className="p-6 space-y-5 bg-slate-50/50 min-h-screen">
@@ -499,17 +511,78 @@ export function ExecutiveSummaryDetailed() {
 
           <NoteComposer onSubmit={addNote} />
 
+          {/* Sign-off. Kept as two fixed columns because this page is laid out
+              for A4 — but each line is now signable rather than a rule to be
+              filled in by hand after printing. */}
           <div className="grid grid-cols-2 gap-8 pt-4 border-t border-gray-100 mt-2">
-            <div>
-              <div className="text-[9px] font-black uppercase tracking-widest text-gray-400 mb-6">Prepared By</div>
-              <div className="border-b border-gray-300 mb-1.5"></div>
-              <div className="text-[10px] text-gray-400 font-semibold">Site Duty Manager</div>
-            </div>
-            <div>
-              <div className="text-[9px] font-black uppercase tracking-widest text-gray-400 mb-6">Reviewed / Signed Off</div>
-              <div className="border-b border-gray-300 mb-1.5"></div>
-              <div className="text-[10px] text-gray-400 font-semibold">&nbsp;</div>
-            </div>
+            {([
+              ["prepared", "Prepared By", "Site Duty Manager"],
+              ["reviewed", "Reviewed / Signed Off", " "]
+            ] as const).map(([role, heading, caption]) => {
+              const image = signoff[`${role}_signature` as const] as string | null;
+              const name  = signoff[`${role}_name` as const] as string | null;
+              const at    = signoff[`${role}_at` as const] as string | null;
+              return (
+                <div key={role}>
+                  <div className="text-[9px] font-black uppercase tracking-widest text-gray-400 mb-2">
+                    {heading}
+                  </div>
+                  {/* Fixed height so a tall signature cannot shift the page
+                      break. The mark is an <img> in flow, so it prints. */}
+                  <div className="flex h-14 items-end">
+                    {image ? (
+                      <img
+                        src={image}
+                        alt={`${heading} signature`}
+                        className="max-h-14 w-auto max-w-full object-contain object-left"
+                      />
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => { setSignError(null); setSigningRole(role); }}
+                        className="text-[11px] font-black uppercase tracking-wider text-brand-500 transition-colors hover:text-brand-600 print:hidden"
+                      >
+                        + Sign here
+                      </button>
+                    )}
+                  </div>
+                  <div className="border-b border-gray-300 mb-1.5"></div>
+                  <div className="text-[10px] text-gray-400 font-semibold">
+                    {name || caption}
+                  </div>
+                  {at && (
+                    <div className="text-[9px] text-gray-400 font-mono mt-0.5">
+                      {new Date(at).toLocaleString(undefined, {
+                        year: "numeric", month: "short", day: "numeric",
+                        hour: "2-digit", minute: "2-digit", hour12: false
+                      })}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+
+          {signError && (
+            <p className="mt-2 rounded-xl border border-danger-200 bg-danger-50 px-3 py-2 text-[10px] font-bold text-danger-700 print:hidden">
+              {signError}
+            </p>
+          )}
+
+          <div className="print:hidden">
+            <SignaturePad
+              open={signingRole !== null}
+              onClose={() => setSigningRole(null)}
+              context={`Executive summary · ${todayLabel}`}
+              confirmLabel={signingRole === "reviewed" ? "Sign off" : "Sign as prepared"}
+              onConfirm={async (sig) => {
+                const role = signingRole;
+                setSigningRole(null);
+                if (!role) return;
+                try { await sign(role, sig); }
+                catch (e: any) { setSignError(e?.message ?? "The signature could not be saved."); }
+              }}
+            />
           </div>
         </ReportPage>
       </div>

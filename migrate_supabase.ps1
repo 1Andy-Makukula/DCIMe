@@ -79,7 +79,8 @@ $Migrations = @(
     "20260829_countersignatures.sql",          # admin countersign; additive
     "20260830_assignment_and_vendor_status.sql", # offered_to + vendor flags
     "20260831_signer_attribution.sql",         # server stamps who signed
-    "20260832_contractor_signature.sql"        # contractors sign for their work
+    "20260832_contractor_signature.sql",       # contractors sign for their work
+    "20260833_report_signoffs.sql"             # sign a generated report
 )
 
 # Seeds populate SITE 1 — not a sandbox. They were retargeted when the sandbox
