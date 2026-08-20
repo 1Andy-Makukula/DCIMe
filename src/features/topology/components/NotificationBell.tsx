@@ -78,7 +78,7 @@ export function NotificationBell() {
       </button>
 
       {isOpen && (
-        <div className="absolute right-0 mt-2 w-[min(92vw,22rem)] bg-white border border-gray-200 rounded-2xl shadow-xl z-[9999] overflow-hidden">
+        <div className="absolute right-0 mt-2 w-[min(92vw,22rem)] bg-white border border-gray-200 rounded-2xl shadow-xl z-[var(--z-popover)] overflow-hidden">
           <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100">
             <div>
               <p className="text-[11px] font-black text-gray-900 uppercase tracking-wider">Activity</p>

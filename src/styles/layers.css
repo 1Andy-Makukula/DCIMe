@@ -1,0 +1,40 @@
+/* ═══════════════════════════════════════════════════════════════════════════
+   layers.css — THE ONE PLACE STACKING ORDER IS DECIDED.
+
+   Every z-index in the application resolves to a name here. Nothing should
+   contain a bare z-[9999] again.
+
+   WHY THIS FILE EXISTS
+   The values were invented per component: 100, 999, 9999, 10000. The
+   technician's bottom navigation claimed 9999 and the signature pad took 100,
+   so the nav bar rendered ON TOP of the pad's footer — the Submit and Clear
+   buttons were painted underneath Home/Readings/Jobs and looked like they did
+   not exist. That is not a bug you can spot by reading either file alone,
+   which is exactly why the numbers need to live together.
+
+   THE RULE
+   Pick by ROLE, never by number. If two things overlap, the one listed lower
+   in this file wins.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+@theme static {
+  /* Page furniture that scrolls with content. */
+  --z-raised:    10;
+  /* Sticky headers and fixed app chrome. */
+  --z-header:    20;
+  /* The technician's fixed bottom navigation. */
+  --z-appnav:    30;
+  /* Dropdown panels and popovers anchored to a control. */
+  --z-popover:   40;
+  /* Dimming behind a modal. */
+  --z-backdrop:  50;
+  /* Dialogs and full-screen capture surfaces. Above the app nav on purpose:
+     a modal that the navigation can cover is not modal. */
+  --z-modal:     60;
+  /* Menus that portal to <body> and may be opened from inside a dialog —
+     a select inside a modal has to paint above the modal that contains it. */
+  --z-menu:      65;
+  /* Toasts. Always last, so a confirmation is never hidden by what it
+     confirms. */
+  --z-toast:     70;
+}

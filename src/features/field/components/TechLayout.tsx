@@ -98,7 +98,7 @@ export function TechLayout() {
       </main>
 
       {/* Fixed Bottom Navigation Bar */}
-      <nav className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 h-16 flex items-center justify-around px-2 z-[9999] print:hidden">
+      <nav className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 h-16 flex items-center justify-around px-2 z-[var(--z-appnav)] print:hidden">
         <NavLink
           to="/tech"
           end

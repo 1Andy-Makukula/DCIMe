@@ -16,26 +16,43 @@ import { useCurrentSite } from "@/shared/context/SiteContext";
 // threshold would either nag the first or ignore the second.
 // ─────────────────────────────────────────────────────────────────────────────
 
-type Health = "HEALTHY" | "LATE" | "SILENT" | "NO_DATA";
+/**
+ * EXACTLY the column names site_ingestion_health returns.
+ *
+ * These were previously invented — `minutes_since` and `health` — and the view
+ * returns `minutes_since_reading` and `status`. Because the row is fetched
+ * through the untyped client and cast, TypeScript could not see the mismatch:
+ * both fields read as undefined, so the status lookup fell through to its
+ * NO_DATA default and the card reported "this site has never logged a reading"
+ * on EVERY site, forever, while the chart beside it plotted live load. The
+ * minutes formatter then divided undefined and printed "NaN d ago".
+ *
+ * Keep these identical to the view. See 20260818_ingestion_health.sql.
+ */
+type IngestionStatus = "HEALTHY" | "STALE" | "CRITICAL" | "NEVER_REPORTED" | "PAUSED";
 
 interface HealthRow {
   site_uuid:                 string;
   expected_interval_minutes: number;
   ingestion_grace_minutes:   number;
+  monitoring_enabled:        boolean;
   last_reading_at:           string | null;
-  minutes_since:             number | null;
-  health:                    Health;
+  last_technician:           string | null;
+  minutes_since_reading:     number | null;
+  status:                    IngestionStatus;
 }
 
-const STATE: Record<Health, { label: string; cls: string; note: string }> = {
-  HEALTHY:  { label: "Receiving",  cls: "bg-ok-50 text-ok-700 border-ok-200",
-              note: "Readings are arriving on schedule." },
-  LATE:     { label: "Late",       cls: "bg-warn-50 text-warn-700 border-warn-200",
-              note: "Overdue, but not yet long enough to raise an alarm." },
-  SILENT:   { label: "Silent",     cls: "bg-danger-50 text-danger-700 border-danger-200",
-              note: "Nothing has arrived for some time. A job has been raised." },
-  NO_DATA:  { label: "No data",    cls: "bg-slate-100 text-slate-600 border-slate-300",
-              note: "This site has never logged a reading." }
+const STATE: Record<IngestionStatus, { label: string; cls: string; note: string }> = {
+  HEALTHY:        { label: "Receiving", cls: "bg-ok-50 text-ok-700 border-ok-200",
+                    note: "Readings are arriving on schedule." },
+  STALE:          { label: "Late",      cls: "bg-warn-50 text-warn-700 border-warn-200",
+                    note: "Overdue, but not yet long enough to raise an alarm." },
+  CRITICAL:       { label: "Silent",    cls: "bg-danger-50 text-danger-700 border-danger-200",
+                    note: "Nothing has arrived for some time. A job has been raised." },
+  NEVER_REPORTED: { label: "No data",   cls: "bg-slate-100 text-slate-600 border-slate-300",
+                    note: "This site has never logged a reading." },
+  PAUSED:         { label: "Paused",    cls: "bg-slate-100 text-slate-600 border-slate-300",
+                    note: "Monitoring is switched off for this site, so nothing is being checked." }
 };
 
 /** database.types.ts predates these columns — see useWorkQueue for the rationale. */
@@ -110,14 +127,20 @@ export function IngestionHealthCard() {
     );
   }
 
-  const st = STATE[row.health] ?? STATE.NO_DATA;
-  const since = row.minutes_since === null
+  const st = STATE[row.status] ?? STATE.NEVER_REPORTED;
+
+  // Number.isFinite rather than a null check: the field arrives as undefined
+  // when the shape is wrong and as null when there is genuinely no reading,
+  // and `undefined === null` is false — which is how "NaN d ago" reached the
+  // screen. Anything that is not a real number reads as "never".
+  const mins = row.minutes_since_reading;
+  const since = !Number.isFinite(mins as number)
     ? "never"
-    : row.minutes_since < 90
-      ? `${Math.round(row.minutes_since)} min ago`
-      : row.minutes_since < 2880
-        ? `${(row.minutes_since / 60).toFixed(1)} h ago`
-        : `${(row.minutes_since / 1440).toFixed(1)} d ago`;
+    : (mins as number) < 90
+      ? `${Math.round(mins as number)} min ago`
+      : (mins as number) < 2880
+        ? `${((mins as number) / 60).toFixed(1)} h ago`
+        : `${((mins as number) / 1440).toFixed(1)} d ago`;
 
   return (
     <div className="rounded-3xl border border-gray-100 bg-white p-5 shadow-sm">
@@ -129,9 +152,14 @@ export function IngestionHealthCard() {
               Data flow
             </p>
             <p className="mt-0.5 text-[14px] font-black leading-none text-gray-900">
-              Last reading {since}
+              {since === "never" ? "No reading yet" : `Last reading ${since}`}
             </p>
             <p className="mt-1 text-[11px] text-gray-500">{st.note}</p>
+            {row.last_technician && (
+              <p className="mt-0.5 text-[11px] font-semibold text-gray-400">
+                Logged by {row.last_technician}
+              </p>
+            )}
           </div>
         </div>
         <span className={`shrink-0 rounded-xl border px-2.5 py-1.5 text-[10px] font-black uppercase tracking-wider ${st.cls}`}>

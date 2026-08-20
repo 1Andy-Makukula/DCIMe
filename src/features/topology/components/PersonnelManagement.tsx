@@ -305,7 +305,7 @@ function EditPersonnelModal({ isOpen, onClose, onSaveSuccess, person }: EditPers
                 <SelectTrigger className="w-full h-11 bg-gray-50 border border-gray-200 rounded-xl text-[12px] font-semibold text-gray-900 focus:ring-1 focus:ring-gray-450 focus:border-gray-450">
                   <SelectValue />
                 </SelectTrigger>
-                <SelectContent className="bg-white border border-gray-100 rounded-xl shadow-lg z-[10000]">
+                <SelectContent className="bg-white border border-gray-100 rounded-xl shadow-lg z-[var(--z-menu)]">
                   {sites.map((s) => (
                     <SelectItem 
                       key={s.id} 

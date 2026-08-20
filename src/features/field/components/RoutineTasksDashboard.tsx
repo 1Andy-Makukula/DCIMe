@@ -706,7 +706,7 @@ export const RoutineTasksDashboard = ({
   return (
     <div className="max-w-md mx-auto space-y-6 pb-24">
       {/* Sticky Audit Banner */}
-      <div className={`sticky top-0 z-[100] backdrop-blur-md text-white border px-4 py-2.5 rounded-2xl shadow-lg flex items-center justify-between text-[11px] font-black uppercase tracking-wider ${
+      <div className={`sticky top-0 z-[var(--z-header)] backdrop-blur-md text-white border px-4 py-2.5 rounded-2xl shadow-lg flex items-center justify-between text-[11px] font-black uppercase tracking-wider ${
         isBackdating ? 'bg-warn-900/90 border-warn-700' : 'bg-slate-900/90 border-slate-800'
       }`}>
         <span>
@@ -957,7 +957,7 @@ export const RoutineTasksDashboard = ({
       )}
 
       {/* Sticky Submit / Pagination Footer */}
-      <div className="fixed bottom-16 left-0 w-full p-4 bg-slate-50 border-t border-slate-200 z-[999] shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.1)]">
+      <div className="fixed bottom-16 left-0 w-full p-4 bg-slate-50 border-t border-slate-200 z-[var(--z-appnav)] shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.1)]">
         <div className="max-w-md mx-auto flex items-center gap-3">
           {currentStepIndex > 0 && (
             <button

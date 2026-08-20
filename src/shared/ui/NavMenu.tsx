@@ -146,7 +146,7 @@ export function NavMenu({
       {open && (
         <>
           <div
-            className="fixed inset-0 z-40 bg-slate-900/20 backdrop-blur-[3px] pointer-events-none"
+            className="fixed inset-0 z-[var(--z-backdrop)] bg-slate-900/20 backdrop-blur-[3px] pointer-events-none"
             aria-hidden="true"
           />
 
@@ -155,7 +155,7 @@ export function NavMenu({
             role="menu"
             aria-label={title}
             className={[
-              "absolute right-0 top-full z-50 mt-2.5 w-[min(30rem,calc(100vw-2rem))]",
+              "absolute right-0 top-full z-[var(--z-popover)] mt-2.5 w-[min(30rem,calc(100vw-2rem))]",
               // The glass. A near-white translucent ground with a saturating
               // blur, a bright top edge and a deep shadow: without the edge and
               // the saturation it reads as a plain grey box with a blur filter.

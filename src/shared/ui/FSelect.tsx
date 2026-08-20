@@ -172,7 +172,7 @@ export function FSelect<T extends string = string>({
             ref={listRef}
             role="listbox"
             aria-activedescendant={`${id}-opt-${active}`}
-            className="absolute z-50 mt-1.5 max-h-64 w-full overflow-y-auto rounded-2xl border border-gray-200 bg-white p-1 shadow-[0_20px_50px_-12px_rgba(15,23,42,0.3)]"
+            className="absolute z-[var(--z-popover)] mt-1.5 max-h-64 w-full overflow-y-auto rounded-2xl border border-gray-200 bg-white p-1 shadow-[0_20px_50px_-12px_rgba(15,23,42,0.3)]"
           >
             {options.length === 0 && (
               <p className="px-3 py-2.5 text-[11px] font-semibold text-gray-400">

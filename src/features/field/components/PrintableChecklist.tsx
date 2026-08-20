@@ -1,4 +1,5 @@
 import React, { useState, useEffect, forwardRef } from "react";
+import { SignaturePad } from "@/shared/ui";
 import { siteLabel } from "@/shared/utils/branding";
 import { BRAND_NAME, DAILY_CHECKLIST_ASSET_ID, DAILY_CHECKLIST_LABEL } from "@/shared/utils/branding";
 import { Printer, Shield, Info, ArrowLeft, Loader2, CheckSquare, ShieldCheck, Save } from "lucide-react";
@@ -197,11 +198,21 @@ export const PrintableChecklist = forwardRef<HTMLDivElement, any>((props, ref) =
 
   // Footer state prefilled from employee
   const [msName, setMsName] = useState(employee?.full_name || "");
-  const [msSignature, setMsSignature] = useState(employee?.full_name ? `${employee.full_name.split(' ')[0]}_signed` : "");
+  // Deliberately empty. This used to seed "<FirstName>_signed" the moment the
+  // page opened, so every checklist arrived pre-signed by someone who had not
+  // signed it. That is the exact fiction the handwritten mark replaces.
+  const [msSignature, setMsSignature] = useState("");
   const [msDate, setMsDate] = useState(() => new Date().toISOString().split('T')[0]);
 
   const [spocName, setSpocName] = useState("");
   const [spocSignature, setSpocSignature] = useState("");
+  // The handwritten marks. Held beside the typed names rather than replacing
+  // them: the name is who signed, the image is the evidence they did.
+  const [msSignatureImage,   setMsSignatureImage]   = useState<string | null>(null);
+  const [spocSignatureImage, setSpocSignatureImage] = useState<string | null>(null);
+  const [msSignedAt,   setMsSignedAt]   = useState<string | null>(null);
+  const [spocSignedAt, setSpocSignedAt] = useState<string | null>(null);
+  const [padFor, setPadFor] = useState<"ms" | "spoc" | null>(null);
   const [spocDate, setSpocDate] = useState("");
 
   // History State
@@ -284,9 +295,13 @@ export const PrintableChecklist = forwardRef<HTMLDivElement, any>((props, ref) =
       setDate(selectedHistory.date || "");
       setMsName(selectedHistory.msPartner?.name || "");
       setMsSignature(selectedHistory.msPartner?.signature || "");
+      setMsSignatureImage(selectedHistory.msPartner?.signatureImage || null);
+      setMsSignedAt(selectedHistory.msPartner?.signedAt || null);
       setMsDate(selectedHistory.msPartner?.date || "");
       setSpocName(selectedHistory.clientSpoc?.name || "");
       setSpocSignature(selectedHistory.clientSpoc?.signature || "");
+      setSpocSignatureImage(selectedHistory.clientSpoc?.signatureImage || null);
+      setSpocSignedAt(selectedHistory.clientSpoc?.signedAt || null);
       setSpocDate(selectedHistory.clientSpoc?.date || "");
     } else {
       const initial: Record<string, { status: "OK" | "NOT OK" | "N/A"; comment: string }> = {};
@@ -305,8 +320,13 @@ export const PrintableChecklist = forwardRef<HTMLDivElement, any>((props, ref) =
         return `${yy}/${mm}/${dd}`;
       });
       if (employee?.full_name) {
+        // Prefill the NAME, never the signature. Resetting to a blank form must
+        // clear the mark: a signature that survives the document it signed is
+        // worse than none.
         setMsName(employee.full_name);
-        setMsSignature(`${employee.full_name.split(' ')[0]}_signed`);
+        setMsSignature("");
+        setMsSignatureImage(null);
+        setMsSignedAt(null);
         setMsDate(new Date().toISOString().split('T')[0]);
       }
     }
@@ -324,11 +344,17 @@ export const PrintableChecklist = forwardRef<HTMLDivElement, any>((props, ref) =
         msPartner: {
           name: msName || techName,
           signature: msSignature,
+          // A few KB of PNG inside the existing metrics blob — no schema change,
+          // and the mark travels with the document it belongs to.
+          signatureImage: msSignatureImage,
+          signedAt: msSignedAt,
           date: msDate,
         },
         clientSpoc: {
           name: spocName,
           signature: spocSignature,
+          signatureImage: spocSignatureImage,
+          signedAt: spocSignedAt,
           date: spocDate,
         }
       };
@@ -643,15 +669,38 @@ export const PrintableChecklist = forwardRef<HTMLDivElement, any>((props, ref) =
                   </div>
                   <div className="flex items-end gap-2">
                     <span className="font-bold text-gray-500 print:text-black w-16">Signature:</span>
-                    <input
-                      type="text"
-                      value={msSignature}
-                      disabled={isReadOnly}
-                      onChange={(e) => setMsSignature(e.target.value)}
-                      className="border-b border-gray-300 focus:border-brand-500 focus:outline-none flex-1 pb-0.5 print:hidden font-semibold text-gray-800"
-                    />
-                    <span className="hidden print:inline font-semibold text-black border-b border-black flex-1 min-h-[1.2rem] pb-0.5">{msSignature || "________________________"}</span>
+                    {/* max-h caps the mark so a tall signature cannot push this
+                        block onto a second page. It is an <img> in normal flow,
+                        not a background, so it prints without needing
+                        print-color-adjust. */}
+                    <span className="flex-1 border-b border-gray-300 print:border-black pb-0.5">
+                      {msSignatureImage ? (
+                        <img
+                          src={msSignatureImage}
+                          alt="MS Partner signature"
+                          className="h-10 max-h-10 w-auto max-w-full object-contain object-left print:h-8"
+                        />
+                      ) : isReadOnly ? (
+                        <span className="text-gray-400 print:text-black">________________________</span>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => setPadFor("ms")}
+                          className="w-full py-1.5 text-left text-[11px] font-bold text-brand-500 hover:text-brand-600 print:hidden"
+                        >
+                          Tap to sign
+                        </button>
+                      )}
+                    </span>
                   </div>
+                  {msSignedAt && (
+                    <p className="pl-[4.5rem] font-mono text-[9px] text-gray-400 print:text-black">
+                      Signed {new Date(msSignedAt).toLocaleString(undefined, {
+                        year: "numeric", month: "short", day: "numeric",
+                        hour: "2-digit", minute: "2-digit", hour12: false
+                      })}
+                    </p>
+                  )}
                   <div className="flex items-end gap-2">
                     <span className="font-bold text-gray-500 print:text-black w-16">Date:</span>
                     <input
@@ -685,15 +734,38 @@ export const PrintableChecklist = forwardRef<HTMLDivElement, any>((props, ref) =
                   </div>
                   <div className="flex items-end gap-2">
                     <span className="font-bold text-gray-500 print:text-black w-16">Signature:</span>
-                    <input
-                      type="text"
-                      value={spocSignature}
-                      disabled={isReadOnly}
-                      onChange={(e) => setSpocSignature(e.target.value)}
-                      className="border-b border-gray-300 focus:border-brand-500 focus:outline-none flex-1 pb-0.5 print:hidden font-semibold text-gray-800"
-                    />
-                    <span className="hidden print:inline font-semibold text-black border-b border-black flex-1 min-h-[1.2rem] pb-0.5">{spocSignature || "________________________"}</span>
+                    {/* max-h caps the mark so a tall signature cannot push this
+                        block onto a second page. It is an <img> in normal flow,
+                        not a background, so it prints without needing
+                        print-color-adjust. */}
+                    <span className="flex-1 border-b border-gray-300 print:border-black pb-0.5">
+                      {spocSignatureImage ? (
+                        <img
+                          src={spocSignatureImage}
+                          alt="Client SPOC signature"
+                          className="h-10 max-h-10 w-auto max-w-full object-contain object-left print:h-8"
+                        />
+                      ) : isReadOnly ? (
+                        <span className="text-gray-400 print:text-black">________________________</span>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => setPadFor("spoc")}
+                          className="w-full py-1.5 text-left text-[11px] font-bold text-brand-500 hover:text-brand-600 print:hidden"
+                        >
+                          Tap to sign
+                        </button>
+                      )}
+                    </span>
                   </div>
+                  {spocSignedAt && (
+                    <p className="pl-[4.5rem] font-mono text-[9px] text-gray-400 print:text-black">
+                      Signed {new Date(spocSignedAt).toLocaleString(undefined, {
+                        year: "numeric", month: "short", day: "numeric",
+                        hour: "2-digit", minute: "2-digit", hour12: false
+                      })}
+                    </p>
+                  )}
                   <div className="flex items-end gap-2">
                     <span className="font-bold text-gray-500 print:text-black w-16">Date:</span>
                     <input
@@ -773,6 +845,30 @@ export const PrintableChecklist = forwardRef<HTMLDivElement, any>((props, ref) =
           )}
         </div>
       )}
+
+      {/* One pad, two signatories. print:hidden so an open dialog can never
+          appear in the printed document. */}
+      <div className="print:hidden">
+        <SignaturePad
+          open={padFor !== null}
+          onClose={() => setPadFor(null)}
+          signerName={padFor === "ms" ? (msName || techName) : (spocName || undefined)}
+          context={`Daily checklist · ${siteName} · ${date}`}
+          onConfirm={(sig) => {
+            if (padFor === "ms") {
+              setMsSignatureImage(sig.dataUrl);
+              setMsSignedAt(sig.signedAt);
+              // Keep the text field meaningful for anything still reading it.
+              if (!msSignature) setMsSignature(msName || techName);
+            } else if (padFor === "spoc") {
+              setSpocSignatureImage(sig.dataUrl);
+              setSpocSignedAt(sig.signedAt);
+              if (!spocSignature) setSpocSignature(spocName);
+            }
+            setPadFor(null);
+          }}
+        />
+      </div>
     </div>
   );
 });

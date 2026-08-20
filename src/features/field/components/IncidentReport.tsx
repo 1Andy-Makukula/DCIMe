@@ -679,7 +679,7 @@ export function IncidentReport() {
                 <SelectTrigger className="w-full h-12 bg-gray-50 border border-gray-200 rounded-2xl text-sm font-semibold text-gray-800 focus:ring-1 focus:ring-brand-500/20 focus:border-brand-500">
                   <SelectValue />
                 </SelectTrigger>
-                <SelectContent className="bg-white border border-gray-100 rounded-2xl shadow-lg z-[10000]">
+                <SelectContent className="bg-white border border-gray-100 rounded-2xl shadow-lg z-[var(--z-menu)]">
                   {isLoadingEquip ? (
                     <SelectItem value="loading" disabled className="text-xs font-semibold text-gray-400">
                       Loading equipment...
@@ -959,7 +959,7 @@ export function IncidentReport() {
                   <SelectTrigger className="w-full h-12 bg-gray-50 border border-gray-200 rounded-2xl text-sm font-semibold text-gray-800 focus:ring-1 focus:ring-slate-800/10 focus:border-slate-800">
                     <SelectValue placeholder={isLoadingEquip ? "Loading equipment…" : "-- Choose equipment --"} />
                   </SelectTrigger>
-                  <SelectContent className="bg-white border border-gray-100 rounded-2xl shadow-lg z-[10000]">
+                  <SelectContent className="bg-white border border-gray-100 rounded-2xl shadow-lg z-[var(--z-menu)]">
                     {equipmentList.length === 0 ? (
                       <SelectItem value="empty" disabled className="text-xs font-semibold text-gray-400">
                         No active equipment registered
@@ -986,7 +986,7 @@ export function IncidentReport() {
                   <SelectTrigger className="w-full h-12 bg-gray-50 border border-gray-200 rounded-2xl text-sm font-semibold text-gray-800 focus:ring-1 focus:ring-slate-800/10 focus:border-slate-800">
                     <SelectValue placeholder="-- Choose an open fault ticket --" />
                   </SelectTrigger>
-                  <SelectContent className="bg-white border border-gray-100 rounded-2xl shadow-lg z-[10000]">
+                  <SelectContent className="bg-white border border-gray-100 rounded-2xl shadow-lg z-[var(--z-menu)]">
                     {incidents.filter((i) => i.status === "OPEN").length === 0 ? (
                       <SelectItem value="empty" disabled className="text-xs font-semibold text-gray-400">
                         No open fault tickets available

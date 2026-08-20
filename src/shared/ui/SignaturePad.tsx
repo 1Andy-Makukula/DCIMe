@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { Check, Eraser, PenLine, Undo2, X } from "lucide-react";
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -22,6 +23,16 @@ import { Check, Eraser, PenLine, Undo2, X } from "lucide-react";
 // TRIMMED OUTPUT. The exported PNG is cropped to the ink. Exporting the whole
 // canvas embeds a mostly-empty image, which then renders as a tiny mark inside
 // whatever field displays it — the signature has to fill its box.
+//
+// PORTALLED. Rendered into document.body rather than in place. Two reasons,
+// both of which produced the same symptom — a pad with no visible buttons:
+//   1. The technician's bottom navigation was z-[9999] and this was z-[100],
+//      so the nav painted over the footer and Submit/Clear were simply behind
+//      it. Both now use the named layers in styles/layers.css.
+//   2. z-index alone is not enough: any ancestor with a transform, filter,
+//      backdrop-filter or opacity creates a stacking context that traps a
+//      child no matter how high its z-index. A portal to body cannot be
+//      trapped by anything.
 // ─────────────────────────────────────────────────────────────────────────────
 
 export interface SignatureResult {
@@ -239,9 +250,9 @@ export function SignaturePad({
 
   const hasInk = strokeCount > 0;
 
-  return (
+  return createPortal(
     <div
-      className="fixed inset-0 z-[100] flex flex-col bg-slate-900/70 backdrop-blur-sm"
+      className="fixed inset-0 z-[var(--z-modal)] flex flex-col bg-slate-900/70 backdrop-blur-sm"
       role="dialog"
       aria-modal="true"
       aria-label="Sign"
@@ -327,7 +338,8 @@ export function SignaturePad({
           <Check size={16} /> {hasInk ? confirmLabel : "Sign to continue"}
         </button>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }
 
