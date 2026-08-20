@@ -74,7 +74,8 @@ $Migrations = @(
     "20260823_preventive_schedules.sql",       # needs work_items
     "20260824_scheduled_jobs.sql",             # needs every function above
     "20260825_neutral_identifiers.sql",        # renames data; run before seeds
-    "20260827_signatures.sql"                  # signature columns; additive
+    "20260827_signatures.sql",                 # signature columns; additive
+    "20260828_realtime_publication.sql"        # makes postgres_changes actually fire
 )
 
 # Seeds populate SITE 1 — not a sandbox. They were retargeted when the sandbox
@@ -165,7 +166,7 @@ foreach ($m in $Migrations) {
 
 if ($Seed) {
     Write-Host ""
-    Write-Host "[migrate] Seeds ($($Seeds.Count)) - SANDBOX site only" -ForegroundColor Cyan
+    Write-Host "[migrate] Seeds ($($Seeds.Count)) - WRITES TO SITE 1, not a sandbox" -ForegroundColor Yellow
     foreach ($s in $Seeds) {
         if (-not (Invoke-SqlFile (Join-Path $Root "supabase\seed\$s") $s)) {
             Write-Host "[migrate] STOPPED seeding at $s." -ForegroundColor Red

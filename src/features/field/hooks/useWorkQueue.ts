@@ -110,6 +110,25 @@ export function useWorkQueue(): UseWorkQueueResult {
     return () => { cancelled = true; };
   }, [siteId, nonce]);
 
+  // A job an admin assigns must actually turn up on the technician's phone.
+  // This effect only ran on mount, so a newly assigned job stayed invisible
+  // until the app was reopened. work_items is not in the supabase_realtime
+  // publication either (see 20260828_realtime_publication.sql), so polling is
+  // what makes the admin -> technician handoff work today.
+  useEffect(() => {
+    const tick = () => {
+      if (document.visibilityState === "visible") setNonce(n => n + 1);
+    };
+    const poll = window.setInterval(tick, 30_000);
+    // Technicians background the app constantly; refetch on return rather than
+    // showing a stale queue until the next tick.
+    document.addEventListener("visibilitychange", tick);
+    return () => {
+      window.clearInterval(poll);
+      document.removeEventListener("visibilitychange", tick);
+    };
+  }, []);
+
   const refresh = useCallback(() => setNonce(n => n + 1), []);
 
   // Claiming and acknowledging are one action. Picking up a job without

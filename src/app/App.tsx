@@ -15,6 +15,7 @@ import { TechDashboard } from "@/features/field/components/TechDashboard";
 import { IncidentTracker } from "@/features/field/components/IncidentTracker";
 import { IncidentReport } from "@/features/field/components/IncidentReport";
 import { ShiftHandover } from "@/features/field/components/ShiftHandover";
+import { WorkOrders } from "@/features/topology/components/WorkOrders";
 import { WorkQueue } from "@/features/field/components/WorkQueue";
 import { ReadingsRound } from "@/features/field/components/ReadingsRound";
 
@@ -83,9 +84,9 @@ export default function App() {
             <Route index element={<TechDashboard />} />
             <Route path="readings" element={<ErrorBoundary label="Readings"><ReadingsRound /></ErrorBoundary>} />
             <Route path="jobs" element={<ErrorBoundary label="Jobs"><WorkQueue /></ErrorBoundary>} />
-            <Route path="log" element={<IncidentTracker />} />
-            <Route path="incident" element={<IncidentReport />} />
-            <Route path="handover" element={<ShiftHandover />} />
+            <Route path="log" element={<ErrorBoundary label="Tracking"><IncidentTracker /></ErrorBoundary>} />
+            <Route path="incident" element={<ErrorBoundary label="Report Incident"><IncidentReport /></ErrorBoundary>} />
+            <Route path="handover" element={<ErrorBoundary label="Handover"><ShiftHandover /></ErrorBoundary>} />
           </Route>
 
           {/* Admin shell — nested routing */}
@@ -94,6 +95,7 @@ export default function App() {
             <Route path="topology"   element={<ErrorBoundary label="Topology"><TopologyView /></ErrorBoundary>} />
             <Route path="inventory"  element={<AssetInventory />} />
             <Route path="alerts"     element={<AlertsLog />} />
+            <Route path="jobs"       element={<ErrorBoundary label="Work Orders"><WorkOrders /></ErrorBoundary>} />
             <Route path="reports"    element={<ShiftReports />} />
             <Route path="personnel"  element={<PersonnelManagement />} />
             <Route path="vendors"    element={<ErrorBoundary label="Vendors"><VendorRegister /></ErrorBoundary>} />

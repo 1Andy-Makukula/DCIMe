@@ -207,7 +207,31 @@ export function useNocTelemetry(): UseNocTelemetryResult {
       )
       .subscribe();
 
+    // POLLING SAFETY NET.
+    //
+    // The two subscriptions above only deliver if the table belongs to the
+    // `supabase_realtime` publication. Nothing ever added these tables to it,
+    // so postgres_changes was silent and this page showed mount-time data
+    // forever — a reading submitted on the tech side never appeared here.
+    //
+    // 20260828_realtime_publication.sql fixes the root cause. This interval
+    // stays regardless: it costs one query every 20s and keeps the NOC honest
+    // if replication is ever dropped, a channel silently fails to rejoin after
+    // a network blip, or the page is restored from bfcache.
+    const poll = window.setInterval(() => {
+      if (document.visibilityState === "visible") fetchAll();
+    }, 20_000);
+
+    // A backgrounded tab stops receiving events; refetch the moment it returns
+    // rather than showing stale numbers until the next tick.
+    const onVisible = () => {
+      if (document.visibilityState === "visible") fetchAll();
+    };
+    document.addEventListener("visibilitychange", onVisible);
+
     return () => {
+      window.clearInterval(poll);
+      document.removeEventListener("visibilitychange", onVisible);
       supabase.removeChannel(channelLogs);
       supabase.removeChannel(channelIncidents);
     };

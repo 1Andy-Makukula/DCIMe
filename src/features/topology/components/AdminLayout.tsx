@@ -14,6 +14,7 @@ import {
   Network,
   Building2,
   Upload,
+  Wrench,
 } from "lucide-react";
 import { BrandMark, NavMenu } from "@/shared/ui";
 import { useAuth } from "@/shared/context/AuthContext";
@@ -33,9 +34,11 @@ const NAV_TABS = [
     hint: "Power single line and failure simulation" },
   { to: "/admin/alerts",     label: "Alerts",     icon: AlertTriangle, end: false,
     hint: "Incidents and open work" },
+  { to: "/admin/jobs",       label: "Jobs",       icon: Wrench,        end: false,
+    hint: "Raise, assign and close work orders" },
+  // ── overflow ──
   { to: "/admin/analytics",  label: "Analytics",  icon: BarChart2,     end: false,
     hint: "PUE, capacity and service performance" },
-  // ── overflow ──
   { to: "/admin/inventory",  label: "Inventory",  icon: List,          end: false,
     hint: "Equipment, parameters and maintenance" },
   { to: "/admin/reports",    label: "Reports",    icon: FileText,      end: false,
