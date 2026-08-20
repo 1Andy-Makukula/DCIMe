@@ -24,13 +24,16 @@
   --z-header:    20;
   /* The technician's fixed bottom navigation. */
   --z-appnav:    30;
-  /* Dropdown panels and popovers anchored to a control. */
-  --z-popover:   40;
-  /* Dimming behind a modal. */
-  --z-backdrop:  50;
+  /* A backdrop is ALWAYS paired with, and immediately below, the surface it
+     sits behind. Naming them apart is what let a single find-and-replace put
+     the dimming layer ON TOP of the nav panel — blurring the menu itself.
+     Keep each pair adjacent so the ordering is obvious on sight. */
+  --z-popover-backdrop: 35;
+  --z-popover:          40;
   /* Dialogs and full-screen capture surfaces. Above the app nav on purpose:
      a modal that the navigation can cover is not modal. */
-  --z-modal:     60;
+  --z-modal-backdrop: 55;
+  --z-modal:          60;
   /* Menus that portal to <body> and may be opened from inside a dialog —
      a select inside a modal has to paint above the modal that contains it. */
   --z-menu:      65;

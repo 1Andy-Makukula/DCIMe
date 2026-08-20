@@ -146,7 +146,7 @@ export function NavMenu({
       {open && (
         <>
           <div
-            className="fixed inset-0 z-[var(--z-backdrop)] bg-slate-900/20 backdrop-blur-[3px] pointer-events-none"
+            className="fixed inset-0 z-[var(--z-popover-backdrop)] bg-slate-900/20 backdrop-blur-[3px] pointer-events-none"
             aria-hidden="true"
           />
 
