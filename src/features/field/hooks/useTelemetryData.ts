@@ -354,6 +354,12 @@ export function useTelemetryData(
     enabled: !!liveFilter,
     onChange: (payload) => {
       if (payload.eventType === "DELETE") {
+        // The subscription filters on target_hour and site_uuid only, but this
+        // table holds several asset_ids per hour — the checklist and the DG
+        // test among them. Without this check, deleting any one of those wiped
+        // the round the technician was in the middle of typing.
+        const goneId = (payload.old as any)?.asset_id;
+        if (goneId !== undefined && goneId !== "facility_wide") return;
         setFormData({});
         setIsEditMode(false);
         // The cache has to go with it. Step A of the fetch effect restores

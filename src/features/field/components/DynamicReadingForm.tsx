@@ -64,6 +64,8 @@ function Field({
 
       {def.input_type === "select" && def.options ? (
         <FSelect
+          id={id}
+          required={def.is_required}
           ariaLabel={def.display_label}
           value={value}
           onChange={onChange}
@@ -74,6 +76,8 @@ function Field({
         <textarea id={id} className={common} rows={2} value={value} onChange={e => onChange(e.target.value)} />
       ) : def.input_type === "boolean" ? (
         <FSelect
+          id={id}
+          required={def.is_required}
           ariaLabel={def.display_label}
           value={value}
           onChange={onChange}

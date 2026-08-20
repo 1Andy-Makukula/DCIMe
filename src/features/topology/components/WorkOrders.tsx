@@ -340,7 +340,7 @@ export function WorkOrders() {
             say("Job closed and signed");
           } catch (e: any) {
             say(e?.code === "PGRST204"
-              ? "Signature columns missing. Apply 20260829_countersignatures.sql."
+              ? "The database does not recognise the signature columns — either 20260829_countersignatures.sql has not been applied, or PostgREST is serving a stale schema cache."
               : e?.message ?? "Could not close the job");
           }
         }}

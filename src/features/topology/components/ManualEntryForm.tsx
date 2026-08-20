@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Plus, Trash2, Rows3, CornerDownLeft } from "lucide-react";
 import { EXPECTED_COLUMNS, type ImportKind } from "../hooks/useCommissioningImport";
 
@@ -44,8 +44,11 @@ const HINTS: Record<string, string> = {
 export interface ManualEntryFormProps {
   kind: ImportKind;
   busy: boolean;
-  /** Same shape the spreadsheet parser emits. */
-  onStage: (rows: { line: number; record: Record<string, unknown> }[]) => Promise<void>;
+  /**
+   * Same shape the spreadsheet parser emits. Resolve `false` to keep the typed
+   * rows on screen — anything else clears the form.
+   */
+  onStage: (rows: { line: number; record: Record<string, unknown> }[]) => Promise<void | boolean>;
 }
 
 export function ManualEntryForm({ kind, busy, onStage }: ManualEntryFormProps) {
@@ -57,6 +60,18 @@ export function ManualEntryForm({ kind, busy, onStage }: ManualEntryFormProps) {
   const [draft, setDraft] = useState<Record<string, string>>(blank());
   const [queued, setQueued] = useState<Record<string, string>[]>([]);
   const [showOptional, setShowOptional] = useState(false);
+
+  // Rows are shaped by the kind they were typed for. Switching from Equipment
+  // to Cables while rows are queued would stage equipment records against the
+  // cable contract — every one of them failing validation for reasons the
+  // person who typed them could not see.
+  useEffect(() => {
+    setQueued([]);
+    setDraft(blank());
+    // blank() closes over `all`, which is derived from kind, so it is correct
+    // for the NEW kind by the time this runs.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [kind]);
 
   // Required fields only. Optional ones stay optional.
   const complete = cols.required.every(c => draft[c]?.trim());
@@ -72,7 +87,12 @@ export function ManualEntryForm({ kind, busy, onStage }: ManualEntryFormProps) {
     // losing it because someone did not press "Add" would be its own bug.
     const rows = complete ? [...queued, draft] : queued;
     if (rows.length === 0) return;
-    await onStage(rows.map((record, i) => ({
+
+    // Cleared ONLY on success. The caller reports failures with a toast rather
+    // than rethrowing, so clearing unconditionally threw away everything the
+    // person had typed the moment staging failed — exactly when they most need
+    // it back.
+    const ok = await onStage(rows.map((record, i) => ({
       line: i + 1,
       // Blank optional fields are dropped rather than sent as "": an empty
       // string is a value, and the validator would treat it as one.
@@ -80,6 +100,7 @@ export function ManualEntryForm({ kind, busy, onStage }: ManualEntryFormProps) {
         Object.entries(record).filter(([, v]) => String(v).trim() !== "")
       )
     })));
+    if (ok === false) return;
     setQueued([]);
     setDraft(blank());
   };

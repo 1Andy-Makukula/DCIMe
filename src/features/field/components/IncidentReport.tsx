@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from "react";
 import { ContractorFindingsEditor, useSubmitFindings, type DraftFinding } from "./ContractorFindings";
 import { siteLabel } from "@/shared/utils/branding";
+import { SignatureField, SignaturePad } from "@/shared/ui";
 import { useNavigate, useOutletContext } from "react-router";
 import {
   Camera,
@@ -105,6 +106,10 @@ export function IncidentReport() {
   // Contractor & Visit logging states
   const [activeAction, setActiveAction] = useState<{ incidentId: string; type: "visit" | "resolve" } | null>(null);
   const [contractorName, setContractorName] = useState("");
+  // The contractor's own mark, taken on this device before they leave site.
+  const [contractorSig, setContractorSig]     = useState<string | null>(null);
+  const [contractorSigAt, setContractorSigAt] = useState<string | null>(null);
+  const [sigPadOpen, setSigPadOpen]           = useState(false);
   const [actionNotes, setActionNotes] = useState("");
   const [actionPhoto, setActionPhoto] = useState<string | null>(null);
   const [isSubmittingAction, setIsSubmittingAction] = useState(false);
@@ -348,7 +353,10 @@ export function IncidentReport() {
         notes: actionNotes,
         photo_url: actionPhoto,
         logged_by_name: firstName,
-        logged_by_id: user?.id || "EMP-UNKNOWN"
+        logged_by_id: user?.id || "EMP-UNKNOWN",
+        contractor_signature:   contractorSig,
+        contractor_signed_at:   contractorSigAt,
+        contractor_signed_name: contractorSig ? contractorName.trim() : null
       });
 
       // Each finding becomes a tracked item. Failures are reported per finding
@@ -947,6 +955,30 @@ export function IncidentReport() {
                 className="w-full px-4 h-12 bg-gray-50 border border-gray-200 rounded-2xl text-sm font-semibold text-gray-800 focus:outline-none focus:border-slate-800 focus:ring-1 focus:ring-slate-800/10 transition-colors"
                 required
               />
+            </div>
+
+            {/* The contractor signs for their own work, on this device, before
+                leaving. Recording only the name the technician typed is the
+                technician's word that someone attended — not the contractor's
+                acknowledgement of what they did, which is the record that
+                matters when a finding or an invoice is disputed. */}
+            <div className="space-y-2">
+              <label className="text-xs font-black text-gray-400 uppercase tracking-widest block">
+                Contractor Signature
+                <span className="ml-1 font-bold normal-case tracking-normal text-gray-300">
+                  optional
+                </span>
+              </label>
+              <SignatureField
+                value={contractorSig}
+                signedAt={contractorSigAt}
+                onClick={() => setSigPadOpen(true)}
+                label={contractorName.trim() || "Contractor"}
+              />
+              <p className="text-[10px] font-semibold text-gray-400">
+                Hand the device to the contractor. Witnessed by you as the
+                technician on site.
+              </p>
             </div>
 
             {/* Target: specific asset */}
@@ -1556,6 +1588,21 @@ export function IncidentReport() {
           )}
         </div>
       )}
+
+      {/* Same pad as the shift handover — one way of signing across the whole
+          platform, whether the signer is staff or a visiting contractor. */}
+      <SignaturePad
+        open={sigPadOpen}
+        onClose={() => setSigPadOpen(false)}
+        signerName={contractorName.trim() || "Contractor"}
+        context={visitPurpose.trim() ? `Contractor visit · ${visitPurpose.trim()}` : "Contractor visit"}
+        confirmLabel="Sign for this work"
+        onConfirm={(sig) => {
+          setContractorSig(sig.dataUrl);
+          setContractorSigAt(sig.signedAt);
+          setSigPadOpen(false);
+        }}
+      />
     </div>
   );
 }

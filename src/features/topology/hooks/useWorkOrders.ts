@@ -164,11 +164,13 @@ export function useWorkOrders() {
     if (!who) throw new Error("Cannot sign without a signed-in identity. Sign in again and retry.");
 
     const { data, error: e } = await from("work_items")
+      // signed_name is stamped server-side by stamp_work_signature(). The
+      // local identity is still checked first so the UI can refuse early with
+      // a useful message rather than surfacing a raw trigger exception.
       .update({
         state:           "CLOSED",
         signature_image: sig.dataUrl,
-        signed_at:       sig.signedAt,
-        signed_name:     who
+        signed_at:       sig.signedAt
       })
       .eq("id", id)
       // Constrained to RESOLVED, which the state-machine trigger does NOT

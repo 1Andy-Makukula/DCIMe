@@ -39,17 +39,26 @@ export interface FSelectProps<T extends string = string> {
   className?: string;
   /** Accessible name when no visible label is given. */
   ariaLabel?: string;
+  /**
+   * Overrides the generated id. Needed when an EXTERNAL <label htmlFor> points
+   * at this control — replacing a native <select> silently orphaned those
+   * labels, so clicking them did nothing and screen readers lost the pairing.
+   */
+  id?: string;
+  /** Marks the control required for assistive technology. */
+  required?: boolean;
 }
 
 export function FSelect<T extends string = string>({
   value, onChange, options, label, placeholder = "Select...",
-  disabled = false, className = "", ariaLabel
+  disabled = false, className = "", ariaLabel, id: idProp, required = false
 }: FSelectProps<T>) {
   const [open, setOpen]     = useState(false);
   const [active, setActive] = useState(0);
   const rootRef             = useRef<HTMLDivElement>(null);
   const listRef             = useRef<HTMLDivElement>(null);
-  const id                  = useId();
+  const autoId              = useId();
+  const id                  = idProp ?? autoId;
 
   const selectedIndex = options.findIndex(o => o.value === value);
   const selected      = selectedIndex >= 0 ? options[selectedIndex] : null;
@@ -146,6 +155,12 @@ export function FSelect<T extends string = string>({
           aria-expanded={open}
           aria-haspopup="listbox"
           aria-label={label ? undefined : ariaLabel}
+          aria-required={required || undefined}
+          // On the combobox, not the listbox: this is the element that holds
+          // focus, and assistive technology reads the active option from the
+          // focused element.
+          aria-controls={open ? `${id}-listbox` : undefined}
+          aria-activedescendant={open ? `${id}-opt-${active}` : undefined}
           disabled={disabled}
           onClick={() => setOpen(o => !o)}
           onKeyDown={onKeyDown}
@@ -170,8 +185,8 @@ export function FSelect<T extends string = string>({
         {open && (
           <div
             ref={listRef}
+            id={`${id}-listbox`}
             role="listbox"
-            aria-activedescendant={`${id}-opt-${active}`}
             className="absolute z-[var(--z-popover)] mt-1.5 max-h-64 w-full overflow-y-auto rounded-2xl border border-gray-200 bg-white p-1 shadow-[0_20px_50px_-12px_rgba(15,23,42,0.3)]"
           >
             {options.length === 0 && (

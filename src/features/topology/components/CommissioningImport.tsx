@@ -229,8 +229,11 @@ export function CommissioningImport() {
                 try {
                   await stage(kind, "Manual entry", rows);
                   toast.success(`${rows.length} row${rows.length === 1 ? "" : "s"} staged`);
+                  return true;
                 } catch (e: any) {
                   toast.error(e?.message ?? "Could not stage those rows");
+                  // Signals the form to keep what was typed.
+                  return false;
                 }
               }}
             />

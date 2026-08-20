@@ -18,6 +18,9 @@ export interface ContractorVisit {
   notes: string;
   photo_url: string | null;
   logged_by_name: string;
+  contractor_signature?:   string | null;
+  contractor_signed_at?:   string | null;
+  contractor_signed_name?: string | null;
   logged_by_id: string;
   occurred_at: string;
   created_at: string;
@@ -101,6 +104,10 @@ export function useContractorVisits() {
     logged_by_name?: string;
     logged_by_id?: string;
     occurred_at?: string;
+    /** The contractor's own mark, taken before they leave site. */
+    contractor_signature?: string | null;
+    contractor_signed_at?: string | null;
+    contractor_signed_name?: string | null;
   }) => {
     setError(null);
     if (!currentSite?.id) {
@@ -126,11 +133,17 @@ export function useContractorVisits() {
       logged_by_name: payload.logged_by_name || "",
       logged_by_id: payload.logged_by_id || "",
       occurred_at: payload.occurred_at || new Date().toISOString(),
+      // The contractor's acknowledgement of their own work. Witnessed by
+      // logged_by_id, who is the authenticated technician on site.
+      contractor_signature:   payload.contractor_signature   ?? null,
+      contractor_signed_at:   payload.contractor_signed_at   ?? null,
+      contractor_signed_name: payload.contractor_signed_name ?? null,
     };
 
     try {
-      const { data, error: insertError } = await supabase
-        .from("contractor_visits")
+      // database.types.ts predates 20260832_contractor_signature.sql, so the
+      // typed client rejects the row by shape. Delete once types are regenerated.
+      const { data, error: insertError } = await (supabase.from as any)("contractor_visits")
         .insert([row])
         .select()
         .single();

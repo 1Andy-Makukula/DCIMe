@@ -135,24 +135,32 @@ export function useVendors(): UseVendorsResult {
   }, [refresh]);
 
   const remove = useCallback(async (id: string) => {
-    // Guarded in the client because the answer is already on screen: a vendor
-    // with visits or findings is referenced by history, and removing it would
-    // either fail on the foreign key or destroy the record of work done.
-    // Retiring is what people actually want in that case.
-    const v = vendors.find(x => x.vendor_id === id);
-    if (v && (v.visits > 0 || v.findings > 0)) {
+    // Re-checked against the DATABASE, not the list on screen. The cached copy
+    // can be minutes old, and — worse — the previous version skipped the guard
+    // entirely when the vendor was missing from it, which is exactly the case
+    // where the client knows least. History is destroyed on a wrong answer, so
+    // the check has to be authoritative.
+    const { data: fresh, error: cErr } = await from("vendor_activity")
+      .select("vendor_name,visits,findings")
+      .eq("vendor_id", id)
+      .maybeSingle();
+    if (cErr) throw cErr;
+    if (!fresh) throw new Error("That vendor no longer exists. Refresh the register.");
+
+    if (fresh.visits > 0 || fresh.findings > 0) {
       throw new Error(
-        `${v.vendor_name} has ${v.visits} visit(s) and ${v.findings} finding(s) on record. ` +
-        "Deleting would destroy that history — retire the vendor instead."
+        `${fresh.vendor_name} has ${fresh.visits} visit(s) and ${fresh.findings} finding(s) ` +
+        "on record. Deleting would destroy that history — retire the vendor instead."
       );
     }
+
     const { data, error: e } = await from("vendors").delete().eq("id", id).select("id");
     if (e) throw e;
     if (!data || data.length === 0) {
       throw new Error("Nothing was deleted — you may not have permission.");
     }
     refresh();
-  }, [vendors, refresh]);
+  }, [refresh]);
 
   return { vendors, isLoading, error, refresh, update, create, flag, setActive, remove };
 }

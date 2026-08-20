@@ -42,8 +42,14 @@ export function FMultiSelect({
   className = ""
 }: FMultiSelectProps) {
   const [open, setOpen] = useState(false);
+  const [active, setActive] = useState(0);
   const rootRef = useRef<HTMLDivElement>(null);
+  const listRef = useRef<HTMLDivElement>(null);
   const id = useId();
+
+  // Rows, in the order they are rendered. The "all" row sits at index -1 so it
+  // can be reached with ArrowUp from the top of the list.
+  const firstIndex = allowAll ? -1 : 0;
 
   useEffect(() => {
     if (!open) return;
@@ -56,6 +62,49 @@ export function FMultiSelect({
 
   const toggle = (v: string) =>
     onChange(value.includes(v) ? value.filter(x => x !== v) : [...value, v]);
+
+  useEffect(() => {
+    if (!open) return;
+    listRef.current
+      ?.querySelector<HTMLElement>(`[data-index="${active}"]`)
+      ?.scrollIntoView({ block: "nearest" });
+  }, [active, open]);
+
+  // Matches FSelect, minus the close-on-choose: a multi-select must stay open
+  // while several things are picked.
+  const onKeyDown = (e: React.KeyboardEvent) => {
+    switch (e.key) {
+      case "ArrowDown":
+        e.preventDefault();
+        if (!open) { setOpen(true); setActive(firstIndex); break; }
+        setActive(a => Math.min(a + 1, options.length - 1));
+        break;
+      case "ArrowUp":
+        e.preventDefault();
+        if (!open) { setOpen(true); setActive(firstIndex); break; }
+        setActive(a => Math.max(a - 1, firstIndex));
+        break;
+      case "Home": if (open) { e.preventDefault(); setActive(firstIndex); } break;
+      case "End":  if (open) { e.preventDefault(); setActive(options.length - 1); } break;
+      case "Enter":
+      case " ":
+        e.preventDefault();
+        if (!open) { setOpen(true); setActive(firstIndex); break; }
+        if (active === -1) onChange([]);
+        else if (options[active]) toggle(options[active].value);
+        break;
+      case "Escape":
+        if (open) { e.preventDefault(); setOpen(false); }
+        break;
+      case "Backspace":
+        // Removes the last chip, the way a tag input behaves.
+        if (!open && value.length > 0) onChange(value.slice(0, -1));
+        break;
+      case "Tab":
+        setOpen(false);
+        break;
+    }
+  };
 
   const isAll = allowAll && value.length === 0;
   const chosen = options.filter(o => value.includes(o.value));
@@ -75,9 +124,13 @@ export function FMultiSelect({
         <button
           id={id}
           type="button"
+          role="combobox"
           aria-expanded={open}
           aria-haspopup="listbox"
+          aria-controls={open ? `${id}-listbox` : undefined}
+          aria-activedescendant={open ? `${id}-opt-${active}` : undefined}
           onClick={() => setOpen(o => !o)}
+          onKeyDown={onKeyDown}
           className={[
             "flex w-full items-center justify-between gap-2 rounded-xl border-2 bg-white px-3 py-2 text-left transition-all outline-none",
             open ? "border-brand-400" : "border-gray-100 hover:border-gray-200"
@@ -120,6 +173,8 @@ export function FMultiSelect({
 
         {open && (
           <div
+            ref={listRef}
+            id={`${id}-listbox`}
             role="listbox"
             aria-multiselectable="true"
             className="absolute z-[var(--z-popover)] mt-1.5 max-h-64 w-full overflow-y-auto rounded-2xl border border-gray-200 bg-white p-1 shadow-[0_20px_50px_-12px_rgba(15,23,42,0.3)]"
@@ -127,10 +182,13 @@ export function FMultiSelect({
             {allowAll && (
               <>
                 <div
+                  id={`${id}-opt--1`}
+                  data-index={-1}
                   role="option"
                   aria-selected={isAll}
+                  onMouseEnter={() => setActive(-1)}
                   onClick={() => onChange([])}
-                  className="flex cursor-pointer items-start gap-2 rounded-xl px-3 py-2.5 hover:bg-brand-50"
+                  className={`flex cursor-pointer items-start gap-2 rounded-xl px-3 py-2.5 ${active === -1 ? "bg-brand-50" : "hover:bg-brand-50"}`}
                 >
                   <span className="min-w-0 flex-1">
                     <span className={`block text-[12px] ${isAll ? "font-black text-gray-900" : "font-semibold text-gray-700"}`}>
@@ -152,15 +210,18 @@ export function FMultiSelect({
               </p>
             )}
 
-            {options.map(o => {
+            {options.map((o, i) => {
               const on = value.includes(o.value);
               return (
                 <div
                   key={o.value}
+                  id={`${id}-opt-${i}`}
+                  data-index={i}
                   role="option"
                   aria-selected={on}
+                  onMouseEnter={() => setActive(i)}
                   onClick={() => toggle(o.value)}
-                  className="flex cursor-pointer items-center gap-2.5 rounded-xl px-3 py-2.5 hover:bg-brand-50"
+                  className={`flex cursor-pointer items-center gap-2.5 rounded-xl px-3 py-2.5 ${i === active ? "bg-brand-50" : "hover:bg-brand-50"}`}
                 >
                   <span className={`flex h-4 w-4 shrink-0 items-center justify-center rounded border-2 transition-colors ${
                     on ? "border-brand-500 bg-brand-500 text-white" : "border-gray-300"

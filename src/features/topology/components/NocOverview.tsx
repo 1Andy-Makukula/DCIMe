@@ -1157,7 +1157,37 @@ export function NocOverview() {
                             still {linkedTicket.status}
                           </span>
                         )}
+                        {/* Whether the contractor actually signed for the work
+                            is the first thing worth knowing when a finding or
+                            an invoice is queried. */}
+                        {visit.contractor_signature ? (
+                          <span className="text-[9px] font-black uppercase tracking-wider text-ok-700 bg-ok-50 border border-ok-100 px-1.5 py-0.5 rounded">
+                            Signed
+                          </span>
+                        ) : (
+                          <span className="text-[9px] font-black uppercase tracking-wider text-gray-400 bg-gray-100 border border-gray-200 px-1.5 py-0.5 rounded">
+                            Unsigned
+                          </span>
+                        )}
                       </div>
+
+                      {visit.contractor_signature && (
+                        <div className="mt-2 flex items-end gap-2 rounded-lg border border-gray-200 bg-white px-2.5 py-1.5">
+                          <img
+                            src={visit.contractor_signature}
+                            alt={`${visit.contractor} signature`}
+                            className="max-h-8 w-auto max-w-[8rem] object-contain"
+                          />
+                          <div className="min-w-0 border-t border-gray-300 pt-0.5">
+                            <p className="font-mono text-[8px] uppercase tracking-widest text-gray-400">
+                              Signed by
+                            </p>
+                            <p className="truncate text-[9px] font-black text-gray-700">
+                              {visit.contractor_signed_name || visit.contractor}
+                            </p>
+                          </div>
+                        </div>
+                      )}
                     </div>
                   </div>
                 );

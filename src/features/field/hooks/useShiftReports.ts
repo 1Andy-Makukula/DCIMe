@@ -152,7 +152,7 @@ export function useShiftReports() {
 
       setError(
         missingColumn
-          ? "Signature columns are missing from the database. Apply supabase/migrations/20260827_signatures.sql, then retry."
+          ? "The database does not recognise the signature columns. Either supabase/migrations/20260827_signatures.sql has not been applied, or PostgREST is serving a stale schema cache — reload the schema and retry."
           : err.message || "Failed to submit shift handover."
       );
       throw err;

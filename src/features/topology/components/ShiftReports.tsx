@@ -514,11 +514,12 @@ export function ShiftReports() {
     if (!adminName) throw new Error("Cannot countersign without a signed-in identity.");
 
     const { data, error } = await (supabase.from as any)("shift_reports")
+      // Only the mark and when it was drawn. WHO signed is stamped by
+      // stamp_countersignature() from the JWT — a browser must not be able to
+      // choose the name that appears on a signed document.
       .update({
-        countersign_image:  sig.dataUrl,
-        countersigned_at:   sig.signedAt,
-        countersigned_by:   employee?.id ?? null,
-        countersigned_name: adminName
+        countersign_image: sig.dataUrl,
+        countersigned_at:  sig.signedAt
       })
       .eq("log_id", log.id)
       // Only ever the FIRST countersignature. Re-running this would overwrite
@@ -529,8 +530,11 @@ export function ShiftReports() {
     if (error) {
       console.error("[DCIMe] Countersign failed:", error);
       // PGRST204 means the columns are not on the remote yet.
+      // PGRST204 is "not in the schema cache", which covers BOTH a missing
+      // migration and a cache PostgREST has not reloaded since one ran. Naming
+      // only the first sends someone to re-run a migration they already applied.
       throw new Error(error.code === "PGRST204"
-        ? "Countersignature columns are missing. Apply supabase/migrations/20260829_countersignatures.sql."
+        ? "The database does not recognise the signature columns. Either supabase/migrations/20260829_countersignatures.sql has not been applied, or PostgREST is still serving a stale schema cache — reload the schema from the Supabase dashboard and retry."
         : error.message);
     }
     // No error and no rows means RLS filtered the row, or it was countersigned

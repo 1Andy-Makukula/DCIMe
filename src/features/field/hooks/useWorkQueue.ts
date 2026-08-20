@@ -168,7 +168,10 @@ export function useWorkQueue(): UseWorkQueueResult {
 
   return {
     items,
-    mine:    items.filter(i => i.assignee_id === myId),
+    // myId must be non-null before comparing: an unassigned job also has a
+    // null assignee_id, so a signed-in user with no employee record would see
+    // the entire unclaimed pool listed as their own work.
+    mine:    myId === null ? [] : items.filter(i => i.assignee_id === myId),
     offered: unclaimed.filter(i =>
       // null offered_to is a broadcast; an array names who may accept.
       i.offered_to === null || (myId !== null && i.offered_to.includes(myId))
