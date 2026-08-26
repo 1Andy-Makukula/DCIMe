@@ -32,10 +32,10 @@ export function ShiftTimeline({
     <div className="space-y-6">
       <div className="flex items-center justify-between px-1">
         <div>
-          <h2 className="text-xs font-black text-gray-400 uppercase tracking-widest">
+          <h2 className="text-xs font-black text-neutral-400 uppercase tracking-widest">
             24-Hour Shift Timeline
           </h2>
-          <p className="text-xs text-gray-500 mt-1">
+          <p className="text-xs text-neutral-500 mt-1">
             {isFutureDay
               ? "Future date — slots open once the day arrives."
               : isPastDay
@@ -44,7 +44,7 @@ export function ShiftTimeline({
           </p>
         </div>
         <div className="text-right">
-          <span className="text-[10px] font-bold bg-gray-100 text-gray-600 px-2.5 py-1 rounded-full font-mono uppercase tracking-wide">
+          <span className="text-[10px] font-bold bg-neutral-100 text-neutral-600 px-2.5 py-1 rounded-full font-mono uppercase tracking-wide">
             {isToday
               ? currentTime.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
               : headingDate}
@@ -90,8 +90,8 @@ export function ShiftTimeline({
               icon = <AlertTriangle size={14} className="text-danger-600" />;
               break;
             case "future":
-              btnClass = "bg-gray-50 border-gray-100 text-gray-400 cursor-not-allowed opacity-50";
-              icon = <Lock size={11} className="text-gray-300" />;
+              btnClass = "bg-neutral-50 border-neutral-100 text-neutral-400 cursor-not-allowed opacity-50";
+              icon = <Lock size={11} className="text-neutral-300" />;
               break;
           }
 

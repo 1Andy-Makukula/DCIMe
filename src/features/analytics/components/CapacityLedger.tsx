@@ -39,36 +39,36 @@ function Stat({ label, value, unit, hint }: {
   label: string; value: string; unit?: string; hint?: string;
 }) {
   return (
-    <div className="min-w-0 rounded-2xl border border-gray-200 bg-white p-4">
-      <p className="font-mono text-[10px] uppercase leading-snug tracking-[0.12em] text-gray-400">
+    <div className="min-w-0 rounded-2xl border border-neutral-200 bg-white p-4">
+      <p className="font-mono text-[10px] uppercase leading-snug tracking-[0.12em] text-neutral-400">
         {label}
       </p>
       {/* whitespace-nowrap keeps "12.4 kW" from breaking between the number
           and its unit, which reads as two separate figures. */}
-      <p className="mt-1 whitespace-nowrap text-[22px] font-black tabular-nums leading-none text-gray-900">
+      <p className="mt-1 whitespace-nowrap text-[22px] font-black tabular-nums leading-none text-neutral-900">
         {value}
-        {unit && <span className="ml-1 text-[12px] font-bold text-gray-400">{unit}</span>}
+        {unit && <span className="ml-1 text-[12px] font-bold text-neutral-400">{unit}</span>}
       </p>
-      {hint && <p className="mt-1.5 text-[10px] leading-snug text-gray-400">{hint}</p>}
+      {hint && <p className="mt-1.5 text-[10px] leading-snug text-neutral-400">{hint}</p>}
     </div>
   );
 }
 
 function RedundancyRow({ g }: { g: RedundancyGroup }) {
   return (
-    <tr className="border-b border-gray-100 last:border-0">
+    <tr className="border-b border-neutral-100 last:border-0">
       <td className="px-4 py-2.5">
         {/* break-words so a long equipment name wraps inside its column
             instead of forcing the table wider than the scroll container. */}
-        <p className="break-words text-[12px] font-bold leading-snug text-gray-900">{g.name}</p>
-        <p className="mt-0.5 font-mono text-[10px] uppercase tracking-wider text-gray-400">
+        <p className="break-words text-[12px] font-bold leading-snug text-neutral-900">{g.name}</p>
+        <p className="mt-0.5 font-mono text-[10px] uppercase tracking-wider text-neutral-400">
           {g.feeders} feeds · {g.policy}
         </p>
       </td>
-      <td className="whitespace-nowrap py-2.5 pr-3 text-right font-mono text-[12px] tabular-nums text-gray-700">
+      <td className="whitespace-nowrap py-2.5 pr-3 text-right font-mono text-[12px] tabular-nums text-neutral-700">
         {g.load_kw.toFixed(1)}
       </td>
-      <td className="whitespace-nowrap py-2.5 pr-3 text-right font-mono text-[12px] tabular-nums text-gray-700">
+      <td className="whitespace-nowrap py-2.5 pr-3 text-right font-mono text-[12px] tabular-nums text-neutral-700">
         {g.n_plus_1_kw.toFixed(1)}
       </td>
       <td className="whitespace-nowrap px-4 py-2.5 text-right">
@@ -92,7 +92,7 @@ export function CapacityLedger() {
 
   if (isLoading) {
     return (
-      <div className="flex min-h-[16rem] items-center justify-center text-gray-400">
+      <div className="flex min-h-[16rem] items-center justify-center text-neutral-400">
         <Loader2 size={18} className="mr-2 animate-spin" />
         <span className="text-[12px] font-bold uppercase tracking-wider">Analysing capacity…</span>
       </div>
@@ -103,10 +103,10 @@ export function CapacityLedger() {
     return (
       <div className="flex min-h-[16rem] flex-col items-center justify-center gap-3 p-6 text-center">
         <AlertTriangle size={22} className="text-danger-500" />
-        <p className="text-[13px] font-bold text-gray-800">Could not analyse capacity</p>
-        <p className="max-w-md text-[12px] text-gray-500">{error}</p>
+        <p className="text-[13px] font-bold text-neutral-800">Could not analyse capacity</p>
+        <p className="max-w-md text-[12px] text-neutral-500">{error}</p>
         <button onClick={refresh}
-          className="mt-1 flex items-center gap-2 rounded-lg border border-gray-300 px-3 py-1.5 text-[11px] font-bold uppercase tracking-wider text-gray-600 hover:bg-gray-50">
+          className="mt-1 flex items-center gap-2 rounded-lg border border-neutral-300 px-3 py-1.5 text-[11px] font-bold uppercase tracking-wider text-neutral-600 hover:bg-neutral-50">
           <RefreshCw size={13} /> Retry
         </button>
       </div>
@@ -116,9 +116,9 @@ export function CapacityLedger() {
   if (!summary || summary.redundancy.length === 0) {
     return (
       <div className="flex min-h-[16rem] flex-col items-center justify-center gap-3 p-6 text-center">
-        <Info size={22} className="text-gray-400" />
-        <p className="text-[13px] font-bold text-gray-800">No capacity model for this site</p>
-        <p className="max-w-md text-[12px] text-gray-500">
+        <Info size={22} className="text-neutral-400" />
+        <p className="text-[13px] font-bold text-neutral-800">No capacity model for this site</p>
+        <p className="max-w-md text-[12px] text-neutral-500">
           Capacity is derived from the power topology. Once equipment and its
           connections are recorded, headroom appears here.
         </p>
@@ -133,10 +133,10 @@ export function CapacityLedger() {
     <div className="flex flex-col gap-4">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h2 className="text-[14px] font-black uppercase tracking-wider text-gray-900">
+          <h2 className="text-[14px] font-black uppercase tracking-wider text-neutral-900">
             Capacity &amp; Redundancy
           </h2>
-          <p className="mt-0.5 font-mono text-[10px] uppercase tracking-[0.12em] text-gray-400">
+          <p className="mt-0.5 font-mono text-[10px] uppercase tracking-[0.12em] text-neutral-400">
             {siteLabel(currentSite?.site_name)} · derived from the power topology
           </p>
         </div>
@@ -165,12 +165,12 @@ export function CapacityLedger() {
           it a flex child refuses to go below its content width and the whole
           page scrolls sideways instead — the same trap that squeezed the asset
           ID column. */}
-      <section className="min-w-0 overflow-hidden rounded-2xl border border-gray-200 bg-white">
-        <div className="border-b border-gray-100 px-4 py-3">
-          <h3 className="text-[12px] font-black uppercase tracking-wider text-gray-900">
+      <section className="min-w-0 overflow-hidden rounded-2xl border border-neutral-200 bg-white">
+        <div className="border-b border-neutral-100 px-4 py-3">
+          <h3 className="text-[12px] font-black uppercase tracking-wider text-neutral-900">
             Redundant groups
           </h3>
-          <p className="mt-0.5 text-[10px] text-gray-400">
+          <p className="mt-0.5 text-[10px] text-neutral-400">
             Headroom remaining after the largest feeder in each group fails — the
             figure that governs whether equipment can be installed.
           </p>
@@ -178,11 +178,11 @@ export function CapacityLedger() {
         <div className="overflow-x-auto">
           <table className="w-full min-w-[34rem]">
             <thead>
-              <tr className="border-b border-gray-100">
-                <th className="px-4 py-2 text-left font-mono text-[10px] uppercase tracking-wider text-gray-400">Fed equipment</th>
-                <th className="py-2 pr-3 text-right font-mono text-[10px] uppercase tracking-wider text-gray-400">Load kW</th>
-                <th className="py-2 pr-3 text-right font-mono text-[10px] uppercase tracking-wider text-gray-400">N+1 kW</th>
-                <th className="px-4 py-2 text-right font-mono text-[10px] uppercase tracking-wider text-gray-400">Status</th>
+              <tr className="border-b border-neutral-100">
+                <th className="px-4 py-2 text-left font-mono text-[10px] uppercase tracking-wider text-neutral-400">Fed equipment</th>
+                <th className="py-2 pr-3 text-right font-mono text-[10px] uppercase tracking-wider text-neutral-400">Load kW</th>
+                <th className="py-2 pr-3 text-right font-mono text-[10px] uppercase tracking-wider text-neutral-400">N+1 kW</th>
+                <th className="px-4 py-2 text-right font-mono text-[10px] uppercase tracking-wider text-neutral-400">Status</th>
               </tr>
             </thead>
             <tbody>
@@ -216,7 +216,7 @@ export function CapacityLedger() {
 
       {/* Stated on screen, not buried in a doc: a number whose provenance is
           unclear is a number that fails under questioning. */}
-      <p className="text-[10px] leading-relaxed text-gray-400">
+      <p className="text-[10px] leading-relaxed text-neutral-400">
         Load is accumulated upstream through the recorded topology. Redundant
         feeds share load; changeovers carry it on their primary source alone.
         Cooling draw is estimated from thermal rating and coefficient of

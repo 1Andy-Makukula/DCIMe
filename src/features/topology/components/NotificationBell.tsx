@@ -9,7 +9,7 @@ const TONE_STYLES: Record<string, string> = {
   green: "bg-ok-50 text-ok-700 border-ok-100",
   amber: "bg-warn-50 text-warn-700 border-warn-100",
   blue:  "bg-info-50 text-info-700 border-info-100",
-  slate: "bg-slate-100 text-slate-600 border-slate-200",
+  slate: "bg-neutral-100 text-neutral-600 border-neutral-200",
 };
 
 /** Compact relative time — "now", "14m", "3h", "2d", then a date. */
@@ -65,7 +65,7 @@ export function NotificationBell() {
       <button
         type="button"
         onClick={() => setIsOpen((v) => !v)}
-        className="relative p-2 rounded-xl text-gray-400 hover:text-gray-700 hover:bg-gray-100 transition-all cursor-pointer"
+        className="relative p-2 rounded-xl text-neutral-400 hover:text-neutral-700 hover:bg-neutral-100 transition-all cursor-pointer"
         aria-label={unreadCount > 0 ? `Notifications, ${unreadCount} unread` : "Notifications"}
         aria-expanded={isOpen}
       >
@@ -78,11 +78,11 @@ export function NotificationBell() {
       </button>
 
       {isOpen && (
-        <div className="absolute right-0 mt-2 w-[min(92vw,22rem)] bg-white border border-gray-200 rounded-2xl shadow-xl z-[var(--z-popover)] overflow-hidden">
-          <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100">
+        <div className="absolute right-0 mt-2 w-[min(92vw,22rem)] bg-white border border-neutral-200 rounded-2xl shadow-xl z-[var(--z-popover)] overflow-hidden">
+          <div className="flex items-center justify-between px-4 py-3 border-b border-neutral-100">
             <div>
-              <p className="text-[11px] font-black text-gray-900 uppercase tracking-wider">Activity</p>
-              <p className="text-[10px] font-semibold text-gray-400">
+              <p className="text-[11px] font-black text-neutral-900 uppercase tracking-wider">Activity</p>
+              <p className="text-[10px] font-semibold text-neutral-400">
                 {unreadCount > 0 ? `${unreadCount} unread` : "All caught up"}
               </p>
             </div>
@@ -100,11 +100,11 @@ export function NotificationBell() {
 
           <div className="max-h-[26rem] overflow-y-auto">
             {isLoading && notifications.length === 0 ? (
-              <p className="px-4 py-8 text-center text-[11px] font-bold text-gray-400 uppercase tracking-wider">
+              <p className="px-4 py-8 text-center text-[11px] font-bold text-neutral-400 uppercase tracking-wider">
                 Loading activity…
               </p>
             ) : notifications.length === 0 ? (
-              <p className="px-4 py-8 text-center text-[11px] font-bold text-gray-400 uppercase tracking-wider">
+              <p className="px-4 py-8 text-center text-[11px] font-bold text-neutral-400 uppercase tracking-wider">
                 No recent activity
               </p>
             ) : (
@@ -116,7 +116,7 @@ export function NotificationBell() {
                     key={n.id}
                     type="button"
                     onClick={() => handleSelect(n)}
-                    className={`w-full text-left px-4 py-3 border-b border-gray-50 last:border-b-0 hover:bg-gray-50 transition-colors cursor-pointer flex gap-3 ${
+                    className={`w-full text-left px-4 py-3 border-b border-neutral-50 last:border-b-0 hover:bg-neutral-50 transition-colors cursor-pointer flex gap-3 ${
                       unread ? "bg-brand-50/20" : ""
                     }`}
                   >
@@ -129,12 +129,12 @@ export function NotificationBell() {
                     </span>
                     <span className="min-w-0 flex-1">
                       <span className="flex items-baseline justify-between gap-2">
-                        <span className="text-[11px] font-black text-gray-900 truncate">{n.title}</span>
-                        <span className="text-[9px] font-bold text-gray-400 font-mono shrink-0">
+                        <span className="text-[11px] font-black text-neutral-900 truncate">{n.title}</span>
+                        <span className="text-[9px] font-bold text-neutral-400 font-mono shrink-0">
                           {relativeTime(n.timestamp)}
                         </span>
                       </span>
-                      <span className="block text-[10px] font-semibold text-gray-500 truncate mt-0.5">
+                      <span className="block text-[10px] font-semibold text-neutral-500 truncate mt-0.5">
                         {n.detail}
                       </span>
                     </span>

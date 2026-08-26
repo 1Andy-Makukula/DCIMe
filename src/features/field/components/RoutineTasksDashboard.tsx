@@ -5,7 +5,8 @@ import { Save, CheckCircle2, Loader2, Zap, AlertTriangle, ArrowLeft, Plug, Clipb
 import { supabase } from '@/shared/api/supabaseClient';
 import { useAuth } from '@/shared/context/AuthContext';
 import { useCurrentSite } from '@/shared/context/SiteContext';
-import { SITE_BLUEPRINTS, DEFAULT_SITE_CODE } from '@/config/sites';
+import { DEFAULT_SITE_CODE } from '@/config/sites';
+import { useSiteModel } from '@/shared/api/siteModel';
 import { useTelemetryData } from '../hooks/useTelemetryData';
 import { useSiteEquipment } from '../hooks/useSiteEquipment';
 import { useTelemetryMutation } from '../hooks/useTelemetryMutation';
@@ -48,7 +49,12 @@ export const RoutineTasksDashboard = ({
   const { employee } = useAuth();
   const { currentSite } = useCurrentSite();
   const siteCode = currentSite?.site_code || DEFAULT_SITE_CODE;
-  const blueprint = SITE_BLUEPRINTS[siteCode] || SITE_BLUEPRINTS[DEFAULT_SITE_CODE];
+  // Rooms, equipment, readings and the walking round, from the registry rather
+  // than SITE_01_blueprint.json. Unlike the blueprint this arrives
+  // asynchronously, so registryLoaded below gates on it too — otherwise the
+  // first render computes an empty round and tells the technician there is
+  // nothing to do.
+  const { model, isLoading: isModelLoading, error: modelError } = useSiteModel();
 
   // Must match useTelemetryData's key exactly, or drafts written here are
   // invisible to the hook that reads them back.
@@ -134,7 +140,8 @@ export const RoutineTasksDashboard = ({
   // The registry is only authoritative once it has actually loaded. While it is
   // still fetching — or if the fetch failed, or no site is selected yet — every
   // asset is treated as active so a transient error can't blank the walk-through.
-  const registryLoaded = !isEquipmentLoading && !equipmentError && allEquipment.length > 0;
+  const registryLoaded = !isEquipmentLoading && !equipmentError && allEquipment.length > 0
+    && !isModelLoading && !modelError && model.equipment.length > 0;
 
   const handleDashboardSubmit = () => {
     // Validate comments for DEGRADED or OFFLINE
@@ -279,11 +286,11 @@ export const RoutineTasksDashboard = ({
   // validation can't demand readings for fields the tech is no longer shown.
   const decommissionedIds = useMemo(
     () => new Set<string>(
-      blueprint.equipment
+      model.equipment
         .filter((eq: any) => !isEquipmentActive(eq.id))
         .map((eq: any) => eq.id as string)
     ),
-    [blueprint, registryLoaded, allEquipment]
+    [model, registryLoaded, allEquipment]
   );
 
   // Mode transparency: count the readings the current facility mode suppresses.
@@ -301,7 +308,7 @@ export const RoutineTasksDashboard = ({
     };
 
     let count = 0;
-    blueprint.equipment.forEach((equip: any) => {
+    model.equipment.forEach((equip: any) => {
       if (!isEquipmentActive(equip.id)) return;
       // grid_status is suppressed in every mode, so it isn't a mode difference.
       const eligible = (equip.metrics || []).filter(
@@ -328,22 +335,24 @@ export const RoutineTasksDashboard = ({
     }
 
     return { count, reason };
-  }, [blueprint, fsmMode, activeGenerators, targetHour, registryLoaded, allEquipment]);
+  }, [model, fsmMode, activeGenerators, targetHour, registryLoaded, allEquipment]);
 
   // Compile the list of walking path steps that are visible based on active assets & metric schedules
   const visibleSteps = useMemo(() => {
-    return blueprint.walking_path.filter((step: any) => {
-      // Always show the Generator Fleet & Fuel step so tests can be started/managed from it
-      if (step.room_id === "room_fuel") return true;
+    return model.walking_path.filter((step: any) => {
+      // Always show the Generator Fleet & Fuel step so tests can be started and
+      // managed from it. Flagged on the step itself now — this used to compare
+      // against the literal slug "room_fuel", which the registry does not use.
+      if (step.always_visible) return true;
 
       return step.equipment_ids.some((eqId: string) => {
         if (!isEquipmentActive(eqId)) return false;
-        const equipBp = blueprint.equipment.find((e: any) => e.id === eqId);
+        const equipBp = model.equipment.find((e: any) => e.id === eqId);
         if (!equipBp) return false;
         return getVisibleMetrics(eqId, equipBp.metrics).length > 0;
       });
     });
-  }, [blueprint, activeGenerators, targetHour, allEquipment, fsmMode]);
+  }, [model, activeGenerators, targetHour, allEquipment, fsmMode]);
 
   useEffect(() => {
     if (currentStepIndex >= visibleSteps.length && visibleSteps.length > 0) {
@@ -693,9 +702,9 @@ export const RoutineTasksDashboard = ({
 
   if (isLoading) {
     return (
-      <div className="flex flex-col items-center justify-center min-h-[50vh] gap-3 text-gray-400">
+      <div className="flex flex-col items-center justify-center min-h-[50vh] gap-3 text-neutral-400">
         <Loader2 size={32} className="text-brand-500 animate-spin" />
-        <p className="text-xs font-bold uppercase tracking-widest text-gray-400">Loading slot data…</p>
+        <p className="text-xs font-bold uppercase tracking-widest text-neutral-400">Loading slot data…</p>
       </div>
     );
   }
@@ -707,13 +716,13 @@ export const RoutineTasksDashboard = ({
     <div className="max-w-md mx-auto space-y-6 pb-24">
       {/* Sticky Audit Banner */}
       <div className={`sticky top-0 z-[var(--z-header)] backdrop-blur-md text-white border px-4 py-2.5 rounded-2xl shadow-lg flex items-center justify-between text-[11px] font-black uppercase tracking-wider ${
-        isBackdating ? 'bg-warn-900/90 border-warn-700' : 'bg-slate-900/90 border-slate-800'
+        isBackdating ? 'bg-warn-900/90 border-warn-700' : 'bg-neutral-900/90 border-neutral-800'
       }`}>
         <span>
           {isBackdating ? 'Backdated Log: ' : 'Logging for Shift: '}
           {targetHour}
         </span>
-        <span className={`font-mono ${isBackdating ? 'text-warn-200' : 'text-gray-400'}`}>
+        <span className={`font-mono ${isBackdating ? 'text-warn-200' : 'text-neutral-400'}`}>
           {isBackdating
             ? slotDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
             : `Actual: ${currentTime.toLocaleTimeString('en-US', { hour12: false })}`}
@@ -739,7 +748,7 @@ export const RoutineTasksDashboard = ({
           <button
             type="button"
             onClick={handleBack}
-            className="inline-flex items-center gap-2 py-3 px-4 rounded-xl bg-white border border-gray-200 text-xs font-bold text-gray-600 hover:text-brand-600 active:scale-[0.98] transition-all cursor-pointer shadow-sm"
+            className="inline-flex items-center gap-2 py-3 px-4 rounded-xl bg-white border border-neutral-200 text-xs font-bold text-neutral-600 hover:text-brand-600 active:scale-[0.98] transition-all cursor-pointer shadow-sm"
           >
             <ArrowLeft size={14} />
             <span>← Back</span>
@@ -748,11 +757,11 @@ export const RoutineTasksDashboard = ({
       )}
 
       {/* Header */}
-      <div className="backdrop-blur-md bg-white/75 border border-gray-200/50 rounded-3xl p-5 shadow-sm">
-        <h1 className="text-xl font-black text-gray-900 tracking-tight">
+      <div className="backdrop-blur-md bg-white/75 border border-neutral-200/50 rounded-3xl p-5 shadow-sm">
+        <h1 className="text-xl font-black text-neutral-900 tracking-tight">
           Log for {targetHour}
         </h1>
-        <p className="text-xs text-gray-500 mt-1.5 flex flex-wrap gap-2 items-center">
+        <p className="text-xs text-neutral-500 mt-1.5 flex flex-wrap gap-2 items-center">
           <span className="font-semibold text-brand-600 bg-brand-50 px-2.5 py-0.5 rounded-full border border-brand-100">
             {activeChecksLabel(isTwoHour, isFourHour, isDaily)}
           </span>
@@ -775,19 +784,19 @@ export const RoutineTasksDashboard = ({
       </div>
 
       {/* Facility State Machine (FSM) Mode Selector */}
-      <div className="backdrop-blur-md bg-white/75 border border-gray-200/50 rounded-3xl p-5 shadow-sm space-y-4">
+      <div className="backdrop-blur-md bg-white/75 border border-neutral-200/50 rounded-3xl p-5 shadow-sm space-y-4">
         <div>
-          <span className="text-xs font-black text-gray-700 uppercase tracking-wider block">Facility Operating Mode</span>
-          <span className="text-[10px] text-gray-400 font-semibold mt-0.5 block">Select active state of site grids and generators</span>
+          <span className="text-xs font-black text-neutral-700 uppercase tracking-wider block">Facility Operating Mode</span>
+          <span className="text-[10px] text-neutral-400 font-semibold mt-0.5 block">Select active state of site grids and generators</span>
         </div>
 
-        <div className="grid grid-cols-4 gap-2 bg-slate-100 rounded-2xl p-1 border border-slate-200/50">
+        <div className="grid grid-cols-4 gap-2 bg-neutral-100 rounded-2xl p-1 border border-neutral-200/50">
           <button
             type="button"
             onClick={() => setFsmMode('NORMAL')}
             className={`py-2.5 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all cursor-pointer flex flex-col items-center justify-center gap-1 text-center ${fsmMode === 'NORMAL'
-                ? "bg-white text-ok-600 shadow-sm border border-slate-200/30"
-                : "text-slate-500 hover:text-slate-700"
+                ? "bg-white text-ok-600 shadow-sm border border-neutral-200/30"
+                : "text-neutral-500 hover:text-neutral-700"
               }`}
           >
             <Plug size={14} />
@@ -801,8 +810,8 @@ export const RoutineTasksDashboard = ({
             className={`py-2.5 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all cursor-pointer flex flex-col items-center justify-center gap-1 text-center ${fsmMode === 'DAILY_TEST'
                 ? "bg-warn-500 text-white shadow-sm"
                 : isDailyTestDoneToday
-                  ? "opacity-50 cursor-not-allowed text-slate-400"
-                  : "text-slate-500 hover:text-slate-700"
+                  ? "opacity-50 cursor-not-allowed text-neutral-400"
+                  : "text-neutral-500 hover:text-neutral-700"
               }`}
           >
             <Zap size={14} />
@@ -814,7 +823,7 @@ export const RoutineTasksDashboard = ({
             onClick={() => setFsmMode('ON_LOAD_TEST')}
             className={`py-2.5 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all cursor-pointer flex flex-col items-center justify-center gap-1 text-center ${fsmMode === 'ON_LOAD_TEST'
                 ? "bg-warn-600 text-white shadow-sm"
-                : "text-slate-500 hover:text-slate-700"
+                : "text-neutral-500 hover:text-neutral-700"
               }`}
           >
             <Zap size={14} />
@@ -826,7 +835,7 @@ export const RoutineTasksDashboard = ({
             onClick={() => setFsmMode('OUTAGE')}
             className={`py-2.5 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all cursor-pointer flex flex-col items-center justify-center gap-1 text-center ${fsmMode === 'OUTAGE'
                 ? "bg-danger-500 text-white shadow-sm"
-                : "text-slate-500 hover:text-slate-700"
+                : "text-neutral-500 hover:text-neutral-700"
               }`}
           >
             <AlertTriangle size={14} />
@@ -857,7 +866,7 @@ export const RoutineTasksDashboard = ({
               type="checkbox"
               checked={formData['daily_dg_test_completed'] === true}
               onChange={(e) => handleInputChange('daily_dg_test_completed', e.target.checked)}
-              className="w-4 h-4 rounded text-warn-600 focus:ring-warn-500 border-gray-300 cursor-pointer"
+              className="w-4 h-4 rounded text-warn-600 focus:ring-warn-500 border-neutral-300 cursor-pointer"
             />
             <label htmlFor="mark_daily_completed" className="text-[10px] font-black text-warn-950 uppercase tracking-wider cursor-pointer">
               Mark Daily DG No-Load Test Completed
@@ -867,8 +876,8 @@ export const RoutineTasksDashboard = ({
 
         {/* Generator fleet toggle */}
         {(fsmMode === 'DAILY_TEST' || fsmMode === 'OUTAGE' || fsmMode === 'ON_LOAD_TEST') && (
-          <div className="space-y-2 border-t border-slate-100 pt-3 animate-fade-in">
-            <label className="block text-[9px] font-black text-slate-400 uppercase tracking-wider">
+          <div className="space-y-2 border-t border-neutral-100 pt-3 animate-fade-in">
+            <label className="block text-[9px] font-black text-neutral-400 uppercase tracking-wider">
               Active Generator Fleet (Tap to toggle)
             </label>
             <div className="flex flex-wrap gap-2">
@@ -881,8 +890,8 @@ export const RoutineTasksDashboard = ({
                     type="button"
                     onClick={() => toggleGenerator(dgId)}
                     className={`px-3 py-2 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all cursor-pointer border ${isActive
-                        ? "bg-slate-900 text-white border-slate-950 shadow-sm"
-                        : "bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100"
+                        ? "bg-neutral-900 text-white border-neutral-950 shadow-sm"
+                        : "bg-neutral-50 text-neutral-600 border-neutral-200 hover:bg-neutral-100"
                       }`}
                   >
                     {label}
@@ -896,13 +905,13 @@ export const RoutineTasksDashboard = ({
         {/* Mode transparency banner — explains the shorter form instead of
             leaving the technician to guess whether readings went missing. */}
         {hiddenByMode.count > 0 && (
-          <div className="bg-slate-50 border border-slate-200/70 rounded-2xl p-3 flex items-start gap-2.5 animate-fade-in">
-            <EyeOff size={13} className="text-slate-400 shrink-0 mt-0.5" />
+          <div className="bg-neutral-50 border border-neutral-200/70 rounded-2xl p-3 flex items-start gap-2.5 animate-fade-in">
+            <EyeOff size={13} className="text-neutral-400 shrink-0 mt-0.5" />
             <div className="text-[10px] leading-relaxed">
-              <span className="font-black text-slate-800 uppercase tracking-wider">
+              <span className="font-black text-neutral-800 uppercase tracking-wider">
                 {hiddenByMode.count} reading{hiddenByMode.count === 1 ? '' : 's'} hidden in this mode
               </span>
-              <span className="block font-semibold text-slate-500 mt-0.5">
+              <span className="block font-semibold text-neutral-500 mt-0.5">
                 {hiddenByMode.reason} Nothing has been lost — switch mode to log them.
               </span>
             </div>
@@ -912,11 +921,11 @@ export const RoutineTasksDashboard = ({
 
       {/* Progress Indicator */}
       {visibleSteps.length > 0 && currentStep && (
-        <div className="mx-1 bg-white border border-gray-100 rounded-2xl px-4 py-3 flex items-center justify-between shadow-sm animate-fade-in">
-          <span className="text-[11px] font-black text-slate-500 uppercase tracking-widest">
+        <div className="mx-1 bg-white border border-neutral-100 rounded-2xl px-4 py-3 flex items-center justify-between shadow-sm animate-fade-in">
+          <span className="text-[11px] font-black text-neutral-500 uppercase tracking-widest">
             Step {currentStepIndex + 1} of {visibleSteps.length}
           </span>
-          <span className="text-xs font-black text-gray-800 uppercase tracking-wider bg-slate-100 px-3 py-1 rounded-xl border border-slate-200">
+          <span className="text-xs font-black text-neutral-800 uppercase tracking-wider bg-neutral-100 px-3 py-1 rounded-xl border border-neutral-200">
             {currentStep.name}
           </span>
         </div>
@@ -925,14 +934,23 @@ export const RoutineTasksDashboard = ({
       {/* Focus Mode Room Pagination (Wizard UI) */}
       <div className="flex-1 overflow-y-auto p-4 pb-52">
         {visibleSteps.length === 0 ? (
-          <div className="text-center py-12 bg-white rounded-3xl border border-gray-100 shadow-sm animate-fade-in">
-            <p className="text-sm font-bold text-gray-400 uppercase tracking-wider">No active parameters for this hour.</p>
+          <div className="text-center py-12 bg-white rounded-3xl border border-neutral-100 shadow-sm animate-fade-in">
+            {/* An empty round and a round that has not arrived yet look
+                identical on screen, and telling a technician there is nothing
+                to do when the site is still loading is the worse of the two. */}
+            <p className="text-sm font-bold text-neutral-400 uppercase tracking-wider">
+              {isModelLoading || isEquipmentLoading
+                ? "Loading this site's round…"
+                : modelError || equipmentError
+                  ? "Could not load this site's equipment."
+                  : "No active parameters for this hour."}
+            </p>
           </div>
         ) : (
           <PathRenderer
             targetHour={targetHour}
             currentStep={currentStep}
-            blueprint={blueprint}
+            blueprint={model}
             formData={formData}
             allEquipment={allEquipment}
             fsmMode={fsmMode}
@@ -957,13 +975,13 @@ export const RoutineTasksDashboard = ({
       )}
 
       {/* Sticky Submit / Pagination Footer */}
-      <div className="fixed bottom-16 left-0 w-full p-4 bg-slate-50 border-t border-slate-200 z-[var(--z-appnav)] shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.1)]">
+      <div className="fixed bottom-16 left-0 w-full p-4 bg-neutral-50 border-t border-neutral-200 z-[var(--z-appnav)] shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.1)]">
         <div className="max-w-md mx-auto flex items-center gap-3">
           {currentStepIndex > 0 && (
             <button
               type="button"
               onClick={() => setCurrentStepIndex((prev) => prev - 1)}
-              className="flex-1 py-3.5 rounded-2xl bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 font-black text-xs tracking-widest uppercase transition-all shadow-sm cursor-pointer text-center"
+              className="flex-1 py-3.5 rounded-2xl bg-white border border-neutral-200 text-neutral-700 hover:bg-neutral-50 font-black text-xs tracking-widest uppercase transition-all shadow-sm cursor-pointer text-center"
             >
               ← Prev Step
             </button>
@@ -973,7 +991,7 @@ export const RoutineTasksDashboard = ({
             <button
               type="button"
               onClick={() => setCurrentStepIndex((prev) => prev + 1)}
-              className="flex-1 py-3.5 rounded-2xl bg-slate-900 hover:bg-slate-800 text-white font-black text-xs tracking-widest uppercase transition-all shadow-md cursor-pointer text-center"
+              className="flex-1 py-3.5 rounded-2xl bg-neutral-900 hover:bg-neutral-800 text-white font-black text-xs tracking-widest uppercase transition-all shadow-md cursor-pointer text-center"
             >
               Next Step →
             </button>
@@ -982,7 +1000,7 @@ export const RoutineTasksDashboard = ({
               onClick={handleDashboardSubmit}
               disabled={isSubmitting || isSuccess}
               className={`flex-1 py-3.5 rounded-2xl text-white font-black text-xs tracking-widest uppercase transition-all shadow-lg flex items-center justify-center gap-2 ${isSubmitting
-                  ? "bg-gray-400 shadow-none cursor-not-allowed text-gray-100"
+                  ? "bg-neutral-400 shadow-none cursor-not-allowed text-neutral-100"
                   : isSuccess
                     ? "bg-ok-600 shadow-ok-600/10 active:scale-[0.98]"
                     : (fsmMode === 'OUTAGE' || fsmMode === 'ON_LOAD_TEST')

@@ -19,7 +19,7 @@ export function TopologyBG() {
           key={i}
           x1={`${nodes[a].x}%`} y1={`${nodes[a].y}%`}
           x2={`${nodes[b].x}%`} y2={`${nodes[b].y}%`}
-          stroke="#19C853" strokeWidth="0.35" strokeOpacity="0.4"
+          stroke="var(--color-ok-500)" strokeWidth="0.35" strokeOpacity="0.4"
         />
       ))}
       {nodes.map((n, i) => (
@@ -27,7 +27,7 @@ export function TopologyBG() {
           key={i}
           cx={`${n.x}%`} cy={`${n.y}%`}
           r={i % 4 === 0 ? "1.2" : "0.8"}
-          fill="#19C853"
+          fill="var(--color-ok-500)"
           opacity={i % 3 === 0 ? "0.9" : "0.5"}
         />
       ))}

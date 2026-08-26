@@ -21,6 +21,8 @@
      warn-*     degraded, due, ageing, needs attention but not yet failed
      ok-*       healthy, verified, resolved, nominal
      info-*     neutral annotation — notes, metadata, non-urgent status
+     neutral-*  everything with no meaning at all: body text, rules, borders,
+                surfaces, chart axes and grid lines
 
    Brand and danger MUST stay visually distinct. If the brand ever moves to a
    red hue, shift danger toward crimson rather than letting them converge.
@@ -101,6 +103,28 @@
      Categorical only — series 1..8 mean "a different line", never "worse".
      Charts that encode STATUS must use danger/warn/ok instead.
      Series 1 is the brand so single-series charts look like the product.  */
+  /* ── NEUTRAL ──────────────────────────────────────────────────────────────
+     The rule at the top of this file forbids raw palette classes, but there
+     was no neutral to point at — so 1,974 usages sat on Tailwind `gray` and
+     471 on `slate`, two ramps that differ enough to see side by side.
+
+     Values are Tailwind's `gray`, the ramp four-fifths of the application was
+     already using, so unifying leaves the majority pixel-identical and moves
+     the rest by a small drop in chroma (gray 0.022 against slate 0.040 at 400).
+     Charts read the same names through theme/palette.ts, so an axis and a
+     border cannot drift apart again. */
+  --color-neutral-50:  oklch(98.5% 0.002 247.839);
+  --color-neutral-100: oklch(96.7% 0.003 264.542);
+  --color-neutral-200: oklch(92.8% 0.006 264.531);
+  --color-neutral-300: oklch(87.2% 0.01  258.338);
+  --color-neutral-400: oklch(70.7% 0.022 261.325);
+  --color-neutral-500: oklch(55.1% 0.027 264.364);
+  --color-neutral-600: oklch(44.6% 0.03  256.802);
+  --color-neutral-700: oklch(37.3% 0.034 259.733);
+  --color-neutral-800: oklch(27.8% 0.033 256.848);
+  --color-neutral-900: oklch(21%   0.034 264.665);
+  --color-neutral-950: oklch(13%   0.028 261.692);
+
   --color-series-1: var(--color-brand-500);
   --color-series-2: #3B82F6;
   --color-series-3: #10B981;

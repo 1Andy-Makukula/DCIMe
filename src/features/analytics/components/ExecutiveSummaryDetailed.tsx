@@ -30,7 +30,7 @@ const VERDICT_META: Record<Verdict, { label: string; cls: string; dot: string; I
   HEALTHY:  { label: "Healthy",  cls: "text-ok-700 bg-ok-50 border-ok-100", dot: "bg-ok-500", Icon: ShieldCheck },
   WATCH:    { label: "Watch",    cls: "text-warn-700 bg-warn-50 border-warn-100",       dot: "bg-warn-500",   Icon: AlertTriangle },
   CRITICAL: { label: "Critical", cls: "text-danger-700 bg-danger-50 border-danger-100",             dot: "bg-danger-500",     Icon: AlertOctagon },
-  NO_DATA:  { label: "No Data",  cls: "text-gray-400 bg-gray-50 border-gray-200",           dot: "bg-gray-300",    Icon: HelpCircle },
+  NO_DATA:  { label: "No Data",  cls: "text-neutral-400 bg-neutral-50 border-neutral-200",           dot: "bg-neutral-300",    Icon: HelpCircle },
 };
 
 const PERIOD_ORDER: PeriodKey[] = ["today", "yesterday", "week", "month"];
@@ -51,14 +51,14 @@ function Pill({ verdict }: { verdict: Verdict }) {
  *  long tables used to get sliced at the page boundary instead of starting
  *  fresh on the next page. */
 function ReportPage({ children }: { children: React.ReactNode }) {
-  return <section className="report-page bg-white border border-gray-100 rounded-3xl shadow-sm p-8 space-y-5">{children}</section>;
+  return <section className="report-page bg-white border border-neutral-100 rounded-3xl shadow-sm p-8 space-y-5">{children}</section>;
 }
 
 function SectionHeading({ eyebrow, title }: { eyebrow: string; title: string }) {
   return (
-    <div className="border-b-2 border-gray-900 pb-3 mb-1">
-      <span className="text-[10px] font-black uppercase tracking-widest text-gray-400">{eyebrow}</span>
-      <h3 className="text-xl font-black text-gray-900 tracking-tight mt-0.5">{title}</h3>
+    <div className="border-b-2 border-neutral-900 pb-3 mb-1">
+      <span className="text-[10px] font-black uppercase tracking-widest text-neutral-400">{eyebrow}</span>
+      <h3 className="text-xl font-black text-neutral-900 tracking-tight mt-0.5">{title}</h3>
     </div>
   );
 }
@@ -71,16 +71,16 @@ function GeneratorTable({ rows }: { rows: GeneratorLedgerRow[] }) {
   return (
     <table className="w-full text-xs">
       <thead>
-        <tr className="border-b-2 border-gray-900">
+        <tr className="border-b-2 border-neutral-900">
           {["Unit", "Run Hrs", "Battery", "Oil Pressure", "Water Temp", "Status"].map((h) => (
-            <th key={h} className="text-left font-black uppercase tracking-widest text-[9px] text-gray-400 pb-2 pr-3">{h}</th>
+            <th key={h} className="text-left font-black uppercase tracking-widest text-[9px] text-neutral-400 pb-2 pr-3">{h}</th>
           ))}
         </tr>
       </thead>
       <tbody>
         {rows.map((r) => (
-          <tr key={r.unit} className="border-b border-gray-100">
-            <td className="py-2 pr-3 font-bold text-gray-900">{r.unit}</td>
+          <tr key={r.unit} className="border-b border-neutral-100">
+            <td className="py-2 pr-3 font-bold text-neutral-900">{r.unit}</td>
             <td className="py-2 pr-3 font-mono">{fmt(r.runHours, 1, " h")}</td>
             <td className="py-2 pr-3 font-mono">{fmt(r.batteryVoltage, 1, " V")}</td>
             <td className="py-2 pr-3 font-mono">{fmt(r.oilPressure, 1, " Bar")}</td>
@@ -97,16 +97,16 @@ function UpsTable({ rows }: { rows: UpsLedgerRow[] }) {
   return (
     <table className="w-full text-xs">
       <thead>
-        <tr className="border-b-2 border-gray-900">
+        <tr className="border-b-2 border-neutral-900">
           {["Unit", "Capacity", "Battery", "Rectifier", "Phase A/B/C (A)", "Status"].map((h) => (
-            <th key={h} className="text-left font-black uppercase tracking-widest text-[9px] text-gray-400 pb-2 pr-3">{h}</th>
+            <th key={h} className="text-left font-black uppercase tracking-widest text-[9px] text-neutral-400 pb-2 pr-3">{h}</th>
           ))}
         </tr>
       </thead>
       <tbody>
         {rows.map((r) => (
-          <tr key={r.unit} className="border-b border-gray-100">
-            <td className="py-2 pr-3 font-bold text-gray-900">{r.unit}</td>
+          <tr key={r.unit} className="border-b border-neutral-100">
+            <td className="py-2 pr-3 font-bold text-neutral-900">{r.unit}</td>
             <td className="py-2 pr-3 font-mono">{fmt(r.capacityPct, 0, "%")}</td>
             <td className="py-2 pr-3 font-mono">{fmt(r.batteryPct, 0, "%")}</td>
             <td className="py-2 pr-3 font-mono">{fmt(r.rectifierVoltage, 1, " V")}</td>
@@ -138,21 +138,21 @@ function ZoneGrid({ zones }: { zones: ZoneLedgerRow[] }) {
 
 function IncidentTable({ rows }: { rows: IncidentLedgerRow[] }) {
   if (rows.length === 0) {
-    return <p className="text-xs font-semibold text-gray-400 py-4">No incidents logged today.</p>;
+    return <p className="text-xs font-semibold text-neutral-400 py-4">No incidents logged today.</p>;
   }
   return (
     <table className="w-full text-xs">
       <thead>
-        <tr className="border-b-2 border-gray-900">
+        <tr className="border-b-2 border-neutral-900">
           {["Ticket", "Asset", "Severity", "Status"].map((h) => (
-            <th key={h} className="text-left font-black uppercase tracking-widest text-[9px] text-gray-400 pb-2 pr-3">{h}</th>
+            <th key={h} className="text-left font-black uppercase tracking-widest text-[9px] text-neutral-400 pb-2 pr-3">{h}</th>
           ))}
         </tr>
       </thead>
       <tbody>
         {rows.map((r) => (
-          <tr key={r.ticketNumber} className="border-b border-gray-100 align-top">
-            <td className="py-2 pr-3 font-mono font-bold text-gray-900 whitespace-nowrap">{r.ticketNumber}</td>
+          <tr key={r.ticketNumber} className="border-b border-neutral-100 align-top">
+            <td className="py-2 pr-3 font-mono font-bold text-neutral-900 whitespace-nowrap">{r.ticketNumber}</td>
             <td className="py-2 pr-3">{r.assetId.toUpperCase().replace(/_/g, " ")}</td>
             <td className="py-2 pr-3 capitalize">{r.severity}</td>
             <td className="py-2">
@@ -161,7 +161,7 @@ function IncidentTable({ rows }: { rows: IncidentLedgerRow[] }) {
               </span>
               {/* Real text already recorded by a human, never generated. */}
               {(r.resolutionDetails || r.notes) && (
-                <p className="text-[11px] text-gray-500 font-medium mt-1 max-w-md">{r.resolutionDetails || r.notes}</p>
+                <p className="text-[11px] text-neutral-500 font-medium mt-1 max-w-md">{r.resolutionDetails || r.notes}</p>
               )}
             </td>
           </tr>
@@ -178,20 +178,20 @@ function CompareTable({ periods, rows }: {
   return (
     <table className="w-full text-xs">
       <thead>
-        <tr className="border-b-2 border-gray-900">
-          <th className="text-left font-black uppercase tracking-widest text-[9px] text-gray-400 pb-2">Metric</th>
+        <tr className="border-b-2 border-neutral-900">
+          <th className="text-left font-black uppercase tracking-widest text-[9px] text-neutral-400 pb-2">Metric</th>
           {PERIOD_ORDER.map((k) => (
-            <th key={k} className="text-center font-black uppercase tracking-widest text-[9px] text-gray-400 pb-2 px-2">{periods[k].label}</th>
+            <th key={k} className="text-center font-black uppercase tracking-widest text-[9px] text-neutral-400 pb-2 px-2">{periods[k].label}</th>
           ))}
         </tr>
       </thead>
       <tbody>
         {rows.map((row) => (
-          <tr key={row.label} className="border-b border-gray-100">
-            <td className="py-2 font-bold text-gray-700">{row.label}</td>
+          <tr key={row.label} className="border-b border-neutral-100">
+            <td className="py-2 font-bold text-neutral-700">{row.label}</td>
             {PERIOD_ORDER.map((k) => {
               const v = row.pick(periods[k]);
-              return <td key={k} className="py-2 px-2 text-center font-mono font-black text-gray-900">{fmt(v, row.decimals ?? 1, row.unit)}</td>;
+              return <td key={k} className="py-2 px-2 text-center font-mono font-black text-neutral-900">{fmt(v, row.decimals ?? 1, row.unit)}</td>;
             })}
           </tr>
         ))}
@@ -227,7 +227,7 @@ function NoteComposer({ onSubmit }: { onSubmit: (type: CommentaryType, body: str
   };
 
   return (
-    <div className="print:hidden rounded-2xl border border-gray-200 bg-gray-50/60 p-4 space-y-3">
+    <div className="print:hidden rounded-2xl border border-neutral-200 bg-neutral-50/60 p-4 space-y-3">
       <div className="flex gap-1.5">
         {(["COMMENTARY", "ONGOING"] as CommentaryType[]).map((t) => (
           <button
@@ -235,7 +235,7 @@ function NoteComposer({ onSubmit }: { onSubmit: (type: CommentaryType, body: str
             type="button"
             onClick={() => setType(t)}
             className={`px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all cursor-pointer ${
-              type === t ? "bg-slate-900 text-white" : "bg-white border border-gray-200 text-gray-500"
+              type === t ? "bg-neutral-900 text-white" : "bg-white border border-neutral-200 text-neutral-500"
             }`}
           >
             {t === "COMMENTARY" ? "Commentary" : "Ongoing Item"}
@@ -249,13 +249,13 @@ function NoteComposer({ onSubmit }: { onSubmit: (type: CommentaryType, body: str
         placeholder={type === "COMMENTARY"
           ? "What's really going on today, in your own words…"
           : "An ongoing item to keep visible until it's resolved…"}
-        className="w-full p-3 rounded-xl bg-white border border-gray-200 text-sm font-medium text-gray-800 placeholder-gray-400 focus:outline-none focus:border-slate-800 resize-none"
+        className="w-full p-3 rounded-xl bg-white border border-neutral-200 text-sm font-medium text-neutral-800 placeholder-neutral-400 focus:outline-none focus:border-neutral-800 resize-none"
       />
       <button
         type="button"
         onClick={handleSubmit}
         disabled={isSubmitting || !body.trim()}
-        className="flex items-center gap-1.5 h-8 px-3.5 rounded-lg bg-slate-900 text-white text-[10px] font-black uppercase tracking-wider disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
+        className="flex items-center gap-1.5 h-8 px-3.5 rounded-lg bg-neutral-900 text-white text-[10px] font-black uppercase tracking-wider disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
       >
         <Plus size={12} />
         {isSubmitting ? "Saving…" : "Add Note"}
@@ -268,29 +268,29 @@ export function ExecutiveSummaryDetailed() {
   const { currentSite } = useCurrentSite();
   const { isLoading, error, periods, todayDetail, sectors } = useExecutiveSummary();
   const { commentary, ongoing, addNote, resolveOngoing } = useSiteCommentary();
-  const todayLabel = new Date().toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" });
-
-  // The signature belongs to ONE edition of this report. Local date, not UTC:
-  // the period must match the day the report is labelled with on screen.
-  const periodKey = (() => {
-    const d = new Date();
-    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-  })();
+  // ONE timestamp for both the heading and the signature's period. Reading the
+  // clock twice lets them disagree across midnight — the page would say one day
+  // while the signature was filed against another.
+  const [reportAt] = useState(() => new Date());
+  const todayLabel = reportAt.toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" });
+  // Local date, not UTC: the period must match the day printed on the page.
+  const periodKey =
+    `${reportAt.getFullYear()}-${String(reportAt.getMonth() + 1).padStart(2, "0")}-${String(reportAt.getDate()).padStart(2, "0")}`;
   const { signoff, sign } = useReportSignoff("EXEC_SUMMARY", periodKey);
   const [signingRole, setSigningRole] = useState<SignoffRole | null>(null);
   const [signError, setSignError] = useState<string | null>(null);
 
   if (isLoading) {
     return (
-      <div className="p-6 space-y-5 bg-slate-50/50 min-h-screen">
-        {[1, 2, 3].map((i) => <Skeleton key={i} className="h-64 w-full bg-slate-200 rounded-3xl" />)}
+      <div className="p-6 space-y-5 bg-neutral-50/50 min-h-screen">
+        {[1, 2, 3].map((i) => <Skeleton key={i} className="h-64 w-full bg-neutral-200 rounded-3xl" />)}
       </div>
     );
   }
 
   if (error || !periods || !todayDetail || !sectors) {
     return (
-      <div className="p-6 bg-slate-50/50 min-h-screen">
+      <div className="p-6 bg-neutral-50/50 min-h-screen">
         <div className="bg-danger-50 border border-danger-100 text-danger-700 p-4 rounded-3xl text-xs font-semibold">
           {error || "No site selected — unable to build the full report."}
         </div>
@@ -301,7 +301,7 @@ export function ExecutiveSummaryDetailed() {
   const today = periods.today;
 
   return (
-    <div className="p-6 bg-slate-50/50 min-h-screen text-slate-800" id="exec-summary-detailed-print-area">
+    <div className="p-6 bg-neutral-50/50 min-h-screen text-neutral-800" id="exec-summary-detailed-print-area">
       <style dangerouslySetInnerHTML={{
         __html: `
         @media print {
@@ -328,12 +328,12 @@ export function ExecutiveSummaryDetailed() {
 
       {/* Toolbar */}
       <div className="print:hidden flex items-center justify-between mb-5 max-w-4xl mx-auto">
-        <Link to="/admin/analytics/summary" className="flex items-center gap-1.5 text-[11px] font-black uppercase tracking-wider text-gray-500 hover:text-gray-800">
+        <Link to="/admin/analytics/summary" className="flex items-center gap-1.5 text-[11px] font-black uppercase tracking-wider text-neutral-500 hover:text-neutral-800">
           <ArrowLeft size={13} /> Back to Brief Summary
         </Link>
         <button
           onClick={() => window.print()}
-          className="flex items-center gap-1.5 h-9 px-4 rounded-xl bg-slate-900 text-white text-[11px] font-black uppercase tracking-wider hover:bg-slate-800 active:scale-[0.98] transition-all cursor-pointer"
+          className="flex items-center gap-1.5 h-9 px-4 rounded-xl bg-neutral-900 text-white text-[11px] font-black uppercase tracking-wider hover:bg-neutral-800 active:scale-[0.98] transition-all cursor-pointer"
         >
           <Printer size={13} />
           Print / Download Full Report
@@ -344,9 +344,9 @@ export function ExecutiveSummaryDetailed() {
         {/* PAGE 1 — Cover + snapshot */}
         <ReportPage>
           <div>
-            <span className="text-[10px] font-black uppercase tracking-widest text-gray-400">Daily Operations Brief — Full Report</span>
-            <h1 className="text-2xl font-black text-gray-900 tracking-tight mt-1">{currentSite?.site_name || "Site"} — {todayLabel}</h1>
-            <p className="text-xs text-gray-400 font-semibold mt-1">Per-asset detail behind the brief summary. Every figure below is a live reading — nothing here is estimated except where explicitly labelled.</p>
+            <span className="text-[10px] font-black uppercase tracking-widest text-neutral-400">Daily Operations Brief — Full Report</span>
+            <h1 className="text-2xl font-black text-neutral-900 tracking-tight mt-1">{currentSite?.site_name || "Site"} — {todayLabel}</h1>
+            <p className="text-xs text-neutral-400 font-semibold mt-1">Per-asset detail behind the brief summary. Every figure below is a live reading — nothing here is estimated except where explicitly labelled.</p>
           </div>
           <div className="grid grid-cols-4 gap-3">
             {[
@@ -363,13 +363,13 @@ export function ExecutiveSummaryDetailed() {
           </div>
           <div className="grid grid-cols-3 gap-3">
             {(["power", "generators", "ups", "thermal", "incidents"] as const).map((k) => (
-              <div key={k} className="rounded-2xl border border-gray-100 p-3.5">
+              <div key={k} className="rounded-2xl border border-neutral-100 p-3.5">
                 <div className="flex items-center justify-between mb-1.5">
-                  <span className="text-[10px] font-black uppercase tracking-widest text-gray-500">{k}</span>
+                  <span className="text-[10px] font-black uppercase tracking-widest text-neutral-500">{k}</span>
                   <Pill verdict={sectors[k].verdict} />
                 </div>
-                <p className="text-xs font-black text-gray-900">{sectors[k].headline}</p>
-                <p className="text-[11px] text-gray-500 font-semibold mt-0.5">{sectors[k].detail}</p>
+                <p className="text-xs font-black text-neutral-900">{sectors[k].headline}</p>
+                <p className="text-[11px] text-neutral-500 font-semibold mt-0.5">{sectors[k].detail}</p>
               </div>
             ))}
           </div>
@@ -380,11 +380,11 @@ export function ExecutiveSummaryDetailed() {
           <SectionHeading eyebrow="Sector Detail" title="Grid & Power" />
           <div className="grid grid-cols-2 gap-6">
             <div>
-              <span className="text-[10px] font-black uppercase tracking-widest text-gray-400 block mb-2">3-Phase Voltage — Latest Reading</span>
+              <span className="text-[10px] font-black uppercase tracking-widest text-neutral-400 block mb-2">3-Phase Voltage — Latest Reading</span>
               <table className="w-full text-xs">
                 <tbody>
                   {[["R", todayDetail.gridVoltage.r], ["Y", todayDetail.gridVoltage.y], ["B", todayDetail.gridVoltage.b]].map(([ph, v]) => (
-                    <tr key={ph as string} className="border-b border-gray-100">
+                    <tr key={ph as string} className="border-b border-neutral-100">
                       <td className="py-2 font-bold">Phase {ph}</td>
                       <td className="py-2 text-right font-mono">{fmt(v as number | null, 1, " V")}</td>
                     </tr>
@@ -393,13 +393,13 @@ export function ExecutiveSummaryDetailed() {
               </table>
             </div>
             <div>
-              <span className="text-[10px] font-black uppercase tracking-widest text-gray-400 block mb-2">Outage Hours Today</span>
+              <span className="text-[10px] font-black uppercase tracking-widest text-neutral-400 block mb-2">Outage Hours Today</span>
               {todayDetail.offlineHours.length === 0 ? (
-                <p className="text-xs font-semibold text-gray-400">No outage hours logged today.</p>
+                <p className="text-xs font-semibold text-neutral-400">No outage hours logged today.</p>
               ) : (
-                <p className="text-xs font-semibold text-gray-700">
+                <p className="text-xs font-semibold text-neutral-700">
                   Grid logged OFFLINE during: {todayDetail.offlineHours.map(h => `${String(h).padStart(2, "0")}:00`).join(", ")}.
-                  <span className="block text-[10px] text-gray-400 mt-1 font-medium">Hourly telemetry resolution — exact minute-level start/end is not recorded.</span>
+                  <span className="block text-[10px] text-neutral-400 mt-1 font-medium">Hourly telemetry resolution — exact minute-level start/end is not recorded.</span>
                 </p>
               )}
             </div>
@@ -411,12 +411,12 @@ export function ExecutiveSummaryDetailed() {
           <SectionHeading eyebrow="Sector Detail" title="Generators & Fuel" />
           <GeneratorTable rows={todayDetail.generators} />
           <div className="grid grid-cols-2 gap-4 pt-2">
-            <div className="rounded-2xl border border-gray-100 p-4">
-              <div className="text-[9px] font-black uppercase tracking-widest text-gray-400">Fuel Reserve (Bulk Tank)</div>
+            <div className="rounded-2xl border border-neutral-100 p-4">
+              <div className="text-[9px] font-black uppercase tracking-widest text-neutral-400">Fuel Reserve (Bulk Tank)</div>
               <div className="text-xl font-black font-mono mt-1">{fmt(todayDetail.fuelBalanceLiters, 0, " L")}</div>
             </div>
-            <div className="rounded-2xl border border-gray-100 p-4">
-              <div className="text-[9px] font-black uppercase tracking-widest text-gray-400">Fleet Run Hours / Fuel Today</div>
+            <div className="rounded-2xl border border-neutral-100 p-4">
+              <div className="text-[9px] font-black uppercase tracking-widest text-neutral-400">Fleet Run Hours / Fuel Today</div>
               <div className="text-xl font-black font-mono mt-1">{fmt(today.genRunHours, 1, " h")} · {fmt(today.genFuelConsumed, 0, " L")}</div>
             </div>
           </div>
@@ -466,18 +466,18 @@ export function ExecutiveSummaryDetailed() {
           <SectionHeading eyebrow="Site Manager" title="Ongoing Items & Commentary" />
 
           <div>
-            <span className="text-[10px] font-black uppercase tracking-widest text-gray-400 block mb-2">
+            <span className="text-[10px] font-black uppercase tracking-widest text-neutral-400 block mb-2">
               Ongoing At The Site {ongoing.length > 0 && `(${ongoing.length})`}
             </span>
             {ongoing.length === 0 ? (
-              <p className="text-xs font-semibold text-gray-400">Nothing ongoing right now.</p>
+              <p className="text-xs font-semibold text-neutral-400">Nothing ongoing right now.</p>
             ) : (
               <ul className="space-y-2">
                 {ongoing.map((o) => (
                   <li key={o.id} className="flex items-start justify-between gap-3 rounded-xl border border-warn-100 bg-warn-50/50 p-3">
                     <div>
-                      <p className="text-xs font-semibold text-gray-800 leading-relaxed">{o.body}</p>
-                      <p className="text-[10px] text-gray-400 font-bold mt-1">{o.author_name} · since {formatWhen(o.created_at)}</p>
+                      <p className="text-xs font-semibold text-neutral-800 leading-relaxed">{o.body}</p>
+                      <p className="text-[10px] text-neutral-400 font-bold mt-1">{o.author_name} · since {formatWhen(o.created_at)}</p>
                     </div>
                     <button
                       onClick={() => resolveOngoing(o.id)}
@@ -492,17 +492,17 @@ export function ExecutiveSummaryDetailed() {
           </div>
 
           <div>
-            <span className="text-[10px] font-black uppercase tracking-widest text-gray-400 block mb-2">
+            <span className="text-[10px] font-black uppercase tracking-widest text-neutral-400 block mb-2">
               Commentary History {commentary.length > 0 && `(${commentary.length})`}
             </span>
             {commentary.length === 0 ? (
-              <p className="text-xs font-semibold text-gray-400">No commentary logged yet.</p>
+              <p className="text-xs font-semibold text-neutral-400">No commentary logged yet.</p>
             ) : (
               <ul className="space-y-2.5">
                 {commentary.map((c) => (
-                  <li key={c.id} className="rounded-xl border border-gray-100 p-3">
-                    <p className="text-xs font-medium text-gray-800 leading-relaxed font-serif">{c.body}</p>
-                    <p className="text-[10px] text-gray-400 font-bold mt-1.5">{c.author_name} · {formatWhen(c.created_at)}</p>
+                  <li key={c.id} className="rounded-xl border border-neutral-100 p-3">
+                    <p className="text-xs font-medium text-neutral-800 leading-relaxed font-serif">{c.body}</p>
+                    <p className="text-[10px] text-neutral-400 font-bold mt-1.5">{c.author_name} · {formatWhen(c.created_at)}</p>
                   </li>
                 ))}
               </ul>
@@ -514,7 +514,7 @@ export function ExecutiveSummaryDetailed() {
           {/* Sign-off. Kept as two fixed columns because this page is laid out
               for A4 — but each line is now signable rather than a rule to be
               filled in by hand after printing. */}
-          <div className="grid grid-cols-2 gap-8 pt-4 border-t border-gray-100 mt-2">
+          <div className="grid grid-cols-2 gap-8 pt-4 border-t border-neutral-100 mt-2">
             {([
               ["prepared", "Prepared By", "Site Duty Manager"],
               ["reviewed", "Reviewed / Signed Off", " "]
@@ -524,7 +524,7 @@ export function ExecutiveSummaryDetailed() {
               const at    = signoff[`${role}_at` as const] as string | null;
               return (
                 <div key={role}>
-                  <div className="text-[9px] font-black uppercase tracking-widest text-gray-400 mb-2">
+                  <div className="text-[9px] font-black uppercase tracking-widest text-neutral-400 mb-2">
                     {heading}
                   </div>
                   {/* Fixed height so a tall signature cannot shift the page
@@ -546,12 +546,12 @@ export function ExecutiveSummaryDetailed() {
                       </button>
                     )}
                   </div>
-                  <div className="border-b border-gray-300 mb-1.5"></div>
-                  <div className="text-[10px] text-gray-400 font-semibold">
+                  <div className="border-b border-neutral-300 mb-1.5"></div>
+                  <div className="text-[10px] text-neutral-400 font-semibold">
                     {name || caption}
                   </div>
                   {at && (
-                    <div className="text-[9px] text-gray-400 font-mono mt-0.5">
+                    <div className="text-[9px] text-neutral-400 font-mono mt-0.5">
                       {new Date(at).toLocaleString(undefined, {
                         year: "numeric", month: "short", day: "numeric",
                         hour: "2-digit", minute: "2-digit", hour12: false

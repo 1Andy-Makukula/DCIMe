@@ -90,7 +90,7 @@ export function NavMenu({
   const CurrentIcon = current?.icon;
 
   return (
-    <div className={`relative flex items-center gap-1 rounded-2xl bg-gray-100/80 p-1 ${className}`}>
+    <div className={`relative flex items-center gap-1 rounded-2xl bg-neutral-100/80 p-1 ${className}`}>
       {/* The everyday destinations, still one click away. */}
       {inline.map(({ to, label, icon: Icon, end }) => (
         <NavLink
@@ -101,8 +101,8 @@ export function NavMenu({
             [
               "flex items-center gap-1.5 rounded-xl px-3 py-2 text-[11px] font-black uppercase tracking-wide transition-all select-none",
               isActive
-                ? "bg-white text-gray-900 shadow-sm ring-1 ring-gray-900/5"
-                : "text-gray-400 hover:bg-white/60 hover:text-gray-600"
+                ? "bg-white text-neutral-900 shadow-sm ring-1 ring-neutral-900/5"
+                : "text-neutral-400 hover:bg-white/60 hover:text-neutral-600"
             ].join(" ")
           }
         >
@@ -117,7 +117,7 @@ export function NavMenu({
 
       {overflow.length > 0 && (
         <>
-          <span className="mx-0.5 h-5 w-px bg-gray-300/70" aria-hidden="true" />
+          <span className="mx-0.5 h-5 w-px bg-neutral-300/70" aria-hidden="true" />
 
           <button
             ref={buttonRef}
@@ -127,8 +127,8 @@ export function NavMenu({
             className={[
               "flex items-center gap-1.5 rounded-xl px-3 py-2 text-[11px] font-black uppercase tracking-wide transition-all select-none",
               open || currentInOverflow
-                ? "bg-white text-gray-900 shadow-sm ring-1 ring-gray-900/5"
-                : "text-gray-400 hover:bg-white/60 hover:text-gray-600"
+                ? "bg-white text-neutral-900 shadow-sm ring-1 ring-neutral-900/5"
+                : "text-neutral-400 hover:bg-white/60 hover:text-neutral-600"
             ].join(" ")}
           >
             {currentInOverflow && CurrentIcon
@@ -146,7 +146,7 @@ export function NavMenu({
       {open && (
         <>
           <div
-            className="fixed inset-0 z-[var(--z-popover-backdrop)] bg-slate-900/20 backdrop-blur-[3px] pointer-events-none"
+            className="fixed inset-0 z-[var(--z-popover-backdrop)] bg-neutral-900/20 backdrop-blur-[3px] pointer-events-none"
             aria-hidden="true"
           />
 
@@ -163,7 +163,7 @@ export function NavMenu({
               "bg-gradient-to-b from-white/90 to-white/70",
               "backdrop-blur-2xl backdrop-saturate-150",
               "shadow-[0_30px_80px_-16px_rgba(15,23,42,0.45)]",
-              "ring-1 ring-slate-900/5",
+              "ring-1 ring-neutral-900/5",
               "origin-top-right animate-[navmenu-in_150ms_cubic-bezier(0.16,1,0.3,1)]"
             ].join(" ")}
           >
@@ -185,13 +185,13 @@ export function NavMenu({
             />
 
             <div className="flex items-center justify-between px-5 pb-2 pt-4">
-              <span className="font-mono text-[10px] uppercase tracking-[0.16em] text-slate-400">
+              <span className="font-mono text-[10px] uppercase tracking-[0.16em] text-neutral-400">
                 {title}
               </span>
               <button
                 onClick={() => setOpen(false)}
                 aria-label="Close menu"
-                className="rounded-lg p-1 text-slate-400 transition-colors hover:bg-slate-900/5 hover:text-slate-700"
+                className="rounded-lg p-1 text-neutral-400 transition-colors hover:bg-neutral-900/5 hover:text-neutral-700"
               >
                 <X size={14} />
               </button>
@@ -208,7 +208,7 @@ export function NavMenu({
                     [
                       "group flex items-center gap-3 rounded-2xl px-3 py-2.5 transition-all",
                       isActive
-                        ? "bg-white shadow-sm ring-1 ring-slate-900/5"
+                        ? "bg-white shadow-sm ring-1 ring-neutral-900/5"
                         : "hover:bg-white/80"
                     ].join(" ")
                   }
@@ -220,7 +220,7 @@ export function NavMenu({
                           "flex h-9 w-9 shrink-0 items-center justify-center rounded-xl transition-colors",
                           isActive
                             ? "bg-brand-500 text-white shadow-sm shadow-brand-500/25"
-                            : "bg-slate-900/[0.04] text-slate-400 group-hover:bg-slate-900/[0.07] group-hover:text-slate-600"
+                            : "bg-neutral-900/[0.04] text-neutral-400 group-hover:bg-neutral-900/[0.07] group-hover:text-neutral-600"
                         ].join(" ")}
                       >
                         <Icon size={16} />
@@ -229,20 +229,20 @@ export function NavMenu({
                         <span
                           className={[
                             "block text-[12px] font-black uppercase tracking-wide",
-                            isActive ? "text-slate-900" : "text-slate-700"
+                            isActive ? "text-neutral-900" : "text-neutral-700"
                           ].join(" ")}
                         >
                           {label}
                         </span>
                         {hint && (
-                          <span className="mt-0.5 block truncate text-[10.5px] leading-snug text-slate-400">
+                          <span className="mt-0.5 block truncate text-[10.5px] leading-snug text-neutral-400">
                             {hint}
                           </span>
                         )}
                       </span>
                       <ChevronRight
                         size={14}
-                        className="shrink-0 text-slate-300 opacity-0 transition-opacity group-hover:opacity-100"
+                        className="shrink-0 text-neutral-300 opacity-0 transition-opacity group-hover:opacity-100"
                       />
                     </>
                   )}

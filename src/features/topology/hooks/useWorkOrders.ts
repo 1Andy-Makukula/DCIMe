@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { supabase } from "@/shared/api/supabaseClient";
 import { useCurrentSite } from "@/shared/context/SiteContext";
 import type { SignatureResult } from "@/shared/ui";
@@ -11,6 +11,11 @@ import type { SignatureResult } from "@/shared/ui";
 // by the technician who claimed them. There was no way for a person to raise a
 // job, no way to direct it at someone, and nothing that CLOSED a resolved one —
 // so the queue had no terminal state and admin/tech never actually met.
+//
+// Assignment here is a COMMAND, not an offer. An admin picks one person,
+// several, or everyone on shift; all of them are expected to acknowledge, and
+// whichever of them starts the work becomes its owner. There is no accept step
+// to model, and modelling one left jobs unanswered with nobody at fault.
 // ─────────────────────────────────────────────────────────────────────────────
 
 // Generated types predate work_items; see MEMORY design-token note on regen.
@@ -28,10 +33,14 @@ export interface WorkOrder {
   severity:        string;
   state:           WorkState;
   origin:          string;
+  /** Whoever STARTED the work. Null until somebody does. */
   assignee_id:     string | null;
   assignee_name:   string | null;
-  /** Shortlist it was offered to. null = broadcast to the whole site. */
-  offered_to:      string[] | null;
+  /** Everyone the job was given to. null only on rows predating assignment. */
+  assigned_to:     string[] | null;
+  assigned_scope:  AssignScope | null;
+  /** Employee ids that have confirmed receipt, one row each. */
+  acked_by:        string[];
   due_at:          string | null;
   resolved_at:     string | null;
   resolution_note: string | null;
@@ -42,7 +51,21 @@ export interface WorkOrder {
   signed_name:     string | null;
 }
 
-export interface Technician { id: string; full_name: string; role: string; }
+/**
+ * How the recipients were chosen. Worth storing because the routes are not
+ * equivalent after the fact: ON_SHIFT and ALL_ACTIVE can resolve to the same
+ * list on a quiet night, and only this says whether the admin aimed at the
+ * roster or was told the roster was empty and went wide anyway.
+ */
+export type AssignScope = "INDIVIDUAL" | "GROUP" | "ON_SHIFT" | "ALL_ACTIVE";
+
+export interface Technician {
+  id: string; full_name: string; role: string;
+  /** Stored status: only ever 'Active' or 'Revoked' (CHECK constraint). */
+  status?: string;
+  /** Derived, not stored — an open shift_sessions row. */
+  on_shift: boolean;
+}
 
 export interface NewWorkOrder {
   title:    string;
@@ -50,13 +73,13 @@ export interface NewWorkOrder {
   kind:     string;
   severity: string;
   /**
-   * Who the job is OFFERED to. An empty array broadcasts to the whole site.
+   * Who the job is given to. An empty array means "everyone on shift", which
+   * create() resolves to real people before it writes.
    *
-   * Offering is not assigning: ownership is only established when somebody
-   * accepts, which is what makes the response clock and the accountability
-   * trail mean anything. One name here still requires that person to accept.
+   * This is an instruction, not an invitation. Everybody named is expected to
+   * acknowledge; whichever of them starts the work becomes its owner.
    */
-  offered_to: string[];
+  assigned_to: string[];
   /** LOCAL "YYYY-MM-DDTHH:mm" as the datetime-local control produces it. */
   due_at:   string | null;
 }
@@ -75,7 +98,10 @@ export function useWorkOrders() {
     try {
       setError(null);
       const { data, error: e } = await from("work_items")
-        .select("id,title,detail,kind,severity,state,origin,assignee_id,offered_to,due_at,resolved_at,resolution_note,created_at,signature_image,signed_at,signed_name,employees:assignee_id(full_name)")
+        // work_item_acks rides along as an embedded resource rather than a
+        // second round trip: "3 of 4 acknowledged" is the number this page
+        // exists to show, and it is useless a poll interval out of date.
+        .select("id,title,detail,kind,severity,state,origin,assignee_id,assigned_to,assigned_scope,due_at,resolved_at,resolution_note,created_at,signature_image,signed_at,signed_name,employees:assignee_id(full_name),work_item_acks(employee_id)")
         .eq("site_uuid", siteId)
         .order("created_at", { ascending: false })
         .limit(200);
@@ -83,7 +109,8 @@ export function useWorkOrders() {
 
       setOrders((data ?? []).map((r: any) => ({
         ...r,
-        assignee_name: r.employees?.full_name ?? null
+        assignee_name: r.employees?.full_name ?? null,
+        acked_by: (r.work_item_acks ?? []).map((a: any) => a.employee_id)
       })));
     } catch (err: any) {
       console.error("[DCIMe] Failed to load work orders:", err);
@@ -104,45 +131,142 @@ export function useWorkOrders() {
   }, [fetchAll]);
 
   useEffect(() => {
+    if (!siteId) { setTechs([]); return; }
     (async () => {
-      const { data } = await from("employees")
-        .select("id,full_name,role")
-        .eq("status", "ACTIVE")
-        .order("full_name");
-      setTechs((data ?? []) as Technician[]);
-    })();
-  }, []);
+      // Excludes the revoked rather than matching an exact status string. The
+      // stored values are 'Active' and 'Revoked' — that is the whole domain,
+      // per the CHECK constraint in 20260728_close_security_holes.sql — so an
+      // .eq() on 'ACTIVE' matched NOBODY, Postgres comparing case-sensitively.
+      // The picker came up empty and assignment looked as though it had been
+      // taken away. ("On-Shift" is a derived label, not a stored status; it
+      // means an open shift_sessions row, which is fetched separately below.)
+      //
+      // Scoped to THIS site: work_items are site-scoped, so assigning a job to
+      // somebody stationed elsewhere produces work nobody can attend.
+      const [roster, sessions] = await Promise.all([
+        from("employees")
+          .select("id,full_name,role,status")
+          .eq("site_uuid", siteId)
+          .neq("status", "Revoked")
+          .order("full_name"),
+        from("shift_sessions")
+          .select("employee_id")
+          .eq("site_uuid", siteId)
+          .eq("status", "ACTIVE")
+      ]);
 
-  const create = useCallback(async (draft: NewWorkOrder) => {
+      if (roster.error)   console.error("[DCIMe] Failed to load technicians:", roster.error);
+      if (sessions.error) console.error("[DCIMe] Failed to load shift sessions:", sessions.error);
+
+      const onShift = new Set<string>((sessions.data ?? []).map((s: any) => s.employee_id));
+      setTechs((roster.data ?? []).map((r: any) => ({ ...r, on_shift: onShift.has(r.id) })));
+    })();
+  }, [siteId]);
+
+  /**
+   * Everyone currently checked in. Drives both the pre-submit warning and the
+   * fallback. Memoised because create() closes over it — a fresh array every
+   * render would rebuild the callback on every keystroke in the form.
+   */
+  const onShift = useMemo(() => techs.filter(t => t.on_shift), [techs]);
+
+  /**
+   * Raise a job and give it to somebody.
+   *
+   * An empty `assigned_to` means "everyone on shift", and it is resolved to
+   * actual employee ids HERE rather than stored as a null wildcard. The
+   * question asked after an incident is always "who was told", and a wildcard
+   * answers it differently at 06:00 than at 18:00 — the people who were
+   * genuinely on the floor when the job went out drop off their own record at
+   * shift change. Snapshotting costs an array and keeps the answer fixed.
+   *
+   * Returns what it actually did, because the on-shift fallback means the
+   * outcome is not always the one the button described.
+   */
+  const create = useCallback(async (draft: NewWorkOrder)
+    : Promise<{ recipients: number; scope: AssignScope }> => {
     if (!siteId) throw new Error("No site selected.");
+
+    let recipients: string[];
+    let scope: AssignScope;
+
+    if (draft.assigned_to.length > 0) {
+      recipients = draft.assigned_to;
+      scope      = recipients.length === 1 ? "INDIVIDUAL" : "GROUP";
+    } else if (onShift.length > 0) {
+      recipients = onShift.map(t => t.id);
+      scope      = "ON_SHIFT";
+    } else {
+      // Check-in is a soft prompt (20260803_shift_sessions.sql), so an empty
+      // roster usually means nobody tapped the button, not that the site is
+      // unmanned. Widening beats refusing: a P1 raised at 03:00 must not be
+      // blocked by a technician who forgot to check in. The scope records that
+      // this is what happened, so the wide audience is not read later as a
+      // deliberate choice.
+      recipients = techs.map(t => t.id);
+      scope      = "ALL_ACTIVE";
+    }
+
+    if (recipients.length === 0) {
+      throw new Error("There is nobody at this site to assign work to. Add a technician first.");
+    }
+
     const { data: { user } } = await supabase.auth.getUser();
 
     const { error: e } = await from("work_items").insert([{
-      site_uuid:   siteId,
-      title:       draft.title.trim(),
-      detail:      draft.detail.trim() || null,
-      kind:        draft.kind,
-      severity:    draft.severity,
-      // NULL rather than an empty array: "offered to nobody in particular" is
-      // a broadcast, and an empty array would read as "offered to no one".
-      offered_to:  draft.offered_to.length > 0 ? draft.offered_to : null,
+      site_uuid:      siteId,
+      title:          draft.title.trim(),
+      detail:         draft.detail.trim() || null,
+      kind:           draft.kind,
+      severity:       draft.severity,
+      assigned_to:    recipients,
+      assigned_scope: scope,
       // Local -> UTC happens once, here. The form must keep the control's
       // own format or the field cannot render its own value back.
-      due_at:      draft.due_at ? new Date(draft.due_at).toISOString() : null,
+      due_at:         draft.due_at ? new Date(draft.due_at).toISOString() : null,
       // ORIGIN matters for the audit trail: it separates a job a person chose
       // to raise from one a threshold crossing produced.
-      origin:      "ADMIN",
-      state:       "OPEN",
-      created_by:  user?.id ?? null
+      origin:         "ADMIN",
+      state:          "OPEN",
+      // assignee_id is deliberately absent. Being told to do a job is not the
+      // same as being on it, and the queue reads wrong if it claims otherwise
+      // before anybody has started.
+      created_by:     user?.id ?? null
     }]);
     if (e) throw e;
     await fetchAll();
-  }, [siteId, fetchAll]);
+    return { recipients: recipients.length, scope };
+  }, [siteId, techs, onShift, fetchAll]);
 
-  /** Reassign, or hand back to the pool by passing null. */
-  const reassign = useCallback(async (id: string, assignee_id: string | null) => {
-    const { error: e } = await from("work_items").update({ assignee_id }).eq("id", id);
+  /**
+   * Redirect a job that has gone to the wrong people.
+   *
+   * The only correction available, because a technician cannot decline: a job
+   * aimed at the wrong person stays aimed there until an admin moves it.
+   *
+   * Restricted to work nobody has STARTED. Once somebody is on it, retargeting
+   * is not a reassignment — it strands a person mid-task, and the state machine
+   * has no route back from IN_PROGRESS to un-started anyway (20260820a). The
+   * honest correction there is to cancel the job with a reason and raise a new
+   * one, which the Reject path already does.
+   */
+  const reassign = useCallback(async (id: string, assigned_to: string[]) => {
+    if (assigned_to.length === 0) throw new Error("Pick at least one person.");
+    const { data, error: e } = await from("work_items")
+      .update({
+        assigned_to,
+        assigned_scope: assigned_to.length === 1 ? "INDIVIDUAL" : "GROUP"
+      })
+      .eq("id", id)
+      // Re-checked here and not only in the UI: the queue polls every 30s, so
+      // somebody can start the job between the panel rendering and Save.
+      .is("assignee_id", null)
+      .select("id");
     if (e) throw e;
+    // PostgREST reports no error when the guard above matches nothing.
+    if (!data || data.length === 0) {
+      throw new Error("That job was not reassigned — somebody has already started it.");
+    }
     await fetchAll();
   }, [fetchAll]);
 
@@ -199,5 +323,8 @@ export function useWorkOrders() {
     await fetchAll();
   }, [fetchAll]);
 
-  return { orders, techs, isLoading, error, refresh: fetchAll, create, reassign, close, cancel };
+  return {
+    orders, techs, onShift, isLoading, error,
+    refresh: fetchAll, create, reassign, close, cancel
+  };
 }

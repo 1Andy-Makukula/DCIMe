@@ -43,7 +43,7 @@ function Card({
 }) {
   return (
     <div
-      className={`bg-white border border-gray-100 rounded-2xl shadow-sm ${className}`}
+      className={`bg-white border border-neutral-100 rounded-2xl shadow-sm ${className}`}
     >
       {children}
     </div>
@@ -53,7 +53,7 @@ function Card({
 // ── Section label ────────────────────────────────────────────────────────────
 function SectionLabel({ children }: { children: React.ReactNode }) {
   return (
-    <div className="text-[10px] font-black text-gray-400 uppercase tracking-[0.14em] mb-0.5">
+    <div className="text-[10px] font-black text-neutral-400 uppercase tracking-[0.14em] mb-0.5">
       {children}
     </div>
   );
@@ -61,7 +61,7 @@ function SectionLabel({ children }: { children: React.ReactNode }) {
 
 // ── Custom tooltip for recharts ──────────────────────────────────────────────
 const darkTooltipStyle = {
-  background: "#0C0D0D",
+  background: "var(--color-neutral-950)",
   border: "none",
   borderRadius: 10,
   color: "white",
@@ -291,19 +291,19 @@ export function NocOverview() {
   };
 
   return (
-    <div className="min-h-full p-4 lg:p-6 bg-gray-50">
+    <div className="min-h-full p-4 lg:p-6 bg-neutral-50">
       {/* Page header */}
       <div className="mb-5 flex items-center justify-between">
         <div>
-          <h1 className="text-[18px] font-black text-gray-900 tracking-tight leading-none">
+          <h1 className="text-[18px] font-black text-neutral-900 tracking-tight leading-none">
             Executive Overview
           </h1>
           <div className="flex items-center gap-2 mt-1.5">
-            <GlowDot color="#19C853" />
-            <span className="text-[11px] font-bold text-gray-400 uppercase tracking-[0.12em]">
+            <GlowDot color="var(--color-ok-500)" />
+            <span className="text-[11px] font-bold text-neutral-400 uppercase tracking-[0.12em]">
               {currentSite?.site_name || "—"} · Live
             </span>
-            <span className="text-[10px] text-gray-300 font-mono ml-2">
+            <span className="text-[10px] text-neutral-300 font-mono ml-2">
               Last sync: {lastSync} CAT
             </span>
           </div>
@@ -318,7 +318,7 @@ export function NocOverview() {
               const role = employee?.role || "ADMIN";
               window.open(`/topology_engine/renderer/index.html?role=${role}`, "_blank");
             }}
-            className="bg-white border border-gray-250 rounded-xl px-3 py-2 text-[10px] font-black uppercase tracking-wider text-slate-700 hover:text-brand-500 hover:border-brand-100 hover:bg-brand-50/20 active:scale-95 transition-all shadow-sm flex items-center gap-2 cursor-pointer"
+            className="bg-white border border-neutral-250 rounded-xl px-3 py-2 text-[10px] font-black uppercase tracking-wider text-neutral-700 hover:text-brand-500 hover:border-brand-100 hover:bg-brand-50/20 active:scale-95 transition-all shadow-sm flex items-center gap-2 cursor-pointer"
           >
             📊 View Visual Topology
           </button>
@@ -372,12 +372,12 @@ export function NocOverview() {
                 <div className={`flex items-center gap-2 border rounded-xl px-3 py-1.5 ${
                   isGen ? "bg-warn-50 border-warn-200 text-warn-800" : "bg-ok-50 border-ok-100 text-ok-700"
                 }`}>
-                  <GlowDot color={isGen ? "var(--color-warn-500)" : "#19C853"} />
+                  <GlowDot color={isGen ? "var(--color-warn-500)" : "var(--color-ok-500)"} />
                   <span className="text-[13px] font-black tracking-tight">
                     {isGen ? "Generator Active" : "Mains Active"}
                   </span>
                 </div>
-                <span className="text-[11px] font-semibold text-gray-400">
+                <span className="text-[11px] font-semibold text-neutral-400">
                   {isGen ? "Diesel Generator Feed · 400 V AC" : `${UTILITY_GRID_LABEL} · 230 V AC · PF ${pfVal}`}
                 </span>
               </div>
@@ -385,12 +385,12 @@ export function NocOverview() {
 
             {/* Live load readout */}
             <div className="text-right flex-shrink-0">
-              <div className="text-[10px] font-black text-gray-400 uppercase tracking-[0.12em]">
+              <div className="text-[10px] font-black text-neutral-400 uppercase tracking-[0.12em]">
                 Total Facility Load
               </div>
-              <div className="font-black text-[38px] text-gray-900 leading-none mt-0.5">
+              <div className="font-black text-[38px] text-neutral-900 leading-none mt-0.5">
                 {currentLoad}
-                <span className="text-[16px] font-semibold text-gray-400 ml-1">
+                <span className="text-[16px] font-semibold text-neutral-400 ml-1">
                   KW
                 </span>
               </div>
@@ -402,12 +402,12 @@ export function NocOverview() {
           </div>
 
           {/* Divider */}
-          <div className="border-t border-gray-100 mb-4" />
+          <div className="border-t border-neutral-100 mb-4" />
 
           {/* Line chart — 24 h load trend */}
           <div>
             <div className="flex items-center justify-between mb-2">
-              <span className="text-[10px] font-black text-gray-400 uppercase tracking-[0.12em]">
+              <span className="text-[10px] font-black text-neutral-400 uppercase tracking-[0.12em]">
                 24-Hour Load Trend
               </span>
               <div className="flex items-center gap-1.5">
@@ -415,7 +415,7 @@ export function NocOverview() {
                   className="w-3 h-0.5 rounded-full inline-block"
                   style={{ backgroundColor: "var(--color-danger-500)" }}
                 />
-                <span className="text-[9px] font-bold text-gray-400 uppercase tracking-wider">
+                <span className="text-[9px] font-bold text-neutral-400 uppercase tracking-wider">
                   KW
                 </span>
               </div>
@@ -455,20 +455,20 @@ export function NocOverview() {
           </div>
 
           {/* Footer meta strip */}
-          <div className="flex items-center gap-6 mt-3 pt-3 border-t border-gray-50">
+          <div className="flex items-center gap-6 mt-3 pt-3 border-t border-neutral-50">
             {[
               // Same fabricated-default bug fixed across the analytics hooks,
               // found here on a second pass: `|| 100` / `|| 48.1` silently
               // asserted a healthy reading whenever the real one was missing
               // or genuinely zero, indistinguishable from an actual value.
-              { label: "UPS Charge", value: latestMetrics.ups_1_battery_charge_percent != null ? `${latestMetrics.ups_1_battery_charge_percent}%` : "—", color: "#19C853" },
-              { label: "Site Uptime", value: isGen ? "Generator Mode" : (uptimePct === "—" ? "—" : `${uptimePct}%`), color: isGen ? "var(--color-warn-500)" : "#19C853" },
+              { label: "UPS Charge", value: latestMetrics.ups_1_battery_charge_percent != null ? `${latestMetrics.ups_1_battery_charge_percent}%` : "—", color: "var(--color-ok-500)" },
+              { label: "Site Uptime", value: isGen ? "Generator Mode" : (uptimePct === "—" ? "—" : `${uptimePct}%`), color: isGen ? "var(--color-warn-500)" : "var(--color-ok-500)" },
 
-              { label: "Phase Balance", value: "Monitoring", color: "#FFB020" },
-              { label: "DC Bus", value: latestMetrics.rectifier_1_dc_voltage != null ? `${latestMetrics.rectifier_1_dc_voltage} V` : "—", color: "#19C853" },
+              { label: "Phase Balance", value: "Monitoring", color: "var(--color-warn-500)" },
+              { label: "DC Bus", value: latestMetrics.rectifier_1_dc_voltage != null ? `${latestMetrics.rectifier_1_dc_voltage} V` : "—", color: "var(--color-ok-500)" },
             ].map((stat) => (
               <div key={stat.label}>
-                <div className="text-[9px] font-black text-gray-400 uppercase tracking-wider">
+                <div className="text-[9px] font-black text-neutral-400 uppercase tracking-wider">
                   {stat.label}
                 </div>
                 <div
@@ -491,20 +491,20 @@ export function NocOverview() {
           {/* Total Active Assets */}
           <Card className="p-4 flex items-center gap-4">
             <div className="w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0 bg-ok-50">
-              <Zap size={22} color="#19C853" />
+              <Zap size={22} color="var(--color-ok-500)" />
             </div>
             <div className="flex-1 min-w-0">
-              <div className="text-[10px] font-black text-gray-400 uppercase tracking-[0.12em]">
+              <div className="text-[10px] font-black text-neutral-400 uppercase tracking-[0.12em]">
                 Active Equipment
               </div>
               {kpiLoading ? (
-                <div className="h-7 w-12 bg-gray-100 rounded-lg animate-pulse mt-1" />
+                <div className="h-7 w-12 bg-neutral-100 rounded-lg animate-pulse mt-1" />
               ) : (
-                <div className="font-black text-[28px] text-gray-900 leading-none mt-0.5">
+                <div className="font-black text-[28px] text-neutral-900 leading-none mt-0.5">
                   {totalAssets ?? 0}
                 </div>
               )}
-              <div className="text-[10px] font-semibold text-gray-400 mt-0.5">
+              <div className="text-[10px] font-semibold text-neutral-400 mt-0.5">
                 {currentSite?.site_name ?? "—"}
               </div>
             </div>
@@ -514,24 +514,24 @@ export function NocOverview() {
           {/* Active Alarms */}
           <Card className="p-4 flex items-center gap-4">
             <div className={`w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0 ${
-              openAlarmCount > 0 ? "bg-danger-50" : "bg-gray-100"
+              openAlarmCount > 0 ? "bg-danger-50" : "bg-neutral-100"
             }`}>
               <AlertTriangle size={22} color={openAlarmCount > 0 ? "var(--color-danger-600)" : "#999"} />
             </div>
             <div className="flex-1 min-w-0">
-              <div className="text-[10px] font-black text-gray-400 uppercase tracking-[0.12em]">
+              <div className="text-[10px] font-black text-neutral-400 uppercase tracking-[0.12em]">
                 Open Alarms
               </div>
               {kpiLoading ? (
-                <div className="h-7 w-12 bg-gray-100 rounded-lg animate-pulse mt-1" />
+                <div className="h-7 w-12 bg-neutral-100 rounded-lg animate-pulse mt-1" />
               ) : (
                 <div className={`font-black text-[28px] leading-none mt-0.5 ${
-                  openAlarmCount > 0 ? "text-danger-600" : "text-gray-900"
+                  openAlarmCount > 0 ? "text-danger-600" : "text-neutral-900"
                 }`}>
                   {openAlarmCount}
                 </div>
               )}
-              <div className="text-[10px] font-semibold text-gray-400 mt-0.5">
+              <div className="text-[10px] font-semibold text-neutral-400 mt-0.5">
                 Incidents requiring attention
               </div>
             </div>
@@ -549,13 +549,13 @@ export function NocOverview() {
                 <Thermometer size={18} color="var(--color-info-500)" />
               </div>
               <div>
-                <div className="text-[10px] font-black text-gray-400 uppercase tracking-[0.12em]">
+                <div className="text-[10px] font-black text-neutral-400 uppercase tracking-[0.12em]">
                   Physical Rooms
                 </div>
                 {kpiLoading ? (
-                  <div className="h-6 w-8 bg-gray-100 rounded animate-pulse mt-0.5" />
+                  <div className="h-6 w-8 bg-neutral-100 rounded animate-pulse mt-0.5" />
                 ) : (
-                  <div className="font-black text-[22px] text-gray-900 leading-none mt-0.5">
+                  <div className="font-black text-[22px] text-neutral-900 leading-none mt-0.5">
                     {totalRooms ?? 0}
                   </div>
                 )}
@@ -563,13 +563,13 @@ export function NocOverview() {
             </div>
             {/* Category breakdown pills */}
             {!kpiLoading && categoryCounts.length > 0 && (
-              <div className="flex flex-wrap gap-1.5 mt-2 pt-2 border-t border-gray-50">
+              <div className="flex flex-wrap gap-1.5 mt-2 pt-2 border-t border-neutral-50">
                 {categoryCounts.map(({ category, count }) => (
                   <span
                     key={category}
-                    className="inline-flex items-center gap-1 bg-gray-50 border border-gray-100 rounded-lg px-2 py-1 text-[9px] font-black uppercase tracking-wider text-gray-500"
+                    className="inline-flex items-center gap-1 bg-neutral-50 border border-neutral-100 rounded-lg px-2 py-1 text-[9px] font-black uppercase tracking-wider text-neutral-500"
                   >
-                    <span className="font-mono text-gray-900">{count}</span>
+                    <span className="font-mono text-neutral-900">{count}</span>
                     {category}
                   </span>
                 ))}
@@ -578,7 +578,7 @@ export function NocOverview() {
             {kpiLoading && (
               <div className="flex gap-1.5 mt-2">
                 {[60, 50, 70].map((w) => (
-                  <div key={w} className="h-5 bg-gray-100 rounded animate-pulse" style={{ width: w }} />
+                  <div key={w} className="h-5 bg-neutral-100 rounded animate-pulse" style={{ width: w }} />
                 ))}
               </div>
             )}
@@ -593,20 +593,20 @@ export function NocOverview() {
           <div className="flex items-start justify-between mb-4">
             <div>
               <SectionLabel>Thermal Delta Zones</SectionLabel>
-              <div className="text-[11px] font-semibold text-gray-400 mt-0.5">
+              <div className="text-[11px] font-semibold text-neutral-400 mt-0.5">
                 Room inlet temperatures · °C
               </div>
             </div>
             <div className="flex items-center gap-4">
-              <div className="flex items-center gap-1.5 text-[9px] font-bold text-gray-400 uppercase tracking-wider">
+              <div className="flex items-center gap-1.5 text-[9px] font-bold text-neutral-400 uppercase tracking-wider">
                 <span className="w-2.5 h-2.5 rounded-full bg-ok-500 flex-shrink-0" />
                 Nominal
               </div>
-              <div className="flex items-center gap-1.5 text-[9px] font-bold text-gray-400 uppercase tracking-wider">
+              <div className="flex items-center gap-1.5 text-[9px] font-bold text-neutral-400 uppercase tracking-wider">
                 <span className="w-2.5 h-2.5 rounded-full bg-danger-500 flex-shrink-0" />
                 Elevated (&gt;22°C)
               </div>
-              <Thermometer size={16} color="#FFB020" />
+              <Thermometer size={16} color="var(--color-warn-500)" />
             </div>
           </div>
 
@@ -628,7 +628,7 @@ export function NocOverview() {
               <YAxis
                 type="category"
                 dataKey="room"
-                tick={{ fontSize: 10, fill: "#6b7280", fontWeight: 700 }}
+                tick={{ fontSize: 10, fill: "var(--color-neutral-500)", fontWeight: 700 }}
                 tickLine={false}
                 axisLine={false}
                 width={48}
@@ -642,7 +642,7 @@ export function NocOverview() {
                 {thermalData.map((entry, index) => (
                   <Cell
                     key={index}
-                    fill={entry.temp > 22 ? "var(--color-danger-500)" : "#19C853"}
+                    fill={entry.temp > 22 ? "var(--color-danger-500)" : "var(--color-ok-500)"}
                   />
                 ))}
               </Bar>
@@ -650,7 +650,7 @@ export function NocOverview() {
           </ResponsiveContainer>
 
           {/* Temperature readout row */}
-          <div className="flex items-center gap-3 mt-3 pt-3 border-t border-gray-50 flex-wrap">
+          <div className="flex items-center gap-3 mt-3 pt-3 border-t border-neutral-50 flex-wrap">
             {thermalData.map((zone) => (
               <div
                 key={zone.room}
@@ -664,7 +664,7 @@ export function NocOverview() {
                 <span className="font-mono">{zone.temp}°C</span>
               </div>
             ))}
-            <div className="ml-auto text-[10px] font-semibold text-gray-400">
+            <div className="ml-auto text-[10px] font-semibold text-neutral-400">
               Threshold: 22°C
             </div>
           </div>
@@ -675,10 +675,10 @@ export function NocOverview() {
         ════════════════════════════════════════════════════════════════════ */}
         <Card className="lg:col-span-4 flex flex-col overflow-hidden">
           {/* Header */}
-          <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100 flex-shrink-0">
+          <div className="flex items-center justify-between px-5 py-4 border-b border-neutral-100 flex-shrink-0">
             <div>
               <SectionLabel>Active Imbalances</SectionLabel>
-              <div className="text-[11px] font-semibold text-gray-400 mt-0.5">
+              <div className="text-[11px] font-semibold text-neutral-400 mt-0.5">
                 Critical Alerts
               </div>
             </div>
@@ -688,11 +688,11 @@ export function NocOverview() {
           </div>
 
           {/* Alert list */}
-          <div className="flex-1 overflow-y-auto divide-y divide-gray-50">
+          <div className="flex-1 overflow-y-auto divide-y divide-neutral-50">
             {phaseAlerts.map((alert) => (
               <div
                 key={alert.id}
-                className={`flex gap-3 px-4 py-3.5 hover:bg-gray-50 transition-colors ${
+                className={`flex gap-3 px-4 py-3.5 hover:bg-neutral-50 transition-colors ${
                   alert.level === "crit" ? "bg-danger-50/40" : ""
                 }`}
               >
@@ -704,7 +704,7 @@ export function NocOverview() {
                 >
                   <AlertTriangle
                     size={14}
-                    color={alert.level === "crit" ? "var(--color-danger-600)" : "#D97706"}
+                    color={alert.level === "crit" ? "var(--color-danger-600)" : "var(--color-warn-600)"}
                   />
                 </div>
 
@@ -721,7 +721,7 @@ export function NocOverview() {
                     >
                       {alert.level === "crit" ? "CRITICAL" : "WARN"}
                     </span>
-                    <span className="text-[9px] font-mono text-gray-400">
+                    <span className="text-[9px] font-mono text-neutral-400">
                       {alert.id}
                     </span>
                   </div>
@@ -729,14 +729,14 @@ export function NocOverview() {
                   {/* Message */}
                   <div
                     className={`text-[11px] font-semibold leading-snug ${
-                      alert.level === "crit" ? "text-danger-800" : "text-gray-700"
+                      alert.level === "crit" ? "text-danger-800" : "text-neutral-700"
                     }`}
                   >
                     {alert.msg}
                   </div>
 
                   {/* Timestamp */}
-                  <div className="flex items-center gap-1 mt-1.5 text-[9px] font-semibold text-gray-400">
+                  <div className="flex items-center gap-1 mt-1.5 text-[9px] font-semibold text-neutral-400">
                     <Clock size={9} />
                     <span>{alert.time}</span>
                   </div>
@@ -746,8 +746,8 @@ export function NocOverview() {
           </div>
 
           {/* Footer */}
-          <div className="px-5 py-3 border-t border-gray-100 flex-shrink-0 bg-gray-50/50">
-            <div className="text-[10px] font-semibold text-gray-400 text-center">
+          <div className="px-5 py-3 border-t border-neutral-100 flex-shrink-0 bg-neutral-50/50">
+            <div className="text-[10px] font-semibold text-neutral-400 text-center">
               View full alert log in the Alerts tab
             </div>
           </div>
@@ -758,10 +758,10 @@ export function NocOverview() {
         ════════════════════════════════════════════════════════════════════ */}
         <Card className="lg:col-span-12 p-5 flex flex-col space-y-4">
           {/* Card Header */}
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 border-b border-gray-100 pb-4">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 border-b border-neutral-100 pb-4">
             <div>
               <SectionLabel>Incident Resolution & NOC Audit Log</SectionLabel>
-              <div className="text-[11px] font-semibold text-gray-400 mt-0.5">
+              <div className="text-[11px] font-semibold text-neutral-400 mt-0.5">
                 Official facility dispatch registry and technician audit trail.
               </div>
             </div>
@@ -769,26 +769,26 @@ export function NocOverview() {
             <div className="flex flex-wrap items-center gap-3">
               {/* Search Bar */}
               <div className="relative">
-                <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400" />
                 <input
                   type="text"
                   placeholder="Search by ticket, asset, tech..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="pl-8 pr-4 py-1.5 bg-gray-50 border border-gray-200 rounded-xl text-xs font-semibold text-gray-800 placeholder-gray-400 focus:outline-none focus:border-brand-500 w-48 transition-all"
+                  className="pl-8 pr-4 py-1.5 bg-neutral-50 border border-neutral-200 rounded-xl text-xs font-semibold text-neutral-800 placeholder-neutral-400 focus:outline-none focus:border-brand-500 w-48 transition-all"
                 />
               </div>
 
               {/* Filter Buttons */}
-              <div className="bg-gray-100 p-1 rounded-xl flex gap-1 border border-gray-200/40">
+              <div className="bg-neutral-100 p-1 rounded-xl flex gap-1 border border-neutral-200/40">
                 {(["all", "open", "resolved"] as const).map((t) => (
                   <button
                     key={t}
                     onClick={() => setFilter(t)}
                     className={`px-3 py-1 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all ${
                       filter === t
-                        ? "bg-white text-gray-900 shadow-sm"
-                        : "text-gray-400 hover:text-gray-600"
+                        ? "bg-white text-neutral-900 shadow-sm"
+                        : "text-neutral-400 hover:text-neutral-600"
                     }`}
                   >
                     {t}
@@ -799,7 +799,7 @@ export function NocOverview() {
               {/* Refresh Button */}
               <button
                 onClick={fetchIncidents}
-                className="p-2 rounded-xl bg-gray-50 border border-gray-200 text-gray-400 hover:text-gray-950 active:scale-95 transition-all shadow-sm flex items-center justify-center"
+                className="p-2 rounded-xl bg-neutral-50 border border-neutral-200 text-neutral-400 hover:text-neutral-950 active:scale-95 transition-all shadow-sm flex items-center justify-center"
                 title="Refresh Audits"
                 disabled={incidentsLoading}
               >
@@ -811,12 +811,12 @@ export function NocOverview() {
           {/* Incident Feed */}
           <div className="space-y-3">
             {incidentsLoading && incidents.length === 0 ? (
-              <div className="flex flex-col items-center justify-center py-12 text-gray-400">
+              <div className="flex flex-col items-center justify-center py-12 text-neutral-400">
                 <RefreshCw size={20} className="animate-spin mb-2 text-danger-400" />
                 <span className="text-xs font-semibold">Loading incident audit logs from Supabase...</span>
               </div>
             ) : filteredIncidents.length === 0 ? (
-              <div className="flex flex-col items-center justify-center py-12 text-gray-400">
+              <div className="flex flex-col items-center justify-center py-12 text-neutral-400">
                 <CheckCircle2 size={20} className="mb-2 text-ok-400" />
                 <span className="text-xs font-semibold">No incidents found matching current filters.</span>
               </div>
@@ -832,22 +832,22 @@ export function NocOverview() {
                     key={incident.id}
                     className="relative rounded-xl border overflow-hidden transition-all hover:shadow-md"
                     style={{
-                      borderColor: isResolved ? "#dcfce7" : "#fee2e2",
+                      borderColor: isResolved ? "var(--color-ok-100)" : "var(--color-danger-100)",
                       background: isResolved
-                        ? "linear-gradient(90deg, #f0fdf4 0%, #ffffff 3%)"
-                        : "linear-gradient(90deg, #fef2f2 0%, #ffffff 3%)"
+                        ? "linear-gradient(90deg, var(--color-ok-50) 0%, #ffffff 3%)"
+                        : "linear-gradient(90deg, var(--color-danger-50) 0%, #ffffff 3%)"
                     }}
                   >
                     {/* Left accent strip */}
                     <div
                       className="absolute left-0 top-0 bottom-0 w-1 rounded-l-xl"
-                      style={{ backgroundColor: isResolved ? "#22c55e" : "var(--color-danger-500)" }}
+                      style={{ backgroundColor: isResolved ? "var(--color-ok-500)" : "var(--color-danger-500)" }}
                     />
 
                     {/* ── Card Header ──────────────────────────────────────── */}
                     <div className="flex flex-wrap items-center gap-2 px-5 pt-4 pb-2">
                       {/* Ticket number */}
-                      <span className="font-mono font-black text-[13px] text-gray-900 tracking-tight">
+                      <span className="font-mono font-black text-[13px] text-neutral-900 tracking-tight">
                         {incident.ticket_number}
                       </span>
 
@@ -907,8 +907,8 @@ export function NocOverview() {
 
                     {/* Asset ID */}
                     <div className="px-5 pb-2">
-                      <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">
-                        Asset: <span className="text-gray-600">{incident.asset_id}</span>
+                      <span className="text-[10px] font-bold text-neutral-400 uppercase tracking-wider">
+                        Asset: <span className="text-neutral-600">{incident.asset_id}</span>
                       </span>
                     </div>
 
@@ -919,15 +919,15 @@ export function NocOverview() {
                       <div className="space-y-3">
 
                         {/* Reporter info */}
-                        <div className="flex items-start gap-3 bg-gray-50/70 rounded-lg p-3 border border-gray-100">
-                          <div className="w-8 h-8 rounded-full bg-gray-200 flex items-center justify-center flex-shrink-0 mt-0.5">
-                            <User size={14} className="text-gray-500" />
+                        <div className="flex items-start gap-3 bg-neutral-50/70 rounded-lg p-3 border border-neutral-100">
+                          <div className="w-8 h-8 rounded-full bg-neutral-200 flex items-center justify-center flex-shrink-0 mt-0.5">
+                            <User size={14} className="text-neutral-500" />
                           </div>
                           <div className="flex-1 min-w-0">
-                            <div className="text-[9px] font-black text-gray-400 uppercase tracking-wider mb-0.5">Reported By</div>
-                            <div className="text-xs font-bold text-gray-800">{incident.raised_by_name}</div>
-                            <div className="text-[9px] text-gray-400 font-mono">{incident.raised_by_id}</div>
-                            <div className="text-[10px] font-semibold text-gray-400 font-mono mt-1">
+                            <div className="text-[9px] font-black text-neutral-400 uppercase tracking-wider mb-0.5">Reported By</div>
+                            <div className="text-xs font-bold text-neutral-800">{incident.raised_by_name}</div>
+                            <div className="text-[9px] text-neutral-400 font-mono">{incident.raised_by_id}</div>
+                            <div className="text-[10px] font-semibold text-neutral-400 font-mono mt-1">
                               <Clock size={9} className="inline mr-1" />{formatDateTime(incident.occurred_at)}
                             </div>
                           </div>
@@ -935,9 +935,9 @@ export function NocOverview() {
 
                         {/* Notes */}
                         {incident.notes && (
-                          <div className="bg-gray-50 border border-gray-100 rounded-lg p-3">
-                            <div className="text-[8px] font-black text-gray-400 uppercase tracking-wider mb-1">Fault Description</div>
-                            <div className="text-[11px] text-gray-700 font-semibold italic leading-relaxed">
+                          <div className="bg-neutral-50 border border-neutral-100 rounded-lg p-3">
+                            <div className="text-[8px] font-black text-neutral-400 uppercase tracking-wider mb-1">Fault Description</div>
+                            <div className="text-[11px] text-neutral-700 font-semibold italic leading-relaxed">
                               "{incident.notes}"
                             </div>
                           </div>
@@ -980,13 +980,13 @@ export function NocOverview() {
                               👷‍♂️ Contractor Visits ({visits.length})
                             </div>
                             {visits.map((cmt, idx) => (
-                              <div key={idx} className="text-[10px] text-gray-700 leading-normal bg-ok-50/40 p-2 rounded border border-ok-100/40">
+                              <div key={idx} className="text-[10px] text-neutral-700 leading-normal bg-ok-50/40 p-2 rounded border border-ok-100/40">
                                 <div className="font-semibold">{cmt.comment_text}</div>
-                                <div className="text-[8px] text-gray-400 font-mono mt-0.5">{formatDateTime(cmt.timestamp)}</div>
+                                <div className="text-[8px] text-neutral-400 font-mono mt-0.5">{formatDateTime(cmt.timestamp)}</div>
                                 {cmt.photo_url && (
                                   <button
                                     onClick={() => setActivePhotoUrl(cmt.photo_url || null)}
-                                    className="mt-1 block rounded overflow-hidden border border-slate-200 max-w-[60px] active:scale-95 hover:border-info-400 transition-colors"
+                                    className="mt-1 block rounded overflow-hidden border border-neutral-200 max-w-[60px] active:scale-95 hover:border-info-400 transition-colors"
                                   >
                                     <img src={cmt.photo_url} alt="Progress" className="w-full h-auto" />
                                   </button>
@@ -998,17 +998,17 @@ export function NocOverview() {
 
                         {/* Technician Remarks */}
                         {remarks.length > 0 && (
-                          <div className="space-y-1 pl-3 border-l-2 border-slate-300">
-                            <div className="text-[8px] font-black text-slate-500 uppercase tracking-widest">
+                          <div className="space-y-1 pl-3 border-l-2 border-neutral-300">
+                            <div className="text-[8px] font-black text-neutral-500 uppercase tracking-widest">
                               📝 Technician Updates ({remarks.length})
                             </div>
                             {remarks.map((cmt, idx) => (
-                              <div key={idx} className="text-[10px] text-gray-600 leading-normal">
+                              <div key={idx} className="text-[10px] text-neutral-600 leading-normal">
                                 <span className={`font-black ${cmt.type === 'correction' ? 'text-danger-500' : 'text-info-500'}`}>
                                   {cmt.type === 'correction' ? 'Correction: ' : 'Remark: '}
                                 </span>
                                 {cmt.comment_text}{" "}
-                                <span className="text-[8px] text-gray-400 font-mono">({formatDateTime(cmt.timestamp)})</span>
+                                <span className="text-[8px] text-neutral-400 font-mono">({formatDateTime(cmt.timestamp)})</span>
                               </div>
                             ))}
                           </div>
@@ -1085,12 +1085,12 @@ export function NocOverview() {
                             </div>
                           </div>
                         ) : (
-                          <div className="bg-gray-50/50 border border-gray-100 rounded-xl p-4 flex flex-col items-center justify-center h-full text-center">
+                          <div className="bg-neutral-50/50 border border-neutral-100 rounded-xl p-4 flex flex-col items-center justify-center h-full text-center">
                             <AlertTriangle size={18} className="text-warn-400 mb-2" />
-                            <div className="text-[10px] font-black text-gray-400 uppercase tracking-wider">
+                            <div className="text-[10px] font-black text-neutral-400 uppercase tracking-wider">
                               Awaiting Field Clearance
                             </div>
-                            <div className="text-[9px] text-gray-400 font-semibold mt-1">
+                            <div className="text-[9px] text-neutral-400 font-semibold mt-1">
                               No resolution submitted yet
                             </div>
                           </div>
@@ -1108,21 +1108,21 @@ export function NocOverview() {
             SECTION 6: Contractor Visit Log (col-span-12)
         ════════════════════════════════════════════════════════════════════ */}
         <Card className="lg:col-span-12 p-5 flex flex-col space-y-4">
-          <div className="border-b border-gray-100 pb-4">
+          <div className="border-b border-neutral-100 pb-4">
             <SectionLabel>Contractor Visit Log</SectionLabel>
-            <div className="text-[11px] font-semibold text-gray-400 mt-0.5">
+            <div className="text-[11px] font-semibold text-neutral-400 mt-0.5">
               Site inspections and equipment checkups — never implies a fault was resolved.
             </div>
           </div>
 
           <div className="space-y-2">
             {visitsLoading && contractorVisits.length === 0 ? (
-              <div className="flex flex-col items-center justify-center py-8 text-gray-400">
+              <div className="flex flex-col items-center justify-center py-8 text-neutral-400">
                 <RefreshCw size={18} className="animate-spin mb-2 text-brand-400" />
                 <span className="text-xs font-semibold">Loading contractor visit log...</span>
               </div>
             ) : contractorVisits.length === 0 ? (
-              <div className="flex flex-col items-center justify-center py-8 text-gray-400">
+              <div className="flex flex-col items-center justify-center py-8 text-neutral-400">
                 <span className="text-xs font-semibold">No contractor visits logged yet.</span>
               </div>
             ) : (
@@ -1136,18 +1136,18 @@ export function NocOverview() {
                   linkedTicket ? `Ticket ${linkedTicket.ticket_number}` : "Fault Ticket";
 
                 return (
-                  <div key={visit.id} className="flex items-start gap-3 bg-gray-50/60 border border-gray-100 rounded-xl p-3">
+                  <div key={visit.id} className="flex items-start gap-3 bg-neutral-50/60 border border-neutral-100 rounded-xl p-3">
                     <div className="w-8 h-8 rounded-lg bg-info-50 border border-info-100 flex items-center justify-center shrink-0 text-sm">
                       👷‍♂️
                     </div>
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center justify-between gap-2">
-                        <span className="text-[12px] font-black text-gray-900 truncate">{visit.contractor}</span>
-                        <span className="text-[9px] font-bold text-gray-400 font-mono shrink-0">
+                        <span className="text-[12px] font-black text-neutral-900 truncate">{visit.contractor}</span>
+                        <span className="text-[9px] font-bold text-neutral-400 font-mono shrink-0">
                           {formatDateTime(visit.occurred_at)}
                         </span>
                       </div>
-                      <div className="text-[11px] text-gray-600 font-semibold">{visit.purpose}</div>
+                      <div className="text-[11px] text-neutral-600 font-semibold">{visit.purpose}</div>
                       <div className="flex items-center gap-1.5 mt-1">
                         <span className="text-[9px] font-black uppercase tracking-wider text-info-600 bg-info-50 border border-info-100 px-1.5 py-0.5 rounded">
                           {targetLabel}
@@ -1165,24 +1165,24 @@ export function NocOverview() {
                             Signed
                           </span>
                         ) : (
-                          <span className="text-[9px] font-black uppercase tracking-wider text-gray-400 bg-gray-100 border border-gray-200 px-1.5 py-0.5 rounded">
+                          <span className="text-[9px] font-black uppercase tracking-wider text-neutral-400 bg-neutral-100 border border-neutral-200 px-1.5 py-0.5 rounded">
                             Unsigned
                           </span>
                         )}
                       </div>
 
                       {visit.contractor_signature && (
-                        <div className="mt-2 flex items-end gap-2 rounded-lg border border-gray-200 bg-white px-2.5 py-1.5">
+                        <div className="mt-2 flex items-end gap-2 rounded-lg border border-neutral-200 bg-white px-2.5 py-1.5">
                           <img
                             src={visit.contractor_signature}
                             alt={`${visit.contractor} signature`}
                             className="max-h-8 w-auto max-w-[8rem] object-contain"
                           />
-                          <div className="min-w-0 border-t border-gray-300 pt-0.5">
-                            <p className="font-mono text-[8px] uppercase tracking-widest text-gray-400">
+                          <div className="min-w-0 border-t border-neutral-300 pt-0.5">
+                            <p className="font-mono text-[8px] uppercase tracking-widest text-neutral-400">
                               Signed by
                             </p>
-                            <p className="truncate text-[9px] font-black text-gray-700">
+                            <p className="truncate text-[9px] font-black text-neutral-700">
                               {visit.contractor_signed_name || visit.contractor}
                             </p>
                           </div>
@@ -1213,7 +1213,7 @@ export function NocOverview() {
             >
               Close
             </button>
-            <div className="p-2 bg-slate-900 flex items-center justify-center">
+            <div className="p-2 bg-neutral-900 flex items-center justify-center">
               <img src={activePhotoUrl} alt="Enlarged View" className="w-full h-auto max-h-[80vh] object-contain rounded-lg" />
             </div>
           </div>

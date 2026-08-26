@@ -114,7 +114,7 @@ export function FMultiSelect({
       {label && (
         <label
           htmlFor={id}
-          className="mb-1 block text-[9px] font-black uppercase tracking-[0.12em] text-gray-400"
+          className="mb-1 block text-[9px] font-black uppercase tracking-[0.12em] text-neutral-400"
         >
           {label}
         </label>
@@ -133,7 +133,7 @@ export function FMultiSelect({
           onKeyDown={onKeyDown}
           className={[
             "flex w-full items-center justify-between gap-2 rounded-xl border-2 bg-white px-3 py-2 text-left transition-all outline-none",
-            open ? "border-brand-400" : "border-gray-100 hover:border-gray-200"
+            open ? "border-brand-400" : "border-neutral-100 hover:border-neutral-200"
           ].join(" ")}
         >
           <span className="flex min-w-0 flex-wrap items-center gap-1 py-0.5">
@@ -142,12 +142,12 @@ export function FMultiSelect({
                 <Users size={12} /> {allLabel}
               </span>
             ) : chosen.length === 0 ? (
-              <span className="text-[12px] font-semibold text-gray-400">{placeholder}</span>
+              <span className="text-[12px] font-semibold text-neutral-400">{placeholder}</span>
             ) : (
               chosen.map(o => (
                 <span
                   key={o.value}
-                  className="flex items-center gap-1 rounded-lg bg-gray-100 px-2 py-1 text-[11px] font-bold text-gray-700"
+                  className="flex items-center gap-1 rounded-lg bg-neutral-100 px-2 py-1 text-[11px] font-bold text-neutral-700"
                 >
                   {o.label}
                   {/* A span, not a button: nesting a button inside a button is
@@ -157,7 +157,7 @@ export function FMultiSelect({
                     tabIndex={-1}
                     aria-label={`Remove ${o.label}`}
                     onClick={e => { e.stopPropagation(); toggle(o.value); }}
-                    className="cursor-pointer rounded text-gray-400 hover:text-gray-700"
+                    className="cursor-pointer rounded text-neutral-400 hover:text-neutral-700"
                   >
                     <X size={11} />
                   </span>
@@ -167,7 +167,7 @@ export function FMultiSelect({
           </span>
           <ChevronDown
             size={14}
-            className={`shrink-0 text-gray-400 transition-transform duration-200 ${open ? "rotate-180" : ""}`}
+            className={`shrink-0 text-neutral-400 transition-transform duration-200 ${open ? "rotate-180" : ""}`}
           />
         </button>
 
@@ -177,7 +177,7 @@ export function FMultiSelect({
             id={`${id}-listbox`}
             role="listbox"
             aria-multiselectable="true"
-            className="absolute z-[var(--z-popover)] mt-1.5 max-h-64 w-full overflow-y-auto rounded-2xl border border-gray-200 bg-white p-1 shadow-[0_20px_50px_-12px_rgba(15,23,42,0.3)]"
+            className="absolute z-[var(--z-popover)] mt-1.5 max-h-64 w-full overflow-y-auto rounded-2xl border border-neutral-200 bg-white p-1 shadow-[0_20px_50px_-12px_rgba(15,23,42,0.3)]"
           >
             {allowAll && (
               <>
@@ -191,21 +191,21 @@ export function FMultiSelect({
                   className={`flex cursor-pointer items-start gap-2 rounded-xl px-3 py-2.5 ${active === -1 ? "bg-brand-50" : "hover:bg-brand-50"}`}
                 >
                   <span className="min-w-0 flex-1">
-                    <span className={`block text-[12px] ${isAll ? "font-black text-gray-900" : "font-semibold text-gray-700"}`}>
+                    <span className={`block text-[12px] ${isAll ? "font-black text-neutral-900" : "font-semibold text-neutral-700"}`}>
                       {allLabel}
                     </span>
                     {allHint && (
-                      <span className="mt-0.5 block text-[10px] font-medium text-gray-400">{allHint}</span>
+                      <span className="mt-0.5 block text-[10px] font-medium text-neutral-400">{allHint}</span>
                     )}
                   </span>
                   {isAll && <Check size={14} className="mt-0.5 shrink-0 text-brand-500" />}
                 </div>
-                <div className="my-1 border-t border-gray-100" />
+                <div className="my-1 border-t border-neutral-100" />
               </>
             )}
 
             {options.length === 0 && (
-              <p className="px-3 py-2.5 text-[11px] font-semibold text-gray-400">
+              <p className="px-3 py-2.5 text-[11px] font-semibold text-neutral-400">
                 Nobody to choose from
               </p>
             )}
@@ -224,16 +224,16 @@ export function FMultiSelect({
                   className={`flex cursor-pointer items-center gap-2.5 rounded-xl px-3 py-2.5 ${i === active ? "bg-brand-50" : "hover:bg-brand-50"}`}
                 >
                   <span className={`flex h-4 w-4 shrink-0 items-center justify-center rounded border-2 transition-colors ${
-                    on ? "border-brand-500 bg-brand-500 text-white" : "border-gray-300"
+                    on ? "border-brand-500 bg-brand-500 text-white" : "border-neutral-300"
                   }`}>
                     {on && <Check size={11} />}
                   </span>
                   <span className="min-w-0 flex-1">
-                    <span className={`block truncate text-[12px] ${on ? "font-black text-gray-900" : "font-semibold text-gray-700"}`}>
+                    <span className={`block truncate text-[12px] ${on ? "font-black text-neutral-900" : "font-semibold text-neutral-700"}`}>
                       {o.label}
                     </span>
                     {o.hint && (
-                      <span className="mt-0.5 block truncate text-[10px] font-medium text-gray-400">{o.hint}</span>
+                      <span className="mt-0.5 block truncate text-[10px] font-medium text-neutral-400">{o.hint}</span>
                     )}
                   </span>
                 </div>

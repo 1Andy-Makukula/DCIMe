@@ -182,7 +182,7 @@ export function TechDashboard() {
       <ShiftCheckInPrompt />
 
       {/* Shift Context Card */}
-      <div className="relative overflow-hidden bg-gradient-to-br from-gray-900 via-gray-950 to-gray-900 rounded-3xl p-5 text-white shadow-xl border border-gray-800 print:hidden max-w-md mx-auto">
+      <div className="relative overflow-hidden bg-gradient-to-br from-neutral-900 via-neutral-950 to-neutral-900 rounded-3xl p-5 text-white shadow-xl border border-neutral-800 print:hidden max-w-md mx-auto">
         {/* Subtle decorative glowing spot */}
         <div className="absolute -top-16 -right-16 w-36 h-36 bg-brand-600 rounded-full blur-3xl opacity-20 pointer-events-none" />
 
@@ -203,19 +203,19 @@ export function TechDashboard() {
                 <User size={18} />
               </div>
               <div>
-                <p className="text-[10px] text-gray-400 font-semibold uppercase tracking-wider">Technician</p>
-                <p className="font-bold text-sm text-gray-100">{user?.name || "Loading..."}</p>
+                <p className="text-[10px] text-neutral-400 font-semibold uppercase tracking-wider">Technician</p>
+                <p className="font-bold text-sm text-neutral-100">{user?.name || "Loading..."}</p>
               </div>
             </div>
 
             <div className="grid grid-cols-2 gap-2 pt-2 border-t border-white/5">
               <div className="flex items-center gap-2">
-                <MapPin size={14} className="text-gray-400" />
-                <span className="text-xs text-gray-300 font-medium">Power Room 1</span>
+                <MapPin size={14} className="text-neutral-400" />
+                <span className="text-xs text-neutral-300 font-medium">Power Room 1</span>
               </div>
               <div className="flex items-center gap-2">
-                <Clock size={14} className="text-gray-400" />
-                <span className="text-xs text-gray-300 font-medium font-mono">{currentShiftHours}</span>
+                <Clock size={14} className="text-neutral-400" />
+                <span className="text-xs text-neutral-300 font-medium font-mono">{currentShiftHours}</span>
               </div>
             </div>
           </div>
@@ -226,20 +226,20 @@ export function TechDashboard() {
       <div className="max-w-md mx-auto">
         <button
           onClick={() => window.open("/topology_engine/renderer/index.html?role=FIELD_TECH", "_blank")}
-          className="w-full bg-white border border-gray-200 hover:border-brand-200 rounded-3xl py-3.5 text-[10px] font-black uppercase tracking-wider text-slate-700 hover:text-brand-500 hover:bg-brand-50/10 active:scale-[0.98] transition-all shadow-sm flex items-center justify-center gap-2 cursor-pointer"
+          className="w-full bg-white border border-neutral-200 hover:border-brand-200 rounded-3xl py-3.5 text-[10px] font-black uppercase tracking-wider text-neutral-700 hover:text-brand-500 hover:bg-brand-50/10 active:scale-[0.98] transition-all shadow-sm flex items-center justify-center gap-2 cursor-pointer"
         >
           📊 View Visual Topology Map
         </button>
       </div>
 
       {/* Segmented Tab Controls */}
-      <div className="bg-white border border-gray-100 rounded-2xl p-1.5 flex shadow-sm print:hidden max-w-md mx-auto">
+      <div className="bg-white border border-neutral-100 rounded-2xl p-1.5 flex shadow-sm print:hidden max-w-md mx-auto">
         <button
           onClick={() => setActiveTab("checklist")}
           className={`flex-1 py-2 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all flex flex-col items-center justify-center gap-1 text-center ${
             activeTab === "checklist"
               ? "bg-brand-500 text-white shadow-sm shadow-brand-500/10"
-              : "text-gray-400 hover:text-gray-600"
+              : "text-neutral-400 hover:text-neutral-600"
           }`}
         >
           <CheckCircle size={16} />
@@ -251,7 +251,7 @@ export function TechDashboard() {
           className={`flex-1 py-2 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all flex flex-col items-center justify-center gap-1 text-center ${
             activeTab === "maintenance"
               ? "bg-brand-500 text-white shadow-sm shadow-brand-500/10"
-              : "text-gray-400 hover:text-gray-600"
+              : "text-neutral-400 hover:text-neutral-600"
           }`}
         >
           <FileText size={16} />
@@ -265,7 +265,7 @@ export function TechDashboard() {
           className={`flex-1 py-2 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all flex flex-col items-center justify-center gap-1 text-center relative ${
             activeTab === "handover"
               ? "bg-brand-500 text-white shadow-sm shadow-brand-500/10"
-              : "text-gray-400 hover:text-gray-600"
+              : "text-neutral-400 hover:text-neutral-600"
           }`}
         >
           <MessageSquare size={16} />
@@ -282,7 +282,7 @@ export function TechDashboard() {
       {activeTab === "checklist" && (
         <div className="max-w-md mx-auto space-y-6">
           {/* Shift Timeline Section */}
-          <div className="bg-white rounded-3xl p-5 border border-gray-100 shadow-sm space-y-5">
+          <div className="bg-white rounded-3xl p-5 border border-neutral-100 shadow-sm space-y-5">
             <DateScrubber
               selectedDate={selectedDate}
               viewMonth={viewMonth}
@@ -290,7 +290,7 @@ export function TechDashboard() {
               onSelectDate={setSelectedDate}
               onChangeMonth={setViewMonth}
             />
-            <div className="border-t border-gray-100 pt-5">
+            <div className="border-t border-neutral-100 pt-5">
               <ShiftTimeline
                 currentTime={currentTime}
                 selectedDate={selectedDate}
@@ -302,17 +302,17 @@ export function TechDashboard() {
 
           {/* Facility Status Section */}
           <div className="space-y-2.5">
-            <h2 className="text-xs font-black text-gray-400 uppercase tracking-widest px-1">
+            <h2 className="text-xs font-black text-neutral-400 uppercase tracking-widest px-1">
               Facility Status
             </h2>
             
-            <div className="bg-white rounded-3xl p-4 border border-gray-100 shadow-sm flex items-center gap-4">
+            <div className="bg-white rounded-3xl p-4 border border-neutral-100 shadow-sm flex items-center gap-4">
               <div className="w-12 h-12 rounded-2xl bg-ok-50 flex items-center justify-center shrink-0 border border-ok-100">
                 <CheckCircle size={22} className="text-ok-500" />
               </div>
               <div className="flex-1 min-w-0">
-                <p className="font-bold text-gray-900 text-sm">Site Stable</p>
-                <p className="text-xs text-gray-500 truncate">No active telemetry alarms in Zone 1</p>
+                <p className="font-bold text-neutral-900 text-sm">Site Stable</p>
+                <p className="text-xs text-neutral-500 truncate">No active telemetry alarms in Zone 1</p>
               </div>
             </div>
           </div>
@@ -333,10 +333,10 @@ export function TechDashboard() {
         <div className="max-w-md mx-auto space-y-4">
           <div className="px-1 flex justify-between items-center">
             <div>
-              <h2 className="text-xs font-black text-gray-400 uppercase tracking-widest">
+              <h2 className="text-xs font-black text-neutral-400 uppercase tracking-widest">
                 Shift Pass-down Logs
               </h2>
-              <p className="text-[10px] text-gray-500 mt-0.5">Critical updates and warnings left by previous shifts.</p>
+              <p className="text-[10px] text-neutral-500 mt-0.5">Critical updates and warnings left by previous shifts.</p>
             </div>
             <button 
               onClick={refreshHandovers}
@@ -348,9 +348,9 @@ export function TechDashboard() {
           </div>
 
           {isHandoversLoading && shiftReports.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-10 bg-white border border-gray-100 rounded-3xl shadow-sm gap-2">
+            <div className="flex flex-col items-center justify-center py-10 bg-white border border-neutral-100 rounded-3xl shadow-sm gap-2">
               <Loader2 className="animate-spin text-brand-500" size={24} />
-              <p className="text-[11px] font-bold uppercase tracking-wider text-gray-400">Syncing shift reports...</p>
+              <p className="text-[11px] font-bold uppercase tracking-wider text-neutral-400">Syncing shift reports...</p>
             </div>
           ) : handoversError ? (
             <div className="bg-danger-50 border border-danger-100 text-danger-700 p-4 rounded-3xl text-xs flex gap-2">
@@ -360,13 +360,13 @@ export function TechDashboard() {
               </div>
             </div>
           ) : shiftReports.length === 0 ? (
-            <div className="bg-white border border-gray-100 rounded-3xl p-8 text-center space-y-4 shadow-sm">
-              <div className="w-16 h-16 bg-gray-50 rounded-full flex items-center justify-center mx-auto text-gray-400 border border-gray-100">
+            <div className="bg-white border border-neutral-100 rounded-3xl p-8 text-center space-y-4 shadow-sm">
+              <div className="w-16 h-16 bg-neutral-50 rounded-full flex items-center justify-center mx-auto text-neutral-400 border border-neutral-100">
                 <MessageSquare size={28} />
               </div>
               <div className="space-y-1">
-                <h3 className="font-black text-slate-800 text-sm">Clear Pass-down Ledger</h3>
-                <p className="text-xs text-gray-400 max-w-[240px] mx-auto">
+                <h3 className="font-black text-neutral-800 text-sm">Clear Pass-down Ledger</h3>
+                <p className="text-xs text-neutral-400 max-w-[240px] mx-auto">
                   No active handover notes or shift logs are archived in the database.
                 </p>
               </div>
@@ -378,16 +378,16 @@ export function TechDashboard() {
                 return (
                   <div 
                     key={report.log_id}
-                    className={`bg-white border border-gray-100 rounded-3xl p-5 shadow-sm space-y-4 relative overflow-hidden transition-all hover:border-gray-200 ${
+                    className={`bg-white border border-neutral-100 rounded-3xl p-5 shadow-sm space-y-4 relative overflow-hidden transition-all hover:border-neutral-200 ${
                       isActiveWatch ? "ring-2 ring-brand-500/25 border-brand-100 bg-gradient-to-b from-brand-50/10 to-white" : ""
                     }`}
                   >
                     {/* Left visual state stripe */}
-                    <div className={`absolute left-0 top-0 bottom-0 w-1.5 ${isActiveWatch ? "bg-danger-500" : "bg-gray-300"}`} />
+                    <div className={`absolute left-0 top-0 bottom-0 w-1.5 ${isActiveWatch ? "bg-danger-500" : "bg-neutral-300"}`} />
 
                     <div className="flex items-center justify-between pl-1">
                       <div className="flex items-center gap-1.5">
-                        <span className="text-[10px] font-mono text-gray-400">
+                        <span className="text-[10px] font-mono text-neutral-400">
                           {report.signature_id ? report.signature_id.substring(0, 14) + "..." : `SR-${report.log_id.substring(0, 6)}`}
                         </span>
                         {isActiveWatch && (
@@ -397,27 +397,27 @@ export function TechDashboard() {
                           </span>
                         )}
                       </div>
-                      <span className="text-[9px] font-mono text-gray-400 font-bold">{formatDate(report.timestamp)}</span>
+                      <span className="text-[9px] font-mono text-neutral-400 font-bold">{formatDate(report.timestamp)}</span>
                     </div>
 
                     <div className="pl-1 space-y-2">
-                      <div className="flex items-center gap-2 text-gray-855">
-                        <User size={13} className="text-gray-400" />
+                      <div className="flex items-center gap-2 text-neutral-855">
+                        <User size={13} className="text-neutral-400" />
                         <span className="font-bold text-xs">{report.technician_name}</span>
-                        <span className="text-[10px] text-gray-400">({report.technician_id})</span>
+                        <span className="text-[10px] text-neutral-400">({report.technician_id})</span>
                       </div>
                       
                       {/* Pass-down commentary box */}
                       <div className={`p-4 rounded-2xl text-xs font-semibold leading-relaxed ${
                         isActiveWatch 
                           ? "bg-danger-50/40 border border-danger-100/50 text-danger-950" 
-                          : "bg-gray-50 border border-gray-100 text-gray-700"
+                          : "bg-neutral-50 border border-neutral-100 text-neutral-700"
                       }`}>
-                        <div className="text-[8px] font-black text-gray-400 uppercase tracking-widest mb-1">Pass-down Instructions</div>
+                        <div className="text-[8px] font-black text-neutral-400 uppercase tracking-widest mb-1">Pass-down Instructions</div>
                         <p className="whitespace-pre-line">{report.notes || "No pass-down notes submitted."}</p>
                       </div>
 
-                      <div className="flex items-center justify-between pt-1.5 text-[9px] text-gray-400 font-bold">
+                      <div className="flex items-center justify-between pt-1.5 text-[9px] text-neutral-400 font-bold">
                         <div className="flex items-center gap-1">
                           <Clock size={11} />
                           <span>Shift: {report.shift_duration}</span>

@@ -1,14 +1,9 @@
 // src/features/field/components/PathRenderer.tsx
 import { Zap, Plug } from "lucide-react";
+import type { SiteEquipment, SiteMetric, SiteWalkStep } from "@/shared/api/siteModel";
 
-interface Metric {
-  id: string;
-  label: string;
-  type: string;
-  frequency: string;
-  is_constant?: boolean;
-  default_value?: any;
-}
+// The shapes below come from the registry now, not from a JSON file, so they
+// are imported rather than re-declared — a local copy is how the two drift.
 
 interface EquipmentParameter {
   id: string;
@@ -22,25 +17,11 @@ interface EquipmentParameter {
   created_at: string;
 }
 
-interface EquipmentBlueprint {
-  id: string;
-  name: string;
-  category: string;
-  room_id: string;
-  sort_order: number;
-  metrics: Metric[];
-}
-
 interface PathRendererProps {
   targetHour?: string | number;
-  currentStep: {
-    step_number: number;
-    name: string;
-    equipment_ids: string[];
-    room_id?: string;
-  };
+  currentStep: SiteWalkStep;
   blueprint: {
-    equipment: EquipmentBlueprint[];
+    equipment: SiteEquipment[];
   };
   formData: Record<string, any>;
   allEquipment: any[];
@@ -48,7 +29,7 @@ interface PathRendererProps {
   autoFilledFields: Set<string>;
   carriedFields: Set<string>;
   prevGeneratorValues: Record<string, any>;
-  getVisibleMetrics: (assetId: string, metrics: Metric[]) => Metric[];
+  getVisibleMetrics: (assetId: string, metrics: SiteMetric[]) => SiteMetric[];
   isEquipmentActive: (equipmentId: string) => boolean;
   handleUserInputChange: (id: string, value: any) => void;
   handleToggleChange: (key: string, value: any, extraUpdates?: Record<string, any>) => void;
@@ -92,13 +73,13 @@ export function PathRenderer({
       case "AIRCON":
       case "COOLING":
         return (
-          <div className="w-5 h-5 rounded bg-cyan-50 text-cyan-500 flex items-center justify-center font-bold text-[10px]">
+          <div className="w-5 h-5 rounded bg-info-50 text-info-600 flex items-center justify-center font-bold text-[10px]">
             AC
           </div>
         );
       default:
         return (
-          <div className="w-5 h-5 rounded bg-gray-50 text-gray-400 flex items-center justify-center font-bold text-[10px]">
+          <div className="w-5 h-5 rounded bg-neutral-50 text-neutral-400 flex items-center justify-center font-bold text-[10px]">
             EQ
           </div>
         );
@@ -108,25 +89,25 @@ export function PathRenderer({
   return (
     <div className="space-y-4 animate-fade-in">
       {currentStep.room_id === "room_fuel" && (
-        <div className="backdrop-blur-md bg-white/75 border border-gray-200/50 rounded-3xl p-5 shadow-sm space-y-4 mb-4">
+        <div className="backdrop-blur-md bg-white/75 border border-neutral-200/50 rounded-3xl p-5 shadow-sm space-y-4 mb-4">
           <div>
-            <span className="text-xs font-black text-gray-700 uppercase tracking-wider block flex items-center gap-1.5">
+            <span className="text-xs font-black text-neutral-700 uppercase tracking-wider block flex items-center gap-1.5">
               <Zap size={14} className="text-warn-500 animate-pulse" />
               Generator Patrol Test Selector
             </span>
-            <span className="text-[10px] text-gray-400 font-semibold mt-0.5 block">
+            <span className="text-[10px] text-neutral-400 font-semibold mt-0.5 block">
               Set generator status and load test mode for today's walk
             </span>
           </div>
 
-          <div className="grid grid-cols-3 gap-2 bg-slate-100 rounded-2xl p-1 border border-slate-200/50">
+          <div className="grid grid-cols-3 gap-2 bg-neutral-100 rounded-2xl p-1 border border-neutral-200/50">
             <button
               type="button"
               onClick={() => setFsmMode("NORMAL")}
               className={`py-2.5 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all cursor-pointer flex flex-col items-center justify-center gap-1 text-center ${
                 fsmMode === "NORMAL"
-                  ? "bg-white text-ok-600 shadow-sm border border-slate-200/30"
-                  : "text-slate-500 hover:text-slate-700"
+                  ? "bg-white text-ok-600 shadow-sm border border-neutral-200/30"
+                  : "text-neutral-500 hover:text-neutral-700"
               }`}
             >
               <Plug size={14} />
@@ -139,7 +120,7 @@ export function PathRenderer({
               className={`py-2.5 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all cursor-pointer flex flex-col items-center justify-center gap-1 text-center ${
                 fsmMode === "DAILY_TEST"
                   ? "bg-warn-500 text-white shadow-sm"
-                  : "text-slate-500 hover:text-slate-700"
+                  : "text-neutral-500 hover:text-neutral-700"
               }`}
             >
               <Zap size={14} />
@@ -152,7 +133,7 @@ export function PathRenderer({
               className={`py-2.5 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all cursor-pointer flex flex-col items-center justify-center gap-1 text-center ${
                 fsmMode === "ON_LOAD_TEST"
                   ? "bg-warn-600 text-white shadow-sm"
-                  : "text-slate-500 hover:text-slate-700"
+                  : "text-neutral-500 hover:text-neutral-700"
               }`}
             >
               <Zap size={14} />
@@ -220,21 +201,21 @@ export function PathRenderer({
         return (
           <div
             key={eqId}
-            className={`bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden transition-all duration-300 hover:shadow-md ${
-              isGridLocked ? "opacity-45 bg-gray-50/50 pointer-events-none" : ""
+            className={`bg-white rounded-2xl border border-neutral-100 shadow-sm overflow-hidden transition-all duration-300 hover:shadow-md ${
+              isGridLocked ? "opacity-45 bg-neutral-50/50 pointer-events-none" : ""
             }`}
           >
             {/* Card Header */}
-            <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100 bg-slate-50/50 gap-3">
+            <div className="flex items-center justify-between px-4 py-3 border-b border-neutral-100 bg-neutral-50/50 gap-3">
               <div className="flex items-center gap-2">
                 {categoryIcon(equipBp.category)}
-                <h3 className="text-xs font-black text-gray-800 uppercase tracking-wider leading-none">
+                <h3 className="text-xs font-black text-neutral-800 uppercase tracking-wider leading-none">
                   {equipBp.name}
                 </h3>
               </div>
 
               {/* 3-way status toggle */}
-              <div className="flex rounded-lg bg-slate-100 border border-slate-200 p-0.5 gap-0.5 flex-shrink-0">
+              <div className="flex rounded-lg bg-neutral-100 border border-neutral-200 p-0.5 gap-0.5 flex-shrink-0">
                 {(["ONLINE", "DEGRADED", "OFFLINE"] as const).map((st) => {
                   const isActive = currentStatus === st;
                   return (
@@ -257,7 +238,7 @@ export function PathRenderer({
                       className={`px-2.5 py-1.5 rounded-md text-[9px] font-black uppercase tracking-wider transition-all cursor-pointer flex items-center gap-1 ${
                         isActive
                           ? colorStyles[st] + " border border-transparent"
-                          : "bg-white text-slate-500 border border-slate-200 hover:text-slate-700"
+                          : "bg-white text-neutral-500 border border-neutral-200 hover:text-neutral-700"
                       }`}
                     >
                       <span
@@ -290,14 +271,14 @@ export function PathRenderer({
                         <div className="flex items-center justify-between text-[10px] mb-1">
                           <label
                             htmlFor={metric.id}
-                            className="flex items-center gap-1 text-[10px] font-bold text-gray-400 uppercase tracking-wider"
+                            className="flex items-center gap-1 text-[10px] font-bold text-neutral-400 uppercase tracking-wider"
                           >
                             <span>{metric.label}</span>
                           </label>
                           {isDg && prevGeneratorValues[metric.id] !== undefined && (
-                            <span className="text-[9px] font-semibold text-slate-400 bg-slate-50 px-1.5 py-0.5 rounded-md border border-slate-200/50 flex items-center gap-1">
+                            <span className="text-[9px] font-semibold text-neutral-400 bg-neutral-50 px-1.5 py-0.5 rounded-md border border-neutral-200/50 flex items-center gap-1">
                               Prev:{" "}
-                              <span className="font-mono font-bold text-slate-600">
+                              <span className="font-mono font-bold text-neutral-600">
                                 {prevGeneratorValues[metric.id]}
                               </span>
                             </span>
@@ -332,9 +313,9 @@ export function PathRenderer({
                                     onChange={(e) =>
                                       handleUserInputChange(metric.id, e.target.checked)
                                     }
-                                    className="w-4 h-4 rounded text-brand-600 focus:ring-brand-500 border-gray-300 cursor-pointer"
+                                    className="w-4 h-4 rounded text-brand-600 focus:ring-brand-500 border-neutral-300 cursor-pointer"
                                   />
-                                  <span className="ml-2 text-xs font-semibold text-gray-600 uppercase">
+                                  <span className="ml-2 text-xs font-semibold text-neutral-600 uppercase">
                                     {(formData[metric.id] === true || formData[metric.id] === "true")
                                       ? "Pass"
                                       : "Fail / No"}
@@ -362,12 +343,12 @@ export function PathRenderer({
                                 }
                                 className={`w-full px-3 py-2 rounded-lg border text-xs font-semibold focus:outline-none focus:ring-1 transition-all ${
                                   isReadOnlyField
-                                    ? "bg-slate-100 border-gray-200 text-slate-500 cursor-not-allowed"
+                                    ? "bg-neutral-100 border-neutral-200 text-neutral-500 cursor-not-allowed"
                                     : isAutoFilled && isDg
                                     ? "bg-ok-50/10 border-ok-200 text-ok-700 focus:border-ok-500 focus:ring-ok-500/20"
                                     : isCarried
-                                    ? "bg-info-50/40 border-info-200 text-gray-800 border-l-[3px] border-l-blue-400 focus:border-info-500 focus:ring-info-400/30"
-                                    : "bg-white border-gray-200 text-gray-800 focus:border-brand-400 focus:ring-brand-400"
+                                    ? "bg-info-50/40 border-info-200 text-neutral-800 border-l-[3px] border-l-blue-400 focus:border-info-500 focus:ring-info-400/30"
+                                    : "bg-white border-neutral-200 text-neutral-800 focus:border-brand-400 focus:ring-brand-400"
                                 }`}
                               />
                             );
@@ -389,7 +370,7 @@ export function PathRenderer({
                         <div className="flex items-center justify-between text-[10px] mb-1">
                           <label
                             htmlFor={inputKey}
-                            className="flex items-center gap-1 text-[10px] font-bold text-gray-400 uppercase tracking-wider"
+                            className="flex items-center gap-1 text-[10px] font-bold text-neutral-400 uppercase tracking-wider"
                           >
                             <span>{param.parameter_name}</span>
                           </label>
@@ -413,9 +394,9 @@ export function PathRenderer({
                               onChange={(e) =>
                                 handleToggleChange(inputKey, e.target.checked ? "true" : "false")
                               }
-                              className="w-4 h-4 rounded text-brand-600 focus:ring-brand-500 border-gray-300"
+                              className="w-4 h-4 rounded text-brand-600 focus:ring-brand-500 border-neutral-300"
                             />
-                            <span className="ml-2 text-xs font-semibold text-gray-600 uppercase">
+                            <span className="ml-2 text-xs font-semibold text-neutral-600 uppercase">
                               {(formData[inputKey] === "true" || formData[inputKey] === true)
                                 ? "Yes"
                                 : "No"}
@@ -433,12 +414,12 @@ export function PathRenderer({
                               placeholder={param.unit ? `[${param.unit}]` : "—"}
                               className={`w-full px-3 py-2 rounded-lg border text-xs font-semibold focus:outline-none focus:ring-1 transition-all ${
                                 isCarried
-                                  ? "bg-info-50/40 border-info-200 text-gray-800 border-l-[3px] border-l-blue-400 focus:border-info-500 focus:ring-info-400/30"
-                                  : "bg-white border-gray-200 text-gray-800 focus:border-brand-400 focus:ring-brand-400"
+                                  ? "bg-info-50/40 border-info-200 text-neutral-800 border-l-[3px] border-l-blue-400 focus:border-info-500 focus:ring-info-400/30"
+                                  : "bg-white border-neutral-200 text-neutral-800 focus:border-brand-400 focus:ring-brand-400"
                               }`}
                             />
                             {param.unit && (
-                              <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] text-gray-400 font-bold uppercase pointer-events-none">
+                              <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] text-neutral-400 font-bold uppercase pointer-events-none">
                                 {param.unit}
                               </span>
                             )}
@@ -474,7 +455,7 @@ export function PathRenderer({
                       ? "Total power failure, breaker tripped..."
                       : "Compressor 1 down..."
                   }
-                  className="w-full px-3 py-2 rounded-lg border border-danger-200 bg-danger-50/30 text-xs font-semibold text-gray-800 focus:outline-none focus:border-danger-500 focus:ring-1 focus:ring-danger-500 transition-all resize-none"
+                  className="w-full px-3 py-2 rounded-lg border border-danger-200 bg-danger-50/30 text-xs font-semibold text-neutral-800 focus:outline-none focus:border-danger-500 focus:ring-1 focus:ring-danger-500 transition-all resize-none"
                 />
               </div>
             )}

@@ -123,34 +123,34 @@ export function ShiftHandover() {
 
   if (isSuccess) {
     return (
-      <div className="max-w-md mx-auto bg-white rounded-3xl border border-gray-100 shadow-sm p-6 text-center space-y-6 animate-fade-in pb-12">
+      <div className="max-w-md mx-auto bg-white rounded-3xl border border-neutral-100 shadow-sm p-6 text-center space-y-6 animate-fade-in pb-12">
         <div className="w-20 h-20 bg-ok-50 rounded-full flex items-center justify-center mx-auto text-ok-500 border border-ok-100">
           <ShieldCheck size={40} className="animate-pulse" />
         </div>
         
         <div className="space-y-2">
-          <h1 className="text-xl font-black text-gray-900">Shift Handover Sealed</h1>
-          <p className="text-sm text-gray-500 px-4">
+          <h1 className="text-xl font-black text-neutral-900">Shift Handover Sealed</h1>
+          <p className="text-sm text-neutral-500 px-4">
             Your shift records have been signed digitally and archived into the immutable ledger.
           </p>
         </div>
 
-        <div className="bg-gray-900 text-gray-100 rounded-2xl p-4 text-left border border-gray-800 font-mono text-xs space-y-2.5">
-          <div className="flex justify-between border-b border-gray-800 pb-1.5">
-            <span className="text-gray-500">Signatory:</span>
+        <div className="bg-neutral-900 text-neutral-100 rounded-2xl p-4 text-left border border-neutral-800 font-mono text-xs space-y-2.5">
+          <div className="flex justify-between border-b border-neutral-800 pb-1.5">
+            <span className="text-neutral-500">Signatory:</span>
             <span className="font-bold">{user?.name || "Field Tech"}</span>
           </div>
-          <div className="flex justify-between border-b border-gray-800 pb-1.5">
-            <span className="text-gray-500">Timestamp:</span>
+          <div className="flex justify-between border-b border-neutral-800 pb-1.5">
+            <span className="text-neutral-500">Timestamp:</span>
             <span className="font-bold">{new Date().toLocaleString("en-US", { hour12: false })}</span>
           </div>
-          <div className="flex justify-between border-b border-gray-800 pb-1.5">
-            <span className="text-gray-500">Routine Check:</span>
+          <div className="flex justify-between border-b border-neutral-800 pb-1.5">
+            <span className="text-neutral-500">Routine Check:</span>
             <span className="text-ok-400 font-bold">{logsCompleted ?? 0} Logs Saved</span>
           </div>
 
           <div className="flex justify-between">
-            <span className="text-gray-500">Signature ID:</span>
+            <span className="text-neutral-500">Signature ID:</span>
             <span className="text-brand-400 font-bold font-mono truncate max-w-[200px]">{generatedSig}</span>
           </div>
         </div>
@@ -172,7 +172,7 @@ export function ShiftHandover() {
         <button
           type="button"
           onClick={() => navigate("/tech")}
-          className="inline-flex items-center gap-2 py-3 px-4 rounded-xl bg-gray-50 border border-gray-200 text-xs font-bold text-gray-600 hover:text-brand-600 active:scale-[0.98] transition-all cursor-pointer"
+          className="inline-flex items-center gap-2 py-3 px-4 rounded-xl bg-neutral-50 border border-neutral-200 text-xs font-bold text-neutral-600 hover:text-brand-600 active:scale-[0.98] transition-all cursor-pointer"
         >
           <ArrowLeft size={14} />
           <span>← Back</span>
@@ -181,34 +181,34 @@ export function ShiftHandover() {
 
       {/* Header */}
       <div className="px-1">
-        <h1 className="text-xl font-black text-gray-900 tracking-tight">Shift Handover</h1>
-        <p className="text-xs text-gray-500 mt-0.5">Review and securely close your current shift.</p>
+        <h1 className="text-xl font-black text-neutral-900 tracking-tight">Shift Handover</h1>
+        <p className="text-xs text-neutral-500 mt-0.5">Review and securely close your current shift.</p>
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-6">
         {/* Shift Summary Card */}
-        <div className="bg-white rounded-3xl border border-gray-100 p-5 shadow-sm space-y-4">
-          <div className="flex items-center gap-3 text-gray-800">
-            <div className="w-9 h-9 rounded-xl bg-gray-50 border border-gray-100 flex items-center justify-center text-gray-500 shrink-0">
+        <div className="bg-white rounded-3xl border border-neutral-100 p-5 shadow-sm space-y-4">
+          <div className="flex items-center gap-3 text-neutral-800">
+            <div className="w-9 h-9 rounded-xl bg-neutral-50 border border-neutral-100 flex items-center justify-center text-neutral-500 shrink-0">
               <Clock size={16} />
             </div>
             <div>
-              <p className="text-[10px] text-gray-400 font-bold uppercase tracking-wider">Shift Duration</p>
-              <p className="font-black text-sm text-gray-800">{currentShiftHours}</p>
+              <p className="text-[10px] text-neutral-400 font-bold uppercase tracking-wider">Shift Duration</p>
+              <p className="font-black text-sm text-neutral-800">{currentShiftHours}</p>
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-3 pt-3 border-t border-gray-100">
-            <div className="bg-gray-50 rounded-2xl p-3 border border-gray-100 text-center space-y-1">
-              <p className="text-[9px] text-gray-400 font-bold uppercase tracking-wider">Routine Logs</p>
+          <div className="grid grid-cols-2 gap-3 pt-3 border-t border-neutral-100">
+            <div className="bg-neutral-50 rounded-2xl p-3 border border-neutral-100 text-center space-y-1">
+              <p className="text-[9px] text-neutral-400 font-bold uppercase tracking-wider">Routine Logs</p>
               <p className="text-base font-black text-ok-600">
                 {logsCompleted === null ? "…" : `${logsCompleted} Saved`}
               </p>
             </div>
             
-            <div className="bg-gray-50 rounded-2xl p-3 border border-gray-100 text-center space-y-1">
-              <p className="text-[9px] text-gray-400 font-bold uppercase tracking-wider">Incidents Filed</p>
-              <p className="text-base font-black text-gray-500">
+            <div className="bg-neutral-50 rounded-2xl p-3 border border-neutral-100 text-center space-y-1">
+              <p className="text-[9px] text-neutral-400 font-bold uppercase tracking-wider">Incidents Filed</p>
+              <p className="text-base font-black text-neutral-500">
                 {incidentsFiled === null ? "…" : `${incidentsFiled} Reported`}
               </p>
             </div>
@@ -217,10 +217,10 @@ export function ShiftHandover() {
         </div>
 
         {/* Pass-down Notes */}
-        <div className="bg-white rounded-3xl border border-gray-100 p-5 shadow-sm space-y-3">
+        <div className="bg-white rounded-3xl border border-neutral-100 p-5 shadow-sm space-y-3">
           <div className="flex items-center gap-2">
             <MessageSquare size={16} className="text-danger-500" />
-            <h2 className="text-xs font-black text-gray-400 uppercase tracking-widest">
+            <h2 className="text-xs font-black text-neutral-400 uppercase tracking-widest">
               Notes for Incoming Shift
             </h2>
           </div>
@@ -230,14 +230,14 @@ export function ShiftHandover() {
             value={notes}
             onChange={(e) => setNotes(e.target.value)}
             placeholder="e.g., Keep an eye on the ambient temp in Power Room 1, it was fluctuating slightly around 11:00..."
-            className="w-full p-4 rounded-2xl bg-gray-50 border border-gray-200 text-sm font-semibold text-gray-800 placeholder-gray-400 focus:outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500 resize-none transition-colors"
+            className="w-full p-4 rounded-2xl bg-neutral-50 border border-neutral-200 text-sm font-semibold text-neutral-800 placeholder-neutral-400 focus:outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500 resize-none transition-colors"
           />
         </div>
 
         {/* Digital Signature & Submission */}
         <div className="space-y-4">
           <div>
-            <p className="mb-2 text-[10px] font-black uppercase tracking-widest text-gray-400">
+            <p className="mb-2 text-[10px] font-black uppercase tracking-widest text-neutral-400">
               Sign to hand over
             </p>
             <SignatureField
@@ -252,14 +252,14 @@ export function ShiftHandover() {
             onClick={() => setCertified(!certified)}
             className={`flex items-start gap-3 p-4 rounded-3xl border cursor-pointer select-none transition-all ${
               certified 
-                ? "bg-ok-50/50 border-ok-200 text-gray-800 shadow-sm" 
-                : "bg-white border-gray-200 text-gray-500"
+                ? "bg-ok-50/50 border-ok-200 text-neutral-800 shadow-sm" 
+                : "bg-white border-neutral-200 text-neutral-500"
             }`}
           >
             <div className={`w-6 h-6 rounded-lg border-2 flex items-center justify-center shrink-0 transition-all ${
               certified 
                 ? "bg-ok-500 border-ok-500 text-white" 
-                : "border-gray-300 bg-white"
+                : "border-neutral-300 bg-white"
             }`}>
               {certified && <CheckCircle2 size={16} fill="none" strokeWidth={3} />}
             </div>
@@ -273,8 +273,8 @@ export function ShiftHandover() {
             disabled={!certified || !signature || isSubmitting}
             className={`w-full py-4 rounded-2xl text-white font-black text-sm tracking-widest uppercase transition-all shadow-lg flex items-center justify-center gap-2 ${
               !certified || !signature || isSubmitting
-                ? "bg-gray-300 shadow-none cursor-not-allowed text-gray-400"
-                : "bg-gray-900 hover:bg-gray-800 shadow-gray-900/10 active:scale-[0.98]"
+                ? "bg-neutral-300 shadow-none cursor-not-allowed text-neutral-400"
+                : "bg-neutral-900 hover:bg-neutral-800 shadow-neutral-900/10 active:scale-[0.98]"
             }`}
           >
             {isSubmitting ? (

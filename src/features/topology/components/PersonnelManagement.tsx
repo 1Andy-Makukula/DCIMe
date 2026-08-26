@@ -56,16 +56,16 @@ interface Personnel {
 
 // ── Role badge config ─────────────────────────────────────────────────────────
 const ROLE_BADGE: Record<Role, string> = {
-  "NOC Admin":       "bg-purple-100 text-purple-700 border border-purple-200",
+  "NOC Admin":       "bg-series-5/15 text-series-5 border border-series-5/30",
   "L2 Engineer":     "bg-info-100   text-info-700   border border-info-200",
-  "L1 Tech":         "bg-gray-100   text-gray-600   border border-gray-200",
+  "L1 Tech":         "bg-neutral-100   text-neutral-600   border border-neutral-200",
   "Security Officer":"bg-warn-100  text-warn-700  border border-warn-200",
 };
 
 // ── Status badge config ───────────────────────────────────────────────────────
 const STATUS_BADGE: Record<Status, { cls: string; dot: string; label: string }> = {
   "On-Shift": { cls: "bg-ok-100 text-ok-700",  dot: "bg-ok-500",  label: "On-Shift" },
-  "Active":   { cls: "bg-gray-100  text-gray-600",   dot: "bg-gray-400",   label: "Active"   },
+  "Active":   { cls: "bg-neutral-100  text-neutral-600",   dot: "bg-neutral-400",   label: "Active"   },
   "Revoked":  { cls: "bg-danger-100   text-danger-700",    dot: "bg-danger-500",    label: "Revoked"  },
 };
 
@@ -77,11 +77,11 @@ function AccessPips({ level }: { level: number }) {
         <span
           key={i}
           className={`w-2.5 h-1.5 rounded-sm ${
-            i < level ? "bg-brand-500" : "bg-gray-200"
+            i < level ? "bg-brand-500" : "bg-neutral-200"
           }`}
         />
       ))}
-      <span className="text-[9px] font-black text-gray-400 ml-1.5 uppercase tracking-wider">
+      <span className="text-[9px] font-black text-neutral-400 ml-1.5 uppercase tracking-wider">
         L{level}
       </span>
     </div>
@@ -91,7 +91,7 @@ function AccessPips({ level }: { level: number }) {
 // ── Table header cell ─────────────────────────────────────────────────────────
 function Th({ children, className = "" }: { children: React.ReactNode; className?: string }) {
   return (
-    <th className={`px-5 py-3.5 text-left text-[10px] font-black text-gray-400 uppercase tracking-widest whitespace-nowrap ${className}`}>
+    <th className={`px-5 py-3.5 text-left text-[10px] font-black text-neutral-400 uppercase tracking-widest whitespace-nowrap ${className}`}>
       {children}
     </th>
   );
@@ -221,18 +221,18 @@ function EditPersonnelModal({ isOpen, onClose, onSaveSuccess, person }: EditPers
     >
       <div className="bg-white rounded-3xl shadow-2xl w-full max-w-md overflow-hidden animate-fade-in">
         {/* Header */}
-        <div className="flex items-center justify-between px-6 py-5 border-b border-gray-100">
+        <div className="flex items-center justify-between px-6 py-5 border-b border-neutral-100">
           <div>
-            <div className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-0.5">
+            <div className="text-[10px] font-black text-neutral-400 uppercase tracking-widest mb-0.5">
               IAM · Edit Profile
             </div>
-            <h2 className="text-[16px] font-black text-gray-900 leading-none">
+            <h2 className="text-[16px] font-black text-neutral-900 leading-none">
               Edit {person.name}
             </h2>
           </div>
           <button
             onClick={onClose}
-            className="p-2 rounded-xl text-gray-400 hover:text-gray-700 hover:bg-gray-100 transition-all cursor-pointer"
+            className="p-2 rounded-xl text-neutral-400 hover:text-neutral-700 hover:bg-neutral-100 transition-all cursor-pointer"
           >
             <X size={16} />
           </button>
@@ -243,7 +243,7 @@ function EditPersonnelModal({ isOpen, onClose, onSaveSuccess, person }: EditPers
           <div className="px-6 py-5 space-y-4">
             {/* Full Name */}
             <div>
-              <label className="block text-[10px] font-black text-gray-400 uppercase tracking-[0.12em] mb-1.5">
+              <label className="block text-[10px] font-black text-neutral-400 uppercase tracking-[0.12em] mb-1.5">
                 Full Name
               </label>
               <input
@@ -252,29 +252,29 @@ function EditPersonnelModal({ isOpen, onClose, onSaveSuccess, person }: EditPers
                 value={fullName}
                 onChange={(e) => setFullName(e.target.value)}
                 placeholder="e.g. John Doe"
-                className="w-full px-4 py-3 rounded-xl bg-gray-50 border border-gray-200 text-[12px] font-semibold text-gray-900 placeholder-gray-400 focus:outline-none focus:border-gray-400 transition-all"
+                className="w-full px-4 py-3 rounded-xl bg-neutral-50 border border-neutral-200 text-[12px] font-semibold text-neutral-900 placeholder-neutral-400 focus:outline-none focus:border-neutral-400 transition-all"
               />
             </div>
 
             {/* Email (Read Only) */}
             <div>
-              <label className="block text-[10px] font-black text-gray-400 uppercase tracking-[0.12em] mb-1.5">
+              <label className="block text-[10px] font-black text-neutral-400 uppercase tracking-[0.12em] mb-1.5">
                 Email Address (Read-Only)
               </label>
               <input
                 type="email"
                 disabled
                 value={person.email}
-                className="w-full px-4 py-3 rounded-xl bg-gray-100 border border-gray-200 text-[12px] font-semibold text-gray-400 cursor-not-allowed focus:outline-none"
+                className="w-full px-4 py-3 rounded-xl bg-neutral-100 border border-neutral-200 text-[12px] font-semibold text-neutral-400 cursor-not-allowed focus:outline-none"
               />
-              <span className="text-[9px] text-gray-400 font-semibold mt-1 block">
+              <span className="text-[9px] text-neutral-400 font-semibold mt-1 block">
                 To prevent credentials mismatch, login emails cannot be updated here.
               </span>
             </div>
 
             {/* Phone Number */}
             <div>
-              <label className="block text-[10px] font-black text-gray-400 uppercase tracking-[0.12em] mb-1.5">
+              <label className="block text-[10px] font-black text-neutral-400 uppercase tracking-[0.12em] mb-1.5">
                 Phone Number
               </label>
               <input
@@ -283,13 +283,13 @@ function EditPersonnelModal({ isOpen, onClose, onSaveSuccess, person }: EditPers
                 value={phone}
                 onChange={(e) => setPhone(e.target.value)}
                 placeholder="e.g. +260 97 123 4567"
-                className="w-full px-4 py-3 rounded-xl bg-gray-50 border border-gray-200 text-[12px] font-semibold text-gray-900 placeholder-gray-400 focus:outline-none focus:border-gray-400 transition-all"
+                className="w-full px-4 py-3 rounded-xl bg-neutral-50 border border-neutral-200 text-[12px] font-semibold text-neutral-900 placeholder-neutral-400 focus:outline-none focus:border-neutral-400 transition-all"
               />
             </div>
 
             {/* Primary Site Location */}
             <div>
-              <label className="block text-[10px] font-black text-gray-400 uppercase tracking-[0.12em] mb-1.5">
+              <label className="block text-[10px] font-black text-neutral-400 uppercase tracking-[0.12em] mb-1.5">
                 Primary Site Location
               </label>
               <Select 
@@ -302,15 +302,15 @@ function EditPersonnelModal({ isOpen, onClose, onSaveSuccess, person }: EditPers
                   }
                 }}
               >
-                <SelectTrigger className="w-full h-11 bg-gray-50 border border-gray-200 rounded-xl text-[12px] font-semibold text-gray-900 focus:ring-1 focus:ring-gray-450 focus:border-gray-450">
+                <SelectTrigger className="w-full h-11 bg-neutral-50 border border-neutral-200 rounded-xl text-[12px] font-semibold text-neutral-900 focus:ring-1 focus:ring-neutral-450 focus:border-neutral-450">
                   <SelectValue />
                 </SelectTrigger>
-                <SelectContent className="bg-white border border-gray-100 rounded-xl shadow-lg z-[var(--z-menu)]">
+                <SelectContent className="bg-white border border-neutral-100 rounded-xl shadow-lg z-[var(--z-menu)]">
                   {sites.map((s) => (
                     <SelectItem 
                       key={s.id} 
                       value={s.id} 
-                      className="text-[12px] font-semibold text-gray-900 cursor-pointer"
+                      className="text-[12px] font-semibold text-neutral-900 cursor-pointer"
                     >
                       {siteLabel(s.site_name ?? s.site_code)}
                     </SelectItem>
@@ -321,7 +321,7 @@ function EditPersonnelModal({ isOpen, onClose, onSaveSuccess, person }: EditPers
 
             {/* System Authorization Role */}
             <div>
-              <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5">
+              <label className="block text-[10px] font-black text-neutral-400 uppercase tracking-widest mb-1.5">
                 System Authorization Role
               </label>
               <div className="grid grid-cols-2 gap-4">
@@ -331,7 +331,7 @@ function EditPersonnelModal({ isOpen, onClose, onSaveSuccess, person }: EditPers
                   className={`py-3 rounded-xl text-center text-xs font-black uppercase tracking-wider transition-all border cursor-pointer ${
                     role === "FIELD_TECH"
                       ? "bg-brand-50 border-brand-500 text-brand-700"
-                      : "bg-gray-50 border-gray-200 text-gray-500 hover:bg-gray-100"
+                      : "bg-neutral-50 border-neutral-200 text-neutral-500 hover:bg-neutral-100"
                   }`}
                 >
                   Field Tech
@@ -341,8 +341,8 @@ function EditPersonnelModal({ isOpen, onClose, onSaveSuccess, person }: EditPers
                   onClick={() => setRole("ADMIN")}
                   className={`py-3 rounded-xl text-center text-xs font-black uppercase tracking-wider transition-all border cursor-pointer ${
                     role === "ADMIN"
-                      ? "bg-purple-50 border-purple-500 text-purple-700"
-                      : "bg-gray-50 border-gray-200 text-gray-500 hover:bg-gray-100"
+                      ? "bg-series-5/10 border-series-5 text-series-5"
+                      : "bg-neutral-50 border-neutral-200 text-neutral-500 hover:bg-neutral-100"
                   }`}
                 >
                   NOC Admin (L5)
@@ -352,18 +352,18 @@ function EditPersonnelModal({ isOpen, onClose, onSaveSuccess, person }: EditPers
           </div>
 
           {/* Footer */}
-          <div className="flex items-center justify-end gap-2 px-6 py-4 border-t border-gray-100 bg-gray-50/50">
+          <div className="flex items-center justify-end gap-2 px-6 py-4 border-t border-neutral-100 bg-neutral-50/50">
             <button
               type="button"
               onClick={onClose}
-              className="px-4 py-2.5 rounded-xl text-[11px] font-black text-gray-500 hover:bg-gray-100 transition-all uppercase tracking-wider cursor-pointer"
+              className="px-4 py-2.5 rounded-xl text-[11px] font-black text-neutral-500 hover:bg-neutral-100 transition-all uppercase tracking-wider cursor-pointer"
             >
               Cancel
             </button>
             <button
               type="submit"
               disabled={isSaving || !selectedSiteUuid}
-              className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-gray-900 text-white text-[11px] font-black uppercase tracking-wider hover:bg-gray-700 active:scale-[0.98] transition-all cursor-pointer disabled:opacity-50"
+              className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-neutral-900 text-white text-[11px] font-black uppercase tracking-wider hover:bg-neutral-700 active:scale-[0.98] transition-all cursor-pointer disabled:opacity-50"
             >
               {isSaving && <Loader2 size={12} className="animate-spin" />}
               <span>Save Changes</span>
@@ -405,7 +405,7 @@ function ConfirmDialog({
             <h3 className={`text-[14px] font-black leading-none mb-1 ${isRevoke ? "text-danger-800" : "text-ok-800"}`}>
               {isRevoke ? "Revoke Access?" : "Reinstate Access?"}
             </h3>
-            <p className="text-[12px] font-semibold text-gray-600 leading-snug">
+            <p className="text-[12px] font-semibold text-neutral-600 leading-snug">
               {isRevoke
                 ? `This will immediately terminate all active sessions and badge access for ${person.name}.`
                 : `This will restore system access and badge clearances for ${person.name}.`
@@ -413,10 +413,10 @@ function ConfirmDialog({
             </p>
           </div>
         </div>
-        <div className="px-6 pb-5 pt-4 flex items-center gap-2 justify-end border-t border-gray-100">
+        <div className="px-6 pb-5 pt-4 flex items-center gap-2 justify-end border-t border-neutral-100">
           <button
             onClick={onCancel}
-            className="px-4 py-2 rounded-xl text-[11px] font-black text-gray-500 hover:bg-gray-100 transition-all uppercase tracking-wider cursor-pointer"
+            className="px-4 py-2 rounded-xl text-[11px] font-black text-neutral-500 hover:bg-neutral-100 transition-all uppercase tracking-wider cursor-pointer"
           >
             Cancel
           </button>
@@ -474,11 +474,11 @@ export function PersonnelManagement() {
         "bg-brand-500",
         "bg-info-500",
         "bg-ok-500",
-        "bg-violet-500",
+        "bg-series-5",
         "bg-warn-500",
-        "bg-cyan-500",
-        "bg-pink-500",
-        "bg-indigo-500"
+        "bg-series-7",
+        "bg-series-6",
+        "bg-series-2"
       ];
       let hash = 0;
       for (let i = 0; i < name.length; i++) {
@@ -647,7 +647,7 @@ export function PersonnelManagement() {
       icon:      Users,
       iconBg:    "bg-info-50",
       iconColor: "text-info-500",
-      valueColor:"text-gray-900",
+      valueColor:"text-neutral-900",
     },
     {
       label:     "Currently On-Shift",
@@ -674,8 +674,8 @@ export function PersonnelManagement() {
     return (
       <div className="min-h-full flex items-center justify-center p-12">
         <div className="flex flex-col items-center gap-3">
-          <div className="w-8 h-8 rounded-full border-2 border-gray-900 border-t-transparent animate-spin" />
-          <span className="text-[11px] font-black text-gray-500 uppercase tracking-widest">Synchronizing Identity Roster...</span>
+          <div className="w-8 h-8 rounded-full border-2 border-neutral-900 border-t-transparent animate-spin" />
+          <span className="text-[11px] font-black text-neutral-500 uppercase tracking-widest">Synchronizing Identity Roster...</span>
         </div>
       </div>
     );
@@ -713,20 +713,20 @@ export function PersonnelManagement() {
         {/* ── Page Header ──────────────────────────────────────────────── */}
         <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4">
           <div>
-            <div className="text-[10px] font-black text-gray-400 uppercase tracking-[0.14em] mb-0.5">
+            <div className="text-[10px] font-black text-neutral-400 uppercase tracking-[0.14em] mb-0.5">
               Identity &amp; Access Management
             </div>
-            <h1 className="text-[20px] font-black text-gray-900 tracking-tight leading-none">
+            <h1 className="text-[20px] font-black text-neutral-900 tracking-tight leading-none">
               Personnel &amp; Security Access
             </h1>
-            <p className="text-[12px] font-semibold text-gray-400 mt-1">
+            <p className="text-[12px] font-semibold text-neutral-400 mt-1">
               Manage IAM, shift rosters, and zone clearances · {siteLabel(currentSite?.site_name)}
             </p>
           </div>
 
           <button
             onClick={() => setShowAddModal(true)}
-            className="flex items-center gap-2 px-5 py-3 rounded-xl bg-gray-900 text-white text-[12px] font-black uppercase tracking-wider hover:bg-gray-700 active:scale-[0.98] transition-all shadow-sm flex-shrink-0 cursor-pointer"
+            className="flex items-center gap-2 px-5 py-3 rounded-xl bg-neutral-900 text-white text-[12px] font-black uppercase tracking-wider hover:bg-neutral-700 active:scale-[0.98] transition-all shadow-sm flex-shrink-0 cursor-pointer"
           >
             <UserPlus size={15} />
             Add New Personnel
@@ -740,7 +740,7 @@ export function PersonnelManagement() {
             return (
               <div
                 key={card.label}
-                className="bg-white border border-gray-100 rounded-2xl shadow-sm p-5 flex items-center gap-4"
+                className="bg-white border border-neutral-100 rounded-2xl shadow-sm p-5 flex items-center gap-4"
               >
                 {/* Icon */}
                 <div className={`w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0 ${card.iconBg}`}>
@@ -756,13 +756,13 @@ export function PersonnelManagement() {
 
                 {/* Text */}
                 <div className="flex-1 min-w-0">
-                  <div className="text-[10px] font-black text-gray-400 uppercase tracking-[0.12em] leading-none mb-1">
+                  <div className="text-[10px] font-black text-neutral-400 uppercase tracking-[0.12em] leading-none mb-1">
                     {card.label}
                   </div>
                   <div className={`text-[30px] font-black leading-none ${card.valueColor}`}>
                     {card.value}
                   </div>
-                  <div className="text-[10px] font-semibold text-gray-400 mt-1">
+                  <div className="text-[10px] font-semibold text-neutral-400 mt-1">
                     {card.sub}
                   </div>
                 </div>
@@ -772,15 +772,15 @@ export function PersonnelManagement() {
         </div>
 
         {/* ── IAM Ledger Table ──────────────────────────────────────────── */}
-        <div className="bg-white border border-gray-100 rounded-2xl shadow-sm overflow-hidden flex-1">
+        <div className="bg-white border border-neutral-100 rounded-2xl shadow-sm overflow-hidden flex-1">
 
           {/* Table header bar */}
-          <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
+          <div className="flex items-center justify-between px-5 py-4 border-b border-neutral-100">
             <div>
-              <div className="text-[10px] font-black text-gray-400 uppercase tracking-widest">
+              <div className="text-[10px] font-black text-neutral-400 uppercase tracking-widest">
                 IAM Ledger
               </div>
-              <div className="text-[13px] font-black text-gray-900 mt-0.5">
+              <div className="text-[13px] font-black text-neutral-900 mt-0.5">
                 {roster.length} Registered Accounts
               </div>
             </div>
@@ -799,7 +799,7 @@ export function PersonnelManagement() {
           <div className="overflow-x-auto">
             <table className="w-full min-w-[900px] border-collapse">
               <thead>
-                <tr className="border-b border-gray-100 bg-gray-50/70">
+                <tr className="border-b border-neutral-100 bg-neutral-50/70">
                   <Th>Technician</Th>
                   <Th>Clearance Zone</Th>
                   <Th>Shift Schedule</Th>
@@ -810,7 +810,7 @@ export function PersonnelManagement() {
                 </tr>
               </thead>
 
-              <tbody className="divide-y divide-gray-50">
+              <tbody className="divide-y divide-neutral-50">
                 {roster.map((person) => {
                   const isRevoked  = person.status === "Revoked";
                   const isExpanded = expandedRow === person.id;
@@ -823,8 +823,8 @@ export function PersonnelManagement() {
                         onClick={() => setExpandedRow(isExpanded ? null : person.id)}
                         className={`group transition-colors duration-100 cursor-pointer ${
                           isRevoked
-                            ? "opacity-50 bg-gray-50/30"
-                            : "hover:bg-gray-50/50"
+                            ? "opacity-50 bg-neutral-50/30"
+                            : "hover:bg-neutral-50/50"
                         }`}
                       >
                         {/* Technician */}
@@ -833,7 +833,7 @@ export function PersonnelManagement() {
                             {/* Avatar */}
                             <div
                               className={`w-9 h-9 rounded-xl flex items-center justify-center text-white text-[12px] font-black flex-shrink-0 ${
-                                isRevoked ? "bg-gray-300" : person.avatarColor
+                                isRevoked ? "bg-neutral-300" : person.avatarColor
                               }`}
                             >
                               {person.initials}
@@ -841,14 +841,14 @@ export function PersonnelManagement() {
 
                             {/* Name + role + badge */}
                             <div>
-                              <div className={`text-[13px] font-black leading-tight ${isRevoked ? "text-gray-400 line-through decoration-gray-400" : "text-gray-900"}`}>
+                              <div className={`text-[13px] font-black leading-tight ${isRevoked ? "text-neutral-400 line-through decoration-neutral-400" : "text-neutral-900"}`}>
                                 {person.name}
                               </div>
                               <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
                                 <span className={`text-[9px] font-black px-1.5 py-0.5 rounded-md uppercase tracking-wider ${ROLE_BADGE[person.role]}`}>
                                   {person.role}
                                 </span>
-                                <span className="text-[9px] font-mono text-gray-400">
+                                <span className="text-[9px] font-mono text-neutral-400">
                                   {person.badgeId}
                                 </span>
                               </div>
@@ -859,8 +859,8 @@ export function PersonnelManagement() {
                         {/* Clearance Zone */}
                         <td className="px-5 py-4">
                           <div className="flex items-start gap-1.5">
-                            <MapPin size={12} className="text-gray-400 flex-shrink-0 mt-0.5" />
-                            <span className="text-[12px] font-semibold text-gray-700 leading-snug">
+                            <MapPin size={12} className="text-neutral-400 flex-shrink-0 mt-0.5" />
+                            <span className="text-[12px] font-semibold text-neutral-700 leading-snug">
                               {person.zone}
                             </span>
                           </div>
@@ -869,14 +869,14 @@ export function PersonnelManagement() {
                         {/* Shift Schedule */}
                         <td className="px-5 py-4">
                           <div className="flex items-center gap-1.5 mb-0.5">
-                            <Clock size={12} className="text-gray-400 flex-shrink-0" />
-                            <span className="text-[12px] font-bold text-gray-800">
+                            <Clock size={12} className="text-neutral-400 flex-shrink-0" />
+                            <span className="text-[12px] font-bold text-neutral-800">
                               {person.shift}
                             </span>
                           </div>
                           <div className="flex items-center gap-1.5 ml-[18px]">
-                            <CalendarDays size={10} className="text-gray-300 flex-shrink-0" />
-                            <span className="text-[10px] font-semibold text-gray-400">
+                            <CalendarDays size={10} className="text-neutral-300 flex-shrink-0" />
+                            <span className="text-[10px] font-semibold text-neutral-400">
                               Mon – Fri
                             </span>
                           </div>
@@ -897,7 +897,7 @@ export function PersonnelManagement() {
 
                         {/* Last Active */}
                         <td className="px-5 py-4">
-                          <span className="text-[11px] font-semibold text-gray-500">
+                          <span className="text-[11px] font-semibold text-neutral-500">
                             {person.lastActive}
                           </span>
                         </td>
@@ -913,7 +913,7 @@ export function PersonnelManagement() {
                                 setIsEditModalOpen(true);
                               }}
                               title="Edit profile"
-                              className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg border border-gray-200 text-gray-500 hover:border-gray-300 hover:bg-gray-50 text-[10px] font-black uppercase tracking-wider transition-all cursor-pointer"
+                              className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg border border-neutral-200 text-neutral-500 hover:border-neutral-300 hover:bg-neutral-50 text-[10px] font-black uppercase tracking-wider transition-all cursor-pointer"
                             >
                               <Pencil size={11} />
                               Edit Profile
@@ -945,7 +945,7 @@ export function PersonnelManagement() {
 
                       {/* Expanded profile row */}
                       {isExpanded && (
-                        <tr className="bg-gray-50/60 border-b border-gray-100">
+                        <tr className="bg-neutral-50/60 border-b border-neutral-100">
                           <td colSpan={7} className="px-5 py-4">
                             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                               {[
@@ -956,14 +956,14 @@ export function PersonnelManagement() {
                                 { label: "Joined",         value: person.joinedDate, icon: CalendarDays },
                                 { label: "Access Level",   value: `Level ${person.accessLevel} / 5`, icon: CheckCircle2 },
                               ].map(({ label, value, icon: Icon }) => (
-                                <div key={label} className="bg-white border border-gray-100 rounded-xl px-3 py-2.5" style={{ minWidth: 0 }}>
+                                <div key={label} className="bg-white border border-neutral-100 rounded-xl px-3 py-2.5" style={{ minWidth: 0 }}>
                                   <div className="flex items-center gap-1.5 mb-1">
-                                    <Icon size={10} className="text-gray-400" />
-                                    <span className="text-[9px] font-black text-gray-400 uppercase tracking-widest">
+                                    <Icon size={10} className="text-neutral-400" />
+                                    <span className="text-[9px] font-black text-neutral-400 uppercase tracking-widest">
                                       {label}
                                     </span>
                                   </div>
-                                  <div className="text-[11px] font-bold text-gray-700 font-mono truncate" title={value}>
+                                  <div className="text-[11px] font-bold text-neutral-700 font-mono truncate" title={value}>
                                     {value}
                                   </div>
                                 </div>
@@ -990,11 +990,11 @@ export function PersonnelManagement() {
           </div>
 
           {/* Table footer */}
-          <div className="px-5 py-3 border-t border-gray-100 bg-gray-50/50 flex items-center justify-between">
-            <span className="text-[10px] font-semibold text-gray-400">
+          <div className="px-5 py-3 border-t border-neutral-100 bg-neutral-50/50 flex items-center justify-between">
+            <span className="text-[10px] font-semibold text-neutral-400">
               {roster.length} accounts registered · {onShiftCount} currently active
             </span>
-            <div className="flex items-center gap-1.5 text-[10px] font-black text-gray-400 uppercase tracking-wider">
+            <div className="flex items-center gap-1.5 text-[10px] font-black text-neutral-400 uppercase tracking-wider">
               <Shield size={11} />
               {currentSite?.site_name || "—"}
             </div>

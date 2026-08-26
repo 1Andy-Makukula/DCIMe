@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/shared/api/supabaseClient";
 import { useCurrentSite } from "@/shared/context/SiteContext";
+import type { FsmMode } from "@/features/field/hooks/useFacilityState";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // The shift form, defined by data rather than by code.
@@ -37,6 +38,20 @@ export interface ParameterDef {
   default_value:  string | null;
   /** Prefill from the previous reading — meter counts, cumulative hours. */
   carry_forward:  boolean;
+  /**
+   * CAPTURED — a technician types it. CONSTANT — a fixed nameplate figure,
+   * rendered read-only. NOT_APPLICABLE never arrives here: the workbook asks
+   * for it but this site does not collect it yet, so get_site_form_definition()
+   * filters it out and the export supplies 'NA' instead.
+   */
+  capture_mode:   "CAPTURED" | "CONSTANT";
+  /**
+   * Facility modes in which this reading is withheld even though its asset is
+   * on screen — the generator load parameters during an off-load test, and
+   * grid_status, which the facility mode implies rather than a person typing.
+   * Already applied server-side; carried for the admin editor.
+   */
+  hidden_in_modes: string[] | null;
   is_graphable:   boolean;
   options:        string[] | null;
   help_text:      string | null;
@@ -89,7 +104,14 @@ const NO_GROUPS: EquipmentForm[] = [];
 
 export function useFormDefinition(
   frequency: Frequency | null = null,
-  siteUuid?: string
+  siteUuid?: string,
+  /**
+   * Facility mode to filter by. Omit — or pass null — to get the form
+   * unfiltered, which is what a report or an export wants. A technician's form
+   * should always pass one, or it will ask for generator readings while the
+   * site is running on mains.
+   */
+  fsmMode: FsmMode | null = null
 ): UseFormDefinitionResult {
   const { currentSite } = useCurrentSite();
   const [form, setForm]       = useState<FormDefinition | null>(null);
@@ -112,7 +134,12 @@ export function useFormDefinition(
       try {
         const { data, error: rpcError } = await rpc("get_site_form_definition", {
           p_site_uuid: targetSite,
-          p_frequency: frequency
+          p_frequency: frequency,
+          // Which readings are worth taking depends on what the site is doing.
+          // Generators are not read while it runs on mains; grid is not read
+          // during an outage. Passing null returns the form unfiltered, which
+          // is right for a report and wrong for a technician.
+          p_fsm_mode: fsmMode
         });
         if (cancelled) return;
         if (rpcError) { setError(rpcError.message); setForm(null); }
@@ -128,7 +155,9 @@ export function useFormDefinition(
     })();
 
     return () => { cancelled = true; };
-  }, [targetSite, frequency, nonce]);
+    // fsmMode is a dependency: switching the site into a generator test has to
+    // rebuild the form, not wait for the next remount.
+  }, [targetSite, frequency, fsmMode, nonce]);
 
   const groups = form?.equipment.filter(e => e.parameters.length > 0) ?? NO_GROUPS;
 

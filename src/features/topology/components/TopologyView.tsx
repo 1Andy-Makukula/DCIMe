@@ -47,9 +47,9 @@ function SimButton({
       aria-pressed={active}
       className={[
         "flex items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-[11px] font-bold uppercase tracking-wider transition-colors",
-        disabled ? "cursor-not-allowed border-slate-800 text-slate-600"
+        disabled ? "cursor-not-allowed border-neutral-800 text-neutral-600"
                  : active ? "border-brand-500/50 bg-brand-500/15 text-brand-300"
-                          : "border-slate-700 text-slate-300 hover:bg-slate-800"
+                          : "border-neutral-700 text-neutral-300 hover:bg-neutral-800"
       ].join(" ")}
     >
       <Icon size={13} /> {label}
@@ -91,7 +91,7 @@ export function TopologyView({ siteUuid }: TopologyViewProps) {
 
   if (isLoading) {
     return (
-      <div className="flex h-full min-h-[24rem] items-center justify-center text-slate-400">
+      <div className="flex h-full min-h-[24rem] items-center justify-center text-neutral-400">
         <Loader2 size={18} className="mr-2 animate-spin" />
         <span className="text-[12px] font-bold uppercase tracking-wider">
           Loading topology…
@@ -104,11 +104,11 @@ export function TopologyView({ siteUuid }: TopologyViewProps) {
     return (
       <div className="flex h-full min-h-[24rem] flex-col items-center justify-center gap-3 p-6 text-center">
         <AlertTriangle size={22} className="text-danger-500" />
-        <p className="text-[13px] font-bold text-slate-200">Could not load the topology</p>
-        <p className="max-w-md text-[12px] text-slate-400">{error}</p>
+        <p className="text-[13px] font-bold text-neutral-200">Could not load the topology</p>
+        <p className="max-w-md text-[12px] text-neutral-400">{error}</p>
         <button
           onClick={refresh}
-          className="mt-2 flex items-center gap-2 rounded-lg border border-slate-700 px-3 py-1.5 text-[11px] font-bold uppercase tracking-wider text-slate-300 transition-colors hover:bg-slate-800"
+          className="mt-2 flex items-center gap-2 rounded-lg border border-neutral-700 px-3 py-1.5 text-[11px] font-bold uppercase tracking-wider text-neutral-300 transition-colors hover:bg-neutral-800"
         >
           <RefreshCw size={13} /> Retry
         </button>
@@ -119,9 +119,9 @@ export function TopologyView({ siteUuid }: TopologyViewProps) {
   if (!graph || graph.nodes.length === 0) {
     return (
       <div className="flex h-full min-h-[24rem] flex-col items-center justify-center gap-3 p-6 text-center">
-        <Info size={22} className="text-slate-500" />
-        <p className="text-[13px] font-bold text-slate-200">No topology for this site</p>
-        <p className="max-w-md text-[12px] text-slate-400">
+        <Info size={22} className="text-neutral-500" />
+        <p className="text-[13px] font-bold text-neutral-200">No topology for this site</p>
+        <p className="max-w-md text-[12px] text-neutral-400">
           Equipment appears here as soon as it is added to the registry with
           layout coordinates. Nothing needs deploying.
         </p>
@@ -134,17 +134,17 @@ export function TopologyView({ siteUuid }: TopologyViewProps) {
       {/* Header */}
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h2 className="text-[14px] font-black uppercase tracking-wider text-slate-100">
+          <h2 className="text-[14px] font-black uppercase tracking-wider text-neutral-100">
             Power Topology
           </h2>
-          <p className="mt-0.5 font-mono text-[10px] uppercase tracking-[0.12em] text-slate-500">
+          <p className="mt-0.5 font-mono text-[10px] uppercase tracking-[0.12em] text-neutral-500">
             {siteLabel(currentSite?.site_name)} · {stats?.simulated} simulated of{" "}
             {stats?.nodes} nodes · {stats?.edges} connections
           </p>
         </div>
         <button
           onClick={refresh}
-          className="flex items-center gap-2 rounded-lg border border-slate-700 px-3 py-1.5 text-[11px] font-bold uppercase tracking-wider text-slate-300 transition-colors hover:bg-slate-800"
+          className="flex items-center gap-2 rounded-lg border border-neutral-700 px-3 py-1.5 text-[11px] font-bold uppercase tracking-wider text-neutral-300 transition-colors hover:bg-neutral-800"
         >
           <RefreshCw size={13} /> Refresh
         </button>
@@ -152,7 +152,7 @@ export function TopologyView({ siteUuid }: TopologyViewProps) {
 
       {/* Simulation controls — the A/B redundancy demo */}
       <div className="flex flex-wrap items-center gap-2">
-        <span className="font-mono text-[10px] uppercase tracking-[0.12em] text-slate-500">
+        <span className="font-mono text-[10px] uppercase tracking-[0.12em] text-neutral-500">
           Simulate
         </span>
         <SimButton
@@ -183,11 +183,11 @@ export function TopologyView({ siteUuid }: TopologyViewProps) {
         />
 
         {globals && (
-          <div className="ml-auto flex flex-wrap items-center gap-4 font-mono text-[10px] text-slate-400">
-            <span>FUEL <b className="text-slate-200">{globals.fuelLiters.toFixed(0)}L</b></span>
-            <span>BATT <b className="text-slate-200">{globals.batterySoc.toFixed(0)}%</b></span>
-            <span>TEMP <b className="text-slate-200">{globals.ambientTemp.toFixed(1)}°C</b></span>
-            <span>DG <b className="text-slate-200">{globals.dgPairStatus}</b></span>
+          <div className="ml-auto flex flex-wrap items-center gap-4 font-mono text-[10px] text-neutral-400">
+            <span>FUEL <b className="text-neutral-200">{globals.fuelLiters.toFixed(0)}L</b></span>
+            <span>BATT <b className="text-neutral-200">{globals.batterySoc.toFixed(0)}%</b></span>
+            <span>TEMP <b className="text-neutral-200">{globals.ambientTemp.toFixed(1)}°C</b></span>
+            <span>DG <b className="text-neutral-200">{globals.dgPairStatus}</b></span>
           </div>
         )}
       </div>
@@ -201,7 +201,7 @@ export function TopologyView({ siteUuid }: TopologyViewProps) {
       )}
 
       {/* Canvas */}
-      <div className="relative min-h-[26rem] flex-1 overflow-hidden rounded-2xl border border-slate-800">
+      <div className="relative min-h-[26rem] flex-1 overflow-hidden rounded-2xl border border-neutral-800">
         <TopologyCanvas
           graph={graph}
           runtime={runtime}
@@ -210,22 +210,22 @@ export function TopologyView({ siteUuid }: TopologyViewProps) {
         />
 
         {selected && (
-          <div className="absolute bottom-3 left-3 max-w-xs rounded-xl border border-slate-700 bg-slate-900/95 p-3 backdrop-blur">
-            <p className="text-[12px] font-black text-slate-100">{selected.name}</p>
-            <p className="mt-0.5 font-mono text-[10px] uppercase tracking-wider text-slate-500">
+          <div className="absolute bottom-3 left-3 max-w-xs rounded-xl border border-neutral-700 bg-neutral-900/95 p-3 backdrop-blur">
+            <p className="text-[12px] font-black text-neutral-100">{selected.name}</p>
+            <p className="mt-0.5 font-mono text-[10px] uppercase tracking-wider text-neutral-500">
               {selected.id}
             </p>
-            <dl className="mt-2 grid grid-cols-2 gap-x-3 gap-y-1 font-mono text-[10px] text-slate-400">
-              <dt>Type</dt><dd className="text-slate-200">{selected.type ?? "decorative"}</dd>
-              <dt>Policy</dt><dd className="text-slate-200">{selected.input_policy}</dd>
-              <dt>Capacity</dt><dd className="text-slate-200">{selected.capacity}</dd>
-              <dt>Voltage</dt><dd className="text-slate-200">{selected.voltage} V</dd>
+            <dl className="mt-2 grid grid-cols-2 gap-x-3 gap-y-1 font-mono text-[10px] text-neutral-400">
+              <dt>Type</dt><dd className="text-neutral-200">{selected.type ?? "decorative"}</dd>
+              <dt>Policy</dt><dd className="text-neutral-200">{selected.input_policy}</dd>
+              <dt>Capacity</dt><dd className="text-neutral-200">{selected.capacity}</dd>
+              <dt>Voltage</dt><dd className="text-neutral-200">{selected.voltage} V</dd>
               <dt>State</dt>
               <dd className={runtime[selected.id]?.energised === false ? "text-danger-400" : "text-ok-400"}>
                 {runtime[selected.id]?.status ?? "—"}
               </dd>
               <dt>Load</dt>
-              <dd className="text-slate-200">
+              <dd className="text-neutral-200">
                 {runtime[selected.id]?.load_pct != null
                   ? `${runtime[selected.id].load_pct!.toFixed(1)}%` : "—"}
               </dd>
@@ -236,7 +236,7 @@ export function TopologyView({ siteUuid }: TopologyViewProps) {
 
       {/* Provenance line. The drawing is data now — worth saying so on the screen
           that used to be hand-authored markup. */}
-      <p className="font-mono text-[10px] uppercase tracking-[0.1em] text-slate-600">
+      <p className="font-mono text-[10px] uppercase tracking-[0.1em] text-neutral-600">
         {stats?.drawn} drawn · {stats?.routed} hand-routed cables · rendered from
         the equipment registry · {isReady ? "C++ engine live" : "engine loading"}
       </p>

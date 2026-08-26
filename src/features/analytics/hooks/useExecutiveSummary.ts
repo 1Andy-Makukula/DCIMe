@@ -1,4 +1,5 @@
 // src/features/analytics/hooks/useExecutiveSummary.ts
+import { numOrNull, avg, min, max, itLoadKw, pue } from "@/domain/metrics";
 import { useCallback, useEffect, useState } from "react";
 import { supabase } from "@/shared/api/supabaseClient";
 import { useCurrentSite } from "@/shared/context/SiteContext";
@@ -112,15 +113,12 @@ const bandVerdict = (value: number | null, healthyMax: number, watchMax: number)
   return "HEALTHY";
 };
 
-const numOrNull = (v: any): number | null => {
-  if (v === undefined || v === null || v === "") return null;
-  const n = parseFloat(v);
-  return Number.isFinite(n) ? n : null;
-};
-
-const avg = (vals: number[]): number | null => vals.length > 0 ? vals.reduce((a, b) => a + b, 0) / vals.length : null;
-const max = (vals: number[]): number | null => vals.length > 0 ? Math.max(...vals) : null;
-const min = (vals: number[]): number | null => vals.length > 0 ? Math.min(...vals) : null;
+// numOrNull, avg, min and max now come from @/domain/metrics — they were
+// defined here and in three other files, each with its own idea of what counts
+// as a number. The shared version is STRICTER than the parseFloat it replaces:
+// parseFloat("22.2 °C") returns 22.2, the shared one returns null, matching
+// public.to_number_or_null() so both sides of the wire agree about the same
+// string. No stored value is affected — only 'NA' and '' are non-numeric.
 
 const startOfDay = (d: Date) => new Date(d.getFullYear(), d.getMonth(), d.getDate(), 0, 0, 0, 0);
 const endOfDay = (d: Date) => new Date(d.getFullYear(), d.getMonth(), d.getDate(), 23, 59, 59, 999);
@@ -209,19 +207,17 @@ async function fetchPeriodSnapshot(siteId: string, start: Date, end: Date, label
 
   // PUE from the window's AVERAGE load, not a single reading — a typical
   // ratio for the period rather than whichever hour happened to be last.
+  //
+  // IT load is rectifier DC power PLUS UPS output, which is how the workbook
+  // defines it (PUE Trend B4). This used to count UPS alone, leaving the DC
+  // telecom load out of the denominator and inflating PUE — so the platform and
+  // the spreadsheet reported different numbers for the same month.
   const itLoadVals = rows
-    .map((r) => {
-      const m = metricsOf(r);
-      const a = numOrNull(m.ups_1_output_load_kw);
-      const b = numOrNull(m.ups_2_output_load_kw);
-      return a !== null || b !== null ? (a ?? 0) + (b ?? 0) : null;
-    })
+    .map((r) => itLoadKw(metricsOf(r)))
     .filter((v): v is number => v !== null);
   const avgFacilityKw = avg(loadVals);
   const avgItKw = avg(itLoadVals);
-  const puEstimate = avgFacilityKw !== null && avgItKw !== null && avgItKw > 0
-    ? avgFacilityKw / avgItKw
-    : null;
+  const puEstimate = pue(avgFacilityKw, avgItKw);
 
   const incidents = incRes.data || [];
 

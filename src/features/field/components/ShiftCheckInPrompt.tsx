@@ -42,12 +42,12 @@ export function ShiftCheckInPrompt() {
   ];
 
   return (
-    <div className="max-w-md mx-auto bg-white border border-gray-200 rounded-3xl p-5 shadow-sm space-y-4 animate-fade-in relative">
+    <div className="max-w-md mx-auto bg-white border border-neutral-200 rounded-3xl p-5 shadow-sm space-y-4 animate-fade-in relative">
       <button
         type="button"
         onClick={dismissPrompt}
         aria-label="Dismiss shift check-in"
-        className="absolute top-4 right-4 text-gray-300 hover:text-gray-500 transition-colors cursor-pointer"
+        className="absolute top-4 right-4 text-neutral-300 hover:text-neutral-500 transition-colors cursor-pointer"
       >
         <X size={16} />
       </button>
@@ -57,8 +57,8 @@ export function ShiftCheckInPrompt() {
           <LogIn size={16} />
         </div>
         <div>
-          <h3 className="text-sm font-black text-gray-900 tracking-tight">Check in to your shift</h3>
-          <p className="text-[10px] font-semibold text-gray-400 mt-0.5">
+          <h3 className="text-sm font-black text-neutral-900 tracking-tight">Check in to your shift</h3>
+          <p className="text-[10px] font-semibold text-neutral-400 mt-0.5">
             Tags your logs to this shift for handover and audit.
           </p>
         </div>
@@ -76,17 +76,17 @@ export function ShiftCheckInPrompt() {
               onClick={() => handleCheckIn(opt.type)}
               className={`p-3.5 rounded-2xl border text-left transition-all cursor-pointer disabled:opacity-60 ${
                 isSuggested
-                  ? "bg-slate-900 border-slate-950 text-white shadow-sm"
-                  : "bg-gray-50 border-gray-200 text-gray-700 hover:bg-gray-100"
+                  ? "bg-neutral-900 border-neutral-950 text-white shadow-sm"
+                  : "bg-neutral-50 border-neutral-200 text-neutral-700 hover:bg-neutral-100"
               }`}
             >
-              <Icon size={16} className={isSuggested ? "text-warn-300" : "text-gray-400"} />
+              <Icon size={16} className={isSuggested ? "text-warn-300" : "text-neutral-400"} />
               <span className="block text-[11px] font-black uppercase tracking-wider mt-1.5">
                 {opt.label}
               </span>
               <span
                 className={`block text-[9px] font-bold font-mono mt-0.5 ${
-                  isSuggested ? "text-slate-300" : "text-gray-400"
+                  isSuggested ? "text-neutral-300" : "text-neutral-400"
                 }`}
               >
                 {opt.window}
@@ -99,7 +99,7 @@ export function ShiftCheckInPrompt() {
       <button
         type="button"
         onClick={dismissPrompt}
-        className="w-full text-[10px] font-bold text-gray-400 hover:text-gray-600 uppercase tracking-wider py-1 cursor-pointer"
+        className="w-full text-[10px] font-bold text-neutral-400 hover:text-neutral-600 uppercase tracking-wider py-1 cursor-pointer"
       >
         Skip for now
       </button>

@@ -84,7 +84,7 @@ export class ErrorBoundary extends Component<Props, State> {
     return (
       <div className="flex min-h-[24rem] flex-col items-center justify-center gap-3 p-6">
         <AlertTriangle size={24} className="text-danger-500" />
-        <p className="text-[13px] font-bold text-slate-200">
+        <p className="text-[13px] font-bold text-neutral-200">
           {this.props.label ? `${this.props.label} crashed` : "This panel crashed"}
         </p>
         <p className="max-w-xl text-center font-mono text-[11px] text-danger-300">
@@ -92,17 +92,17 @@ export class ErrorBoundary extends Component<Props, State> {
         </p>
         {info?.componentStack && (
           <details className="max-w-2xl">
-            <summary className="cursor-pointer text-[11px] text-slate-400">
+            <summary className="cursor-pointer text-[11px] text-neutral-400">
               component stack
             </summary>
-            <pre className="mt-2 max-h-64 overflow-auto rounded-lg bg-slate-900 p-3 text-[10px] leading-relaxed text-slate-400">
+            <pre className="mt-2 max-h-64 overflow-auto rounded-lg bg-neutral-900 p-3 text-[10px] leading-relaxed text-neutral-400">
               {info.componentStack.trim()}
             </pre>
           </details>
         )}
         <button
           onClick={this.reset}
-          className="mt-1 flex items-center gap-2 rounded-lg border border-slate-700 px-3 py-1.5 text-[11px] font-bold uppercase tracking-wider text-slate-300 transition-colors hover:bg-slate-800"
+          className="mt-1 flex items-center gap-2 rounded-lg border border-neutral-700 px-3 py-1.5 text-[11px] font-bold uppercase tracking-wider text-neutral-300 transition-colors hover:bg-neutral-800"
         >
           <RotateCcw size={13} /> Try again
         </button>

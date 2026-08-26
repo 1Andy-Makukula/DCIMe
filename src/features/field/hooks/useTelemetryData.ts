@@ -4,7 +4,8 @@ import { useRealtimeTable } from "@/shared/api/realtime";
 import { supabase } from '@/shared/api/supabaseClient';
 import { useAuth } from '@/shared/context/AuthContext';
 import { useCurrentSite } from '@/shared/context/SiteContext';
-import { SITE_BLUEPRINTS, DEFAULT_SITE_CODE } from '@/config/sites';
+import { DEFAULT_SITE_CODE } from '@/config/sites';
+import { fetchSiteModel } from '@/shared/api/siteModel';
 import { toast } from 'sonner';
 import { useFacilityState } from './useFacilityState';
 import { toLocalDateKey, slotISO, parseHour } from '../utils/dateKeys';
@@ -34,7 +35,6 @@ export function useTelemetryData(
   // Realtime filter for the hour currently on screen, published by the
   // fetch effect because it depends on the resolved slot timestamp.
   const [liveFilter, setLiveFilter] = useState<string | null>(null);
-  const blueprint = SITE_BLUEPRINTS[siteCode] || SITE_BLUEPRINTS[DEFAULT_SITE_CODE];
 
   // Exhaustive State Initialization
   const [formData, setFormData] = useState<Record<string, any>>({});
@@ -198,6 +198,14 @@ export function useTelemetryData(
           return;
         }
 
+        // The site's own description of itself, from the registry rather than
+        // SITE_01_blueprint.json. Awaited rather than held in state: everything
+        // below needs it in full, and a half-loaded model would seed the form
+        // with no constants and no carry-forward values, which reads as a
+        // technician having cleared them. Cached per site, so this is one
+        // request no matter how many screens ask.
+        const model = await fetchSiteModel(currentSite.id);
+
         // Step C (Supabase Query 1 - Current Hour scoped to current site)
         const { data: currentData, error: currentError } = await supabase
           .from('telemetry_logs')
@@ -218,7 +226,7 @@ export function useTelemetryData(
           const metrics = { ...(currentData.metrics as Record<string, any>) };
 
           // Self-heal: ensure all constants from blueprint are populated if blank/missing
-          blueprint.equipment.forEach((equip: any) => {
+          model.equipment.forEach((equip: any) => {
             equip.metrics.forEach((metric: any) => {
               if (metric.is_constant || metric.default_value !== undefined) {
                 const currentVal = metrics[metric.id];
@@ -262,7 +270,7 @@ export function useTelemetryData(
         const previousMetrics = (previousData?.metrics as Record<string, any>) || {};
         const newCarried = new Set<string>();
 
-        blueprint.equipment.forEach((equip: any) => {
+        model.equipment.forEach((equip: any) => {
           equip.metrics.forEach((metric: any) => {
             if (metric.default_value !== undefined) {
               newFormState[metric.id] = metric.default_value;
@@ -302,7 +310,7 @@ export function useTelemetryData(
         });
 
         // Ensure background constant remarks for PACs default to "OK" if unspecified
-        blueprint.equipment.forEach((equip: any) => {
+        model.equipment.forEach((equip: any) => {
           if (equip.category === 'AIRCON') {
             const remarkKey = `${equip.id}_remark`;
             if (newFormState[remarkKey] === undefined) {
@@ -417,6 +425,22 @@ export function useTelemetryData(
     setSubmitError(null);
     setIsSuccess(false);
 
+    // Resolved before anything is validated or stripped. Every rule below —
+    // range checks, the ambient average, nulling grid readings on generator,
+    // dropping metrics for offline assets — walks this list, and an empty one
+    // would let all of them pass silently instead of failing loudly.
+    if (!currentSite?.id) {
+      toast.error('No site selected — cannot submit.');
+      setIsSubmitting(false);
+      return;
+    }
+    const model = await fetchSiteModel(currentSite.id);
+    if (model.equipment.length === 0) {
+      toast.error('Site equipment could not be loaded — readings were not submitted.');
+      setIsSubmitting(false);
+      return;
+    }
+
     // Validate run hours for active generators
     for (const dgId of activeGenerators) {
       const startVal = parseFloat(formData[`${dgId}_hr_meter_start`]);
@@ -459,7 +483,7 @@ export function useTelemetryData(
       }
     });
 
-    for (const equip of blueprint.equipment) {
+    for (const equip of model.equipment) {
       const normalizedId = (equip.id as string).toLowerCase().replace(/-/g, '_');
       if (offlineForValidation.has(normalizedId)) continue;
       if (equip.id === 'grid_main' && isGridOff) continue;
@@ -515,7 +539,7 @@ export function useTelemetryData(
 
     // Calculate the ambient_avg_temp dynamically by scanning for all ENVIRONMENT ambient temp metrics
     const ambientIDs: string[] = [];
-    blueprint.equipment.forEach((eq: any) => {
+    model.equipment.forEach((eq: any) => {
       if (eq.category === 'ENVIRONMENT') {
         eq.metrics.forEach((m: any) => {
           if (m.id.endsWith('_ambient_temp')) {
@@ -569,7 +593,7 @@ export function useTelemetryData(
       payload['active_dg_hq'] = true;
       
       // Force all Zesco/Grid metrics (grid_main) to null
-      const gridAsset = blueprint.equipment.find((eq: any) => eq.id === 'grid_main');
+      const gridAsset = model.equipment.find((eq: any) => eq.id === 'grid_main');
       if (gridAsset) {
         gridAsset.metrics.forEach((metric: any) => {
           payload[metric.id] = null;
@@ -596,7 +620,7 @@ export function useTelemetryData(
 
       // Strip metrics for offline and decommissioned assets — stale carried-forward
       // values would otherwise keep writing readings for equipment no longer on site.
-      blueprint.equipment.forEach((equip: any) => {
+      model.equipment.forEach((equip: any) => {
         const normalizedAssetId = equip.id.toLowerCase().replace(/-/g, '_');
         if (offlineAssetIds.has(normalizedAssetId) || decommissionedIds.has(equip.id)) {
           equip.metrics.forEach((m: any) => {

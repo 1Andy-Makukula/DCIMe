@@ -71,7 +71,7 @@ const SEV_CONFIG = {
     bg:       "bg-warn-50",
     badgeBg:  "bg-warn-100",
     badgeText:"text-warn-700",
-    iconColor:"#D97706",
+    iconColor:"var(--color-warn-600)",
     label:    "WARNING",
     Icon:     AlertTriangle,
     headerBg: "bg-warn-50/60",
@@ -81,7 +81,7 @@ const SEV_CONFIG = {
     bg:       "bg-info-50",
     badgeBg:  "bg-info-100",
     badgeText:"text-info-700",
-    iconColor:"#2563EB",
+    iconColor:"var(--color-info-600)",
     label:    "INFO",
     Icon:     Info,
     headerBg: "bg-info-50/60",
@@ -107,7 +107,7 @@ function SeverityBadge({ severity }: { severity: Severity }) {
 /** Acknowledged pill */
 function AckBadge({ by, at }: { by: string; at: string }) {
   return (
-    <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-lg bg-gray-100 text-[9px] font-black text-gray-500 uppercase tracking-wider">
+    <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-lg bg-neutral-100 text-[9px] font-black text-neutral-500 uppercase tracking-wider">
       <User size={9} />
       ACK · {by} · {at}
     </span>
@@ -126,13 +126,13 @@ function EvidenceImage({ photoUrl, technicianName }: { photoUrl?: string | null;
   const getStableColors = (n: string) => {
     const themes = [
       { bg: "from-danger-500 to-danger-600", border: "border-danger-200" },
-      { bg: "from-info-500 to-indigo-600", border: "border-info-200" },
-      { bg: "from-ok-500 to-teal-600", border: "border-ok-200" },
-      { bg: "from-violet-500 to-purple-600", border: "border-violet-200" },
+      { bg: "from-info-500 to-info-600", border: "border-info-200" },
+      { bg: "from-ok-500 to-ok-600", border: "border-ok-200" },
+      { bg: "from-series-5 to-series-5", border: "border-series-5/30" },
       { bg: "from-warn-500 to-warn-600", border: "border-warn-200" },
-      { bg: "from-cyan-500 to-sky-600", border: "border-cyan-200" },
-      { bg: "from-pink-500 to-fuchsia-600", border: "border-pink-200" },
-      { bg: "from-teal-500 to-ok-600", border: "border-teal-200" }
+      { bg: "from-series-7 to-series-7", border: "border-series-7/30" },
+      { bg: "from-series-6 to-series-6", border: "border-series-6/30" },
+      { bg: "from-series-3 to-series-3", border: "border-series-3/30" }
     ];
     if (!n) return themes[0];
     let hash = 0;
@@ -146,10 +146,10 @@ function EvidenceImage({ photoUrl, technicianName }: { photoUrl?: string | null;
   if (photoUrl) {
     return (
       <div className="mt-3">
-        <div className="text-[9px] font-black text-gray-400 uppercase tracking-widest mb-1.5">
+        <div className="text-[9px] font-black text-neutral-400 uppercase tracking-widest mb-1.5">
           Photo Evidence
         </div>
-        <div className="relative rounded-2xl overflow-hidden border border-gray-150 max-h-80 shadow-sm max-w-md bg-gray-50 flex items-center justify-center">
+        <div className="relative rounded-2xl overflow-hidden border border-neutral-150 max-h-80 shadow-sm max-w-md bg-neutral-50 flex items-center justify-center">
           <img 
             src={photoUrl} 
             alt="Incident Evidence" 
@@ -163,7 +163,7 @@ function EvidenceImage({ photoUrl, technicianName }: { photoUrl?: string | null;
   const theme = getStableColors(name);
   return (
     <div className="mt-3">
-      <div className="text-[9px] font-black text-gray-400 uppercase tracking-widest mb-1.5">
+      <div className="text-[9px] font-black text-neutral-400 uppercase tracking-widest mb-1.5">
         Photo Evidence
       </div>
       <div className={`relative rounded-2xl overflow-hidden border-2 border-dashed ${theme.border} p-5 max-w-md bg-gradient-to-br ${theme.bg} text-white shadow-sm flex flex-col items-center justify-center text-center space-y-2`}>
@@ -198,7 +198,7 @@ function ActiveCard({
 
   return (
     <div
-      className={`bg-white border border-gray-100 border-l-4 ${cfg.border} rounded-2xl shadow-sm overflow-hidden transition-shadow hover:shadow-md`}
+      className={`bg-white border border-neutral-100 border-l-4 ${cfg.border} rounded-2xl shadow-sm overflow-hidden transition-shadow hover:shadow-md`}
     >
       {/* ── Card header ─────────────────────────────────────────────────── */}
       <div
@@ -220,54 +220,54 @@ function ActiveCard({
               <AckBadge by={incident.acknowledgedBy} at={incident.acknowledgedAt} />
             )}
 
-            <span className="flex items-center gap-1 text-[10px] font-semibold text-gray-400">
+            <span className="flex items-center gap-1 text-[10px] font-semibold text-neutral-400">
               <Clock size={10} />
               {incident.timestamp}
             </span>
 
-            <span className="text-[10px] font-black text-gray-400 uppercase tracking-wider ml-auto">
+            <span className="text-[10px] font-black text-neutral-400 uppercase tracking-wider ml-auto">
               {incident.category}
             </span>
           </div>
 
           {/* Affected asset */}
           <div className="flex items-baseline gap-2 flex-wrap mb-1">
-            <span className="text-[13px] font-black text-gray-900">
+            <span className="text-[13px] font-black text-neutral-900">
               {incident.asset}
             </span>
-            <span className="text-[10px] font-mono font-semibold text-gray-400">
+            <span className="text-[10px] font-mono font-semibold text-neutral-400">
               {incident.assetId}
             </span>
-            <span className="text-[10px] font-semibold text-gray-400">
+            <span className="text-[10px] font-semibold text-neutral-400">
               · {incident.location}
             </span>
           </div>
 
           {/* Description */}
-          <p className="text-[12px] font-semibold text-gray-700 leading-snug">
+          <p className="text-[12px] font-semibold text-neutral-700 leading-snug">
             {incident.description}
           </p>
         </div>
 
         {/* Expand toggle */}
-        <div className="flex-shrink-0 text-gray-400 mt-0.5">
+        <div className="flex-shrink-0 text-neutral-400 mt-0.5">
           {expanded ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
         </div>
       </div>
 
       {/* ── Expanded detail ──────────────────────────────────────────────── */}
       {expanded && (
-        <div className="px-5 pb-4 pt-0 border-t border-gray-100 space-y-3">
+        <div className="px-5 pb-4 pt-0 border-t border-neutral-100 space-y-3">
           {/* Telemetry snapshot */}
           <div className="mt-3">
-            <div className="text-[9px] font-black text-gray-400 uppercase tracking-widest mb-1.5">
+            <div className="text-[9px] font-black text-neutral-400 uppercase tracking-widest mb-1.5">
               Telemetry Snapshot
             </div>
-            <div className="font-mono text-[11px] text-gray-700 bg-gray-900 text-ok-400 rounded-xl px-4 py-3 leading-relaxed tracking-wide">
+            <div className="font-mono text-[11px] text-neutral-700 bg-neutral-900 text-ok-400 rounded-xl px-4 py-3 leading-relaxed tracking-wide">
               {incident.telemetry.split("  |  ").map((seg, i) => (
                 <span key={i}>
                   {i > 0 && (
-                    <span className="text-gray-600 mx-2">|</span>
+                    <span className="text-neutral-600 mx-2">|</span>
                   )}
                   {seg}
                 </span>
@@ -279,8 +279,8 @@ function ActiveCard({
           <EvidenceImage photoUrl={incident.photoUrl} technicianName={incident.raisedByName} />
 
           {/* Incident ID row */}
-          <div className="flex items-center gap-2 text-[10px] font-semibold text-gray-400">
-            <span className="font-mono font-black text-gray-500">{incident.id}</span>
+          <div className="flex items-center gap-2 text-[10px] font-semibold text-neutral-400">
+            <span className="font-mono font-black text-neutral-500">{incident.id}</span>
             <span>·</span>
             <span>Opened {incident.timestamp}</span>
           </div>
@@ -290,13 +290,13 @@ function ActiveCard({
             {!incident.acknowledged ? (
               <button
                 onClick={(e) => { e.stopPropagation(); onAck(incident.dbId); }}
-                className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl border border-gray-200 bg-white text-[11px] font-black text-gray-600 hover:border-gray-300 hover:bg-gray-50 active:scale-[0.98] transition-all cursor-pointer"
+                className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl border border-neutral-200 bg-white text-[11px] font-black text-neutral-600 hover:border-neutral-300 hover:bg-neutral-50 active:scale-[0.98] transition-all cursor-pointer"
               >
                 <BellOff size={13} />
                 Acknowledge
               </button>
             ) : (
-              <div className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-gray-50 border border-gray-100 text-[11px] font-black text-gray-400">
+              <div className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-neutral-50 border border-neutral-100 text-[11px] font-black text-neutral-400">
                 <CheckCheck size={13} />
                 Acknowledged
               </div>
@@ -310,7 +310,7 @@ function ActiveCard({
               Resolve / Clear
             </button>
 
-            <span className="ml-auto text-[10px] font-semibold text-gray-400 flex items-center gap-1">
+            <span className="ml-auto text-[10px] font-semibold text-neutral-400 flex items-center gap-1">
               <Clock size={10} />
               Open since {incident.timestamp}
             </span>
@@ -339,10 +339,10 @@ function ResolvedCard({ incident }: { incident: Incident }) {
         : "Operator";
 
   return (
-    <div className="bg-white border border-gray-100 border-l-4 border-l-gray-300 rounded-2xl shadow-sm overflow-hidden opacity-80 hover:opacity-100 transition-opacity">
+    <div className="bg-white border border-neutral-100 border-l-4 border-l-neutral-300 rounded-2xl shadow-sm overflow-hidden opacity-80 hover:opacity-100 transition-opacity">
       {/* Header */}
       <div
-        className="px-5 py-4 flex items-start gap-4 cursor-pointer select-none bg-gray-50/50"
+        className="px-5 py-4 flex items-start gap-4 cursor-pointer select-none bg-neutral-50/50"
         onClick={() => setExpanded((p) => !p)}
       >
         <div className="flex-shrink-0 mt-0.5 opacity-50">
@@ -352,12 +352,12 @@ function ResolvedCard({ incident }: { incident: Incident }) {
         <div className="flex-1 min-w-0">
           <div className="flex flex-wrap items-center gap-2 mb-2">
             <SeverityBadge severity={incident.severity} />
-            <span className="flex items-center gap-1 text-[10px] font-semibold text-gray-400">
+            <span className="flex items-center gap-1 text-[10px] font-semibold text-neutral-400">
               <Clock size={10} />
               {incident.timestamp}
             </span>
             {incident.duration && (
-              <span className="text-[10px] font-black text-gray-400 uppercase tracking-wider">
+              <span className="text-[10px] font-black text-neutral-400 uppercase tracking-wider">
                 Duration: {incident.duration}
               </span>
             )}
@@ -375,36 +375,36 @@ function ResolvedCard({ incident }: { incident: Incident }) {
           </div>
 
           <div className="flex items-baseline gap-2 flex-wrap mb-1">
-            <span className={incident.id?.startsWith("VISIT-") ? "text-[13px] font-black text-gray-700" : "text-[13px] font-black text-gray-700 line-through decoration-gray-400"}>
+            <span className={incident.id?.startsWith("VISIT-") ? "text-[13px] font-black text-neutral-700" : "text-[13px] font-black text-neutral-700 line-through decoration-neutral-400"}>
               {incident.asset}
             </span>
-            <span className="text-[10px] font-mono font-semibold text-gray-400">
+            <span className="text-[10px] font-mono font-semibold text-neutral-400">
               {incident.assetId}
             </span>
           </div>
 
-          <p className="text-[12px] font-semibold text-gray-500 leading-snug">
+          <p className="text-[12px] font-semibold text-neutral-500 leading-snug">
             {incident.description}
           </p>
         </div>
 
-        <div className="flex-shrink-0 text-gray-400 mt-0.5">
+        <div className="flex-shrink-0 text-neutral-400 mt-0.5">
           {expanded ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
         </div>
       </div>
 
       {/* Expanded */}
       {expanded && (
-        <div className="px-5 pb-4 pt-0 border-t border-gray-100 space-y-3">
+        <div className="px-5 pb-4 pt-0 border-t border-neutral-100 space-y-3">
           {/* Telemetry */}
           <div className="mt-3">
-            <div className="text-[9px] font-black text-gray-400 uppercase tracking-widest mb-1.5">
+            <div className="text-[9px] font-black text-neutral-400 uppercase tracking-widest mb-1.5">
               Telemetry at Time of Incident
             </div>
-            <div className="font-mono text-[11px] text-gray-500 bg-gray-100 rounded-xl px-4 py-3 leading-relaxed tracking-wide">
+            <div className="font-mono text-[11px] text-neutral-500 bg-neutral-100 rounded-xl px-4 py-3 leading-relaxed tracking-wide">
               {incident.telemetry.split("  |  ").map((seg, i) => (
                 <span key={i}>
-                  {i > 0 && <span className="text-gray-400 mx-2">|</span>}
+                  {i > 0 && <span className="text-neutral-400 mx-2">|</span>}
                   {seg}
                 </span>
               ))}
@@ -416,23 +416,23 @@ function ResolvedCard({ incident }: { incident: Incident }) {
 
           {/* Resolution note */}
           <div>
-            <div className="text-[9px] font-black text-gray-400 uppercase tracking-widest mb-1.5">
+            <div className="text-[9px] font-black text-neutral-400 uppercase tracking-widest mb-1.5">
               Resolution Notes
             </div>
-            <p className="text-[12px] font-semibold text-gray-600 leading-snug bg-ok-50 border border-ok-100 rounded-xl px-4 py-3">
+            <p className="text-[12px] font-semibold text-neutral-600 leading-snug bg-ok-50 border border-ok-100 rounded-xl px-4 py-3">
               {incident.resolution}
             </p>
           </div>
 
           {/* Resolver info */}
-          <div className="flex items-center gap-2 text-[10px] font-semibold text-gray-400">
+          <div className="flex items-center gap-2 text-[10px] font-semibold text-neutral-400">
             <ShieldCheck size={11} className="text-ok-500" />
             <span>
               Cleared by{" "}
-              <span className="font-black text-gray-600">{incident.resolvedBy}</span>
+              <span className="font-black text-neutral-600">{incident.resolvedBy}</span>
               {" "}· {resolverLabel} · at {incident.resolvedAt}
             </span>
-            <span className="ml-auto font-mono font-black text-gray-400">
+            <span className="ml-auto font-mono font-black text-neutral-400">
               {incident.id}
             </span>
           </div>
@@ -681,8 +681,8 @@ export function AlertsLog() {
     return (
       <div className="min-h-full flex items-center justify-center p-12">
         <div className="flex flex-col items-center gap-3">
-          <div className="w-8 h-8 rounded-full border-2 border-gray-900 border-t-transparent animate-spin" />
-          <span className="text-[11px] font-black text-gray-500 uppercase tracking-widest">Synchronizing Fault Queue...</span>
+          <div className="w-8 h-8 rounded-full border-2 border-neutral-900 border-t-transparent animate-spin" />
+          <span className="text-[11px] font-black text-neutral-500 uppercase tracking-widest">Synchronizing Fault Queue...</span>
         </div>
       </div>
     );
@@ -694,13 +694,13 @@ export function AlertsLog() {
       {/* ── Page header ─────────────────────────────────────────────────── */}
       <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4">
         <div>
-          <div className="text-[10px] font-black text-gray-400 uppercase tracking-[0.14em] mb-0.5">
+          <div className="text-[10px] font-black text-neutral-400 uppercase tracking-[0.14em] mb-0.5">
             Incident Management
           </div>
-          <h1 className="text-[20px] font-black text-gray-900 tracking-tight leading-none">
+          <h1 className="text-[20px] font-black text-neutral-900 tracking-tight leading-none">
             System Alerts &amp; Triage
           </h1>
-          <p className="text-[11px] font-semibold text-gray-400 mt-1">
+          <p className="text-[11px] font-semibold text-neutral-400 mt-1">
             {currentSite?.site_name || "—"} · Real-time fault queue
           </p>
 
@@ -725,9 +725,9 @@ export function AlertsLog() {
             </div>
           )}
           {unackedCount > 0 && (
-            <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-gray-100 border border-gray-200">
-              <Bell size={13} className="text-gray-500" />
-              <span className="text-[11px] font-black text-gray-600 uppercase tracking-wider">
+            <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-neutral-100 border border-neutral-200">
+              <Bell size={13} className="text-neutral-500" />
+              <span className="text-[11px] font-black text-neutral-600 uppercase tracking-wider">
                 {unackedCount} Unacknowledged
               </span>
             </div>
@@ -744,10 +744,10 @@ export function AlertsLog() {
       </div>
 
       {/* ── View toggle tabs ─────────────────────────────────────────────── */}
-      <div className="bg-white border border-gray-100 rounded-2xl shadow-sm px-4 py-3 flex items-center justify-between gap-4 flex-wrap">
+      <div className="bg-white border border-neutral-100 rounded-2xl shadow-sm px-4 py-3 flex items-center justify-between gap-4 flex-wrap">
         {/* Tab group */}
         <div className="flex items-center gap-3 flex-wrap">
-        <div className="flex items-center gap-1 bg-gray-100 rounded-xl p-1">
+        <div className="flex items-center gap-1 bg-neutral-100 rounded-xl p-1">
           {TABS.map((tab) => (
             <button
               key={tab.id}
@@ -755,8 +755,8 @@ export function AlertsLog() {
               className={[
                 "flex items-center gap-2 px-4 py-2 rounded-lg text-[11px] font-black uppercase tracking-wider transition-all cursor-pointer",
                 view === tab.id
-                  ? "bg-white text-gray-900 shadow-sm border border-gray-200"
-                  : "text-gray-400 hover:text-gray-600",
+                  ? "bg-white text-neutral-900 shadow-sm border border-neutral-200"
+                  : "text-neutral-400 hover:text-neutral-600",
               ].join(" ")}
             >
               {tab.id === "active" ? (
@@ -771,8 +771,8 @@ export function AlertsLog() {
                   view === tab.id
                     ? tab.id === "active"
                       ? "bg-brand-500 text-white"
-                      : "bg-gray-200 text-gray-600"
-                    : "bg-gray-200 text-gray-500",
+                      : "bg-neutral-200 text-neutral-600"
+                    : "bg-neutral-200 text-neutral-500",
                 ].join(" ")}
               >
                 {tab.count}
@@ -801,30 +801,30 @@ export function AlertsLog() {
             <>
               <div>
                 <div className="text-[18px] font-black text-danger-600 leading-none">{criticalCount}</div>
-                <div className="text-[9px] font-black text-gray-400 uppercase tracking-widest">Critical</div>
+                <div className="text-[9px] font-black text-neutral-400 uppercase tracking-widest">Critical</div>
               </div>
               <div>
                 <div className="text-[18px] font-black text-warn-600 leading-none">{warningCount}</div>
-                <div className="text-[9px] font-black text-gray-400 uppercase tracking-widest">Warning</div>
+                <div className="text-[9px] font-black text-neutral-400 uppercase tracking-widest">Warning</div>
               </div>
               <div>
                 <div className="text-[18px] font-black text-info-600 leading-none">
                   {activeAlerts.filter((a) => a.severity === "info").length}
                 </div>
-                <div className="text-[9px] font-black text-gray-400 uppercase tracking-widest">Info</div>
+                <div className="text-[9px] font-black text-neutral-400 uppercase tracking-widest">Info</div>
               </div>
             </>
           ) : (
             <>
               <div>
                 <div className="text-[18px] font-black text-ok-600 leading-none">{resolved.length}</div>
-                <div className="text-[9px] font-black text-gray-400 uppercase tracking-widest">Resolved</div>
+                <div className="text-[9px] font-black text-neutral-400 uppercase tracking-widest">Resolved</div>
               </div>
               <div>
-                <div className="text-[18px] font-black text-gray-700 leading-none">
+                <div className="text-[18px] font-black text-neutral-700 leading-none">
                   {resolved.filter((r) => r.severity === "critical").length}
                 </div>
-                <div className="text-[9px] font-black text-gray-400 uppercase tracking-widest">Were Critical</div>
+                <div className="text-[9px] font-black text-neutral-400 uppercase tracking-widest">Were Critical</div>
               </div>
             </>
           )}
@@ -836,13 +836,13 @@ export function AlertsLog() {
         <div className="flex flex-col gap-4">
           {activeAlerts.length === 0 ? (
             /* Empty state */
-            <div className="bg-white border border-gray-100 rounded-2xl shadow-sm px-8 py-16 flex flex-col items-center gap-4">
+            <div className="bg-white border border-neutral-100 rounded-2xl shadow-sm px-8 py-16 flex flex-col items-center gap-4">
               <div className="w-16 h-16 rounded-2xl bg-ok-50 flex items-center justify-center">
                 <ShieldCheck size={32} className="text-ok-500" />
               </div>
               <div className="text-center">
-                <div className="text-[15px] font-black text-gray-900">All Systems Clear</div>
-                <p className="text-[12px] font-semibold text-gray-400 mt-1">
+                <div className="text-[15px] font-black text-neutral-900">All Systems Clear</div>
+                <p className="text-[12px] font-semibold text-neutral-400 mt-1">
                   No active incidents. All resolved incidents have been moved to history.
                 </p>
               </div>
@@ -871,13 +871,13 @@ export function AlertsLog() {
         <div className="flex flex-col gap-4">
           {resolved.length === 0 ? (
             /* Empty state */
-            <div className="bg-white border border-gray-100 rounded-2xl shadow-sm px-8 py-16 flex flex-col items-center gap-4">
-              <div className="w-16 h-16 rounded-2xl bg-gray-50 flex items-center justify-center">
-                <RotateCcw size={32} className="text-gray-400" />
+            <div className="bg-white border border-neutral-100 rounded-2xl shadow-sm px-8 py-16 flex flex-col items-center gap-4">
+              <div className="w-16 h-16 rounded-2xl bg-neutral-50 flex items-center justify-center">
+                <RotateCcw size={32} className="text-neutral-400" />
               </div>
               <div className="text-center">
-                <div className="text-[15px] font-black text-gray-900">No Resolved Incidents</div>
-                <p className="text-[12px] font-semibold text-gray-400 mt-1">
+                <div className="text-[15px] font-black text-neutral-900">No Resolved Incidents</div>
+                <p className="text-[12px] font-semibold text-neutral-400 mt-1">
                   No resolved incidents in history yet.
                 </p>
               </div>
@@ -891,7 +891,7 @@ export function AlertsLog() {
       )}
 
       {/* ── Footer ──────────────────────────────────────────────────────── */}
-      <div className="flex items-center justify-between text-[10px] font-semibold text-gray-400 pt-1">
+      <div className="flex items-center justify-between text-[10px] font-semibold text-neutral-400 pt-1">
         <span>
           {view === "active"
             ? `${activeAlerts.length} active incident${activeAlerts.length !== 1 ? "s" : ""} · Last sync: ${lastSync} UTC+2`

@@ -76,15 +76,15 @@ export const TelemetryHistoryModal = ({
         {/* Header Bar */}
         <div className="dcime-history-topbar">
           <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-full bg-slate-800 text-cyan-400 flex items-center justify-center font-bold text-xs border border-cyan-500/30">
+            <div className="w-8 h-8 rounded-full bg-neutral-800 text-info-400 flex items-center justify-center font-bold text-xs border border-info-500/30">
               {recordsForSelectedDate.length > 0 ? selectedHourIndex + 1 : 0}
             </div>
             <div>
               <h4 className="text-xs font-black text-white uppercase tracking-wider">
                 {selectedDate || "Telemetry History"}
               </h4>
-              <p className="text-[10px] text-slate-400 font-medium flex items-center gap-1.5 mt-0.5">
-                <Clock size={11} className="text-cyan-400" />
+              <p className="text-[10px] text-neutral-400 font-medium flex items-center gap-1.5 mt-0.5">
+                <Clock size={11} className="text-info-400" />
                 <span>
                   {recordsForSelectedDate.length > 0
                     ? `Hour ${selectedHourIndex + 1} of ${recordsForSelectedDate.length} logged — Target: ${currentRecord?.hour || ""}`
@@ -146,7 +146,7 @@ export const TelemetryHistoryModal = ({
             <button
               type="button"
               onClick={onClose}
-              className="w-8 h-8 rounded-full bg-slate-800 text-slate-400 hover:text-white flex items-center justify-center transition-colors outline-none border border-slate-700"
+              className="w-8 h-8 rounded-full bg-neutral-800 text-neutral-400 hover:text-white flex items-center justify-center transition-colors outline-none border border-neutral-700"
             >
               <X size={18} />
             </button>
@@ -157,8 +157,8 @@ export const TelemetryHistoryModal = ({
         {uniqueDates.length > 0 && (
           <div className="dcime-date-selector-bar">
             <div className="flex items-center gap-1.5 px-3 py-2 overflow-x-auto no-scrollbar">
-              <span className="text-[10px] font-black uppercase text-slate-500 tracking-wider flex items-center gap-1 pr-1 border-r border-slate-800 shrink-0">
-                <Calendar size={12} className="text-slate-400" />
+              <span className="text-[10px] font-black uppercase text-neutral-500 tracking-wider flex items-center gap-1 pr-1 border-r border-neutral-800 shrink-0">
+                <Calendar size={12} className="text-neutral-400" />
                 Date:
               </span>
               {uniqueDates.map((date) => {
@@ -171,12 +171,12 @@ export const TelemetryHistoryModal = ({
                     onClick={() => handleSelectDate(date)}
                     className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all shrink-0 cursor-pointer flex items-center gap-1.5 ${
                       isActive
-                        ? "bg-cyan-500 text-slate-950 font-black shadow-lg shadow-cyan-500/20 border border-cyan-400"
-                        : "bg-slate-900/90 text-slate-400 hover:text-white border border-slate-800 hover:bg-slate-800"
+                        ? "bg-info-500 text-neutral-950 font-black shadow-lg shadow-info-500/20 border border-info-400"
+                        : "bg-neutral-900/90 text-neutral-400 hover:text-white border border-neutral-800 hover:bg-neutral-800"
                     }`}
                   >
                     <span>{date}</span>
-                    <span className={`text-[10px] px-1.5 py-0.5 rounded-full ${isActive ? 'bg-slate-950/20 text-slate-900 font-extrabold' : 'bg-slate-800 text-slate-400'}`}>
+                    <span className={`text-[10px] px-1.5 py-0.5 rounded-full ${isActive ? 'bg-neutral-950/20 text-neutral-900 font-extrabold' : 'bg-neutral-800 text-neutral-400'}`}>
                       {count}
                     </span>
                   </button>
@@ -190,8 +190,8 @@ export const TelemetryHistoryModal = ({
         {recordsForSelectedDate.length > 0 && (
           <div className="dcime-hour-selector-bar">
             <div className="flex items-center gap-1.5 px-3 py-2 overflow-x-auto no-scrollbar">
-              <span className="text-[10px] font-black uppercase text-slate-500 tracking-wider flex items-center gap-1 pr-1 border-r border-slate-800 shrink-0">
-                <Clock size={12} className="text-slate-400" />
+              <span className="text-[10px] font-black uppercase text-neutral-500 tracking-wider flex items-center gap-1 pr-1 border-r border-neutral-800 shrink-0">
+                <Clock size={12} className="text-neutral-400" />
                 Hours:
               </span>
               {recordsForSelectedDate.map((rec, idx) => {
@@ -203,8 +203,8 @@ export const TelemetryHistoryModal = ({
                     onClick={() => setSelectedHourIndex(idx)}
                     className={`px-2.5 py-1 rounded-lg text-xs font-mono font-bold transition-all shrink-0 cursor-pointer ${
                       isActive
-                        ? "bg-cyan-400/20 text-cyan-300 border border-cyan-500/50 shadow-sm"
-                        : "bg-slate-900/60 text-slate-400 hover:text-slate-200 border border-slate-800/80"
+                        ? "bg-info-400/20 text-info-300 border border-info-500/50 shadow-sm"
+                        : "bg-neutral-900/60 text-neutral-400 hover:text-neutral-200 border border-neutral-800/80"
                     }`}
                   >
                     {rec.hour}
@@ -232,19 +232,19 @@ export const TelemetryHistoryModal = ({
           }}
         >
           {recordsForSelectedDate.length === 0 ? (
-            <div className="flex flex-col items-center justify-center h-full text-slate-500 gap-3">
-              <div className="w-12 h-12 rounded-full bg-slate-900 border border-slate-800 flex items-center justify-center text-slate-600">
+            <div className="flex flex-col items-center justify-center h-full text-neutral-500 gap-3">
+              <div className="w-12 h-12 rounded-full bg-neutral-900 border border-neutral-800 flex items-center justify-center text-neutral-600">
                 <Share2 size={24} />
               </div>
-              <p className="text-xs font-bold uppercase tracking-widest text-slate-400">No telemetry logs recorded for this date.</p>
+              <p className="text-xs font-bold uppercase tracking-widest text-neutral-400">No telemetry logs recorded for this date.</p>
             </div>
           ) : (
             <div className="dcime-history-page-card">
               <div className="dcime-history-page-meta">
-                <span className="font-mono text-cyan-400 font-bold">
+                <span className="font-mono text-info-400 font-bold">
                   TARGET SHIFT: {currentRecord?.hour} | DATE: {currentRecord?.date}
                 </span>
-                <span className="text-slate-500 font-sans text-[10px]">
+                <span className="text-neutral-500 font-sans text-[10px]">
                   SAVED: {new Date(currentRecord?.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                 </span>
               </div>

@@ -28,10 +28,17 @@ export interface WorkItem {
   state:             WorkState;
   origin:            string;
   source_kind:       string | null;
+  /** Whoever started the work. Null until somebody does. */
   assignee_id:       string | null;
   assignee_name:     string | null;
-  /** Shortlist this was offered to. null = broadcast to the whole site. */
-  offered_to:        string[] | null;
+  /** Everyone told to do it. null only on rows predating directed assignment. */
+  assigned_to:       string[] | null;
+  assigned_scope:    string | null;
+  assigned_count:    number;
+  /** How many of them have confirmed receipt. */
+  ack_count:         number;
+  /** Whether the signed-in technician is one of them. Resolved per caller. */
+  i_acknowledged:    boolean;
   due_at:            string | null;
   respond_by:        string | null;
   resolve_by:        string | null;
@@ -45,23 +52,22 @@ export interface WorkItem {
 
 export interface UseWorkQueueResult {
   items:      WorkItem[];
-  /** Accepted by the signed-in technician. */
-  mine:       WorkItem[];
-  /**
-   * Offered but not yet accepted by anyone, and visible to this technician —
-   * either broadcast to the site, or naming them specifically.
-   *
-   * Work offered to OTHER named technicians is deliberately excluded: showing
-   * it invites someone to take a job that was dispatched to a colleague.
-   */
-  offered:    WorkItem[];
+  /** Every job this technician was told to do, answered or not. */
+  forMe:      WorkItem[];
+  /** Jobs this technician has actually started. */
+  working:    WorkItem[];
+  /** Told to them and still unanswered — the one thing they must not miss. */
+  unanswered: number;
   /** Open count, for the tab badge. */
   openCount:  number;
   breached:   number;
   isLoading:  boolean;
   error:      string | null;
   refresh:    () => void;
-  claim:      (id: string) => Promise<void>;
+  /** Confirm receipt. Idempotent — a double tap is not a second event. */
+  acknowledge:(id: string) => Promise<void>;
+  /** Take the job on. Implies acknowledgement if it was skipped. */
+  start:      (id: string) => Promise<void>;
   advance:    (id: string, to: WorkState, note?: string) => Promise<void>;
 }
 
@@ -76,6 +82,13 @@ const ACTIVE: WorkState[] = ["OPEN", "ACKNOWLEDGED", "IN_PROGRESS"];
  */
 type UntypedFrom = (table: string) => any;
 const from = supabase.from.bind(supabase) as unknown as UntypedFrom;
+
+/** Same escape hatch for acknowledge_work_item / start_work_item. */
+type UntypedRpc = (
+  fn: string,
+  args?: Record<string, unknown>
+) => Promise<{ data: unknown; error: { message: string } | null }>;
+const rpc = supabase.rpc.bind(supabase) as unknown as UntypedRpc;
 
 export function useWorkQueue(): UseWorkQueueResult {
   const { currentSite } = useCurrentSite();
@@ -139,16 +152,21 @@ export function useWorkQueue(): UseWorkQueueResult {
 
   const refresh = useCallback(() => setNonce(n => n + 1), []);
 
-  // Claiming and acknowledging are one action. Picking up a job without
-  // starting its response clock is how work sits "assigned" and untouched.
-  const claim = useCallback(async (id: string) => {
-    if (!myId) throw new Error("No employee record for the signed-in user");
-    const { error: uErr } = await from("work_items")
-      .update({ assignee_id: myId, state: "ACKNOWLEDGED" })
-      .eq("id", id);
-    if (uErr) throw new Error(uErr.message);
+  // Both go through the database rather than updating work_items directly:
+  // each writes two tables and has to be all-or-nothing, and the acting
+  // identity is resolved server-side. A client that sends its own employee_id
+  // is a client that can send somebody else's.
+  const acknowledge = useCallback(async (id: string) => {
+    const { error: rErr } = await rpc("acknowledge_work_item", { p_id: id });
+    if (rErr) throw new Error(rErr.message);
     refresh();
-  }, [myId, refresh]);
+  }, [refresh]);
+
+  const start = useCallback(async (id: string) => {
+    const { error: rErr } = await rpc("start_work_item", { p_id: id });
+    if (rErr) throw new Error(rErr.message);
+    refresh();
+  }, [refresh]);
 
   const advance = useCallback(async (id: string, to: WorkState, note?: string) => {
     const patch: Record<string, unknown> = { state: to };
@@ -164,24 +182,27 @@ export function useWorkQueue(): UseWorkQueueResult {
     refresh();
   }, [myId, refresh]);
 
-  const unclaimed = items.filter(i => i.assignee_id === null);
+  // myId must be non-null before any of these compare: an unassigned legacy
+  // job also has a null assignee_id, so a signed-in user with no employee
+  // record would otherwise see the whole queue listed as their own work.
+  const forMe = myId === null ? [] : items.filter(i =>
+    // A null assigned_to predates directed assignment and still reads as
+    // site-wide, so everyone is a recipient of it.
+    i.assigned_to === null || i.assigned_to.includes(myId)
+  );
 
   return {
     items,
-    // myId must be non-null before comparing: an unassigned job also has a
-    // null assignee_id, so a signed-in user with no employee record would see
-    // the entire unclaimed pool listed as their own work.
-    mine:    myId === null ? [] : items.filter(i => i.assignee_id === myId),
-    offered: unclaimed.filter(i =>
-      // null offered_to is a broadcast; an array names who may accept.
-      i.offered_to === null || (myId !== null && i.offered_to.includes(myId))
-    ),
+    forMe,
+    working:    myId === null ? [] : items.filter(i => i.assignee_id === myId),
+    unanswered: forMe.filter(i => !i.i_acknowledged).length,
     openCount:  items.length,
     breached:   items.filter(i => i.is_breached).length,
     isLoading,
     error,
     refresh,
-    claim,
+    acknowledge,
+    start,
     advance
   };
 }

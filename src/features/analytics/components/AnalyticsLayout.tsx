@@ -1,5 +1,5 @@
 import { NavLink, Outlet, useLocation } from "react-router";
-import { FileText, Zap, Fuel, Battery, ThermometerSnowflake, Activity, Gauge } from "lucide-react";
+import { FileText, Zap, Fuel, Battery, ThermometerSnowflake, Activity, Gauge, Users } from "lucide-react";
 import { DateRangePicker } from "@/shared/ui";
 import { useDateRange } from "@/shared/utils/useDateRange";
 
@@ -15,6 +15,7 @@ const SUB_TABS = [
   { to: "/admin/analytics/thermal", label: "Thermal & HVAC", icon: ThermometerSnowflake },
   { to: "/admin/analytics/capacity", label: "Capacity & N+1", icon: Gauge },
   { to: "/admin/analytics/incidents", label: "Incident Lifecycle", icon: Activity },
+  { to: "/admin/analytics/technicians", label: "Technicians", icon: Users },
 ] as const;
 
 export function AnalyticsLayout() {
@@ -34,13 +35,13 @@ export function AnalyticsLayout() {
       {/* Sub Navigation Bar — real display:none in print (not the
           visibility:hidden trick), so it doesn't leave a blank reserved gap
           at the top of a printed report. */}
-      <div className="print:hidden flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-gray-100 pb-4">
+      <div className="print:hidden flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-neutral-100 pb-4">
         <div>
-          <h1 className="text-xl font-black text-gray-900 tracking-tight">Analytics Workspace</h1>
-          <p className="text-xs text-gray-500 mt-1 font-medium">Cross-domain operations telemetry and reports audit.</p>
+          <h1 className="text-xl font-black text-neutral-900 tracking-tight">Analytics Workspace</h1>
+          <p className="text-xs text-neutral-500 mt-1 font-medium">Cross-domain operations telemetry and reports audit.</p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          <nav className="flex flex-wrap gap-1 bg-gray-100 rounded-xl p-1 w-fit">
+          <nav className="flex flex-wrap gap-1 bg-neutral-100 rounded-xl p-1 w-fit">
             {SUB_TABS.map(({ to, label, icon: Icon }) => (
               <NavLink
                 key={to}
@@ -49,8 +50,8 @@ export function AnalyticsLayout() {
                   [
                     "relative flex items-center gap-1.5 px-3 py-2 rounded-lg text-[11px] font-black transition-all select-none border border-transparent",
                     isActive
-                      ? "bg-white border-white/40 text-gray-900 shadow-sm"
-                      : "text-gray-400 hover:text-gray-700 hover:bg-white/35",
+                      ? "bg-white border-white/40 text-neutral-900 shadow-sm"
+                      : "text-neutral-400 hover:text-neutral-700 hover:bg-white/35",
                   ].join(" ")
                 }
               >
@@ -84,7 +85,7 @@ export function AnalyticsLayout() {
       {/* Nested Route Content — every chart page reads `range` via
           useOutletContext<AnalyticsOutletContext>() so the whole workspace
           stays on one selected period. */}
-      <div className="bg-white rounded-3xl border border-gray-100 shadow-sm min-h-[40vh] overflow-hidden print:overflow-visible print:border-0 print:shadow-none print:rounded-none">
+      <div className="bg-white rounded-3xl border border-neutral-100 shadow-sm min-h-[40vh] overflow-hidden print:overflow-visible print:border-0 print:shadow-none print:rounded-none">
         <Outlet context={{ range } satisfies AnalyticsOutletContext} />
       </div>
     </div>

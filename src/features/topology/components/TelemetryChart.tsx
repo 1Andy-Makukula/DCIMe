@@ -64,8 +64,8 @@ function CustomTooltip({
   if (!active || !payload || payload.length === 0) return null;
 
   return (
-    <div className="bg-white border border-gray-200 rounded-2xl shadow-xl px-4 py-3 min-w-[150px]">
-      <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">
+    <div className="bg-white border border-neutral-200 rounded-2xl shadow-xl px-4 py-3 min-w-[150px]">
+      <p className="text-[10px] font-black text-neutral-400 uppercase tracking-widest mb-2">
         {label}
       </p>
       {payload.map((entry: any) => {
@@ -78,10 +78,10 @@ function CustomTooltip({
               className="inline-block w-2.5 h-2.5 rounded-full flex-shrink-0"
               style={{ backgroundColor: entry.color }}
             />
-            <span className="text-[11px] font-semibold text-gray-600 truncate max-w-[120px]">
+            <span className="text-[11px] font-semibold text-neutral-600 truncate max-w-[120px]">
               {name}:
             </span>
-            <span className="text-[11px] font-black text-gray-900 tabular-nums ml-auto pl-2">
+            <span className="text-[11px] font-black text-neutral-900 tabular-nums ml-auto pl-2">
               {entry.value !== null && entry.value !== undefined
                 ? `${entry.value}${unit ? " " + unit : ""}`
                 : "—"}
@@ -184,7 +184,7 @@ export function TelemetryChart({ equipmentId }: TelemetryChartProps) {
 
   if (isLoading) {
     return (
-      <div className="flex flex-col items-center justify-center py-10 gap-2 text-gray-400">
+      <div className="flex flex-col items-center justify-center py-10 gap-2 text-neutral-400">
         <Loader2 size={22} className="animate-spin text-brand-500" />
         <span className="text-[10px] font-black uppercase tracking-widest">
           Loading Telemetry History…
@@ -204,12 +204,12 @@ export function TelemetryChart({ equipmentId }: TelemetryChartProps) {
 
   if (graphableParams.length === 0) {
     return (
-      <div className="flex flex-col items-center justify-center py-10 gap-2 text-gray-300 border-2 border-dashed border-gray-100 rounded-2xl">
+      <div className="flex flex-col items-center justify-center py-10 gap-2 text-neutral-300 border-2 border-dashed border-neutral-100 rounded-2xl">
         <TrendingUp size={28} />
-        <p className="text-[11px] font-bold text-gray-400 text-center">
+        <p className="text-[11px] font-bold text-neutral-400 text-center">
           No graphable parameters configured.
         </p>
-        <p className="text-[10px] text-gray-400 text-center max-w-[220px]">
+        <p className="text-[10px] text-neutral-400 text-center max-w-[220px]">
           Mark a parameter as <strong>Graphable</strong> in the parameter editor to see trend lines here.
         </p>
       </div>
@@ -218,12 +218,12 @@ export function TelemetryChart({ equipmentId }: TelemetryChartProps) {
 
   if (chartData.length === 0) {
     return (
-      <div className="flex flex-col items-center justify-center py-10 gap-2 text-gray-300 border-2 border-dashed border-gray-100 rounded-2xl">
+      <div className="flex flex-col items-center justify-center py-10 gap-2 text-neutral-300 border-2 border-dashed border-neutral-100 rounded-2xl">
         <TrendingUp size={28} />
-        <p className="text-[11px] font-bold text-gray-400 text-center">
+        <p className="text-[11px] font-bold text-neutral-400 text-center">
           No data logged in the last 24 hours.
         </p>
-        <p className="text-[10px] text-gray-400 text-center max-w-[220px]">
+        <p className="text-[10px] text-neutral-400 text-center max-w-[220px]">
           Telemetry will appear here once technicians submit the hourly checklist.
         </p>
       </div>
@@ -237,7 +237,7 @@ export function TelemetryChart({ equipmentId }: TelemetryChartProps) {
         {graphableParams.map((p, i) => (
           <span
             key={p.id}
-            className="inline-flex items-center gap-1.5 text-[10px] font-black text-gray-600 uppercase tracking-wider bg-gray-50 border border-gray-100 px-2.5 py-1 rounded-full"
+            className="inline-flex items-center gap-1.5 text-[10px] font-black text-neutral-600 uppercase tracking-wider bg-neutral-50 border border-neutral-100 px-2.5 py-1 rounded-full"
           >
             <span
               className="inline-block w-2 h-2 rounded-full"
@@ -245,7 +245,7 @@ export function TelemetryChart({ equipmentId }: TelemetryChartProps) {
             />
             {p.parameter_name}
             {p.unit && (
-              <span className="text-gray-400 font-bold normal-case">({p.unit})</span>
+              <span className="text-neutral-400 font-bold normal-case">({p.unit})</span>
             )}
           </span>
         ))}
@@ -260,19 +260,19 @@ export function TelemetryChart({ equipmentId }: TelemetryChartProps) {
           >
             <CartesianGrid
               strokeDasharray="3 3"
-              stroke="#f1f5f9"
+              stroke="var(--color-neutral-100)"
               vertical={false}
             />
             <XAxis
               dataKey="hour"
-              tick={{ fontSize: 9, fontWeight: 700, fill: "#94a3b8" }}
+              tick={{ fontSize: 9, fontWeight: 700, fill: "var(--color-neutral-400)" }}
               axisLine={false}
               tickLine={false}
               interval="preserveStartEnd"
               tickFormatter={(v: string) => v.toUpperCase()}
             />
             <YAxis
-              tick={{ fontSize: 9, fontWeight: 700, fill: "#94a3b8" }}
+              tick={{ fontSize: 9, fontWeight: 700, fill: "var(--color-neutral-400)" }}
               axisLine={false}
               tickLine={false}
               width={40}
@@ -281,7 +281,7 @@ export function TelemetryChart({ equipmentId }: TelemetryChartProps) {
               content={
                 <CustomTooltip paramMeta={graphableParams} />
               }
-              cursor={{ stroke: "#e2e8f0", strokeWidth: 1 }}
+              cursor={{ stroke: "var(--color-neutral-200)", strokeWidth: 1 }}
             />
             <Legend content={() => null} />
             {graphableParams.map((p, i) => (
@@ -301,7 +301,7 @@ export function TelemetryChart({ equipmentId }: TelemetryChartProps) {
         </ResponsiveContainer>
       </div>
 
-      <p className="text-[9px] font-bold text-gray-300 uppercase tracking-widest text-right">
+      <p className="text-[9px] font-bold text-neutral-300 uppercase tracking-widest text-right">
         Last 24 hours · Hourly resolution
       </p>
     </div>

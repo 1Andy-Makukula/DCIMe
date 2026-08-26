@@ -141,7 +141,7 @@ export function FSelect<T extends string = string>({
       {label && (
         <label
           htmlFor={id}
-          className="mb-1 block text-[9px] font-black uppercase tracking-[0.12em] text-gray-400"
+          className="mb-1 block text-[9px] font-black uppercase tracking-[0.12em] text-neutral-400"
         >
           {label}
         </label>
@@ -167,18 +167,18 @@ export function FSelect<T extends string = string>({
           className={[
             "flex w-full items-center justify-between gap-2 rounded-xl border-2 bg-white px-3 py-2.5 text-left text-[12px] font-semibold transition-all outline-none",
             disabled
-              ? "cursor-not-allowed border-gray-100 bg-gray-50 text-gray-300"
+              ? "cursor-not-allowed border-neutral-100 bg-neutral-50 text-neutral-300"
               : open
-                ? "border-brand-400 text-gray-900"
-                : "border-gray-100 text-gray-900 hover:border-gray-200"
+                ? "border-brand-400 text-neutral-900"
+                : "border-neutral-100 text-neutral-900 hover:border-neutral-200"
           ].join(" ")}
         >
-          <span className={`truncate ${selected ? "" : "text-gray-400"}`}>
+          <span className={`truncate ${selected ? "" : "text-neutral-400"}`}>
             {selected ? selected.label : placeholder}
           </span>
           <ChevronDown
             size={14}
-            className={`shrink-0 text-gray-400 transition-transform duration-200 ${open ? "rotate-180" : ""}`}
+            className={`shrink-0 text-neutral-400 transition-transform duration-200 ${open ? "rotate-180" : ""}`}
           />
         </button>
 
@@ -187,10 +187,10 @@ export function FSelect<T extends string = string>({
             ref={listRef}
             id={`${id}-listbox`}
             role="listbox"
-            className="absolute z-[var(--z-popover)] mt-1.5 max-h-64 w-full overflow-y-auto rounded-2xl border border-gray-200 bg-white p-1 shadow-[0_20px_50px_-12px_rgba(15,23,42,0.3)]"
+            className="absolute z-[var(--z-popover)] mt-1.5 max-h-64 w-full overflow-y-auto rounded-2xl border border-neutral-200 bg-white p-1 shadow-[0_20px_50px_-12px_rgba(15,23,42,0.3)]"
           >
             {options.length === 0 && (
-              <p className="px-3 py-2.5 text-[11px] font-semibold text-gray-400">
+              <p className="px-3 py-2.5 text-[11px] font-semibold text-neutral-400">
                 Nothing to choose from
               </p>
             )}
@@ -211,11 +211,11 @@ export function FSelect<T extends string = string>({
                   ].join(" ")}
                 >
                   <span className="min-w-0 flex-1">
-                    <span className={`block truncate text-[12px] ${isSelected ? "font-black text-gray-900" : "font-semibold text-gray-700"}`}>
+                    <span className={`block truncate text-[12px] ${isSelected ? "font-black text-neutral-900" : "font-semibold text-neutral-700"}`}>
                       {o.label}
                     </span>
                     {o.hint && (
-                      <span className="mt-0.5 block text-[10px] font-medium leading-snug text-gray-400">
+                      <span className="mt-0.5 block text-[10px] font-medium leading-snug text-neutral-400">
                         {o.hint}
                       </span>
                     )}

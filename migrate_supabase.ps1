@@ -77,10 +77,43 @@ $Migrations = @(
     "20260827_signatures.sql",                 # signature columns; additive
     "20260828_realtime_publication.sql",       # makes postgres_changes actually fire
     "20260829_countersignatures.sql",          # admin countersign; additive
-    "20260830_assignment_and_vendor_status.sql", # offered_to + vendor flags
+    "20260830_assignment_and_vendor_status.sql", # offered_to (renamed in 835) + vendor flags
     "20260831_signer_attribution.sql",         # server stamps who signed
     "20260832_contractor_signature.sql",       # contractors sign for their work
-    "20260833_report_signoffs.sql"             # sign a generated report
+    "20260833_report_signoffs.sql",            # sign a generated report
+    "20260834_finish_identity_purge.sql",      # site_name + ZESCO in live data
+    "20260835_directed_assignment.sql",        # offered_to -> assigned_to; per-person acks
+    "20260836_registry_unification.sql",       # capture_mode, visit_frequency, excel targets table
+    "20260837_registry_seed.sql",              # GENERATED — scripts/generate-registry-seed.mjs
+    "20260838_visibility_rules.sql",           # facility-mode visibility as data; 3-arg form RPC
+    "20260839_walking_path.sql",               # the reading round leaves the blueprint JSON
+    "20260840_graphable_readings.sql",          # which readings TelemetryChart may plot
+    "20260841_readings_spine.sql",              # per-asset, per-hour readings + fan-out trigger
+    "20260842_reading_status.sql",              # warn bands, reading_status(), observed ranges
+    "20260843_stamp_breach_limits.sql",         # a breach records the band it was judged against
+    "20260844_thresholds_on_readings.sql",      # the alarm path could never fire; now it can
+    "20260845_system_recovery_transition.sql",  # a self-clearing alarm can close itself
+    "20260846_ticket_number_default.sql",       # the ingestion monitor could not insert an incident
+    "20260847_reading_rollups.sql",             # daily/monthly rollups + get_series()
+    "20260848_schedule_rollup_refresh.sql",     # keep the rollups current on cron
+    "20260849_fix_excel_destinations.sql",      # Temp Record shift, PAC + DG Check out of range
+    "20260850_pac_row_index.sql",               # which row of the PAC block each aircon owns
+    "20260851_admin_control_plane.sql",         # field-level audit of registry edits
+    "20260852_semantic_roles.sql",              # how a calculation finds the reading it needs
+    "20260853_views_enforce_rls.sql",           # four views were reading past row-level security
+    "20260854_audit_creations.sql",             # record who added a room or an asset, not only edits
+    "20260855_parameter_measure.sql",           # ask for a measure, not one asset's parameter name
+    "20260856_count_zeros.sql",                 # an exact zero is countable, not silently averaged
+    "20260857_rollups_enforce_site.sql",        # the rollups were readable past RLS by anyone
+    "20260858_measure_volumes.sql",             # open a screen onto a measure that has data
+    "20260859_technician_activity.sql",         # who recorded what, and how consistently
+    "20260860_provenance.sql",                  # mark generated rows so they stay reversible
+    "20260861_operating_limits.sql",            # RAG had nothing to check against
+    "20260862_synthetic_generator.sql",         # demonstration rounds modelled on real ranges
+    "20260863_synthetic_reports.sql",           # the paperwork those rounds would have produced
+    "20260864_zeros_are_not_faults.sql",        # a blank box must not raise a P1 at 3am
+    "20260865_entry_discipline.sql",            # was the reading written down when it was taken
+    "20260866_late_entry_detail.sql"            # the register behind the late-entry count
 )
 
 # Seeds populate SITE 1 — not a sandbox. They were retargeted when the sandbox

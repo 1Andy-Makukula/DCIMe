@@ -1,0 +1,1160 @@
+<title>DCIMe V2.1 Groundwork</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700&family=Source+Serif+4:opsz,wght@8..60,400;8..60,600&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+
+<style>
+  :root{
+    --ground:#F6F8F8; --surface:#FFFFFF; --surface-2:#EDF2F2; --surface-3:#E4EBEB;
+    --ink:#0F1A1C; --ink-2:#3B4E51; --muted:#6C7F82;
+    --rule:#D6E0E0; --rule-strong:#B9C8C8;
+    --accent:#0B6E77; --accent-ink:#08535A; --accent-soft:#E0EFF0;
+    --crit:#A32218; --crit-soft:#F7E7E5;
+    --warn:#8E5B08; --warn-soft:#F9EEDC;
+    --ok:#1B6E42; --ok-soft:#E2F0E8;
+    --shadow:0 1px 2px rgba(15,26,28,.05), 0 8px 24px -12px rgba(15,26,28,.18);
+  }
+  @media (prefers-color-scheme: dark){
+    :root:not([data-theme="light"]){
+      --ground:#0A1113; --surface:#101B1D; --surface-2:#162325; --surface-3:#1D2C2E;
+      --ink:#E9EFEE; --ink-2:#B6C5C5; --muted:#8A9C9D;
+      --rule:#213234; --rule-strong:#2E4245;
+      --accent:#4FBAC1; --accent-ink:#7FD2D7; --accent-soft:#0F2E31;
+      --crit:#E98276; --crit-soft:#2C1613;
+      --warn:#D9A244; --warn-soft:#2A2011;
+      --ok:#5FC28B; --ok-soft:#122A1E;
+      --shadow:0 1px 2px rgba(0,0,0,.4), 0 8px 24px -12px rgba(0,0,0,.6);
+    }
+  }
+  :root[data-theme="dark"]{
+    --ground:#0A1113; --surface:#101B1D; --surface-2:#162325; --surface-3:#1D2C2E;
+    --ink:#E9EFEE; --ink-2:#B6C5C5; --muted:#8A9C9D;
+    --rule:#213234; --rule-strong:#2E4245;
+    --accent:#4FBAC1; --accent-ink:#7FD2D7; --accent-soft:#0F2E31;
+    --crit:#E98276; --crit-soft:#2C1613;
+    --warn:#D9A244; --warn-soft:#2A2011;
+    --ok:#5FC28B; --ok-soft:#122A1E;
+    --shadow:0 1px 2px rgba(0,0,0,.4), 0 8px 24px -12px rgba(0,0,0,.6);
+  }
+
+  *{box-sizing:border-box}
+  body{
+    margin:0; background:var(--ground); color:var(--ink);
+    font-family:"Source Serif 4",Georgia,"Times New Roman",serif;
+    font-size:17px; line-height:1.62;
+    -webkit-font-smoothing:antialiased;
+  }
+  .wrap{max-width:1140px; margin:0 auto; padding:0 28px 96px}
+  .col{max-width:70ch}
+
+  h1,h2,h3,h4,.mono-h{font-family:Archivo,"Helvetica Neue",Arial,sans-serif; text-wrap:balance}
+  h1{font-size:clamp(2.1rem,4.6vw,3.1rem); font-weight:700; letter-spacing:-.022em; line-height:1.06; margin:0}
+  h2{font-size:clamp(1.45rem,2.6vw,1.9rem); font-weight:700; letter-spacing:-.016em; line-height:1.14; margin:0 0 .5rem}
+  h3{font-size:1.16rem; font-weight:600; letter-spacing:-.008em; margin:0 0 .35rem}
+  h4{font-size:.98rem; font-weight:600; margin:0 0 .3rem}
+  p{margin:0 0 1.05rem}
+  a{color:var(--accent); text-underline-offset:.18em; text-decoration-thickness:.06em}
+  a:focus-visible,button:focus-visible{outline:2px solid var(--accent); outline-offset:3px; border-radius:3px}
+
+  code,.mono,kbd{font-family:"IBM Plex Mono",ui-monospace,SFMono-Regular,Menlo,monospace}
+  code{
+    font-size:.845em; background:var(--surface-2); color:var(--ink-2);
+    padding:.1em .38em; border-radius:4px; border:1px solid var(--rule);
+    word-break:break-word;
+  }
+
+  .eyebrow{
+    font-family:"IBM Plex Mono",monospace; font-size:.7rem; font-weight:500;
+    letter-spacing:.16em; text-transform:uppercase; color:var(--muted);
+  }
+
+  /* ── masthead ───────────────────────────────────────────── */
+  .mast{
+    border-bottom:1px solid var(--rule); background:var(--surface);
+    padding:64px 0 40px; margin-bottom:56px;
+  }
+  .mast .wrap{padding-bottom:0}
+  .mast .lede{
+    font-size:1.16rem; color:var(--ink-2); max-width:62ch; margin-top:1.1rem;
+  }
+  .mast-meta{
+    display:flex; flex-wrap:wrap; gap:0 32px; margin-top:28px;
+    padding-top:20px; border-top:1px solid var(--rule);
+    font-family:"IBM Plex Mono",monospace; font-size:.74rem; color:var(--muted);
+  }
+  .mast-meta b{color:var(--ink-2); font-weight:500}
+
+  /* ── section scaffolding ────────────────────────────────── */
+  section{margin:0 0 72px}
+  .sec-head{
+    display:flex; align-items:baseline; gap:16px;
+    padding-bottom:14px; margin-bottom:28px; border-bottom:2px solid var(--ink);
+  }
+  .sec-num{
+    font-family:"IBM Plex Mono",monospace; font-size:.78rem; font-weight:600;
+    color:var(--accent); letter-spacing:.08em; flex:none;
+  }
+
+  /* ── stat strip ─────────────────────────────────────────── */
+  .stats{
+    display:grid; grid-template-columns:repeat(auto-fit,minmax(158px,1fr));
+    gap:1px; background:var(--rule); border:1px solid var(--rule);
+    border-radius:8px; overflow:hidden; margin:0 0 40px;
+  }
+  .stat{background:var(--surface); padding:18px 20px}
+  .stat .n{
+    font-family:"IBM Plex Mono",monospace; font-size:1.62rem; font-weight:600;
+    letter-spacing:-.02em; color:var(--ink); font-variant-numeric:tabular-nums; display:block;
+  }
+  .stat .l{font-size:.8rem; color:var(--muted); line-height:1.35; margin-top:4px; display:block}
+  .stat.bad .n{color:var(--crit)}
+
+  /* ── findings ───────────────────────────────────────────── */
+  .find{
+    background:var(--surface); border:1px solid var(--rule); border-left:none;
+    border-radius:0 8px 8px 0; box-shadow:var(--shadow);
+    margin:0 0 18px; display:flex; overflow:hidden;
+  }
+  .rail{width:5px; flex:none}
+  .rail.c1{background:var(--crit)} .rail.c2{background:var(--warn)} .rail.c3{background:var(--accent)}
+  .find-body{padding:20px 24px; min-width:0; flex:1}
+  .find-top{display:flex; flex-wrap:wrap; align-items:baseline; gap:10px; margin-bottom:8px}
+  .tag{
+    font-family:"IBM Plex Mono",monospace; font-size:.66rem; font-weight:600;
+    letter-spacing:.1em; text-transform:uppercase; padding:.22em .5em; border-radius:3px;
+  }
+  .tag.c1{background:var(--crit-soft); color:var(--crit)}
+  .tag.c2{background:var(--warn-soft); color:var(--warn)}
+  .tag.c3{background:var(--accent-soft); color:var(--accent-ink)}
+  .find h3{flex:1; min-width:220px}
+  .find p{margin-bottom:.7rem; font-size:.95rem}
+  .find p:last-child{margin-bottom:0}
+  .ev{
+    font-family:"IBM Plex Mono",monospace; font-size:.74rem; color:var(--muted);
+    border-top:1px dashed var(--rule); padding-top:10px; margin-top:12px; line-height:1.7;
+  }
+  .ev b{color:var(--ink-2); font-weight:500}
+
+  /* ── tables ─────────────────────────────────────────────── */
+  .tw{overflow-x:auto; margin:0 0 26px; border:1px solid var(--rule); border-radius:8px; background:var(--surface)}
+  table{border-collapse:collapse; width:100%; font-size:.86rem; min-width:520px}
+  th,td{text-align:left; padding:9px 14px; border-bottom:1px solid var(--rule); vertical-align:top}
+  thead th{
+    font-family:"IBM Plex Mono",monospace; font-size:.68rem; font-weight:600;
+    letter-spacing:.09em; text-transform:uppercase; color:var(--muted);
+    background:var(--surface-2); border-bottom:1px solid var(--rule-strong); white-space:nowrap;
+  }
+  tbody tr:last-child td{border-bottom:none}
+  td.m,th.m{font-family:"IBM Plex Mono",monospace; font-size:.78rem; font-variant-numeric:tabular-nums}
+  .bad{color:var(--crit); font-weight:600}
+  .good{color:var(--ok); font-weight:600}
+
+  /* ── pipeline diagram ───────────────────────────────────── */
+  .pipe{
+    background:var(--surface); border:1px solid var(--rule); border-radius:10px;
+    padding:26px 24px; margin:0 0 26px; overflow-x:auto;
+  }
+  .pipe svg{display:block; min-width:640px; width:100%; height:auto}
+
+  /* ── stages ─────────────────────────────────────────────── */
+  .stage{
+    background:var(--surface); border:1px solid var(--rule); border-radius:10px;
+    padding:24px 26px; margin:0 0 20px; box-shadow:var(--shadow);
+  }
+  .stage-head{display:flex; align-items:baseline; gap:14px; margin-bottom:6px}
+  .stage-n{
+    font-family:"IBM Plex Mono",monospace; font-weight:600; font-size:.82rem;
+    color:var(--surface); background:var(--accent); border-radius:4px;
+    padding:.2em .5em; flex:none; letter-spacing:.04em;
+  }
+  .stage h3{flex:1}
+  .goal{
+    font-size:.95rem; color:var(--ink-2); border-left:2px solid var(--accent);
+    padding-left:14px; margin:12px 0 16px;
+  }
+  ul,ol{margin:0 0 1rem; padding-left:1.3rem}
+  li{margin-bottom:.42rem; font-size:.95rem}
+  li::marker{color:var(--muted)}
+  .out{
+    font-family:"IBM Plex Mono",monospace; font-size:.74rem; color:var(--muted);
+    border-top:1px solid var(--rule); padding-top:11px; margin-top:14px;
+  }
+  .out b{color:var(--accent-ink); font-weight:500}
+
+  .callout{
+    background:var(--accent-soft); border:1px solid color-mix(in srgb,var(--accent) 24%,transparent);
+    border-radius:8px; padding:18px 22px; margin:0 0 26px;
+  }
+  .callout p:last-child{margin-bottom:0}
+  .callout .eyebrow{color:var(--accent-ink); margin-bottom:6px; display:block}
+
+  hr.soft{border:none; border-top:1px solid var(--rule); margin:34px 0}
+
+  .q{
+    border-left:3px solid var(--warn); padding:2px 0 2px 18px; margin:0 0 22px;
+  }
+  .q h4{margin-bottom:.25rem}
+  .q p{font-size:.93rem; color:var(--ink-2); margin-bottom:0}
+
+  @media (max-width:640px){
+    body{font-size:16px}
+    .wrap{padding:0 18px 64px}
+    .mast{padding:44px 0 30px; margin-bottom:40px}
+    .find-body,.stage{padding:18px}
+  }
+</style>
+
+<header class="mast">
+  <div class="wrap">
+    <span class="eyebrow">DCIMe · Version 2.1 · Groundwork</span>
+    <h1>What is broken, and the order to fix&nbsp;it</h1>
+    <p class="lede">
+      A full audit of the data path — from what a technician types on a phone, through the
+      database, to the cell it lands in inside the two Excel workbooks — followed by a staged
+      plan to unify the model, correct the mapping, and build the detailed analytics layer.
+    </p>
+    <div class="mast-meta">
+      <span><b>Scope</b> · data input → interpretation → Excel</span>
+      <span><b>Codebase</b> · 32,346 lines TS/TSX</span>
+      <span><b>Site</b> · SITE_01, 47 assets, 14 rooms</span>
+      <span><b>Status</b> · stages 1–5 complete · awaiting operating limits</span>
+    </div>
+  </div>
+</header>
+
+<div class="wrap">
+
+<!-- ══════════════════════════════════════════════════════ -->
+<section>
+  <div class="sec-head"><span class="sec-num">01</span><h2>The short version</h2></div>
+
+  <div class="col">
+    <p>
+      The system is not fractured because anyone built it badly. It is fractured because the
+      same facts — <em>what equipment exists, what it measures, where that reading goes</em> —
+      were written down three separate times, in three different places, and those three copies
+      have drifted apart. Every symptom below traces back to that one cause.
+    </p>
+    <p>
+      The most serious consequence is not architectural, it is factual: <strong>the commercial
+      logbook currently writes every room's temperature under the wrong room's heading.</strong>
+      That is a signed compliance record going out with mis-attributed data. It is fixable in an
+      afternoon, but it should be fixed knowing why it happened, or it will happen again.
+    </p>
+  </div>
+
+  <div class="stats">
+    <div class="stat"><span class="n">3</span><span class="l">parallel definitions of the same equipment model</span></div>
+    <div class="stat bad"><span class="n">291</span><span class="l">Excel mappings with no source — 70 of them owned by nothing</span></div>
+    <div class="stat bad"><span class="n">4</span><span class="l">Excel row/column formulas provably wrong</span></div>
+    <div class="stat bad"><span class="n">2,402</span><span class="l">raw palette classes bypassing the design tokens</span></div>
+    <div class="stat"><span class="n">0</span><span class="l">aggregation done in the database</span></div>
+  </div>
+</section>
+
+<!-- ══════════════════════════════════════════════════════ -->
+<section>
+  <div class="sec-head"><span class="sec-num">02</span><h2>How data actually moves today</h2></div>
+
+  <div class="col">
+    <p>
+      Worth stating plainly, because the shape of the problem is visible in the shape of the
+      diagram. There is one authoritative path and two shadow copies alongside it.
+    </p>
+  </div>
+
+  <div class="pipe">
+    <svg viewBox="0 0 900 340" role="img" aria-label="Data flow from technician form through database to Excel, showing three competing definition sources">
+      <defs>
+        <marker id="ar" markerWidth="9" markerHeight="9" refX="8" refY="4.5" orient="auto">
+          <path d="M0,1 L8,4.5 L0,8 z" fill="currentColor"/>
+        </marker>
+        <marker id="arDim" markerWidth="9" markerHeight="9" refX="8" refY="4.5" orient="auto">
+          <path d="M0,1 L8,4.5 L0,8 z" fill="var(--muted)"/>
+        </marker>
+      </defs>
+
+      <g font-family="IBM Plex Mono, monospace" font-size="11">
+
+        <!-- definition sources -->
+        <text x="16" y="24" fill="var(--muted)" font-size="10" letter-spacing="1.6">DEFINITION OF TRUTH  ×3</text>
+
+        <rect x="16" y="36" width="196" height="46" rx="6" fill="var(--surface-2)" stroke="var(--accent)" stroke-width="1.5"/>
+        <text x="30" y="55" fill="var(--ink)" font-weight="600">equipment_parameters</text>
+        <text x="30" y="71" fill="var(--muted)" font-size="10">database registry · EMPTY (1 row)</text>
+
+        <rect x="16" y="94" width="196" height="46" rx="6" fill="var(--surface-2)" stroke="var(--rule-strong)" stroke-dasharray="4 3"/>
+        <text x="30" y="113" fill="var(--ink-2)" font-weight="600">SITE_01_blueprint.json</text>
+        <text x="30" y="129" fill="var(--muted)" font-size="10">324 metrics · what actually runs</text>
+
+        <rect x="16" y="152" width="196" height="46" rx="6" fill="var(--surface-2)" stroke="var(--rule-strong)" stroke-dasharray="4 3"/>
+        <text x="30" y="171" fill="var(--ink-2)" font-weight="600">excelMappings.ts</text>
+        <text x="30" y="187" fill="var(--muted)" font-size="10">614 keys · shadow copy</text>
+
+        <!-- runtime path -->
+        <text x="330" y="24" fill="var(--muted)" font-size="10" letter-spacing="1.6">RUNTIME</text>
+
+        <rect x="330" y="36" width="176" height="52" rx="6" fill="var(--surface)" stroke="var(--rule-strong)"/>
+        <text x="344" y="57" fill="var(--ink)" font-weight="600">Technician form</text>
+        <text x="344" y="73" fill="var(--muted)" font-size="10">hourly · phone</text>
+
+        <rect x="330" y="130" width="176" height="66" rx="6" fill="var(--surface)" stroke="var(--rule-strong)"/>
+        <text x="344" y="151" fill="var(--ink)" font-weight="600">telemetry_logs</text>
+        <text x="344" y="167" fill="var(--muted)" font-size="10">1 row per site-hour</text>
+        <text x="344" y="182" fill="var(--muted)" font-size="10">324 values in one JSONB</text>
+
+        <rect x="330" y="238" width="176" height="52" rx="6" fill="var(--surface)" stroke="var(--rule-strong)"/>
+        <text x="344" y="259" fill="var(--ink)" font-weight="600">Browser</text>
+        <text x="344" y="275" fill="var(--muted)" font-size="10">all avg / min / max, in JS</text>
+
+        <!-- outputs -->
+        <text x="624" y="24" fill="var(--muted)" font-size="10" letter-spacing="1.6">OUTPUT</text>
+
+        <rect x="624" y="130" width="176" height="52" rx="6" fill="var(--surface)" stroke="var(--rule-strong)"/>
+        <text x="638" y="151" fill="var(--ink)" font-weight="600">Excel workbooks</text>
+        <text x="638" y="167" fill="var(--muted)" font-size="10">daily canvas + logbook</text>
+
+        <rect x="624" y="238" width="176" height="52" rx="6" fill="var(--surface)" stroke="var(--rule-strong)"/>
+        <text x="638" y="259" fill="var(--ink)" font-weight="600">Analytics screens</text>
+        <text x="638" y="275" fill="var(--muted)" font-size="10">capped at 3,000 rows</text>
+
+        <!-- arrows -->
+        <g stroke="currentColor" stroke-width="1.4" fill="none" color="var(--accent)">
+          <path d="M212,59 L322,59" marker-end="url(#ar)"/>
+          <path d="M418,88 L418,124" marker-end="url(#ar)"/>
+          <path d="M418,196 L418,232" marker-end="url(#ar)"/>
+          <path d="M506,156 L616,156" marker-end="url(#ar)"/>
+          <path d="M506,264 L616,264" marker-end="url(#ar)"/>
+        </g>
+        <g stroke="var(--muted)" stroke-width="1.2" fill="none" stroke-dasharray="4 3">
+          <path d="M212,117 C260,117 268,60 322,60" marker-end="url(#arDim)"/>
+          <path d="M212,175 C280,175 300,156 616,150" marker-end="url(#arDim)"/>
+        </g>
+
+        <text x="228" y="222" fill="var(--muted)" font-size="10">dashed = drifts independently of the others</text>
+      </g>
+    </svg>
+  </div>
+
+  <div class="col">
+    <p>
+      <strong>The registry feeds nothing.</strong> It holds one row in production — a stray
+      <code>oil_pressure</code> on <code>TPL_GENSET_1MW</code> — so
+      <code>get_site_form_definition()</code> returns zero equipment groups and the shift form has
+      been driven by the blueprint JSON the whole time. The registry was built, wired up and never
+      loaded. The blueprint JSON feeds seven runtime modules.
+      The TypeScript mapping file feeds the Excel writer alone — even though
+      <code>equipment_parameters</code> already carries <code>excel_workbook</code>,
+      <code>excel_sheet_name</code> and <code>excel_column_index</code> columns built for exactly
+      that purpose. Those columns are populated by one function, in
+      <code>seedDatabase.ts</code>, which nothing imports.
+    </p>
+  </div>
+</section>
+
+<!-- ══════════════════════════════════════════════════════ -->
+<section>
+  <div class="sec-head"><span class="sec-num">03</span><h2>Findings</h2></div>
+
+  <div class="col">
+    <p>
+      Ordered by consequence. Everything here was verified against the actual template files and
+      the actual code, not inferred.
+    </p>
+  </div>
+
+  <!-- F1 -->
+  <div class="find">
+    <div class="rail c1"></div>
+    <div class="find-body">
+      <div class="find-top"><span class="tag c1">Data integrity</span><h3>Every room's temperature is written under the wrong room in the commercial logbook</h3></div>
+      <p>
+        The <em>Temp Record</em> sheet has seven room pairs. The mapping expects nine, because it
+        leads with two rooms that do not exist anywhere in the blueprint —
+        <code>zesco_lt</code> and <code>rmu_ht</code>. Those four phantom columns push every real
+        room four columns to the right.
+      </p>
+      <p>
+        HQ Power Room's reading lands under <em>Data Room</em>. Server Room's lands under
+        <em>Power Room 1</em>. IT Room 1's temperature lands in the
+        <em>Average of all rooms</em> column and its humidity in <em>Remarks &amp; Sign</em>.
+        IT Room 2 is written past the end of the table entirely. Columns C–F stay blank.
+      </p>
+      <div class="tw" style="margin:14px 0 0">
+        <table>
+          <thead><tr><th class="m">Col</th><th>Template heading</th><th>Currently receives</th><th>Should receive</th></tr></thead>
+          <tbody>
+            <tr><td class="m">C/D</td><td>HQ Power Room</td><td class="m bad">zesco_lt_* (no source)</td><td class="m">hq_ambient_*</td></tr>
+            <tr><td class="m">E/F</td><td>Server Room</td><td class="m bad">rmu_ht_* (no source)</td><td class="m">server_ambient_*</td></tr>
+            <tr><td class="m">G/H</td><td>Data Room</td><td class="m bad">hq_ambient_*</td><td class="m">media_ambient_*</td></tr>
+            <tr><td class="m">I/J</td><td>Power Room 1</td><td class="m bad">server_ambient_*</td><td class="m">pr1_ambient_*</td></tr>
+            <tr><td class="m">K/L</td><td>Power Room 2</td><td class="m bad">media_ambient_*</td><td class="m">pr2_ambient_*</td></tr>
+            <tr><td class="m">M/N</td><td>IT Room 1</td><td class="m bad">pr1_ambient_*</td><td class="m">it1_ambient_*</td></tr>
+            <tr><td class="m">O/P</td><td>IT Room 2</td><td class="m bad">pr2_ambient_*</td><td class="m">it2_ambient_*</td></tr>
+            <tr><td class="m">Q/R</td><td>Average · Remarks</td><td class="m bad">it1_ambient_*</td><td class="m">— formula / signature</td></tr>
+            <tr><td class="m">S/T</td><td>— past table —</td><td class="m bad">it2_ambient_*</td><td class="m">—</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p class="ev"><b>Evidence</b> · template headings read from <code>Temp Record</code> R5–R6; destinations resolved by evaluating <code>EXCEL_MAPPINGS.SITE_01</code>. <b>Note</b> · <code>media_ambient_*</code> is not a phantom — it is the Data Room's ambient sensor under a legacy name (<code>room_data_ambient</code>).</p>
+    </div>
+  </div>
+
+  <!-- F2 -->
+  <div class="find">
+    <div class="rail c1"></div>
+    <div class="find-body">
+      <div class="find-top"><span class="tag c1">Data loss</span><h3>The PAC sheet overwrites itself every day and drifts a row every two hours</h3></div>
+      <p>
+        The aircon sheet holds 8,543 rows — 31 days × 12 two-hourly rounds × 23 units. The row
+        formula is <code>5 + floor(hour/2)*24 + index</code>. It has three faults at once: there
+        is <strong>no day term</strong>, so all 31 days write over the same block; the stride is
+        <strong>24 where the template's block is 23</strong>, so each round drifts one row further
+        out; and the base is 5 where data starts at row 6.
+      </p>
+      <p>
+        In practice roughly 292 of 8,543 rows are ever touched, and the month's aircon record is
+        the last day only. The correct expression is
+        <code>6 + ((day−1)*12 + floor(hour/2)) * 23 + index</code>.
+      </p>
+      <p class="ev"><b>Evidence</b> · <code>excelExportEngine.ts:230</code>. Template block confirmed: R6–R28 is 23 units, R29 begins the next round. <code>getPacEquipmentIndex</code> returns 0-based indices.</p>
+    </div>
+  </div>
+
+  <!-- F3 -->
+  <div class="find">
+    <div class="rail c1"></div>
+    <div class="find-body">
+      <div class="find-top"><span class="tag c1">Data integrity</span><h3>Generator logs are written one row too high</h3></div>
+      <p>
+        On every DG sheet the header occupies rows 2–3 and day 1 belongs in row 4. The formula is
+        <code>2 + day</code>, which puts day 1 into row 3 — the sub-header — and shifts the whole
+        month up by one day. Should be <code>3 + day</code>.
+      </p>
+      <p>
+        The neighbouring <em>Fuel Record</em> formula (<code>5 + day</code>) is correct, which is
+        how the error survived: the two sheets sit side by side and only one of them is wrong.
+      </p>
+      <p class="ev"><b>Evidence</b> · <code>excelExportEngine.ts:222</code>. Confirmed identical layout on DG-1, DG-3 and DG-HQ (A4 = day 1).</p>
+    </div>
+  </div>
+
+  <!-- F4 -->
+  <div class="find">
+    <div class="rail c2"></div>
+    <div class="find-body">
+      <div class="find-top"><span class="tag c2">Silent</span><h3>Half the workbook is derived by formula, and nothing tells Excel to recalculate</h3></div>
+      <p>
+        <em>Room Temp&nbsp;·&nbsp;Auto Update</em>, <em>Summary&nbsp;·&nbsp;Temp &amp; Hum</em>,
+        <em>PUE Trend</em>, and the four <em>Power Plant</em> check sheets contain no data of their
+        own — they are formulas reading the day sheets. The writer correctly refuses to overwrite
+        formula cells, but never sets <code>fullCalcOnLoad</code>, so the file ships carrying the
+        template's cached results.
+      </p>
+      <p>
+        Whether the recipient sees real numbers depends on their Excel's recalculation
+        settings. That is not a property a compliance record should have.
+      </p>
+      <p class="ev"><b>Evidence</b> · no <code>calcProperties</code> anywhere in <code>excelExportEngine.ts</code>; formula guard at line 240.</p>
+    </div>
+  </div>
+
+  <!-- F5 -->
+  <div class="find">
+    <div class="rail c2"></div>
+    <div class="find-body">
+      <div class="find-top"><span class="tag c2">Drift</span><h3>291 of 614 mappings point at metrics nobody captures</h3></div>
+      <p>
+        Of 324 metrics defined in the blueprint, 323 have an Excel destination — coverage is
+        genuinely good. The problem runs the other way: 291 mapping keys have no source. Chiefly
+        the per-unit electrical columns on the PAC sheet — voltage RY/YB/BR, current R/Y/B/N,
+        daily abnormality — for all 27 aircons, plus the two phantom rooms above.
+      </p>
+      <p>
+        So the aircon sheet's electrical half is structurally blank, and nothing reports that.
+        Each one is a decision waiting to be made: either the technician should be capturing it,
+        or the column should go.
+      </p>
+      <p class="ev"><b>Evidence</b> · set difference between blueprint metric ids and <code>EXCEL_MAPPINGS.SITE_01</code> keys. Only unmapped metric: <code>dg_hq_charged_status</code>.</p>
+    </div>
+  </div>
+
+  <!-- F6 -->
+  <div class="find">
+    <div class="rail c2"></div>
+    <div class="find-body">
+      <div class="find-top"><span class="tag c2">Correctness</span><h3>The app's PUE and the workbook's PUE are different numbers</h3></div>
+      <p>
+        The workbook defines IT load as rectifier DC power plus UPS output:
+        <code>(rect1_V×A + rect2_V×A)/1000 + UPS kW</code>. The application uses UPS output
+        alone. Dropping the rectifiers from the denominator inflates PUE — and the two figures
+        will be quoted side by side in the same meeting.
+      </p>
+      <p>
+        Same neighbourhood: <code>DG_BURN_RATE_LPH = 150</code> is a hard-coded fleet estimate,
+        duplicated in two hooks, and its own comment flags it as a placeholder.
+      </p>
+      <p class="ev"><b>Evidence</b> · <code>useExecutiveSummary.ts:209–224</code> versus <code>PUE Trend</code> B4 and day-sheet rows 32–33.</p>
+    </div>
+  </div>
+
+  <!-- F7 -->
+  <div class="find">
+    <div class="rail c1"></div>
+    <div class="find-body">
+      <div class="find-top"><span class="tag c1">Architecture</span><h3>A reading is not attached to its equipment — only to a string prefix inside a blob</h3></div>
+      <p>
+        This is the answer to <em>"is the technician inputting the right data points, attached to
+        the specific equipment?"</em> The data is correct. The <em>attachment</em> is not real.
+      </p>
+      <p>
+        <code>telemetry_logs</code> is keyed <code>(target_hour, site_uuid, asset_id)</code>, but
+        only two <code>asset_id</code> values are ever written: <code>facility_wide</code> and
+        <code>dg_daily_test</code>. So all 324 readings for all 47 assets land in a single JSONB
+        object per hour, and equipment identity survives only as a naming convention —
+        <code>ups_1_battery_voltage</code> — with no foreign key, no per-reading timestamp, and no
+        per-reading author.
+      </p>
+      <p>
+        Everything downstream inherits this. Threshold evaluation, analytics, and the Excel writer
+        all reconstruct equipment identity by parsing key prefixes. It works, and it is why
+        <code>media_ambient_temp</code> can sit on the Data Room sensor for a year without anyone
+        noticing.
+      </p>
+      <p class="ev"><b>Evidence</b> · constraint from <code>20260731_dg_test_separate_asset.sql</code>; writers at <code>useTelemetryMutation.ts:69</code> and <code>useTelemetryData.ts:659,682</code>.</p>
+    </div>
+  </div>
+
+  <!-- F8 -->
+  <div class="find">
+    <div class="rail c1"></div>
+    <div class="find-body">
+      <div class="find-top"><span class="tag c1">Blocker</span><h3>There is no aggregation in the database at all</h3></div>
+      <p>
+        No rollup tables, no materialised views — nine views exist and none of them aggregate
+        telemetry. Every screen pulls raw rows and computes averages in JavaScript, and
+        <code>useDashboardData</code> caps the pull at <code>MAX_ROWS_PER_FETCH = 3000</code>.
+      </p>
+      <p>
+        A year of hourly readings is 8,760 rows of fat JSONB. The monthly and yearly views you
+        want cannot be built on this — they would silently truncate. This is the single largest
+        blocker to the analytics expansion, and it has to be solved before any of it is drawn.
+      </p>
+      <p class="ev"><b>Evidence</b> · view inventory across all migrations; <code>useExecutiveSummary.ts:145</code> selects <code>target_hour, metrics</code> raw.</p>
+    </div>
+  </div>
+
+  <!-- F9 -->
+  <div class="find">
+    <div class="rail c2"></div>
+    <div class="find-body">
+      <div class="find-top"><span class="tag c2">Missing</span><h3>Thresholds are pass/fail — there is no amber</h3></div>
+      <p>
+        Limits live correctly in one place: <code>equipment_parameters.min_value / max_value</code>,
+        with <code>evaluate_thresholds()</code> raising work items on breach and
+        <code>severity_from_excursion()</code> grading how far outside. That part is sound.
+      </p>
+      <p>
+        But a value is either inside its band or outside it. There is no <em>approaching the
+        limit</em> state, so the red / amber / green reading you want cannot be derived — and
+        screens invent their own instead. <code>ThermalAnalytics</code> hard-codes
+        <code>humidity between 40 and 60 = Nominal</code> and a chart axis of 15–30°C, neither
+        of which comes from the registry.
+      </p>
+      <p class="ev"><b>Evidence</b> · <code>20260820b_threshold_alarms.sql:30–56</code>; <code>ThermalAnalytics.tsx:66–69, 159, 210</code>.</p>
+    </div>
+  </div>
+
+  <!-- F10 -->
+  <div class="find">
+    <div class="rail c2"></div>
+    <div class="find-body">
+      <div class="find-top"><span class="tag c2">Consistency</span><h3>The design tokens exist and are being bypassed 2,402 times</h3></div>
+      <p>
+        The rule is that colour lives in <code>brand.css</code> and names in
+        <code>branding.ts</code>. In practice there are 2,402 raw Tailwind palette classes
+        (<code>bg-slate-50</code>, <code>text-red-500</code>) and 70 hard-coded hex literals across
+        45 component files.
+      </p>
+      <p>
+        <code>ThermalAnalytics</code> is the whole problem in miniature: chart lines correctly use
+        <code>var(--color-danger-500)</code>, while the axis beside them is
+        <code>#94A3B8</code>. This is why nothing looks unified — not taste, just two systems
+        running at once.
+      </p>
+      <p class="ev"><b>Evidence</b> · pattern count across <code>src/features</code> and <code>src/shared</code>.</p>
+    </div>
+  </div>
+
+  <!-- F11 -->
+  <div class="find">
+    <div class="rail c3"></div>
+    <div class="find-body">
+      <div class="find-top"><span class="tag c3">Modularity</span><h3>Duplication is in the logic, not in dead files</h3></div>
+      <p>
+        Worth saying clearly, since it shapes the cleanup: there is very little dead weight. Only
+        three unreferenced modules exist (362 lines total — <code>seedDatabase.ts</code>,
+        <code>AuditTrailModal.tsx</code>, <code>ImageWithFallback.tsx</code>), and the shadcn UI
+        folder is almost entirely in use.
+      </p>
+      <p>
+        The bloat is repeated logic. <code>avg</code> is defined in four files, <code>min</code>
+        in seven, <code>max</code> in four, <code>numOrNull</code> in two. Each analytics screen
+        re-derives the same statistics from the same blob. Deleting files will not fix this;
+        extracting a domain layer will.
+      </p>
+      <p class="ev"><b>Evidence</b> · unreferenced-module scan across <code>src</code>; helper definition counts.</p>
+    </div>
+  </div>
+
+  <!-- F12 -->
+  <div class="find">
+    <div class="rail c3"></div>
+    <div class="find-body">
+      <div class="find-top"><span class="tag c3">Coverage</span><h3>Four logbook sheets are never written at all</h3></div>
+      <p>
+        <em>Environment</em>, <em>Earthing</em>, <em>DG Battery Log</em> and
+        <em>Inergen Gas Cylinder</em> hold real data in the template but have no mappings and no
+        corresponding metrics. They are weekly and monthly records — cooling status, lighting,
+        fire detection, earth pit resistance, battery voltage — filled in on paper today.
+      </p>
+      <p>
+        Also worth noting: the blueprint has 27 aircons but the PAC sheet has 23 slots. The
+        Dragor unit and all three HQ aircons have nowhere to go.
+      </p>
+      <p class="ev"><b>Evidence</b> · sheet-to-mapping coverage across both workbooks; blueprint AIRCON inventory by room.</p>
+    </div>
+  </div>
+
+  <!-- F14 -->
+  <div class="find">
+    <div class="rail c1"></div>
+    <div class="find-body">
+      <div class="find-top"><span class="tag c1">Data loss</span><h3>The whole fire-safety sheet comes out blank, and it is mapped</h3></div>
+      <p>
+        <em>FSS &amp; VESDA</em> is a daily check across six zones — gas release panel, detector
+        LEDs, Inergen pressure, smoke detector, nozzle clearance, FAS alarm, VESDA pipe, loose
+        connections, panel battery voltage, remarks. Sixty columns, all mapped, and
+        <strong>not one of them has a source</strong>.
+      </p>
+      <p>
+        The mapping expects assets named <code>fss_switch_room</code>, <code>fss_ibm_room</code>,
+        <code>fss_power_room</code>, <code>fss_battery_room</code>, <code>fss_enterprise_1/2</code>.
+        The blueprint's only fire-suppression asset is <code>fm200_panel</code>, carrying one
+        metric. Those six zone names are a further room vocabulary that appears nowhere else in
+        the system — a fifth, after the blueprint's, the day sheet's, the Temp Record's and the
+        Environment sheet's.
+      </p>
+      <p>
+        So the daily fire-safety record has been producing an empty sheet. This did not surface in
+        the first pass because the sheet <em>has</em> mappings — the gap is only visible when the
+        mapping keys are checked back against the metrics that feed them.
+      </p>
+      <p class="ev"><b>Evidence</b> · 60 <code>fss_*</code> keys resolve to no blueprint metric and no equipment; <code>getFssRoomOffset</code> in <code>excelMappingHelpers.ts</code> names the six expected assets. Found by <code>scripts/generate-excel-targets.mjs</code>.</p>
+    </div>
+  </div>
+
+  <!-- F15 -->
+  <div class="find">
+    <div class="rail c1"></div>
+    <div class="find-body">
+      <div class="find-top"><span class="tag c1">Data loss</span><h3>Generator load never reaches the day sheet — and corrupts two derived sheets</h3></div>
+      <p>
+        Columns N–S of every day sheet are the DG Load Details block: load on DG in amps R/Y/B,
+        and DG voltage line-to-line R/Y/B. All six are mapped to
+        <code>dg_load_amps_*</code> and <code>dg_load_voltage_*</code>, and no equipment owns
+        those keys. Each generator carries its own metrics; nothing carries the
+        <em>facility-level</em> figure for whichever machine is currently running.
+      </p>
+      <p>
+        The consequence travels. <em>Power Plant · UPS 1</em> computes its input voltage as
+        <code>='1'!$E6+'1'!$N6</code> — grid amps plus DG amps — so a permanently empty column N
+        feeds a wrong number into all four Power Plant check sheets, which then read as populated
+        rather than as missing.
+      </p>
+      <p class="ev"><b>Evidence</b> · 6 <code>dg_load_*</code> keys with no owning asset; formula read from <code>Power Plant - UPS 1</code> row 4.</p>
+    </div>
+  </div>
+
+  <!-- F13 -->
+  <div class="find">
+    <div class="rail c2"></div>
+    <div class="find-body">
+      <div class="find-top"><span class="tag c2">Cadence</span><h3>HQ is asked for readings six times more often than anyone goes there</h3></div>
+      <p>
+        HQ Power Room is a separate building on its own visit cycle — every four hours. The
+        blueprint has <code>room_hq_ambient</code> at <strong>hourly</strong> and its three aircons
+        at <strong>2-hour</strong>, the same cadence as rooms the technician passes every round.
+      </p>
+      <p>
+        So the form demands HQ temperature 24 times a day for a room visited 6 times, and HQ aircon
+        readings 12 times for the same 6 visits. The unfillable rounds become blank cells that look
+        like missed captures rather than a cadence that was never real. It also explains why
+        <code>hq_ambient_*</code> has no daily-canvas column and appears only on the 4-hourly
+        <em>Temp Record</em> — the sheet already knew, the registry didn't.
+      </p>
+      <p>
+        Correct cadence for the HQ room and all three HQ aircons is <code>4-hour</code>.
+      </p>
+      <p class="ev"><b>Evidence</b> · blueprint frequencies for <code>room_id = room_hq</code>; confirmed against <code>Temp Record</code> (4-hourly) versus <code>PAC</code> (2-hourly). <b>Open</b> · <code>room_workstation</code> and <code>fm200_panel</code> are also assigned to the HQ room but captured hourly, and both write to the hourly day sheet — either they are physically elsewhere or their room assignment is wrong.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ══════════════════════════════════════════════════════ -->
+<section>
+  <div class="sec-head"><span class="sec-num">04</span><h2>What the Excel workbooks actually demand</h2></div>
+
+  <div class="col">
+    <p>
+      The templates turn out to be the cleanest specification in the whole project, and they should
+      drive the model rather than trail behind it. Both workbooks are a star schema: the 31 day
+      sheets are the fact table, and everything else is a projection of them at a different
+      cadence.
+    </p>
+  </div>
+
+  <div class="tw">
+    <table>
+      <thead><tr><th>Output</th><th class="m">Cadence</th><th>Grain</th><th>Derived from</th></tr></thead>
+      <tbody>
+        <tr><td>Day sheets <code>'1'…'31'</code></td><td class="m">hourly</td><td>site × hour</td><td class="good">source of truth</td></tr>
+        <tr><td>Room Temp · Auto Update</td><td class="m">hourly</td><td>room × hour</td><td>day sheets</td></tr>
+        <tr><td>Summary · Temp &amp; Hum</td><td class="m">daily</td><td>avg / max / min per day</td><td>day sheet rows 31–33</td></tr>
+        <tr><td>PUE Trend</td><td class="m">daily</td><td>avg + max IT / site load</td><td>day sheet rows 32–33</td></tr>
+        <tr><td>Power Plant · UPS 1–2</td><td class="m">6-hourly</td><td>asset × 00/06/12/18</td><td>day sheets</td></tr>
+        <tr><td>Power Plant · Rectifier 1–2</td><td class="m">6-hourly</td><td>asset × 00/06/12/18</td><td>day sheets</td></tr>
+        <tr><td>Temp Record</td><td class="m">4-hourly</td><td>room × 6 slots/day</td><td>written directly</td></tr>
+        <tr><td>Commercial Power Log</td><td class="m">4-hourly</td><td>site × 6 slots/day</td><td>written directly</td></tr>
+        <tr><td>PAC</td><td class="m">2-hourly</td><td>aircon × 12 slots/day</td><td>written directly</td></tr>
+        <tr><td>DG-1…DG-HQ, Fuel Record</td><td class="m">daily</td><td>generator × day</td><td>written directly</td></tr>
+        <tr><td>FSS &amp; VESDA</td><td class="m">daily</td><td>zone × day</td><td>written directly</td></tr>
+        <tr><td>Environment, Earthing</td><td class="m">weekly / monthly</td><td>area × period</td><td class="bad">not captured</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="callout">
+    <span class="eyebrow">The load-bearing observation</span>
+    <p>
+      Every cadence in both workbooks — 2-hourly, 4-hourly, 6-hourly, daily, monthly — is a
+      <strong>projection of the hourly grain</strong>. Capture cleanly at the hour, per asset, and
+      every sheet becomes a query rather than a mapping. That is the same shape the analytics
+      expansion needs. One spine serves both.
+    </p>
+  </div>
+</section>
+
+<!-- ══════════════════════════════════════════════════════ -->
+<section>
+  <div class="sec-head"><span class="sec-num">05</span><h2>The plan</h2></div>
+
+  <div class="col">
+    <p>
+      Eight stages, in dependency order. Each is shippable on its own and leaves the system
+      working. Stages 1–3 are foundation and contain no new features — that is deliberate, and it
+      is what makes everything after them small instead of enormous.
+    </p>
+  </div>
+
+  <div class="callout">
+    <span class="eyebrow">Stage 1 · complete</span>
+    <p>
+      The bar was <em>deleting the blueprint changes nothing on screen</em>. It is deleted.
+      <code>SITE_01_blueprint.json</code>, <code>SITE_02_blueprint.json</code> and
+      <code>excelMappings.ts</code> are gone, along with three dead modules, and the database
+      holds all of it: <strong>14 rooms, 47 assets, 324 readings, 10 walking steps, 572 Excel
+      destinations</strong> — every figure matching the files they replaced, exactly.
+    </p>
+    <p>
+      Also landed: <code>capture_mode</code> so a workbook column can print <code>NA</code>
+      without ever reaching a technician; facility-mode visibility as data, so generators leave
+      the round when the site runs on mains; the HQ four-hourly correction; and 151 readings
+      marked graphable, which <code>TelemetryChart</code> had been filtering on and finding none of.
+    </p>
+  </div>
+
+  <div class="callout">
+    <span class="eyebrow">Stage 2 · complete</span>
+    <p>
+      <strong>61,774 readings</strong> now exist as rows — each attached to its asset by foreign
+      key, to its room, and to the technician who took it. Not one is unattributed. A trigger
+      keeps them in step with every new write, including edits that clear a field.
+    </p>
+    <p>
+      Fixing the model exposed two faults that had been invisible.
+      <code>evaluate_thresholds()</code> <strong>could never have raised a single alarm</strong>:
+      it joined assets on <code>telemetry_logs.asset_id</code>, which is
+      <code>'facility_wide'</code> on every row ever written, and rebuilt the metrics key as
+      <code>equipment_id || '_' || parameter_name</code> when the parameter name is already the
+      whole key. Behind it sat a second: <code>resolve_recovered_thresholds()</code> moves a job
+      <code>OPEN → RESOLVED</code>, which the state machine forbids — masked because nothing had
+      ever raised a job for it to close. Both are fixed and the cycle was tested end to end.
+    </p>
+    <p>
+      The blocker is now evidence, not code: <strong>1 of 187</strong> captured parameters has a
+      limit configured, so red/amber/green resolves to <em>unknown</em> everywhere.
+      <code>parameter_observed_range</code> reports what each reading has actually done so those
+      bands can be set against the record.
+    </p>
+  </div>
+
+  <div class="callout">
+    <span class="eyebrow">Stage 3 · complete</span>
+    <p>
+      Aggregation is in the database. <code>readings_daily</code> and
+      <code>readings_monthly</code> store <strong>sum and count, never an average</strong>, so a
+      month re-aggregates correctly across capture that ranges from 1 to 17 readings a day —
+      the mean of daily means would have been quietly wrong. <code>get_series()</code> is the one
+      entry point for every chart: hour, day, month or year, grouped by asset, room or site.
+      A full year of monthly data for every parameter returns <strong>603 rows in 345 ms</strong>,
+      against a path that previously pulled a million raw rows and truncated at 3,000.
+    </p>
+    <p>
+      <strong>PUE was inflated by roughly a factor of two.</strong> The application counted UPS
+      output alone as IT load; the workbook counts rectifier DC power as well. On the real
+      readings that is <strong>138.3 kW versus 275.9 kW</strong> — the rectifiers carry as much
+      DC load as the UPSs carry AC. Corrected to the workbook's own definition.
+    </p>
+    <p>
+      A third dead alarm path turned up on the way: <code>check_ingestion_health()</code>, the
+      job that fires when no readings are arriving at all, had been failing on <em>every</em> run
+      because it inserts an incident without a <code>ticket_number</code>, which is NOT NULL with
+      no default. Fixed at the column, not the caller.
+    </p>
+  </div>
+
+  <div class="callout">
+    <span class="eyebrow">Stage 4 · complete</span>
+    <p>
+      Fifteen defects corrected in the export, against a conformance test that reads the real
+      template headings and <strong>exits non-zero</strong>, so CI can gate on it. The audit had
+      found four; verifying each one properly turned up eleven more.
+    </p>
+    <p>
+      The worst were silent. The PAC sheet aimed <code>voltage_ry</code> and
+      <code>voltage_yb</code> at <strong>Remarks and Technician Name</strong> — roughly ten
+      thousand cells an export overwritten with <code>NA</code>, destroying the columns that
+      record who performed each check. Eight aircons sat one row low because the helper reserved
+      a slot for a Power Room 1 unit that does not exist, so Power Room 2's readings were filed
+      under IT Room 1. DG Check wrote battery voltage into the <em>amps</em> column. And both
+      workbooks shipped dated June 2026 whatever month was exported.
+    </p>
+    <p>
+      Every column index and row position is now data, checked against the document it writes
+      into. <code>excelMappingHelpers</code>'s PAC table is gone — the row an asset occupies
+      lives on the asset.
+    </p>
+  </div>
+
+  <div class="callout">
+    <span class="eyebrow">Stage 5 · complete</span>
+    <p>
+      The Inventory writes. Rooms, equipment with room and cadence, readings with unit and
+      capture mode, and a four-value band — hard minimum, amber low, amber high, hard maximum —
+      with what the reading has actually recorded shown beside it as evidence rather than as a
+      suggestion. Both creation buttons said <em>"disabled (defined in config blueprint)"</em>;
+      that blueprint was deleted in Stage 1, and <code>rooms</code> had carried admin write
+      policies the whole time.
+    </p>
+    <p>
+      <strong>Nameplate facts needed no new machinery.</strong> A generator's burn rate is a
+      parameter with <code>capture_mode = CONSTANT</code> and
+      <code>semantic_role = FUEL_BURN_RATE</code> — same table, same editor, no special case. A
+      dedicated column written earlier in this stage was dropped again in favour of it: two ways
+      to express one kind of fact is how the drift began.
+    </p>
+    <p>
+      The role is the answer to <em>how does a calculation find a reading an administrator
+      typed</em>. It asks for the role, never the name — the string-matching that produced
+      <code>media_ambient_temp</code>, <code>asset_id = 'facility_wide'</code> and a rebuilt
+      metrics key. <strong>36 parameters tagged</strong>, one role per asset enforced.
+    </p>
+    <p>
+      Also closed: four views were reading past row-level security, so a technician could ask
+      PostgREST for another site's jobs. Six others still do, reported rather than changed —
+      each needs its callers checked the same way.
+    </p>
+  </div>
+
+  <div class="callout">
+    <span class="eyebrow">Execution rule · agreed</span>
+    <p>
+      Right and done, over quick and undone. The foundation is not compressed to hit a demo date;
+      if the work runs past next week, more time gets asked for.
+    </p>
+    <p>
+      Within that, each foundation stage is built <strong>vertically first</strong>: Temperature
+      &amp; Humidity, per room, is carried all the way through registry → readings → rollups →
+      status → detail view → Excel before the remaining categories follow. The pilot proves the
+      pattern under real load and the rest become mechanical repeats rather than fresh invention.
+      It also means there is a working, demonstrable product at every point after stage 3 — not as
+      a compromise, but because a vertical slice is the honest way to find out whether a
+      foundation actually holds.
+    </p>
+  </div>
+
+  <div class="stage">
+    <div class="stage-head"><span class="stage-n">01</span><h3>Collapse three definitions into one</h3></div>
+    <p class="goal">Nothing renders from the blueprint JSON or the TypeScript mapping file. <code>equipment_parameters</code> becomes the only place any of it is written down.</p>
+    <ul>
+      <li>Populate <code>excel_workbook</code>, <code>excel_sheet_name</code>, <code>excel_column_index</code> from the TS mapping as a one-time migration — the columns already exist.</li>
+      <li>Add <code>excel_row_rule</code> so cadence and block geometry are data, not a <code>switch</code> in the writer.</li>
+      <li>Retire <code>excelMappings.ts</code> and <code>excelMappingHelpers.ts</code>; the export engine reads the registry.</li>
+      <li>Migrate the seven runtime consumers of the blueprint JSON onto the registry. The file becomes a versioned seed input, not a runtime dependency.</li>
+      <li>Rename <code>media_ambient_*</code> to <code>data_ambient_*</code> with an alias column, so the legacy key keeps resolving.</li>
+      <li>Correct the HQ cadence: <code>room_hq_ambient</code> and the three HQ aircons move to <code>4-hour</code>. Resolve whether <code>room_workstation</code> and <code>fm200_panel</code> really live in HQ.</li>
+      <li>Add <code>capture_mode</code> — <code>CAPTURED</code> / <code>CONSTANT</code> / <code>NOT_APPLICABLE</code>. See below; this is the mechanism that absorbs both the 291 orphans and the four unwritten sheets.</li>
+      <li>Delete the three unreferenced modules.</li>
+    </ul>
+    <p class="out"><b>Done when</b> · deleting <code>SITE_01_blueprint.json</code> at runtime changes nothing on screen.</p>
+  </div>
+
+  <div class="stage">
+    <div class="stage-head"><span class="stage-n">1b</span><h3>One mechanism for "not collected yet"</h3></div>
+    <p class="goal">Everything the workbook asks for exists in the registry, whether or not a person is currently typing it — and turning one on later is an <code>UPDATE</code>, never a deploy.</p>
+    <p style="font-size:.95rem;margin-bottom:.6rem">
+      <code>is_constant</code> and <code>constant_value</code> already exist, and constants already
+      flow into the saved payload and out to Excel. The only gap is that a constant renders as a
+      read-only field rather than disappearing. <code>capture_mode</code> closes it:
+    </p>
+    <div class="tw" style="margin:0 0 14px">
+      <table>
+        <thead><tr><th class="m">capture_mode</th><th>Technician sees</th><th>Excel receives</th><th>Used for</th></tr></thead>
+        <tbody>
+          <tr><td class="m">CAPTURED</td><td>An input field</td><td>The reading</td><td>The 323 metrics collected today</td></tr>
+          <tr><td class="m">CONSTANT</td><td>Read-only nameplate</td><td><code>constant_value</code></td><td>UPS KVA, bank capacity, model</td></tr>
+          <tr><td class="m">NOT_APPLICABLE</td><td class="m">nothing at all</td><td><code>NA</code></td><td>The 291 orphans; the four static sheets</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <ul>
+      <li>Register all 291 orphan mappings as real parameters at <code>NOT_APPLICABLE</code>, defaulting to <code>NA</code> — chiefly per-aircon voltage and current. The logbook columns fill with <code>NA</code> instead of blank, and the technician never sees them.</li>
+      <li>Register <em>Environment</em>, <em>Earthing</em>, <em>DG Battery</em> and <em>Inergen</em> the same way — as assets with weekly and monthly parameters, seeded from the template's current values. <strong>No separate static store, no new tables.</strong> An earth pit is an asset; earth resistance is a monthly parameter with a limit.</li>
+      <li>That last point is what makes the earthing data useful rather than merely stored: "which pits are acting up" is a trend against a threshold, which the readings spine gives for free — a static record cannot answer it.</li>
+    </ul>
+    <p class="out"><b>Done when</b> · switching a parameter from <code>NOT_APPLICABLE</code> to <code>CAPTURED</code> makes the field appear on the phone and the real value appear in Excel, with no code change.</p>
+  </div>
+
+  <div class="stage">
+    <div class="stage-head"><span class="stage-n">02</span><h3>Give every reading a real home</h3></div>
+    <p class="goal">A reading belongs to an asset, a parameter, an hour and a person — by foreign key, not by string prefix.</p>
+    <ul>
+      <li>New <code>readings</code> table: <code>(site, asset_id, parameter_name, target_hour, value_num, value_text, technician_id, shift_session_id, entered_at)</code>, keyed on the first four.</li>
+      <li>Backfill by exploding the existing JSONB through the registry's <code>metric_prefix</code>, so no history is lost.</li>
+      <li><code>telemetry_logs</code> stays as the write path initially and a trigger fans out into <code>readings</code> — no big-bang cutover, both readable throughout.</li>
+      <li><strong>Room becomes a dimension, not a label.</strong> Every reading carries its room, because averaging rooms that sit in different buildings is the flaw this platform exists to correct.</li>
+      <li>Add the amber band: <code>warn_min</code> / <code>warn_max</code> alongside the existing hard limits, and one <code>reading_status()</code> function returning green / amber / red. Every screen calls that and nothing computes its own.</li>
+      <li>Stamp the limit values onto each breach when it is raised, so widening a band tomorrow cannot rewrite last month's breach count.</li>
+    </ul>
+    <p class="out"><b>Done when</b> · "show me every temperature Chanda recorded in Power Room 1 last Tuesday" is one query.</p>
+  </div>
+
+  <div class="stage">
+    <div class="stage-head"><span class="stage-n">03</span><h3>Aggregate in the database</h3></div>
+    <p class="goal">The browser never computes a statistic again, and the 3,000-row ceiling disappears.</p>
+    <ul>
+      <li><code>readings_hourly</code> → <code>readings_daily</code> → <code>readings_monthly</code> rollups, each carrying avg / min / max / count / breach-count <strong>per asset-parameter and per room</strong>, with the site figure as a roll-up of rooms rather than a flat average across them.</li>
+      <li>One RPC — <code>get_series(asset, parameter, from, to, grain)</code> — where grain is hour, day, month or year. Every chart and every table on the platform is a call to it.</li>
+      <li>Refresh on the existing scheduled-job spine, incrementally.</li>
+      <li>Move <code>avg</code>, <code>min</code>, <code>max</code>, <code>numOrNull</code> out of the fifteen files that define them into one domain module — then delete the copies.</li>
+      <li>Correct PUE to the workbook's definition and lift <code>DG_BURN_RATE_LPH</code> into per-generator registry data.</li>
+    </ul>
+    <p class="out"><b>Done when</b> · a full-year monthly view loads from one request and matches the workbook to the decimal.</p>
+  </div>
+
+  <div class="stage">
+    <div class="stage-head"><span class="stage-n">04</span><h3>Fix and prove the Excel mapping</h3></div>
+    <p class="goal">The export is correct, and stays correct because a test says so rather than because someone checked once.</p>
+    <ul>
+      <li>Fix the four confirmed defects: Temp Record's four-column shift, the PAC row expression, the DG off-by-one, and <code>fullCalcOnLoad</code>.</li>
+      <li>Verify the <em>DG Check</em> block size, which I did not confirm — its 6-row-per-day assumption is untested.</li>
+      <li>Build a conformance test that reads each template, walks the registry, and asserts that every destination cell sits under the heading it claims. Run it in CI. This is the piece that prevents a repeat.</li>
+      <li><strong>Month selection.</strong> Under a month of history, export everything; past that, pick the month. The list offers only months that actually hold readings.</li>
+      <li><strong>Write the dates.</strong> Every date cell has a known address — day sheets <code>BV1</code>, DG sheets <code>A4:A34</code>, <em>Temp Record</em> every sixth row from <code>A7</code>, PAC once per block. The template ships hardcoded to June 2026; the export stamps the selected month. Bounded, mechanical, and it removes a manual step that is itself a defect source.</li>
+      <li>The template in <code>public/</code> is never mutated — each export loads a fresh copy in memory. That already holds, so "copies that don't get reused" needs no new machinery.</li>
+      <li><strong>Generated workbooks are not stored.</strong> They are regenerated from the readings, which are the one source of truth; a stored binary diverges the moment a reading is corrected. The exception: when an admin signs a month off, that immutable copy is archived with the signature as the compliance artefact.</li>
+      <li>The 291 orphans need no decision here — stage 1b registers them as <code>NOT_APPLICABLE</code>, so their columns carry <code>NA</code>.</li>
+      <li>PAC stays at 23 rows so the delivered logbook matches what the client already reads. The Dragor and the three HQ aircons are captured, trended and alarmed inside DCIMe, and appear in its analytics and print views.</li>
+    </ul>
+    <p class="out"><b>Done when</b> · picking August produces two workbooks, dated August, with every sheet populated and every column under its own heading.</p>
+  </div>
+
+  <div class="stage">
+    <div class="stage-head"><span class="stage-n">05</span><h3>Admin control plane</h3></div>
+    <p class="goal">Bands, parameters, equipment and room assignment are all editable by an administrator, because none of them are fixed facts.</p>
+    <ul>
+      <li>Amber band editing — extends <code>ParameterLimits</code>, which already writes hard min/max, to the new warn bounds.</li>
+      <li><strong>Equipment lifecycle</strong>: create a unit, choose its template, name its model and manufacturer, <strong>assign it to a room</strong>, set its cadence. <code>AssetInventory</code> can only toggle <code>is_active</code> today, so this is genuinely new.</li>
+      <li>Parameter editing on an instance: label, unit, cadence, limits, and the <code>capture_mode</code> switch that turns an <code>NA</code> column into a live field.</li>
+      <li>Every change audit-logged with who and when — these edits move what the platform alarms on.</li>
+    </ul>
+    <p class="out"><b>Done when</b> · adding an inverter to Power Room 1 with its own parameters is a screen, not a migration.</p>
+  </div>
+
+  <div class="stage">
+    <div class="stage-head"><span class="stage-n">06</span><h3>Unify the visual layer</h3></div>
+    <p class="goal">One palette, one status vocabulary, one set of primitives — so a new analytics page is composition, not invention.</p>
+    <ul>
+      <li>Codemod the 2,402 raw palette classes and 70 hex literals onto tokens.</li>
+      <li>Green / amber / red become semantic tokens driven by <code>reading_status()</code>, never chosen per component.</li>
+      <li>Extract the primitives every detail view will need: <code>MetricTile</code>, <code>StatusPill</code>, <code>TrendChart</code>, <code>StatTable</code>, <code>PeriodPicker</code>, <code>PrintFrame</code>.</li>
+      <li>Split the four largest components — <code>IncidentReport</code> (1,610 lines), <code>NocOverview</code> (1,225), <code>RoutineTasksDashboard</code> (1,047), <code>AssetInventory</code> (1,036) — into view plus hook plus presenter.</li>
+    </ul>
+    <p class="out"><b>Done when</b> · a new category detail page is roughly 150 lines because everything it needs already exists.</p>
+  </div>
+
+  <div class="stage">
+    <div class="stage-head"><span class="stage-n">07</span><h3>Build the detail views</h3></div>
+    <p class="goal">Executive summary stays the glance. Behind every tile sits a full instrument: raw readings, interpretation, trend, and narrative.</p>
+    <p style="font-size:.95rem;margin-bottom:.6rem">One page per category — <strong>Temperature &amp; Humidity, Utility, Generator &amp; Fuel, UPS, Rectifier, Aircon</strong> — each built from the same four bands:</p>
+    <ul>
+      <li><strong>Now</strong> — current value per room or asset, status colour, and the trailing two hours, since that is what says whether a number is drifting or settled.</li>
+      <li><strong>Raw</strong> — every hourly reading with the technician's name against it, filterable by hour, day, month, year or a custom range. This is the register the day sheet is.</li>
+      <li><strong>Interpreted</strong> — avg / max / min for the selected period, breach counts, time spent outside band, and the same figures for the period before it.</li>
+      <li><strong>Narrative</strong> — generated prose stating what crossed which limit, when, for how long, and who was on shift. Written from the rollups, so it cannot disagree with the chart above it.</li>
+    </ul>
+    <p style="font-size:.95rem">Every page carries a print frame producing the same content as a signed A4 document, reusing the signature machinery already built for report sign-off.</p>
+    <p class="out"><b>Done when</b> · every figure on the executive summary is one click from the hourly readings and the person who took them.</p>
+  </div>
+
+  <div class="stage">
+    <div class="stage-head"><span class="stage-n">08</span><h3>People, vendors and incidents</h3></div>
+    <p class="goal">The same treatment applied to the human side of operations.</p>
+    <ul>
+      <li><strong>Technician analytics</strong> — readings logged versus expected, capture punctuality, jobs assigned versus acknowledged versus completed, acknowledgement latency, incidents raised and resolved, shift coverage.</li>
+      <li><strong>Vendor analytics</strong> — extends the existing <code>vendor_activity</code> view: response against SLA, visits, findings by severity, open work, flag history.</li>
+      <li><strong>Incident analytics</strong> — who responded first, first-level troubleshooting outcome, escalation path, time to acknowledge and to resolve, recurrence by asset.</li>
+    </ul>
+    <p class="out"><b>Done when</b> · "how did we perform last month, and who did what" is a page rather than a conversation.</p>
+  </div>
+</section>
+
+<!-- ══════════════════════════════════════════════════════ -->
+<section>
+  <div class="sec-head"><span class="sec-num">06</span><h2>Layer separation</h2></div>
+
+  <div class="col">
+    <p>
+      You asked for proper separation of infrastructure, technician and admin — with real
+      communication between them. The target shape, stated once so every stage can be checked
+      against it:
+    </p>
+  </div>
+
+  <div class="tw">
+    <table>
+      <thead><tr><th>Layer</th><th>Owns</th><th>Must never</th></tr></thead>
+      <tbody>
+        <tr>
+          <td><b>Infrastructure</b><br><span class="mono" style="font-size:.74rem;color:var(--muted)">Postgres</span></td>
+          <td>Schema, RLS, thresholds, state machines, rollups, the Excel row/column rules, every statistic.</td>
+          <td class="bad">Know that a UI exists.</td>
+        </tr>
+        <tr>
+          <td><b>Domain</b><br><span class="mono" style="font-size:.74rem;color:var(--muted)">src/domain</span></td>
+          <td>Typed contracts, one RPC client per capability, units, formatting, status resolution. New layer — does not exist today.</td>
+          <td class="bad">Contain React or SQL strings.</td>
+        </tr>
+        <tr>
+          <td><b>Technician</b><br><span class="mono" style="font-size:.74rem;color:var(--muted)">features/field</span></td>
+          <td>Capture, offline queue, the walking path, job acknowledgement, incident raising.</td>
+          <td class="bad">Aggregate or interpret anything.</td>
+        </tr>
+        <tr>
+          <td><b>Admin</b><br><span class="mono" style="font-size:.74rem;color:var(--muted)">features/analytics · topology</span></td>
+          <td>Interpretation, dispatch, sign-off, export, print.</td>
+          <td class="bad">Read <code>telemetry_logs</code> directly.</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="col">
+    <p>
+      The two front-end layers already talk through the work-order spine — jobs are assigned,
+      acknowledged and resolved across the boundary. What is missing is the same discipline on
+      the data side: today both layers reach into the same JSONB blob and each interprets it its
+      own way. Stage 2 and 3 close that.
+    </p>
+  </div>
+</section>
+
+<!-- ══════════════════════════════════════════════════════ -->
+<section>
+  <div class="sec-head"><span class="sec-num">07</span><h2>Decisions taken</h2></div>
+
+  <div class="col">
+    <p>Settled, and folded into the stages above.</p>
+  </div>
+
+  <div class="tw">
+    <table>
+      <thead><tr><th>Question</th><th>Decision</th></tr></thead>
+      <tbody>
+        <tr>
+          <td>The 291 orphan mappings</td>
+          <td>Register them all, at <code>NOT_APPLICABLE</code> defaulting to <code>NA</code>. Hidden from the technician, printed as <code>NA</code>, switched on later with an <code>UPDATE</code>.</td>
+        </tr>
+        <tr>
+          <td>Environment, Earthing, DG Battery, Inergen</td>
+          <td>In scope as registry entries, out of scope as capture. Seeded as constants at weekly and monthly cadence — no separate static store, no new tables.</td>
+        </tr>
+        <tr>
+          <td>Dragor and the three HQ aircons</td>
+          <td>PAC sheet stays at 23 rows so the client's logbook is unchanged. All 27 units are captured and analysed inside DCIMe.</td>
+        </tr>
+        <tr>
+          <td>HQ cadence</td>
+          <td><span class="bad">Corrected</span> — HQ room and its three aircons move to 4-hourly. The registry had them at hourly and 2-hourly.</td>
+        </tr>
+        <tr>
+          <td>Room averaging</td>
+          <td>Per-room becomes the primary figure; the site number is a roll-up of rooms, never a flat average across buildings.</td>
+        </tr>
+        <tr>
+          <td>Who sets the amber band</td>
+          <td>Administrators, through the control plane in stage 5 — alongside equipment creation and room assignment.</td>
+        </tr>
+        <tr>
+          <td>Export shape</td>
+          <td>Pick a month; regenerate from readings onto a pristine template copy; stamp the dates. Nothing stored except a signed month.</td>
+        </tr>
+        <tr>
+          <td>Pace</td>
+          <td>Right and done over quick and undone. Foundation is not compressed; more time gets asked for if needed.</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="col">
+    <h3 style="margin-top:12px">Still open</h3>
+  </div>
+
+  <div class="q">
+    <h4>Are the workstation and FM200 panel really in the HQ room?</h4>
+    <p>Both are assigned to <code>room_hq</code> but captured hourly and written to the hourly day sheet — which cannot be right if HQ is visited every four hours. Either they sit at the main site and the room assignment is wrong, or their cadence is. One answer fixes it.</p>
+  </div>
+
+  <div class="q">
+    <h4>Should corrected exports be re-issued for past months?</h4>
+    <p>Every workbook generated to date carries the shifted <em>Temp Record</em> and the overwritten PAC sheet. Re-issuing is straightforward once stage 4 lands — but if those went to a client or a regulator, that is a decision with consequences beyond the code.</p>
+  </div>
+
+  <div class="q">
+    <h4>Where do the first amber bands come from?</h4>
+    <p>Admins will own them, but the control plane ships empty. Either someone supplies the initial numbers per parameter, or they are seeded as a percentage inset from the hard band and tuned from there. The second is a reasonable default and I will take it unless told otherwise.</p>
+  </div>
+</section>
+
+<hr class="soft">
+
+<p style="font-size:.82rem;color:var(--muted);font-family:'IBM Plex Mono',monospace;line-height:1.7">
+  Audit performed against the working tree on branch <code>main</code>, 22 August 2026. Revised the same day with decisions taken and the HQ cadence defect added.
+  Every figure verified by reading the template files and evaluating the mapping module — none inferred.
+  Unverified and flagged as such: the <em>DG Check</em> sheet's per-day block size, and the contents of
+  the live database, which was not reachable from this machine.
+</p>
+
+</div>

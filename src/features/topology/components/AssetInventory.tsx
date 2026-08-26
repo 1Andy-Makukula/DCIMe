@@ -1,5 +1,6 @@
 import React, { useState, useMemo, useEffect } from "react";
 import { ParameterLimits } from "./ParameterLimits";
+import { CreateRoomModal, CreateEquipmentModal, AddParameterForm } from "./InventoryCreate";
 import { EquipmentSchedules } from "./EquipmentSchedules";
 import { supabase } from "@/shared/api/supabaseClient";
 import { useCurrentSite } from "@/shared/context/SiteContext";
@@ -8,6 +9,7 @@ import { TelemetryChart } from "./TelemetryChart";
 import {
   Search,
   Filter,
+  Plus,
   Download,
   Zap,
   Thermometer,
@@ -53,9 +55,9 @@ function categoryIcon(cat: string): React.ReactNode {
   if (c === "AIRCON")    return <Thermometer size={13} className="text-info-400" />;
   if (c === "UPS")       return <Zap size={13} className="text-warn-500" />;
   if (c === "GENERATOR") return <Zap size={13} className="text-warn-400" />;
-  if (c === "MAINS")     return <Network size={13} className="text-purple-400" />;
+  if (c === "MAINS")     return <Network size={13} className="text-series-5" />;
   if (c === "RECTIFIER") return <Cpu size={13} className="text-ok-500" />;
-  return <Activity size={13} className="text-gray-400" />;
+  return <Activity size={13} className="text-neutral-400" />;
 }
 
 // ── Status badge ──────────────────────────────────────────────────────────────
@@ -64,19 +66,19 @@ function StatusBadge({ status }: { status: AssetStatus }) {
     ONLINE:         "bg-ok-100  text-ok-700",
     DEGRADED:       "bg-warn-100 text-warn-700",
     OFFLINE:        "bg-danger-100    text-danger-700",
-    DECOMMISSIONED: "bg-gray-100   text-gray-500",
+    DECOMMISSIONED: "bg-neutral-100   text-neutral-500",
   };
   const dots: Record<AssetStatus, string> = {
     ONLINE:         "bg-ok-500",
     DEGRADED:       "bg-warn-400",
     OFFLINE:        "bg-danger-500",
-    DECOMMISSIONED: "bg-gray-400",
+    DECOMMISSIONED: "bg-neutral-400",
   };
   return (
     <span
-      className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-wider ${styles[status] ?? "bg-gray-100 text-gray-500"}`}
+      className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-wider ${styles[status] ?? "bg-neutral-100 text-neutral-500"}`}
     >
-      <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${dots[status] ?? "bg-gray-400"}`} />
+      <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${dots[status] ?? "bg-neutral-400"}`} />
       {status}
     </span>
   );
@@ -110,17 +112,17 @@ function FilterDropdown({
       <button
         type="button"
         onClick={() => setIsOpen((prev) => !prev)}
-        className="flex items-center gap-2 h-9 px-3.5 rounded-xl border border-gray-200 bg-white text-[11px] font-black text-gray-700 uppercase tracking-wider cursor-pointer hover:border-gray-300 focus:outline-none transition-all"
+        className="flex items-center gap-2 h-9 px-3.5 rounded-xl border border-neutral-200 bg-white text-[11px] font-black text-neutral-700 uppercase tracking-wider cursor-pointer hover:border-neutral-300 focus:outline-none transition-all"
       >
         <span>{activeLabel}</span>
         <ChevronDown
           size={12}
-          className={`text-gray-400 transition-transform duration-200 ${isOpen ? "rotate-180" : ""}`}
+          className={`text-neutral-400 transition-transform duration-200 ${isOpen ? "rotate-180" : ""}`}
         />
       </button>
 
       {isOpen && (
-        <div className="absolute right-0 top-full mt-1.5 z-20 bg-white border border-gray-200 rounded-xl shadow-xl overflow-hidden min-w-[120px] w-max max-w-[200px]">
+        <div className="absolute right-0 top-full mt-1.5 z-20 bg-white border border-neutral-200 rounded-xl shadow-xl overflow-hidden min-w-[120px] w-max max-w-[200px]">
           {/* Reset option */}
           <button
             type="button"
@@ -129,7 +131,7 @@ function FilterDropdown({
               setIsOpen(false);
             }}
             className={`w-full text-left px-4 py-2.5 text-[11px] font-black uppercase tracking-wider transition-colors ${
-              value === "" ? "bg-gray-900 text-white" : "text-gray-600 hover:bg-gray-50"
+              value === "" ? "bg-neutral-900 text-white" : "text-neutral-600 hover:bg-neutral-50"
             }`}
           >
             All {label}s
@@ -143,7 +145,7 @@ function FilterDropdown({
                 setIsOpen(false);
               }}
               className={`w-full text-left px-4 py-2.5 text-[11px] font-black uppercase tracking-wider transition-colors ${
-                value === o ? "bg-gray-900 text-white" : "text-gray-600 hover:bg-gray-50"
+                value === o ? "bg-neutral-900 text-white" : "text-neutral-600 hover:bg-neutral-50"
               }`}
             >
               {o}
@@ -159,7 +161,7 @@ function FilterDropdown({
 function Th({ children, className = "" }: { children: React.ReactNode; className?: string }) {
   return (
     <th
-      className={`px-4 py-3 text-left text-xs font-black text-gray-400 uppercase tracking-widest whitespace-nowrap ${className}`}
+      className={`px-4 py-3 text-left text-xs font-black text-neutral-400 uppercase tracking-widest whitespace-nowrap ${className}`}
     >
       {children}
     </th>
@@ -174,12 +176,12 @@ function ChartPanel({ equipmentId }: { equipmentId: string }) {
   const [isOpen, setIsOpen] = useState(true);
 
   return (
-    <div className="border-b border-gray-100 flex-shrink-0">
+    <div className="border-b border-neutral-100 flex-shrink-0">
       {/* Collapsible header */}
       <button
         type="button"
         onClick={() => setIsOpen((v) => !v)}
-        className="w-full flex items-center justify-between px-6 py-3.5 hover:bg-gray-50/60 transition-colors"
+        className="w-full flex items-center justify-between px-6 py-3.5 hover:bg-neutral-50/60 transition-colors"
       >
         <div className="flex items-center gap-2">
           <div className="w-6 h-6 rounded-lg bg-brand-50 border border-brand-100 flex items-center justify-center">
@@ -187,13 +189,13 @@ function ChartPanel({ equipmentId }: { equipmentId: string }) {
               <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>
             </svg>
           </div>
-          <span className="text-[10px] font-black text-gray-700 uppercase tracking-widest">
+          <span className="text-[10px] font-black text-neutral-700 uppercase tracking-widest">
             Telemetry History (24 h)
           </span>
         </div>
         <svg
           width="12" height="12" viewBox="0 0 24 24" fill="none"
-          stroke="#94a3b8" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"
+          stroke="var(--color-neutral-400)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"
           className={`transition-transform duration-200 ${isOpen ? "rotate-180" : ""}`}
         >
           <polyline points="6 9 12 15 18 9"/>
@@ -231,10 +233,18 @@ interface EquipmentParameter {
   // a parameter with neither bound can never raise an alarm.
   min_value: number | null;
   max_value: number | null;
+  // The warning band, inside the hard limits: "still acceptable, heading the
+  // wrong way". Optional — hard limits alone still alarm, just without warning.
+  warn_min: number | null;
+  warn_max: number | null;
 }
+
+/** What a reading has actually done, for the person choosing its limits. */
+interface ObservedRange { p05: number | null; p95: number | null; n: number }
 
 function ManageParametersModal({ isOpen, onClose, equipmentId, templateId }: ManageParametersModalProps) {
   const [parameters, setParameters] = useState<EquipmentParameter[]>([]);
+  const [observedRanges, setObservedRanges] = useState<Record<string, ObservedRange>>({});
   const [isLoading, setIsLoading] = useState(true);
   // Parameters and schedules are two views of the same machine, so they belong
   // behind one click rather than on separate screens someone has to find.
@@ -249,6 +259,16 @@ function ManageParametersModal({ isOpen, onClose, equipmentId, templateId }: Man
         .eq("equipment_id", equipmentId)
         .order("created_at", { ascending: true });
 
+      // What each of these readings has actually recorded. Shown beside the
+      // inputs so a limit is chosen against the record rather than from memory.
+      const { data: observed } = await (supabase.from as any)("parameter_observed_range")
+        .select("parameter_name,p05,p95,numeric_readings")
+        .eq("equipment_id", equipmentId);
+      setObservedRanges(Object.fromEntries(
+        (observed ?? []).map((o: any) => [o.parameter_name,
+          { p05: o.p05, p95: o.p95, n: o.numeric_readings }])
+      ));
+
       if (error) throw error;
 
       const sanitized: EquipmentParameter[] = (data || []).map((p: any) => ({
@@ -256,6 +276,8 @@ function ManageParametersModal({ isOpen, onClose, equipmentId, templateId }: Man
         is_constant: !!p.is_constant,
         data_type: (p.data_type as any) || "string",
         is_graphable: !!p.is_graphable,
+        warn_min: p.warn_min ?? null,
+        warn_max: p.warn_max ?? null,
         created_at: p.created_at || new Date().toISOString(),
         min_value: p.min_value ?? null,
         max_value: p.max_value ?? null
@@ -286,33 +308,33 @@ function ManageParametersModal({ isOpen, onClose, equipmentId, templateId }: Man
     >
       <div className="bg-white rounded-3xl shadow-2xl w-full max-w-3xl overflow-hidden flex flex-col max-h-[90vh]">
         {/* Header */}
-        <div className="flex items-center justify-between px-6 py-5 border-b border-gray-100 flex-shrink-0">
+        <div className="flex items-center justify-between px-6 py-5 border-b border-neutral-100 flex-shrink-0">
           <div>
-            <div className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-0.5">
+            <div className="text-[10px] font-black text-neutral-400 uppercase tracking-widest mb-0.5">
               EAV Parameter Engine · {equipmentId}
             </div>
-            <h2 className="text-[16px] font-black text-gray-900 leading-none">
-              View Equipment Parameters
+            <h2 className="text-[16px] font-black text-neutral-900 leading-none">
+              Equipment Parameters
             </h2>
           </div>
           <button
             onClick={onClose}
-            className="p-2 rounded-xl text-gray-400 hover:text-gray-700 hover:bg-gray-100 transition-all cursor-pointer"
+            className="p-2 rounded-xl text-neutral-400 hover:text-neutral-700 hover:bg-neutral-100 transition-all cursor-pointer"
           >
             <X size={16} />
           </button>
         </div>
 
         {/* Tabs */}
-        <div className="flex gap-1 border-b border-gray-100 px-6 pt-1 flex-shrink-0">
+        <div className="flex gap-1 border-b border-neutral-100 px-6 pt-1 flex-shrink-0">
           {([["parameters", "Parameters"], ["schedules", "Maintenance"]] as const).map(([k, label]) => (
             <button
               key={k}
               onClick={() => setTab(k)}
               className={`px-4 py-3 text-[12px] font-bold tracking-wide border-b-2 -mb-px transition-colors ${
                 tab === k
-                  ? "border-brand-500 text-gray-900"
-                  : "border-transparent text-gray-400 hover:text-gray-600"
+                  ? "border-brand-500 text-neutral-900"
+                  : "border-transparent text-neutral-400 hover:text-neutral-600"
               }`}
             >
               {label}
@@ -333,22 +355,32 @@ function ManageParametersModal({ isOpen, onClose, equipmentId, templateId }: Man
 
           {/* Parameters List */}
           <div className="p-6 overflow-y-auto flex flex-col gap-6">
+            {/* Above the list, not below it: an asset created through the new
+                Inventory flow arrives with no readings at all, so this is the
+                first thing that needs doing rather than the last. */}
+            {!isLoading && (
+              <AddParameterForm equipmentId={equipmentId} onAdded={fetchParameters} />
+            )}
+
             {isLoading ? (
-              <div className="flex flex-col items-center justify-center py-12 text-gray-400 gap-2">
+              <div className="flex flex-col items-center justify-center py-12 text-neutral-400 gap-2">
                 <Loader2 size={24} className="animate-spin text-brand-500" />
                 <span className="text-xs font-bold uppercase tracking-wider">Loading parameters...</span>
               </div>
             ) : parameters.length === 0 ? (
-              <div className="flex flex-col items-center justify-center py-16 text-gray-400 border-2 border-dashed border-gray-100 rounded-2xl">
-                <Database size={32} className="mb-2 text-gray-300" />
-                <span className="text-xs font-bold uppercase tracking-wider">No parameters configured</span>
+              <div className="flex flex-col items-center justify-center py-16 text-neutral-400 border-2 border-dashed border-neutral-100 rounded-2xl">
+                <Database size={32} className="mb-2 text-neutral-300" />
+                <span className="text-xs font-bold uppercase tracking-wider">No readings yet</span>
+                <span className="mt-1 text-[11px] font-semibold normal-case tracking-normal text-neutral-300">
+                  Add what a technician records here, and what the platform calculates from.
+                </span>
               </div>
             ) : (
               <>
                 {/* Constants Group */}
                 {constants.length > 0 && (
                   <div className="space-y-3">
-                    <h3 className="text-[10px] font-black text-gray-400 uppercase tracking-widest flex items-center gap-1.5 border-b border-gray-50 pb-1.5">
+                    <h3 className="text-[10px] font-black text-neutral-400 uppercase tracking-widest flex items-center gap-1.5 border-b border-neutral-50 pb-1.5">
                       <Database size={12} className="text-info-500" />
                       <span>Constant Identifiers & Thresholds ({constants.length})</span>
                     </h3>
@@ -383,7 +415,7 @@ function ManageParametersModal({ isOpen, onClose, equipmentId, templateId }: Man
                 {/* Telemetry Group */}
                 {telemetries.length > 0 && (
                   <div className="space-y-3">
-                    <h3 className="text-[10px] font-black text-gray-400 uppercase tracking-widest flex items-center gap-1.5 border-b border-gray-50 pb-1.5">
+                    <h3 className="text-[10px] font-black text-neutral-400 uppercase tracking-widest flex items-center gap-1.5 border-b border-neutral-50 pb-1.5">
                       <Activity size={12} className="text-brand-500" />
                       <span>Flexible Telemetry Parameters ({telemetries.length})</span>
                     </h3>
@@ -395,10 +427,10 @@ function ManageParametersModal({ isOpen, onClose, equipmentId, templateId }: Man
                         >
                           <div className="min-w-0">
                             <div className="flex items-center gap-2">
-                              <span className="text-[12px] font-black text-gray-900 truncate">
+                              <span className="text-[12px] font-black text-neutral-900 truncate">
                                 {param.parameter_name}
                               </span>
-                              <span className="bg-gray-100 text-gray-600 text-[8px] font-black uppercase tracking-wider px-1.5 py-0.5 rounded">
+                              <span className="bg-neutral-100 text-neutral-600 text-[8px] font-black uppercase tracking-wider px-1.5 py-0.5 rounded">
                                 {param.data_type}
                               </span>
                               {param.is_graphable && (
@@ -407,10 +439,10 @@ function ManageParametersModal({ isOpen, onClose, equipmentId, templateId }: Man
                                 </span>
                               )}
                             </div>
-                            <div className="text-[10px] text-gray-400 mt-1 font-semibold flex items-center gap-1.5">
+                            <div className="text-[10px] text-neutral-400 mt-1 font-semibold flex items-center gap-1.5">
                               <span>Telemetry Data Field</span>
                               {param.unit && (
-                                <span className="text-[9px] font-bold text-gray-500 uppercase">[{param.unit}]</span>
+                                <span className="text-[9px] font-bold text-neutral-500 uppercase">[{param.unit}]</span>
                               )}
                             </div>
                           </div>
@@ -420,13 +452,21 @@ function ManageParametersModal({ isOpen, onClose, equipmentId, templateId }: Man
                           {param.data_type === "number" && (
                             <ParameterLimits
                               parameterId={param.id}
-                              min={param.min_value}
-                              max={param.max_value}
+                              band={{
+                                min:     param.min_value,
+                                warnMin: param.warn_min ?? null,
+                                warnMax: param.warn_max ?? null,
+                                max:     param.max_value
+                              }}
                               unit={param.unit}
-                              onSaved={(lo, hi) =>
+                              observed={observedRanges[param.parameter_name] ?? null}
+                              onSaved={(b) =>
                                 setParameters(prev =>
                                   prev.map(x =>
-                                    x.id === param.id ? { ...x, min_value: lo, max_value: hi } : x
+                                    x.id === param.id
+                                      ? { ...x, min_value: b.min, max_value: b.max,
+                                          warn_min: b.warnMin, warn_max: b.warnMax }
+                                      : x
                                   )
                                 )
                               }
@@ -460,6 +500,8 @@ export function AssetInventory() {
   const [isParamsModalOpen, setIsParamsModalOpen] = useState(false);
   
   const [rooms, setRooms] = useState<any[]>([]);
+  const [addingRoom, setAddingRoom] = useState(false);
+  const [addingAsset, setAddingAsset] = useState(false);
   const [activeRoomId, setActiveRoomId] = useState<string | null>(null);
 
   const fetchRooms = async () => {
@@ -676,8 +718,26 @@ export function AssetInventory() {
 
   return (
     <>
+      {/* A new room goes at the END of the walking order, not into the middle
+          of somebody's round. */}
+      <CreateRoomModal
+        isOpen={addingRoom}
+        siteId={currentSite?.id ?? null}
+        nextSortOrder={rooms.reduce((n, r) => Math.max(n, (r.sort_order ?? 0) + 1), 0)}
+        onClose={() => setAddingRoom(false)}
+        onCreated={fetchRooms}
+      />
+
+      <CreateEquipmentModal
+        isOpen={addingAsset}
+        siteId={currentSite?.id ?? null}
+        rooms={rooms.map((r) => ({ id: r.id, room_name: r.room_name }))}
+        onClose={() => setAddingAsset(false)}
+        onCreated={fetchAssets}
+      />
+
       {selectedAssetId && (
-        <ManageParametersModal
+      <ManageParametersModal
           isOpen={isParamsModalOpen}
           onClose={() => {
             setIsParamsModalOpen(false);
@@ -692,13 +752,13 @@ export function AssetInventory() {
       {/* ── Page header ─────────────────────────────────────────────────── */}
       <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-3">
         <div>
-          <div className="text-[10px] font-black text-gray-400 uppercase tracking-[0.14em] mb-0.5">
+          <div className="text-[10px] font-black text-neutral-400 uppercase tracking-[0.14em] mb-0.5">
             Asset Management
           </div>
-          <h1 className="text-[20px] font-black text-gray-900 tracking-tight leading-none">
+          <h1 className="text-[20px] font-black text-neutral-900 tracking-tight leading-none">
             Infrastructure Ledger
           </h1>
-          <p className="text-[11px] font-semibold text-gray-400 mt-1">
+          <p className="text-[11px] font-semibold text-neutral-400 mt-1">
             {filtered.length} of {assets.length} assets · {currentSite?.site_name || "Unknown"}
           </p>
         </div>
@@ -710,14 +770,14 @@ export function AssetInventory() {
               { label: "Online",        count: assets.filter((a) => a.status === "ONLINE").length,         color: "text-ok-600"  },
               { label: "Degraded",      count: assets.filter((a) => a.status === "DEGRADED").length,       color: "text-warn-500" },
               { label: "Offline",       count: assets.filter((a) => a.status === "OFFLINE").length,        color: "text-danger-600"    },
-              { label: "Decommissioned",count: assets.filter((a) => a.status === "DECOMMISSIONED").length, color: "text-gray-400"   },
+              { label: "Decommissioned",count: assets.filter((a) => a.status === "DECOMMISSIONED").length, color: "text-neutral-400"   },
             ]
           ).map((s) => (
             <div key={s.label} className="text-center">
               <div className={`text-[18px] font-black leading-none ${s.color}`}>
                 {s.count}
               </div>
-              <div className="text-[9px] font-black text-gray-400 uppercase tracking-widest mt-0.5">
+              <div className="text-[9px] font-black text-neutral-400 uppercase tracking-widest mt-0.5">
                 {s.label}
               </div>
             </div>
@@ -729,12 +789,21 @@ export function AssetInventory() {
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 items-start">
         {/* Left Sidebar: Room Selection and Creation */}
         <div className="lg:col-span-1 space-y-4">
-          <div className="bg-white border border-gray-100 rounded-3xl p-5 shadow-sm space-y-4">
+          <div className="bg-white border border-neutral-100 rounded-3xl p-5 shadow-sm space-y-4">
             <div className="flex items-center justify-between">
-              <h3 className="text-xs font-black text-gray-400 uppercase tracking-widest">
+              <h3 className="text-xs font-black text-neutral-400 uppercase tracking-widest">
                 Physical Rooms
               </h3>
-              {/* Room creation disabled (defined in config blueprint) */}
+              {/* Enabled: the blueprint that used to define rooms was deleted
+                  in Stage 1, and `rooms` has carried admin insert/update/delete
+                  policies the whole time — only this button was switched off. */}
+              <button
+                onClick={() => setAddingRoom(true)}
+                title="Add a room"
+                className="flex items-center gap-1 rounded-lg border border-neutral-200 px-2 py-1 text-[10px] font-black uppercase tracking-wider text-neutral-500 transition-colors hover:border-neutral-300 hover:text-neutral-800"
+              >
+                <Plus size={11} /> Room
+              </button>
             </div>
 
             <div className="space-y-1">
@@ -743,12 +812,12 @@ export function AssetInventory() {
                 className={`w-full text-left px-3.5 py-2.5 rounded-xl text-xs font-bold transition-all uppercase tracking-wider flex items-center justify-between ${
                   activeRoomId === null
                     ? "bg-brand-500 text-white shadow-sm shadow-brand-500/10"
-                    : "text-gray-600 hover:bg-gray-50"
+                    : "text-neutral-600 hover:bg-neutral-50"
                 }`}
               >
                 <span>All Rooms</span>
                 <span className={`text-[9px] px-1.5 py-0.5 rounded font-mono ${
-                  activeRoomId === null ? "bg-brand-600 text-white" : "bg-gray-100 text-gray-400"
+                  activeRoomId === null ? "bg-brand-600 text-white" : "bg-neutral-100 text-neutral-400"
                 }`}>
                   {assets.length}
                 </span>
@@ -762,7 +831,7 @@ export function AssetInventory() {
                     className={`w-full flex items-center justify-between px-3.5 py-1 rounded-xl transition-all group ${
                       isActive
                         ? "bg-brand-500 text-white shadow-sm shadow-brand-500/10"
-                        : "text-gray-600 hover:bg-gray-50"
+                        : "text-neutral-600 hover:bg-neutral-50"
                     }`}
                   >
                     <button
@@ -776,7 +845,7 @@ export function AssetInventory() {
                       <span className={`text-[9px] px-1.5 py-0.5 rounded font-mono flex-shrink-0 ${
                         isActive 
                           ? "bg-brand-600 text-white" 
-                          : "bg-gray-100 text-gray-400 group-hover:bg-gray-200"
+                          : "bg-neutral-100 text-neutral-400 group-hover:bg-neutral-200"
                       }`}>
                         {roomAssetCount}
                       </span>
@@ -794,25 +863,25 @@ export function AssetInventory() {
             instead of letting the overflow-x-auto wrapper scroll. */}
         <div className="lg:col-span-3 flex flex-col gap-5 min-w-0">
           {/* Action Bar */}
-          <div className="bg-white border border-gray-100 rounded-2xl shadow-sm px-4 py-3 flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+          <div className="bg-white border border-neutral-100 rounded-2xl shadow-sm px-4 py-3 flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
             {/* Search */}
             <div className="relative flex-1 min-w-0">
               <Search
                 size={14}
-                className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none"
+                className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400 pointer-events-none"
               />
               <input
                 type="text"
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
                 placeholder="Search by Asset ID, IP, or Location..."
-                className="w-full h-9 pl-9 pr-4 rounded-xl bg-gray-50 border border-gray-200 text-[12px] font-semibold text-gray-800 placeholder-gray-400 focus:outline-none focus:border-gray-400 transition-all"
+                className="w-full h-9 pl-9 pr-4 rounded-xl bg-neutral-50 border border-neutral-200 text-[12px] font-semibold text-neutral-800 placeholder-neutral-400 focus:outline-none focus:border-neutral-400 transition-all"
               />
             </div>
 
             {/* Filters */}
             <div className="flex items-center gap-2 flex-shrink-0">
-              <Filter size={13} className="text-gray-400 flex-shrink-0" />
+              <Filter size={13} className="text-neutral-400 flex-shrink-0" />
 
               <FilterDropdown
                 label="Category"
@@ -832,7 +901,7 @@ export function AssetInventory() {
               {(filterCategory || filterStatus || query) && (
                 <button
                   onClick={() => { setQuery(""); setFilterCategory(""); setFilterStatus(""); }}
-                  className="h-9 px-3 rounded-xl text-[10px] font-black text-gray-400 hover:text-gray-700 hover:bg-gray-100 uppercase tracking-wider transition-all"
+                  className="h-9 px-3 rounded-xl text-[10px] font-black text-neutral-400 hover:text-neutral-700 hover:bg-neutral-100 uppercase tracking-wider transition-all"
                 >
                   Clear
                 </button>
@@ -842,22 +911,29 @@ export function AssetInventory() {
             {/* Export */}
             <button
               onClick={exportCSV}
-              className="flex items-center gap-2 h-9 px-4 rounded-xl bg-gray-900 text-white text-[11px] font-black uppercase tracking-wider hover:bg-gray-700 active:scale-[0.98] transition-all flex-shrink-0 cursor-pointer"
+              className="flex items-center gap-2 h-9 px-4 rounded-xl bg-neutral-900 text-white text-[11px] font-black uppercase tracking-wider hover:bg-neutral-700 active:scale-[0.98] transition-all flex-shrink-0 cursor-pointer"
             >
               <Download size={13} />
               Export CSV
             </button>
 
-            {/* Equipment creation disabled (defined in config blueprint) */}
+            {/* Enabled for the same reason as the room button above. */}
+            <button
+              onClick={() => setAddingAsset(true)}
+              className="flex h-9 flex-shrink-0 cursor-pointer items-center gap-2 rounded-xl bg-brand-500 px-4 text-[11px] font-black uppercase tracking-wider text-white transition-all hover:bg-brand-600 active:scale-[0.98]"
+            >
+              <Plus size={13} />
+              Add Equipment
+            </button>
           </div>
 
           {/* Master Data Table */}
-          <div className="bg-white border border-gray-100 rounded-2xl shadow-sm overflow-hidden">
+          <div className="bg-white border border-neutral-100 rounded-2xl shadow-sm overflow-hidden">
             <div className="overflow-x-auto">
               <table className="w-full min-w-[900px] border-collapse">
                 {/* Table Head */}
                 <thead>
-                  <tr className="border-b border-gray-100 bg-gray-50/70">
+                  <tr className="border-b border-neutral-100 bg-neutral-50/70">
                     <Th>Asset ID</Th>
                     <Th>Equipment Name</Th>
                     <Th>IP Address</Th>
@@ -870,12 +946,12 @@ export function AssetInventory() {
                 </thead>
 
                 {/* Table Body */}
-                <tbody className="divide-y divide-gray-50">
+                <tbody className="divide-y divide-neutral-50">
                   {filtered.length === 0 ? (
                     <tr>
                       <td
                         colSpan={8}
-                        className="px-4 py-16 text-center text-[12px] font-semibold text-gray-400"
+                        className="px-4 py-16 text-center text-[12px] font-semibold text-neutral-400"
                       >
                         No assets match your current filters.
                       </td>
@@ -888,21 +964,21 @@ export function AssetInventory() {
                           setSelectedAssetId(asset.id);
                           setIsParamsModalOpen(true);
                         }}
-                        className={`hover:bg-gray-50/50 cursor-pointer transition-colors duration-100 group ${
+                        className={`hover:bg-neutral-50/50 cursor-pointer transition-colors duration-100 group ${
                           asset.status === "DECOMMISSIONED" ? "opacity-50" : ""
                         }`}
                       >
                         {/* Asset ID */}
                         <td className="px-4 py-3.5">
                           <div className="flex items-center gap-2.5">
-                            <div className="w-8 h-8 rounded-lg bg-gray-50 border border-gray-100 flex items-center justify-center flex-shrink-0 group-hover:border-gray-200 transition-colors">
+                            <div className="w-8 h-8 rounded-lg bg-neutral-50 border border-neutral-100 flex items-center justify-center flex-shrink-0 group-hover:border-neutral-200 transition-colors">
                               {categoryIcon(asset.category)}
                             </div>
                             <div className="min-w-0">
-                              <div className="text-[12px] font-black text-gray-900 font-mono truncate">
+                              <div className="text-[12px] font-black text-neutral-900 font-mono truncate">
                                 {asset.id}
                               </div>
-                              <div className="text-[10px] font-semibold text-gray-400 mt-0.5">
+                              <div className="text-[10px] font-semibold text-neutral-400 mt-0.5">
                                 {asset.category}
                               </div>
                             </div>
@@ -911,31 +987,31 @@ export function AssetInventory() {
 
                         {/* Equipment Name */}
                         <td className="px-4 py-3.5">
-                          <div className="text-[12px] font-bold text-gray-800 leading-tight">
+                          <div className="text-[12px] font-bold text-neutral-800 leading-tight">
                             {asset.name}
                           </div>
-                          <div className="text-[10px] font-semibold text-gray-400 mt-0.5">
+                          <div className="text-[10px] font-semibold text-neutral-400 mt-0.5">
                             {asset.manufacturer} · {asset.model}
                           </div>
-                          <div className="text-[9px] font-mono text-gray-300 mt-0.5 uppercase tracking-wide">
+                          <div className="text-[9px] font-mono text-neutral-300 mt-0.5 uppercase tracking-wide">
                             FW: {asset.firmware}
                           </div>
                         </td>
 
                         {/* IP Address */}
                         <td className="px-4 py-3.5">
-                          <span className="text-[12px] font-mono font-semibold text-gray-700 bg-gray-50 border border-gray-100 px-2 py-0.5 rounded-lg">
+                          <span className="text-[12px] font-mono font-semibold text-neutral-700 bg-neutral-50 border border-neutral-100 px-2 py-0.5 rounded-lg">
                             {asset.ip}
                           </span>
                         </td>
 
                         {/* Location */}
                         <td className="px-4 py-3.5">
-                          <div className="text-[12px] font-semibold text-gray-700">
+                          <div className="text-[12px] font-semibold text-neutral-700">
                             {asset.location}
                           </div>
                           {asset.rack !== "—" && (
-                            <div className="text-[10px] font-semibold text-gray-400 mt-0.5">
+                            <div className="text-[10px] font-semibold text-neutral-400 mt-0.5">
                               Rack: {asset.rack}
                             </div>
                           )}
@@ -950,21 +1026,21 @@ export function AssetInventory() {
                         <td className="px-4 py-3.5 text-right">
                           {asset.liveMetric !== "—" ? (
                             <div>
-                              <span className="text-[15px] font-black text-gray-900 tabular-nums">
+                              <span className="text-[15px] font-black text-neutral-900 tabular-nums">
                                 {asset.liveMetric}
                               </span>
-                              <span className="text-[10px] font-semibold text-gray-400 ml-1">
+                              <span className="text-[10px] font-semibold text-neutral-400 ml-1">
                                 {asset.metricUnit}
                               </span>
                             </div>
                           ) : (
-                            <span className="text-[12px] font-semibold text-gray-300">—</span>
+                            <span className="text-[12px] font-semibold text-neutral-300">—</span>
                           )}
                         </td>
 
                         {/* Last Seen */}
                         <td className="px-4 py-3.5 text-right">
-                          <span className="text-[11px] font-mono font-semibold text-gray-400">
+                          <span className="text-[11px] font-mono font-semibold text-neutral-400">
                             {asset.lastSeen}
                           </span>
                         </td>
@@ -1016,11 +1092,11 @@ export function AssetInventory() {
             </div>
 
             {/* Table footer */}
-            <div className="px-5 py-3 border-t border-gray-100 flex items-center justify-between bg-gray-50/50">
-              <span className="text-[10px] font-semibold text-gray-400">
+            <div className="px-5 py-3 border-t border-neutral-100 flex items-center justify-between bg-neutral-50/50">
+              <span className="text-[10px] font-semibold text-neutral-400">
                 Showing {filtered.length} of {assets.length} records · {currentSite?.site_name || "Unknown"}
               </span>
-              <div className="flex items-center gap-1.5 text-[10px] font-black text-gray-400 uppercase tracking-wider">
+              <div className="flex items-center gap-1.5 text-[10px] font-black text-neutral-400 uppercase tracking-wider">
                 <ArrowUpDown size={11} />
                 Sort by Asset ID
               </div>

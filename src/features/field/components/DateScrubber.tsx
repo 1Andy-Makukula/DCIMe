@@ -57,8 +57,8 @@ export function DateScrubber({
       {/* Month header */}
       <div className="flex items-center justify-between px-1">
         <div className="flex items-center gap-2">
-          <CalendarDays size={14} className="text-gray-400" />
-          <span className="text-xs font-black text-gray-800 uppercase tracking-wider">
+          <CalendarDays size={14} className="text-neutral-400" />
+          <span className="text-xs font-black text-neutral-800 uppercase tracking-wider">
             {viewMonth.toLocaleDateString("en-US", { month: "long", year: "numeric" })}
           </span>
         </div>
@@ -80,7 +80,7 @@ export function DateScrubber({
             type="button"
             onClick={() => shiftMonth(-1)}
             aria-label="Previous month"
-            className="w-7 h-7 rounded-lg bg-white border border-gray-200 text-gray-500 hover:text-gray-800 hover:bg-gray-50 flex items-center justify-center transition-colors cursor-pointer"
+            className="w-7 h-7 rounded-lg bg-white border border-neutral-200 text-neutral-500 hover:text-neutral-800 hover:bg-neutral-50 flex items-center justify-center transition-colors cursor-pointer"
           >
             <ChevronLeft size={14} />
           </button>
@@ -91,8 +91,8 @@ export function DateScrubber({
             aria-label="Next month"
             className={`w-7 h-7 rounded-lg border flex items-center justify-center transition-colors ${
               isViewingCurrentMonth
-                ? "bg-gray-50 border-gray-100 text-gray-300 cursor-not-allowed"
-                : "bg-white border-gray-200 text-gray-500 hover:text-gray-800 hover:bg-gray-50 cursor-pointer"
+                ? "bg-neutral-50 border-neutral-100 text-neutral-300 cursor-not-allowed"
+                : "bg-white border-neutral-200 text-neutral-500 hover:text-neutral-800 hover:bg-neutral-50 cursor-pointer"
             }`}
           >
             <ChevronRight size={14} />
@@ -121,15 +121,15 @@ export function DateScrubber({
               onClick={() => onSelectDate(day)}
               className={`shrink-0 w-12 py-2 rounded-2xl border flex flex-col items-center gap-0.5 transition-all ${
                 isFuture
-                  ? "bg-gray-50 border-gray-100 text-gray-300 cursor-not-allowed"
+                  ? "bg-neutral-50 border-neutral-100 text-neutral-300 cursor-not-allowed"
                   : isSelected
-                    ? "bg-slate-900 border-slate-950 text-white shadow-md cursor-pointer"
-                    : "bg-white border-gray-200 text-gray-600 hover:border-gray-300 hover:bg-gray-50 cursor-pointer"
+                    ? "bg-neutral-900 border-neutral-950 text-white shadow-md cursor-pointer"
+                    : "bg-white border-neutral-200 text-neutral-600 hover:border-neutral-300 hover:bg-neutral-50 cursor-pointer"
               }`}
             >
               <span
                 className={`text-[8px] font-black uppercase tracking-wider ${
-                  isSelected ? "text-slate-300" : isFuture ? "text-gray-300" : "text-gray-400"
+                  isSelected ? "text-neutral-300" : isFuture ? "text-neutral-300" : "text-neutral-400"
                 }`}
               >
                 {WEEKDAY[day.getDay()]}
@@ -141,14 +141,14 @@ export function DateScrubber({
                 className={`text-[8px] font-black leading-none mt-0.5 px-1 py-0.5 rounded-full min-w-[18px] ${
                   count === 0
                     ? isSelected
-                      ? "bg-white/10 text-slate-400"
-                      : "bg-gray-50 text-gray-300"
+                      ? "bg-white/10 text-neutral-400"
+                      : "bg-neutral-50 text-neutral-300"
                     : count >= 24
                       ? isSelected
-                        ? "bg-ok-400 text-slate-900"
+                        ? "bg-ok-400 text-neutral-900"
                         : "bg-ok-100 text-ok-700"
                       : isSelected
-                        ? "bg-warn-400 text-slate-900"
+                        ? "bg-warn-400 text-neutral-900"
                         : "bg-warn-50 text-warn-700"
                 }`}
               >

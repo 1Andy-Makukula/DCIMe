@@ -21,18 +21,18 @@ function Stat({ label, value, tone = "plain", hint }: {
   label: string; value: string; tone?: "plain" | "warn" | "bad" | "good"; hint?: string;
 }) {
   const cls = {
-    plain: "text-gray-900", good: "text-ok-600",
+    plain: "text-neutral-900", good: "text-ok-600",
     warn:  "text-warn-600", bad:  "text-danger-600"
   }[tone];
   return (
-    <div className="min-w-0 rounded-2xl border border-gray-200 bg-white p-4">
-      <p className="font-mono text-[10px] uppercase leading-snug tracking-[0.12em] text-gray-400">
+    <div className="min-w-0 rounded-2xl border border-neutral-200 bg-white p-4">
+      <p className="font-mono text-[10px] uppercase leading-snug tracking-[0.12em] text-neutral-400">
         {label}
       </p>
       <p className={`mt-1 whitespace-nowrap text-[22px] font-black tabular-nums leading-none ${cls}`}>
         {value}
       </p>
-      {hint && <p className="mt-1.5 text-[10px] leading-snug text-gray-400">{hint}</p>}
+      {hint && <p className="mt-1.5 text-[10px] leading-snug text-neutral-400">{hint}</p>}
     </div>
   );
 }
@@ -41,8 +41,8 @@ function BreachRow({ b }: { b: SlaBreach }) {
   return (
     <li className="flex items-start justify-between gap-3 px-4 py-2.5">
       <div className="min-w-0">
-        <p className="text-[12px] font-bold leading-snug text-gray-900">{b.out_title}</p>
-        <p className="mt-0.5 font-mono text-[10px] uppercase tracking-wider text-gray-400">
+        <p className="text-[12px] font-bold leading-snug text-neutral-900">{b.out_title}</p>
+        <p className="mt-0.5 font-mono text-[10px] uppercase tracking-wider text-neutral-400">
           {b.out_severity} · {b.out_kind} · {b.out_origin.toLowerCase()}
           {b.out_assignee === "Unassigned"
             ? <span className="ml-1 font-bold text-danger-600">· unassigned</span>
@@ -63,7 +63,7 @@ export function SlaPanel() {
 
   if (isLoading) {
     return (
-      <div className="flex min-h-[12rem] items-center justify-center text-gray-400">
+      <div className="flex min-h-[12rem] items-center justify-center text-neutral-400">
         <Loader2 size={18} className="mr-2 animate-spin" />
         <span className="text-[12px] font-bold uppercase tracking-wider">Loading service performance…</span>
       </div>
@@ -74,10 +74,10 @@ export function SlaPanel() {
     return (
       <div className="flex min-h-[12rem] flex-col items-center justify-center gap-3 p-6 text-center">
         <AlertTriangle size={22} className="text-danger-500" />
-        <p className="text-[13px] font-bold text-gray-800">Could not load service performance</p>
-        {error && <p className="max-w-md text-[12px] text-gray-500">{error}</p>}
+        <p className="text-[13px] font-bold text-neutral-800">Could not load service performance</p>
+        {error && <p className="max-w-md text-[12px] text-neutral-500">{error}</p>}
         <button onClick={refresh}
-          className="mt-1 flex items-center gap-2 rounded-lg border border-gray-300 px-3 py-1.5 text-[11px] font-bold uppercase tracking-wider text-gray-600">
+          className="mt-1 flex items-center gap-2 rounded-lg border border-neutral-300 px-3 py-1.5 text-[11px] font-bold uppercase tracking-wider text-neutral-600">
           <RefreshCw size={13} /> Retry
         </button>
       </div>
@@ -91,15 +91,15 @@ export function SlaPanel() {
     <section className="flex flex-col gap-4">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <h2 className="text-[14px] font-black uppercase tracking-wider text-gray-900">
+          <h2 className="text-[14px] font-black uppercase tracking-wider text-neutral-900">
             Service Performance
           </h2>
-          <p className="mt-0.5 font-mono text-[10px] uppercase tracking-[0.12em] text-gray-400">
+          <p className="mt-0.5 font-mono text-[10px] uppercase tracking-[0.12em] text-neutral-400">
             Last 30 days · {p.resolved_in_window} resolved
           </p>
         </div>
         <button onClick={refresh}
-          className="flex items-center gap-2 rounded-lg border border-gray-300 px-3 py-1.5 text-[11px] font-bold uppercase tracking-wider text-gray-600 hover:bg-gray-50">
+          className="flex items-center gap-2 rounded-lg border border-neutral-300 px-3 py-1.5 text-[11px] font-bold uppercase tracking-wider text-neutral-600 hover:bg-neutral-50">
           <RefreshCw size={13} /> Refresh
         </button>
       </div>
@@ -131,46 +131,46 @@ export function SlaPanel() {
       </div>
 
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-        <div className="rounded-2xl border border-gray-200 bg-white p-4">
-          <p className="flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-[0.12em] text-gray-400">
+        <div className="rounded-2xl border border-neutral-200 bg-white p-4">
+          <p className="flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-[0.12em] text-neutral-400">
             <Clock size={11} /> Time to acknowledge
           </p>
-          <p className="mt-1 text-[18px] font-black tabular-nums text-gray-900">{duration(p.mtta_minutes)}</p>
-          <p className="mt-1 text-[10px] text-gray-400">How long before someone picks work up</p>
+          <p className="mt-1 text-[18px] font-black tabular-nums text-neutral-900">{duration(p.mtta_minutes)}</p>
+          <p className="mt-1 text-[10px] text-neutral-400">How long before someone picks work up</p>
         </div>
-        <div className="rounded-2xl border border-gray-200 bg-white p-4">
-          <p className="flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-[0.12em] text-gray-400">
+        <div className="rounded-2xl border border-neutral-200 bg-white p-4">
+          <p className="flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-[0.12em] text-neutral-400">
             <ShieldCheck size={11} /> Time to resolve
           </p>
-          <p className="mt-1 text-[18px] font-black tabular-nums text-gray-900">{duration(p.mttr_minutes)}</p>
-          <p className="mt-1 text-[10px] text-gray-400">How long from raised to fixed</p>
+          <p className="mt-1 text-[18px] font-black tabular-nums text-neutral-900">{duration(p.mttr_minutes)}</p>
+          <p className="mt-1 text-[10px] text-neutral-400">How long from raised to fixed</p>
         </div>
-        <div className="rounded-2xl border border-gray-200 bg-white p-4">
-          <p className="flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-[0.12em] text-gray-400">
+        <div className="rounded-2xl border border-neutral-200 bg-white p-4">
+          <p className="flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-[0.12em] text-neutral-400">
             <UserX size={11} /> Engineer hours
           </p>
-          <p className="mt-1 text-[18px] font-black tabular-nums text-gray-900">{p.engineer_hours}</p>
+          <p className="mt-1 text-[18px] font-black tabular-nums text-neutral-900">{p.engineer_hours}</p>
           {/* Deliberately not a currency figure — see the hook. */}
-          <p className="mt-1 text-[10px] text-gray-400">Apply your own labour rate for cost</p>
+          <p className="mt-1 text-[10px] text-neutral-400">Apply your own labour rate for cost</p>
         </div>
       </div>
 
-      <div className="overflow-hidden rounded-2xl border border-gray-200 bg-white">
-        <div className="border-b border-gray-100 px-4 py-3">
-          <h3 className="text-[12px] font-black uppercase tracking-wider text-gray-900">
+      <div className="overflow-hidden rounded-2xl border border-neutral-200 bg-white">
+        <div className="border-b border-neutral-100 px-4 py-3">
+          <h3 className="text-[12px] font-black uppercase tracking-wider text-neutral-900">
             Past target
           </h3>
-          <p className="mt-0.5 text-[10px] text-gray-400">
+          <p className="mt-0.5 text-[10px] text-neutral-400">
             Worst first. A count tells you there is a problem; this tells you which one.
           </p>
         </div>
         {breaches.length === 0 ? (
           <div className="flex flex-col items-center gap-1.5 py-8 text-center">
-            <Inbox size={22} className="text-gray-300" />
-            <p className="text-[12px] font-bold text-gray-600">Nothing past target</p>
+            <Inbox size={22} className="text-neutral-300" />
+            <p className="text-[12px] font-bold text-neutral-600">Nothing past target</p>
           </div>
         ) : (
-          <ul className="divide-y divide-gray-100">
+          <ul className="divide-y divide-neutral-100">
             {breaches.slice(0, 8).map(b => <BreachRow key={b.out_id} b={b} />)}
           </ul>
         )}

@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
+import { numOrNull } from "@/domain/metrics";
 import { useRealtimeTable } from "@/shared/api/realtime";
 import { UTILITY_GRID_LABEL } from "@/shared/utils/branding";
 import { supabase } from '@/shared/api/supabaseClient';
@@ -97,11 +98,9 @@ const DG_FUEL_BURN_RATES_LPH: Record<string, number> = {
  * when the field is genuinely absent. A missing reading and a real
  * measurement must never be visually indistinguishable on a chart.
  */
-const numOrNull = (v: any): number | null => {
-  if (v === undefined || v === null || v === '') return null;
-  const n = parseFloat(v);
-  return Number.isFinite(n) ? n : null;
-};
+// Shared with every other screen via @/domain/metrics, and with the database
+// via public.to_number_or_null(). Four files used to define this separately.
+
 
 // ⚠ SITE ENGINEERS: placeholder comfort-band thresholds for the zone heatmap,
 // mirrored from the old static demo labels. Replace with the facility's real

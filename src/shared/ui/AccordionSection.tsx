@@ -17,24 +17,24 @@ export function AccordionSection({
   children,
 }: AccordionSectionProps) {
   return (
-    <div className="border-b border-gray-100">
+    <div className="border-b border-neutral-100">
       <button
         onClick={onToggle}
-        className="w-full flex items-center justify-between px-5 py-4 text-left hover:bg-gray-50 transition-colors"
+        className="w-full flex items-center justify-between px-5 py-4 text-left hover:bg-neutral-50 transition-colors"
       >
         <div className="flex items-center gap-3">
           <div
             className="w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0 transition-colors"
-            style={{ backgroundColor: isOpen ? "var(--color-brand-600)" : "#F3F4F6" }}
+            style={{ backgroundColor: isOpen ? "var(--color-brand-600)" : "var(--color-neutral-100)" }}
           >
             <span style={{ color: isOpen ? "white" : "#888" }}>{icon}</span>
           </div>
-          <span className="font-bold text-[14px] text-gray-800">{title}</span>
+          <span className="font-bold text-[14px] text-neutral-800">{title}</span>
         </div>
         {isOpen ? <ChevronUp size={15} color="#bbb" /> : <ChevronDown size={15} color="#bbb" />}
       </button>
       {isOpen && (
-        <div className="px-5 pb-5 pt-1" style={{ backgroundColor: "#FAFAFA" }}>
+        <div className="px-5 pb-5 pt-1" style={{ backgroundColor: "var(--color-neutral-50)" }}>
           {children}
         </div>
       )}

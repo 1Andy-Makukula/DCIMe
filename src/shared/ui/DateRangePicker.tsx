@@ -70,30 +70,30 @@ export function DateRangePicker({ label, preset, activeStart, activeEnd, onSelec
       <button
         type="button"
         onClick={() => setIsOpen((v) => !v)}
-        className="flex items-center gap-2 h-9 px-3.5 rounded-xl border border-gray-200 bg-white text-[11px] font-black text-gray-700 uppercase tracking-wider hover:border-gray-300 transition-all cursor-pointer"
+        className="flex items-center gap-2 h-9 px-3.5 rounded-xl border border-neutral-200 bg-white text-[11px] font-black text-neutral-700 uppercase tracking-wider hover:border-neutral-300 transition-all cursor-pointer"
       >
-        <Calendar size={13} className="text-gray-500" />
+        <Calendar size={13} className="text-neutral-500" />
         {label}
-        <ChevronDown size={12} className={`text-gray-400 transition-transform ${isOpen ? "rotate-180" : ""}`} />
+        <ChevronDown size={12} className={`text-neutral-400 transition-transform ${isOpen ? "rotate-180" : ""}`} />
       </button>
 
       {isOpen && (
-        <div className="absolute right-0 top-full mt-1.5 z-20 bg-white border border-gray-200 rounded-xl shadow-xl overflow-hidden w-56">
+        <div className="absolute right-0 top-full mt-1.5 z-20 bg-white border border-neutral-200 rounded-xl shadow-xl overflow-hidden w-56">
           {PRESETS.map((p) => (
             <button
               key={p.id}
               type="button"
               onClick={() => { onSelectPreset(p.id); setIsOpen(false); }}
               className={`w-full text-left px-4 py-2.5 text-[11px] font-black uppercase tracking-wider transition-colors cursor-pointer ${
-                preset === p.id ? "bg-gray-900 text-white" : "text-gray-600 hover:bg-gray-50"
+                preset === p.id ? "bg-neutral-900 text-white" : "text-neutral-600 hover:bg-neutral-50"
               }`}
             >
               {p.label}
             </button>
           ))}
 
-          <div className={`border-t border-gray-100 px-4 py-3 space-y-2 ${preset === "custom" ? "bg-gray-50" : ""}`}>
-            <span className="text-[9px] font-black uppercase tracking-widest text-gray-400 block">
+          <div className={`border-t border-neutral-100 px-4 py-3 space-y-2 ${preset === "custom" ? "bg-neutral-50" : ""}`}>
+            <span className="text-[9px] font-black uppercase tracking-widest text-neutral-400 block">
               Custom Range
             </span>
             <div className="flex items-center gap-1.5">
@@ -101,21 +101,21 @@ export function DateRangePicker({ label, preset, activeStart, activeEnd, onSelec
                 type="date"
                 value={customStart}
                 onChange={(e) => setCustomStart(e.target.value)}
-                className="flex-1 min-w-0 h-8 px-2 rounded-lg border border-gray-200 text-[10px] font-bold text-gray-700"
+                className="flex-1 min-w-0 h-8 px-2 rounded-lg border border-neutral-200 text-[10px] font-bold text-neutral-700"
               />
-              <span className="text-gray-400 text-[10px]">–</span>
+              <span className="text-neutral-400 text-[10px]">–</span>
               <input
                 type="date"
                 value={customEnd}
                 onChange={(e) => setCustomEnd(e.target.value)}
-                className="flex-1 min-w-0 h-8 px-2 rounded-lg border border-gray-200 text-[10px] font-bold text-gray-700"
+                className="flex-1 min-w-0 h-8 px-2 rounded-lg border border-neutral-200 text-[10px] font-bold text-neutral-700"
               />
             </div>
             <button
               type="button"
               onClick={applyCustom}
               disabled={!customStart || !customEnd}
-              className="w-full h-8 rounded-lg bg-gray-900 text-white text-[10px] font-black uppercase tracking-wider disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer hover:bg-gray-800 transition-colors"
+              className="w-full h-8 rounded-lg bg-neutral-900 text-white text-[10px] font-black uppercase tracking-wider disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer hover:bg-neutral-800 transition-colors"
             >
               Apply
             </button>

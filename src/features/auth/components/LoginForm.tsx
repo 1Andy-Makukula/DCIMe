@@ -146,11 +146,11 @@ export function LoginForm() {
             {/* Mobile header: wordmark + subtitle */}
             <div className="flex flex-col items-center mb-8 lg:hidden">
               {/* Logo hidden. Uncomment to restore.
-              <div className="bg-white p-5 rounded-2xl shadow-md border border-gray-100 mb-4 transform hover:scale-105 transition-transform">
+              <div className="bg-white p-5 rounded-2xl shadow-md border border-neutral-100 mb-4 transform hover:scale-105 transition-transform">
                 <BrandMark size={130} />
               </div>
               */}
-              <h2 className="text-xl font-black uppercase text-center text-gray-900 leading-snug tracking-wider mt-1">
+              <h2 className="text-xl font-black uppercase text-center text-neutral-900 leading-snug tracking-wider mt-1">
                 {PRODUCT_WORDMARK}
               </h2>
               <p className="text-[11px] font-bold text-brand-600 uppercase tracking-wider text-center mt-1.5">
@@ -160,7 +160,7 @@ export function LoginForm() {
 
             {/* Desktop Header */}
             <div className="hidden lg:block mb-8">
-              <h2 className="text-2xl font-black text-gray-900 tracking-tight">{PRODUCT_WORDMARK}</h2>
+              <h2 className="text-2xl font-black text-neutral-900 tracking-tight">{PRODUCT_WORDMARK}</h2>
               <p className="text-xs font-bold text-brand-600 uppercase tracking-wider mt-1">
                 {PRODUCT_TAGLINE}
               </p>
@@ -169,11 +169,11 @@ export function LoginForm() {
             {/* Inputs Container */}
             <div className="space-y-4 mb-7">
               <div>
-                <label className="block text-[10px] font-black text-gray-800 tracking-[0.14em] uppercase mb-1.5">
+                <label className="block text-[10px] font-black text-neutral-800 tracking-[0.14em] uppercase mb-1.5">
                   Employee ID
                 </label>
                 <input
-                  className="w-full px-4 py-3.5 rounded-xl bg-white border border-gray-200 text-sm font-semibold text-gray-900 placeholder-gray-400 outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20 transition-all shadow-xs"
+                  className="w-full px-4 py-3.5 rounded-xl bg-white border border-neutral-200 text-sm font-semibold text-neutral-900 placeholder-neutral-400 outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20 transition-all shadow-xs"
                   placeholder="e.g. EMP-4891"
                   value={empId}
                   onChange={(e: React.ChangeEvent<HTMLInputElement>) => setEmpId(e.target.value)}
@@ -181,20 +181,20 @@ export function LoginForm() {
               </div>
 
               <div>
-                <label className="block text-[10px] font-black text-gray-800 tracking-[0.14em] uppercase mb-1.5">
+                <label className="block text-[10px] font-black text-neutral-800 tracking-[0.14em] uppercase mb-1.5">
                   Secure Password
                 </label>
                 <div className="relative">
                   <input
                     type={showPw ? "text" : "password"}
-                    className="w-full px-4 py-3.5 pr-11 rounded-xl bg-white border border-gray-200 text-sm font-semibold text-gray-900 placeholder-gray-400 outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20 transition-all shadow-xs"
+                    className="w-full px-4 py-3.5 pr-11 rounded-xl bg-white border border-neutral-200 text-sm font-semibold text-neutral-900 placeholder-neutral-400 outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20 transition-all shadow-xs"
                     placeholder="••••••••"
                     value={pw}
                     onChange={(e: React.ChangeEvent<HTMLInputElement>) => setPw(e.target.value)}
                   />
                   <button
                     type="button"
-                    className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-700 transition-colors cursor-pointer"
+                    className="absolute right-4 top-1/2 -translate-y-1/2 text-neutral-400 hover:text-neutral-700 transition-colors cursor-pointer"
                     onClick={() => setShowPw(!showPw)}
                   >
                     {showPw ? <EyeOff size={16} /> : <Eye size={16} />}

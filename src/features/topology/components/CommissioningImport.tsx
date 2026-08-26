@@ -25,8 +25,8 @@ const VERDICT: Record<string, { cls: string; icon: typeof CheckCircle2 }> = {
   OK:      { cls: "text-ok-600", icon: CheckCircle2 },
   WARN:    { cls: "text-warn-600",   icon: AlertTriangle },
   ERROR:   { cls: "text-danger-600",     icon: XCircle },
-  PENDING: { cls: "text-gray-400",    icon: Info },
-  SKIPPED: { cls: "text-gray-400",    icon: Info }
+  PENDING: { cls: "text-neutral-400",    icon: Info },
+  SKIPPED: { cls: "text-neutral-400",    icon: Info }
 };
 
 /** A parsed row, carrying the line number the user actually sees in Excel. */
@@ -92,8 +92,8 @@ function RowLine({ r }: { r: StagedRow }) {
     <li className="flex items-start gap-2.5 px-4 py-2">
       <Icon size={14} className={`mt-0.5 shrink-0 ${v.cls}`} />
       <div className="min-w-0 flex-1">
-        <p className="font-mono text-[11px] text-gray-700">
-          <span className="text-gray-400">line {r.source_line}</span>
+        <p className="font-mono text-[11px] text-neutral-700">
+          <span className="text-neutral-400">line {r.source_line}</span>
           {"  "}{label}
         </p>
         {r.message && <p className={`mt-0.5 text-[11px] ${v.cls}`}>{r.message}</p>}
@@ -144,11 +144,11 @@ export function CommissioningImport() {
   return (
     <div className="flex flex-col gap-4">
       <div>
-        <p className="font-mono text-[10px] uppercase tracking-[0.14em] text-gray-400">Commissioning</p>
-        <h1 className="text-[20px] font-black leading-none tracking-tight text-gray-900">
+        <p className="font-mono text-[10px] uppercase tracking-[0.14em] text-neutral-400">Commissioning</p>
+        <h1 className="text-[20px] font-black leading-none tracking-tight text-neutral-900">
           Bulk Import
         </h1>
-        <p className="mt-1 max-w-2xl text-[11px] leading-relaxed text-gray-500">
+        <p className="mt-1 max-w-2xl text-[11px] leading-relaxed text-neutral-500">
           Load equipment and cabling from a spreadsheet, or type in a few items
           by hand. Nothing reaches the live facility until every row passes, so
           you can correct and retry as many times as you need.
@@ -162,30 +162,30 @@ export function CommissioningImport() {
             {(["EQUIPMENT", "CONNECTIONS"] as const).map(k => (
               <button key={k} onClick={() => setKind(k)}
                 className={`rounded-2xl border py-3 text-[12px] font-bold transition-colors ${
-                  kind === k ? "border-gray-900 bg-gray-900 text-white" : "border-gray-200 bg-white text-gray-600"
+                  kind === k ? "border-neutral-900 bg-neutral-900 text-white" : "border-neutral-200 bg-white text-neutral-600"
                 }`}>
                 {k === "EQUIPMENT" ? "Equipment" : "Cables"}
               </button>
             ))}
           </div>
 
-          <div className="rounded-2xl border border-gray-200 bg-gray-50 p-4">
-            <p className="font-mono text-[10px] uppercase tracking-wider text-gray-400">
+          <div className="rounded-2xl border border-neutral-200 bg-neutral-50 p-4">
+            <p className="font-mono text-[10px] uppercase tracking-wider text-neutral-400">
               Columns for this sheet
             </p>
             <div className="mt-2 flex flex-wrap gap-1.5">
               {cols.required.map(c => (
-                <span key={c} className="rounded-lg border border-gray-900 bg-gray-900 px-2 py-1 font-mono text-[10px] text-white">
+                <span key={c} className="rounded-lg border border-neutral-900 bg-neutral-900 px-2 py-1 font-mono text-[10px] text-white">
                   {c}
                 </span>
               ))}
               {cols.optional.map(c => (
-                <span key={c} className="rounded-lg border border-gray-200 bg-white px-2 py-1 font-mono text-[10px] text-gray-500">
+                <span key={c} className="rounded-lg border border-neutral-200 bg-white px-2 py-1 font-mono text-[10px] text-neutral-500">
                   {c}
                 </span>
               ))}
             </div>
-            <p className="mt-2 text-[10px] text-gray-400">
+            <p className="mt-2 text-[10px] text-neutral-400">
               Dark are required. Column names are matched ignoring case and spaces.
             </p>
           </div>
@@ -193,11 +193,11 @@ export function CommissioningImport() {
           {/* Two ways in, one pipeline. A file for commissioning a site, a
               form for the single item somebody forgot — both stage the same
               rows and go through the same validation. */}
-          <div className="flex gap-1 rounded-xl bg-gray-100 p-1">
+          <div className="flex gap-1 rounded-xl bg-neutral-100 p-1">
             {([["file", "From a spreadsheet"], ["manual", "Type it in"]] as const).map(([k, label]) => (
               <button key={k} onClick={() => setSource(k)}
                 className={`flex-1 rounded-lg py-2 text-[11px] font-black uppercase tracking-wider transition-all ${
-                  source === k ? "bg-white text-gray-900 shadow-sm" : "text-gray-400 hover:text-gray-600"
+                  source === k ? "bg-white text-neutral-900 shadow-sm" : "text-neutral-400 hover:text-neutral-600"
                 }`}>
                 {label}
               </button>
@@ -209,12 +209,12 @@ export function CommissioningImport() {
               <button
                 onClick={() => fileRef.current?.click()}
                 disabled={isBusy}
-                className="flex w-full flex-col items-center justify-center gap-2 rounded-2xl border-2 border-dashed border-gray-300 py-12 transition-colors hover:border-gray-400 hover:bg-gray-50"
+                className="flex w-full flex-col items-center justify-center gap-2 rounded-2xl border-2 border-dashed border-neutral-300 py-12 transition-colors hover:border-neutral-400 hover:bg-neutral-50"
               >
-                {isBusy ? <Loader2 size={26} className="animate-spin text-gray-400" />
-                        : <Upload size={26} className="text-gray-400" />}
-                <span className="text-[13px] font-bold text-gray-700">Choose a spreadsheet</span>
-                <span className="text-[11px] text-gray-400">.xlsx — first sheet is used</span>
+                {isBusy ? <Loader2 size={26} className="animate-spin text-neutral-400" />
+                        : <Upload size={26} className="text-neutral-400" />}
+                <span className="text-[13px] font-bold text-neutral-700">Choose a spreadsheet</span>
+                <span className="text-[11px] text-neutral-400">.xlsx — first sheet is used</span>
               </button>
               <input
                 ref={fileRef} type="file" accept=".xlsx" className="hidden"
@@ -244,12 +244,12 @@ export function CommissioningImport() {
       {/* Steps 2 and 3 — check, then import */}
       {batch && (
         <>
-          <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-gray-200 bg-white p-4">
+          <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-neutral-200 bg-white p-4">
             <div className="flex items-center gap-2.5">
-              <FileSpreadsheet size={18} className="text-gray-400" />
+              <FileSpreadsheet size={18} className="text-neutral-400" />
               <div>
-                <p className="text-[13px] font-bold text-gray-900">{batch.filename}</p>
-                <p className="font-mono text-[10px] uppercase tracking-wider text-gray-400">
+                <p className="text-[13px] font-bold text-neutral-900">{batch.filename}</p>
+                <p className="font-mono text-[10px] uppercase tracking-wider text-neutral-400">
                   {batch.kind} · {rows.length} rows · {batch.status}
                 </p>
               </div>
@@ -258,12 +258,12 @@ export function CommissioningImport() {
               {batch.status !== "PROMOTED" && (
                 <>
                   <button onClick={validate} disabled={isBusy}
-                    className="flex items-center gap-2 rounded-xl border border-gray-300 px-3 py-2 text-[11px] font-bold uppercase tracking-wider text-gray-700 hover:bg-gray-50 disabled:opacity-50">
+                    className="flex items-center gap-2 rounded-xl border border-neutral-300 px-3 py-2 text-[11px] font-bold uppercase tracking-wider text-neutral-700 hover:bg-neutral-50 disabled:opacity-50">
                     {isBusy ? <Loader2 size={13} className="animate-spin" /> : <CheckCircle2 size={13} />}
                     Check rows
                   </button>
                   <button onClick={discard}
-                    className="flex items-center gap-2 rounded-xl border border-gray-300 px-3 py-2 text-[11px] font-bold uppercase tracking-wider text-gray-500 hover:bg-danger-50 hover:text-danger-600">
+                    className="flex items-center gap-2 rounded-xl border border-neutral-300 px-3 py-2 text-[11px] font-bold uppercase tracking-wider text-neutral-500 hover:bg-danger-50 hover:text-danger-600">
                     <Trash2 size={13} /> Discard
                   </button>
                 </>
@@ -276,9 +276,9 @@ export function CommissioningImport() {
               {([["Ready", okCount, "text-ok-600"],
                  ["Warnings", warnCount, "text-warn-600"],
                  ["Errors", errorCount, "text-danger-600"]] as const).map(([label, n, cls]) => (
-                <div key={label} className="rounded-2xl border border-gray-200 bg-white p-3 text-center">
+                <div key={label} className="rounded-2xl border border-neutral-200 bg-white p-3 text-center">
                   <p className={`text-[20px] font-black tabular-nums leading-none ${cls}`}>{n}</p>
-                  <p className="mt-1 font-mono text-[9px] uppercase tracking-wider text-gray-400">{label}</p>
+                  <p className="mt-1 font-mono text-[9px] uppercase tracking-wider text-neutral-400">{label}</p>
                 </div>
               ))}
             </div>
@@ -295,13 +295,13 @@ export function CommissioningImport() {
             </div>
           ) : (
             <>
-              <div className="overflow-hidden rounded-2xl border border-gray-200 bg-white">
-                <div className="border-b border-gray-100 px-4 py-2.5">
-                  <p className="text-[11px] font-black uppercase tracking-wider text-gray-700">
+              <div className="overflow-hidden rounded-2xl border border-neutral-200 bg-white">
+                <div className="border-b border-neutral-100 px-4 py-2.5">
+                  <p className="text-[11px] font-black uppercase tracking-wider text-neutral-700">
                     Rows
                   </p>
                 </div>
-                <ul className="max-h-[22rem] divide-y divide-gray-50 overflow-y-auto">
+                <ul className="max-h-[22rem] divide-y divide-neutral-50 overflow-y-auto">
                   {/* Problems first: a user fixing a file needs the failures, not
                       to scroll past two hundred passing rows to find them. */}
                   {[...rows]
@@ -316,7 +316,7 @@ export function CommissioningImport() {
               <button
                 onClick={runPromote}
                 disabled={!canPromote || isBusy}
-                className="flex items-center justify-center gap-2 rounded-2xl bg-gray-900 py-3.5 text-[13px] font-bold text-white disabled:bg-gray-200 disabled:text-gray-400"
+                className="flex items-center justify-center gap-2 rounded-2xl bg-neutral-900 py-3.5 text-[13px] font-bold text-white disabled:bg-neutral-200 disabled:text-neutral-400"
               >
                 {isBusy ? <Loader2 size={15} className="animate-spin" /> : <ArrowRight size={15} />}
                 {errorCount > 0

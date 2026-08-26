@@ -113,7 +113,7 @@ const StatusDropdown = ({
   const options = [
     { label: "OK", value: "OK" as const, activeClass: "bg-ok-600 text-white font-bold" },
     { label: "NOT OK", value: "NOT OK" as const, activeClass: "bg-danger-600 text-white font-bold" },
-    { label: "N/A", value: "N/A" as const, activeClass: "bg-slate-700 text-white font-bold" },
+    { label: "N/A", value: "N/A" as const, activeClass: "bg-neutral-700 text-white font-bold" },
   ];
 
   return (
@@ -130,7 +130,7 @@ const StatusDropdown = ({
             ? "border-ok-300 text-ok-700 bg-ok-50/40"
             : value === "NOT OK"
             ? "border-danger-300 text-danger-700 bg-danger-50/40"
-            : "border-slate-300 text-slate-500 bg-slate-50/40"
+            : "border-neutral-300 text-neutral-500 bg-neutral-50/40"
         } disabled:opacity-50`}
       >
         <span>{value}</span>
@@ -140,7 +140,7 @@ const StatusDropdown = ({
       {isOpen && !disabled && (
         <>
           <div className="fixed inset-0 z-40" onClick={() => setIsOpen(false)} />
-          <div className="absolute right-0 mt-1 w-full rounded-lg bg-slate-900 border border-slate-800 shadow-xl z-50 overflow-hidden">
+          <div className="absolute right-0 mt-1 w-full rounded-lg bg-neutral-900 border border-neutral-800 shadow-xl z-50 overflow-hidden">
             {options.map((opt) => (
               <button
                 key={opt.value}
@@ -153,7 +153,7 @@ const StatusDropdown = ({
                 className={`w-full text-left px-3 py-1.5 text-[10px] font-black uppercase tracking-wider transition-colors cursor-pointer ${
                   value === opt.value
                     ? opt.activeClass
-                    : "text-slate-300 hover:bg-slate-800 hover:text-white"
+                    : "text-neutral-300 hover:bg-neutral-800 hover:text-white"
                 }`}
               >
                 {opt.label}
@@ -332,6 +332,54 @@ export const PrintableChecklist = forwardRef<HTMLDivElement, any>((props, ref) =
     }
   }, [selectedHistory]);
 
+  /**
+   * Signs a checklist that has already been submitted.
+   *
+   * Read-only locks the READINGS — an admin reviewing a submitted checklist
+   * must not be able to change what the technician recorded. It must not lock
+   * the SIGNATURE, or the countersigning party can never sign at all, which is
+   * exactly why this document had two blank lines on it.
+   *
+   * Merges into the existing metrics rather than rewriting it, so nothing else
+   * on the row is disturbed.
+   */
+  const signSavedChecklist = async (
+    who: "ms" | "spoc",
+    sig: { dataUrl: string; signedAt: string }
+  ) => {
+    const rowId = selectedHistory?.id;
+    if (!rowId) return;
+
+    const { data: current, error: readErr } = await supabase
+      .from("telemetry_logs").select("metrics").eq("id", rowId).single();
+    if (readErr) { alert(readErr.message); return; }
+
+    const metrics: any = { ...((current as any)?.metrics ?? {}) };
+    const key  = who === "ms" ? "msPartner" : "clientSpoc";
+    const name = who === "ms" ? (msName || techName) : spocName;
+    metrics[key] = {
+      ...(metrics[key] ?? {}),
+      name:           metrics[key]?.name || name,
+      signature:      metrics[key]?.signature || name,
+      signatureImage: sig.dataUrl,
+      signedAt:       sig.signedAt
+    };
+
+    const { data, error } = await supabase
+      .from("telemetry_logs").update({ metrics }).eq("id", rowId).select("id");
+    if (error) { alert(error.message); return; }
+    if (!data || data.length === 0) {
+      alert("Nothing was signed — you may not have permission to update this record.");
+      return;
+    }
+
+    // Reflect it locally, and keep the in-memory history row in step so
+    // reopening it does not show the mark disappearing.
+    if (who === "ms") { setMsSignatureImage(sig.dataUrl); setMsSignedAt(sig.signedAt); }
+    else              { setSpocSignatureImage(sig.dataUrl); setSpocSignedAt(sig.signedAt); }
+    setSelectedHistory((prev: any) => prev ? { ...prev, [key]: metrics[key] } : prev);
+  };
+
   const saveChecklistRecord = async (triggerPrint = false) => {
     setIsSaving(true);
     setSaveSuccess(false);
@@ -390,7 +438,7 @@ export const PrintableChecklist = forwardRef<HTMLDivElement, any>((props, ref) =
   };
 
   return (
-    <div ref={ref} className="min-h-screen w-full bg-slate-50/50 print:bg-white text-slate-800 print:text-black py-6 print:py-0">
+    <div ref={ref} className="min-h-screen w-full bg-neutral-50/50 print:bg-white text-neutral-800 print:text-black py-6 print:py-0">
       <style dangerouslySetInnerHTML={{
         __html: `
         @media print {
@@ -434,12 +482,12 @@ export const PrintableChecklist = forwardRef<HTMLDivElement, any>((props, ref) =
       <div className="max-w-4xl mx-auto px-4 print:px-0">
 
         {/* Banner/Header bar: screen-only */}
-        <div className="bg-white border border-slate-100 rounded-3xl p-5 shadow-sm mb-6 flex flex-col md:flex-row items-center justify-between gap-4 print:hidden">
+        <div className="bg-white border border-neutral-100 rounded-3xl p-5 shadow-sm mb-6 flex flex-col md:flex-row items-center justify-between gap-4 print:hidden">
           <div className="flex items-start gap-3.5">
             {selectedHistory && (
               <button
                 onClick={() => setSelectedHistory(null)}
-                className="p-2.5 rounded-xl border border-gray-200 text-gray-500 hover:text-brand-500 hover:bg-slate-50 transition-all cursor-pointer mr-2"
+                className="p-2.5 rounded-xl border border-neutral-200 text-neutral-500 hover:text-brand-500 hover:bg-neutral-50 transition-all cursor-pointer mr-2"
                 title="Return to New entry"
               >
                 <ArrowLeft size={16} />
@@ -449,7 +497,7 @@ export const PrintableChecklist = forwardRef<HTMLDivElement, any>((props, ref) =
               <Shield size={22} />
             </div>
             <div>
-              <h2 className="text-sm font-black text-slate-900 uppercase tracking-wider flex items-center gap-2">
+              <h2 className="text-sm font-black text-neutral-900 uppercase tracking-wider flex items-center gap-2">
                 {BRAND_NAME} Daily Checklist
                 <span className="bg-ok-50 text-ok-700 text-[9px] font-black uppercase tracking-wider px-2 py-0.5 rounded border border-ok-100 flex items-center gap-1">
                   {DAILY_CHECKLIST_LABEL}
@@ -460,7 +508,7 @@ export const PrintableChecklist = forwardRef<HTMLDivElement, any>((props, ref) =
                   </span>
                 )}
               </h2>
-              <p className="text-xs text-slate-400 mt-1 max-w-xl leading-relaxed">
+              <p className="text-xs text-neutral-400 mt-1 max-w-xl leading-relaxed">
                 {isReadOnly
                   ? `Viewing saved checklist report submitted by ${selectedHistory?.technician_name || techName}.`
                   : "Select status for each checkpoint, add optional comments, and click Submit & Archive to record to database."}
@@ -493,7 +541,7 @@ export const PrintableChecklist = forwardRef<HTMLDivElement, any>((props, ref) =
                   onClick={() => saveChecklistRecord(true)}
                   disabled={isSaving}
                   type="button"
-                  className="flex items-center justify-center gap-2 px-4 py-3 rounded-2xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-black uppercase tracking-widest transition-all shadow-md active:scale-[0.98] cursor-pointer"
+                  className="flex items-center justify-center gap-2 px-4 py-3 rounded-2xl bg-neutral-900 hover:bg-neutral-800 text-white text-xs font-black uppercase tracking-widest transition-all shadow-md active:scale-[0.98] cursor-pointer"
                 >
                   <Printer size={16} />
                   <span>Print</span>
@@ -505,7 +553,7 @@ export const PrintableChecklist = forwardRef<HTMLDivElement, any>((props, ref) =
               <button
                 onClick={() => window.print()}
                 type="button"
-                className="flex items-center justify-center gap-2 px-6 py-3.5 rounded-2xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-black uppercase tracking-widest transition-all shadow-md active:scale-[0.98] cursor-pointer"
+                className="flex items-center justify-center gap-2 px-6 py-3.5 rounded-2xl bg-neutral-900 hover:bg-neutral-800 text-white text-xs font-black uppercase tracking-widest transition-all shadow-md active:scale-[0.98] cursor-pointer"
               >
                 <Printer size={16} />
                 <span>Print Document</span>
@@ -525,7 +573,7 @@ export const PrintableChecklist = forwardRef<HTMLDivElement, any>((props, ref) =
         )}
 
         {/* Printable Area Page Container */}
-        <div id="printable-checklist-area" className="bg-white border border-slate-200 print:border-none shadow-xl print:shadow-none rounded-3xl print:rounded-none p-8 md:p-12 mx-auto w-full transition-all">
+        <div id="printable-checklist-area" className="bg-white border border-neutral-200 print:border-none shadow-xl print:shadow-none rounded-3xl print:rounded-none p-8 md:p-12 mx-auto w-full transition-all">
 
           {/* Printable Document Header */}
           <div className="pb-4 mb-4">
@@ -533,26 +581,26 @@ export const PrintableChecklist = forwardRef<HTMLDivElement, any>((props, ref) =
               {/* Left Side: Header Metadata */}
               <div className="space-y-2 text-xs md:text-sm font-sans flex-1">
                 <div className="flex items-center gap-1.5">
-                  <span className="font-bold text-gray-700 uppercase tracking-wider text-[11px] w-28 shrink-0">Name of Site:</span>
+                  <span className="font-bold text-neutral-700 uppercase tracking-wider text-[11px] w-28 shrink-0">Name of Site:</span>
                   <input
                     type="text"
                     value={siteName}
                     disabled={isReadOnly}
                     onChange={(e) => setSiteName(e.target.value)}
-                    className="bg-slate-50 border border-slate-200 rounded-lg px-2.5 py-1 font-bold text-slate-800 focus:outline-none focus:border-brand-500 w-[200px] print:hidden"
+                    className="bg-neutral-50 border border-neutral-200 rounded-lg px-2.5 py-1 font-bold text-neutral-800 focus:outline-none focus:border-brand-500 w-[200px] print:hidden"
                     placeholder="Enter site name"
                   />
                   <span className="hidden print:inline font-bold text-black border-b border-black pb-0.5 min-w-[200px]">{siteName || "______________________"}</span>
                 </div>
 
                 <div className="flex items-center gap-1.5">
-                  <span className="font-bold text-gray-700 uppercase tracking-wider text-[11px] w-28 shrink-0">Date:</span>
+                  <span className="font-bold text-neutral-700 uppercase tracking-wider text-[11px] w-28 shrink-0">Date:</span>
                   <input
                     type="text"
                     value={date}
                     disabled={isReadOnly}
                     onChange={(e) => setDate(e.target.value)}
-                    className="bg-slate-50 border border-slate-200 rounded-lg px-2.5 py-1 font-bold text-slate-800 focus:outline-none focus:border-brand-500 w-[200px] print:hidden"
+                    className="bg-neutral-50 border border-neutral-200 rounded-lg px-2.5 py-1 font-bold text-neutral-800 focus:outline-none focus:border-brand-500 w-[200px] print:hidden"
                     placeholder="YY/MM/DD"
                   />
                   <span className="hidden print:inline font-bold text-black border-b border-black pb-0.5 min-w-[200px]">{date || "______________________"}</span>
@@ -574,26 +622,26 @@ export const PrintableChecklist = forwardRef<HTMLDivElement, any>((props, ref) =
 
           {/* Form Table Grid */}
           <div className="overflow-x-auto print:overflow-visible">
-            <table className="w-full border-collapse border border-slate-900 text-xs font-sans">
+            <table className="w-full border-collapse border border-neutral-900 text-xs font-sans">
               <thead>
-                <tr className="bg-slate-50 print:bg-slate-100 text-slate-900">
-                  <th className="border border-slate-900 p-2.5 text-left font-black uppercase tracking-wider w-[50%]">
+                <tr className="bg-neutral-50 print:bg-neutral-100 text-neutral-900">
+                  <th className="border border-neutral-900 p-2.5 text-left font-black uppercase tracking-wider w-[50%]">
                     Daily Maintenance Checkpoints
                   </th>
-                  <th className="border border-slate-900 p-2.5 text-center font-black uppercase tracking-wider w-[22%]">
+                  <th className="border border-neutral-900 p-2.5 text-center font-black uppercase tracking-wider w-[22%]">
                     Status
                   </th>
-                  <th className="border border-slate-900 p-2.5 text-left font-black uppercase tracking-wider w-[28%]">
+                  <th className="border border-neutral-900 p-2.5 text-left font-black uppercase tracking-wider w-[28%]">
                     Comment
                   </th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-900">
+              <tbody className="divide-y divide-neutral-900">
                 {CHECKLIST_SECTIONS.map((section) => (
                   <React.Fragment key={section.title}>
                     {/* Section Header Row */}
-                    <tr className="bg-slate-100 print:bg-slate-200 text-brand-700 print:text-black font-black">
-                      <td colSpan={3} className="p-2 uppercase tracking-wider text-[10px] border border-slate-900 font-bold">
+                    <tr className="bg-neutral-100 print:bg-neutral-200 text-brand-700 print:text-black font-black">
+                      <td colSpan={3} className="p-2 uppercase tracking-wider text-[10px] border border-neutral-900 font-bold">
                         {section.title}
                       </td>
                     </tr>
@@ -603,14 +651,14 @@ export const PrintableChecklist = forwardRef<HTMLDivElement, any>((props, ref) =
                       const val = formValues[cp.id] || { status: "OK", comment: "" };
 
                       return (
-                        <tr key={cp.id} className="hover:bg-slate-50/30 transition-colors">
+                        <tr key={cp.id} className="hover:bg-neutral-50/30 transition-colors">
                           {/* Checkpoint text */}
-                          <td className="border border-slate-900 p-2 text-slate-800 print:text-black font-medium leading-tight">
+                          <td className="border border-neutral-900 p-2 text-neutral-800 print:text-black font-medium leading-tight">
                             {cp.name}
                           </td>
 
                           {/* Dropdown Status Selector */}
-                          <td className="border border-slate-900 p-1.5 text-center">
+                          <td className="border border-neutral-900 p-1.5 text-center">
                             <div className="flex justify-center items-center print:hidden">
                               <StatusDropdown
                                 value={val.status}
@@ -624,14 +672,14 @@ export const PrintableChecklist = forwardRef<HTMLDivElement, any>((props, ref) =
                           </td>
 
                           {/* Comment Column */}
-                          <td className="border border-slate-900 p-2">
+                          <td className="border border-neutral-900 p-2">
                             <input
                               type="text"
                               value={val.comment}
                               disabled={isReadOnly}
                               onChange={(e) => handleCommentChange(cp.id, e.target.value)}
                               placeholder="Add comment..."
-                              className="w-full bg-slate-50/50 border border-slate-200 rounded px-2 py-1 text-xs text-slate-800 focus:outline-none focus:border-brand-500 print:hidden font-medium"
+                              className="w-full bg-neutral-50/50 border border-neutral-200 rounded px-2 py-1 text-xs text-neutral-800 focus:outline-none focus:border-brand-500 print:hidden font-medium"
                             />
                             <p className="hidden print:block text-black font-semibold text-xs leading-normal break-words">
                               {val.comment || ""}
@@ -652,36 +700,36 @@ export const PrintableChecklist = forwardRef<HTMLDivElement, any>((props, ref) =
 
               {/* MS Partner Column */}
               <div className="space-y-4">
-                <p className="font-bold text-xs text-gray-900 print:text-black uppercase tracking-wider text-center">
+                <p className="font-bold text-xs text-neutral-900 print:text-black uppercase tracking-wider text-center">
                   MS Partner
                 </p>
                 <div className="space-y-3 pt-2 text-xs">
                   <div className="flex items-end gap-2">
-                    <span className="font-bold text-gray-500 print:text-black w-16">Name:</span>
+                    <span className="font-bold text-neutral-500 print:text-black w-16">Name:</span>
                     <input
                       type="text"
                       value={msName}
                       disabled={isReadOnly}
                       onChange={(e) => setMsName(e.target.value)}
-                      className="border-b border-gray-300 focus:border-brand-500 focus:outline-none flex-1 pb-0.5 print:hidden font-semibold text-gray-800"
+                      className="border-b border-neutral-300 focus:border-brand-500 focus:outline-none flex-1 pb-0.5 print:hidden font-semibold text-neutral-800"
                     />
                     <span className="hidden print:inline font-semibold text-black border-b border-black flex-1 min-h-[1.2rem] pb-0.5">{msName || "________________________"}</span>
                   </div>
                   <div className="flex items-end gap-2">
-                    <span className="font-bold text-gray-500 print:text-black w-16">Signature:</span>
+                    <span className="font-bold text-neutral-500 print:text-black w-16">Signature:</span>
                     {/* max-h caps the mark so a tall signature cannot push this
                         block onto a second page. It is an <img> in normal flow,
                         not a background, so it prints without needing
                         print-color-adjust. */}
-                    <span className="flex-1 border-b border-gray-300 print:border-black pb-0.5">
+                    <span className="flex-1 border-b border-neutral-300 print:border-black pb-0.5">
                       {msSignatureImage ? (
                         <img
                           src={msSignatureImage}
                           alt="MS Partner signature"
                           className="h-10 max-h-10 w-auto max-w-full object-contain object-left print:h-8"
                         />
-                      ) : isReadOnly ? (
-                        <span className="text-gray-400 print:text-black">________________________</span>
+                      ) : isReadOnly && !selectedHistory?.id ? (
+                        <span className="text-neutral-400 print:text-black">________________________</span>
                       ) : (
                         <button
                           type="button"
@@ -694,7 +742,7 @@ export const PrintableChecklist = forwardRef<HTMLDivElement, any>((props, ref) =
                     </span>
                   </div>
                   {msSignedAt && (
-                    <p className="pl-[4.5rem] font-mono text-[9px] text-gray-400 print:text-black">
+                    <p className="pl-[4.5rem] font-mono text-[9px] text-neutral-400 print:text-black">
                       Signed {new Date(msSignedAt).toLocaleString(undefined, {
                         year: "numeric", month: "short", day: "numeric",
                         hour: "2-digit", minute: "2-digit", hour12: false
@@ -702,13 +750,13 @@ export const PrintableChecklist = forwardRef<HTMLDivElement, any>((props, ref) =
                     </p>
                   )}
                   <div className="flex items-end gap-2">
-                    <span className="font-bold text-gray-500 print:text-black w-16">Date:</span>
+                    <span className="font-bold text-neutral-500 print:text-black w-16">Date:</span>
                     <input
                       type="text"
                       value={msDate}
                       disabled={isReadOnly}
                       onChange={(e) => setMsDate(e.target.value)}
-                      className="border-b border-gray-300 focus:border-brand-500 focus:outline-none flex-1 pb-0.5 print:hidden font-semibold text-gray-800"
+                      className="border-b border-neutral-300 focus:border-brand-500 focus:outline-none flex-1 pb-0.5 print:hidden font-semibold text-neutral-800"
                     />
                     <span className="hidden print:inline font-semibold text-black border-b border-black flex-1 min-h-[1.2rem] pb-0.5">{msDate || "________________________"}</span>
                   </div>
@@ -717,36 +765,36 @@ export const PrintableChecklist = forwardRef<HTMLDivElement, any>((props, ref) =
 
               {/* Client SPOC Column */}
               <div className="space-y-4">
-                <p className="font-bold text-xs text-gray-900 print:text-black uppercase tracking-wider text-center">
+                <p className="font-bold text-xs text-neutral-900 print:text-black uppercase tracking-wider text-center">
                   {BRAND_NAME} SPOC
                 </p>
                 <div className="space-y-3 pt-2 text-xs">
                   <div className="flex items-end gap-2">
-                    <span className="font-bold text-gray-500 print:text-black w-16">Name:</span>
+                    <span className="font-bold text-neutral-500 print:text-black w-16">Name:</span>
                     <input
                       type="text"
                       value={spocName}
                       disabled={isReadOnly}
                       onChange={(e) => setSpocName(e.target.value)}
-                      className="border-b border-gray-300 focus:border-brand-500 focus:outline-none flex-1 pb-0.5 print:hidden font-semibold text-gray-800"
+                      className="border-b border-neutral-300 focus:border-brand-500 focus:outline-none flex-1 pb-0.5 print:hidden font-semibold text-neutral-800"
                     />
                     <span className="hidden print:inline font-semibold text-black border-b border-black flex-1 min-h-[1.2rem] pb-0.5">{spocName || "________________________"}</span>
                   </div>
                   <div className="flex items-end gap-2">
-                    <span className="font-bold text-gray-500 print:text-black w-16">Signature:</span>
+                    <span className="font-bold text-neutral-500 print:text-black w-16">Signature:</span>
                     {/* max-h caps the mark so a tall signature cannot push this
                         block onto a second page. It is an <img> in normal flow,
                         not a background, so it prints without needing
                         print-color-adjust. */}
-                    <span className="flex-1 border-b border-gray-300 print:border-black pb-0.5">
+                    <span className="flex-1 border-b border-neutral-300 print:border-black pb-0.5">
                       {spocSignatureImage ? (
                         <img
                           src={spocSignatureImage}
                           alt="Client SPOC signature"
                           className="h-10 max-h-10 w-auto max-w-full object-contain object-left print:h-8"
                         />
-                      ) : isReadOnly ? (
-                        <span className="text-gray-400 print:text-black">________________________</span>
+                      ) : isReadOnly && !selectedHistory?.id ? (
+                        <span className="text-neutral-400 print:text-black">________________________</span>
                       ) : (
                         <button
                           type="button"
@@ -759,7 +807,7 @@ export const PrintableChecklist = forwardRef<HTMLDivElement, any>((props, ref) =
                     </span>
                   </div>
                   {spocSignedAt && (
-                    <p className="pl-[4.5rem] font-mono text-[9px] text-gray-400 print:text-black">
+                    <p className="pl-[4.5rem] font-mono text-[9px] text-neutral-400 print:text-black">
                       Signed {new Date(spocSignedAt).toLocaleString(undefined, {
                         year: "numeric", month: "short", day: "numeric",
                         hour: "2-digit", minute: "2-digit", hour12: false
@@ -767,13 +815,13 @@ export const PrintableChecklist = forwardRef<HTMLDivElement, any>((props, ref) =
                     </p>
                   )}
                   <div className="flex items-end gap-2">
-                    <span className="font-bold text-gray-500 print:text-black w-16">Date:</span>
+                    <span className="font-bold text-neutral-500 print:text-black w-16">Date:</span>
                     <input
                       type="text"
                       value={spocDate}
                       disabled={isReadOnly}
                       onChange={(e) => setSpocDate(e.target.value)}
-                      className="border-b border-gray-300 focus:border-brand-500 focus:outline-none flex-1 pb-0.5 print:hidden font-semibold text-gray-800"
+                      className="border-b border-neutral-300 focus:border-brand-500 focus:outline-none flex-1 pb-0.5 print:hidden font-semibold text-neutral-800"
                     />
                     <span className="hidden print:inline font-semibold text-black border-b border-black flex-1 min-h-[1.2rem] pb-0.5">{spocDate || "________________________"}</span>
                   </div>
@@ -789,49 +837,49 @@ export const PrintableChecklist = forwardRef<HTMLDivElement, any>((props, ref) =
 
       {/* Log list of saved copies (Desktop view style, hidden when printing or forceReadOnly unless showLogList is true) */}
       {(!forceReadOnly || props.showLogList) && !selectedHistory && (
-        <div className="bg-white rounded-3xl p-5 border border-gray-100 shadow-sm mt-6 print:hidden max-w-4xl mx-auto px-4">
+        <div className="bg-white rounded-3xl p-5 border border-neutral-100 shadow-sm mt-6 print:hidden max-w-4xl mx-auto px-4">
           <div>
-            <h3 className="text-xs font-black text-gray-400 uppercase tracking-widest flex items-center gap-1.5">
+            <h3 className="text-xs font-black text-neutral-400 uppercase tracking-widest flex items-center gap-1.5">
               <CheckSquare size={13} className="text-brand-500" />
               <span>Saved Daily Checklists Log</span>
             </h3>
-            <p className="text-[10px] text-gray-500 mt-0.5">Technicians and Admin audit trail of all generated checklists.</p>
+            <p className="text-[10px] text-neutral-500 mt-0.5">Technicians and Admin audit trail of all generated checklists.</p>
           </div>
 
           {isHistoryLoading ? (
-            <div className="flex items-center gap-2 py-6 justify-center text-slate-400">
+            <div className="flex items-center gap-2 py-6 justify-center text-neutral-400">
               <Loader2 className="animate-spin text-brand-500" size={18} />
               <span className="text-xs font-bold uppercase tracking-wider">Syncing Checklist Records...</span>
             </div>
           ) : historyChecklists.length === 0 ? (
-            <div className="text-center py-8 bg-slate-50 border border-slate-100 rounded-2xl mt-4">
-              <ShieldCheck size={32} className="mx-auto text-slate-300 mb-2" />
-              <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">No logged checklists found</p>
-              <p className="text-[10px] text-slate-400 mt-0.5">Log checklists for recent shifts to build the audit timeline.</p>
+            <div className="text-center py-8 bg-neutral-50 border border-neutral-100 rounded-2xl mt-4">
+              <ShieldCheck size={32} className="mx-auto text-neutral-300 mb-2" />
+              <p className="text-xs font-bold text-neutral-400 uppercase tracking-wider">No logged checklists found</p>
+              <p className="text-[10px] text-neutral-400 mt-0.5">Log checklists for recent shifts to build the audit timeline.</p>
             </div>
           ) : (
-            <div className="overflow-hidden border border-slate-100 rounded-2xl mt-4">
+            <div className="overflow-hidden border border-neutral-100 rounded-2xl mt-4">
               <table className="w-full text-left border-collapse text-xs">
                 <thead>
-                  <tr className="bg-slate-50 border-b border-slate-100 text-[10px] uppercase font-black text-gray-400 tracking-wider">
+                  <tr className="bg-neutral-50 border-b border-neutral-100 text-[10px] uppercase font-black text-neutral-400 tracking-wider">
                     <th className="p-3">Calendar Date</th>
                     <th className="p-3">Logged By</th>
                     <th className="p-3 text-right">Action</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-50">
+                <tbody className="divide-y divide-neutral-50">
                   {historyChecklists.map((log) => {
                     return (
-                      <tr key={log.id} className="hover:bg-slate-50/50 transition-colors">
-                        <td className="p-3 font-bold text-gray-800">{log.date}</td>
-                        <td className="p-3 text-slate-500">
-                          <span className="font-bold text-slate-700">{log.technician_name}</span>{" "}
-                          <span className="text-[10px] text-slate-400 font-mono">({log.technician_id})</span>
+                      <tr key={log.id} className="hover:bg-neutral-50/50 transition-colors">
+                        <td className="p-3 font-bold text-neutral-800">{log.date}</td>
+                        <td className="p-3 text-neutral-500">
+                          <span className="font-bold text-neutral-700">{log.technician_name}</span>{" "}
+                          <span className="text-[10px] text-neutral-400 font-mono">({log.technician_id})</span>
                         </td>
                         <td className="p-3 text-right">
                           <button
                             onClick={() => setSelectedHistory(log)}
-                            className="px-3 py-1.5 rounded-lg border border-slate-200 text-[10px] font-black uppercase tracking-wider text-slate-600 hover:text-brand-500 hover:border-brand-100 hover:bg-brand-50/30 transition-all cursor-pointer"
+                            className="px-3 py-1.5 rounded-lg border border-neutral-200 text-[10px] font-black uppercase tracking-wider text-neutral-600 hover:text-brand-500 hover:border-brand-100 hover:bg-brand-50/30 transition-all cursor-pointer"
                           >
                             View &amp; Print
                           </button>
@@ -854,18 +902,27 @@ export const PrintableChecklist = forwardRef<HTMLDivElement, any>((props, ref) =
           onClose={() => setPadFor(null)}
           signerName={padFor === "ms" ? (msName || techName) : (spocName || undefined)}
           context={`Daily checklist · ${siteName} · ${date}`}
-          onConfirm={(sig) => {
-            if (padFor === "ms") {
+          onConfirm={async (sig) => {
+            const who = padFor;
+            setPadFor(null);
+            if (!who) return;
+
+            // A submitted checklist is signed in place; a new one carries the
+            // mark until the form is saved.
+            if (selectedHistory?.id) {
+              await signSavedChecklist(who, sig);
+              return;
+            }
+            if (who === "ms") {
               setMsSignatureImage(sig.dataUrl);
               setMsSignedAt(sig.signedAt);
               // Keep the text field meaningful for anything still reading it.
               if (!msSignature) setMsSignature(msName || techName);
-            } else if (padFor === "spoc") {
+            } else {
               setSpocSignatureImage(sig.dataUrl);
               setSpocSignedAt(sig.signedAt);
               if (!spocSignature) setSpocSignature(spocName);
             }
-            setPadFor(null);
           }}
         />
       </div>

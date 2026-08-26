@@ -39,6 +39,8 @@ import { FuelAnalytics } from "@/features/analytics/components/FuelAnalytics";
 import { UpsAnalytics } from "@/features/analytics/components/UpsAnalytics";
 import { ThermalAnalytics } from "@/features/analytics/components/ThermalAnalytics";
 import { IncidentAnalytics } from "@/features/analytics/components/IncidentAnalytics";
+import { CategoryDetail } from "@/features/analytics/components/CategoryDetail";
+import { TechnicianAnalytics } from "@/features/analytics/components/TechnicianAnalytics";
 import { CapacityLedger } from "@/features/analytics/components/CapacityLedger";
 
 // Redirect component to handle legacy/typo topology links
@@ -51,10 +53,10 @@ function TopologyRedirect() {
   }, [searchParams]);
 
   return (
-    <div className="flex items-center justify-center min-h-screen bg-[#0a0c10] text-[#64748b]">
+    <div className="flex items-center justify-center min-h-screen bg-neutral-950 text-neutral-500">
       <div className="flex flex-col items-center gap-2">
         <div className="w-6 h-6 rounded-full border-2 border-brand-500 border-t-transparent animate-spin" />
-        <span className="text-[10px] font-black uppercase tracking-widest text-slate-500">Redirecting to SCADA Topology...</span>
+        <span className="text-[10px] font-black uppercase tracking-widest text-neutral-500">Redirecting to SCADA Topology...</span>
       </div>
     </div>
   );
@@ -110,6 +112,12 @@ export default function App() {
               <Route path="thermal" element={<ThermalAnalytics />} />
               <Route path="capacity" element={<ErrorBoundary label="Capacity"><CapacityLedger /></ErrorBoundary>} />
               <Route path="incidents" element={<IncidentAnalytics />} />
+              <Route path="technicians" element={
+                <ErrorBoundary label="Technician activity"><TechnicianAnalytics /></ErrorBoundary>} />
+              {/* One route serves every category — the screens differ in which
+                  assets they cover, not in what a person wants to know. */}
+              <Route path="detail/:categoryId" element={
+                <ErrorBoundary label="Category detail"><CategoryDetail /></ErrorBoundary>} />
             </Route>
           </Route>
         </Routes>

@@ -74,10 +74,10 @@ export function AdminLayout() {
   // an unverified user, even for a frame.
   if (isLoading) {
     return (
-      <div className="h-screen w-full flex items-center justify-center bg-gray-50">
+      <div className="h-screen w-full flex items-center justify-center bg-neutral-50">
         <div className="flex flex-col items-center gap-3">
           <div className="w-8 h-8 rounded-full border-2 border-brand-500 border-t-transparent animate-spin" />
-          <span className="text-xs font-bold text-gray-400 uppercase tracking-widest">Verifying Admin Clearance...</span>
+          <span className="text-xs font-bold text-neutral-400 uppercase tracking-widest">Verifying Admin Clearance...</span>
         </div>
       </div>
     );
@@ -88,21 +88,21 @@ export function AdminLayout() {
   // (a revoked/demoted user could otherwise ride the cache for days).
   if (isOfflineFallback) {
     return (
-      <div className="h-screen w-full flex items-center justify-center bg-gray-50 p-6">
+      <div className="h-screen w-full flex items-center justify-center bg-neutral-50 p-6">
         <div className="max-w-sm text-center flex flex-col items-center gap-4">
           <div className="w-14 h-14 rounded-2xl bg-warn-50 border border-warn-200 flex items-center justify-center">
             <AlertTriangle size={26} className="text-warn-500" />
           </div>
           <div>
-            <h2 className="text-[15px] font-black text-gray-900 uppercase tracking-tight">You're Offline</h2>
-            <p className="text-[12px] font-semibold text-gray-500 mt-2 leading-relaxed">
+            <h2 className="text-[15px] font-black text-neutral-900 uppercase tracking-tight">You're Offline</h2>
+            <p className="text-[12px] font-semibold text-neutral-500 mt-2 leading-relaxed">
               The Admin Portal requires a live connection to verify your clearance.
               Reconnect to the network and try again.
             </p>
           </div>
           <button
             onClick={handleLogout}
-            className="px-5 py-2.5 rounded-xl bg-gray-900 text-white text-[11px] font-black uppercase tracking-wider hover:bg-gray-700 transition-all cursor-pointer"
+            className="px-5 py-2.5 rounded-xl bg-neutral-900 text-white text-[11px] font-black uppercase tracking-wider hover:bg-neutral-700 transition-all cursor-pointer"
           >
             Back to Login
           </button>
@@ -134,7 +134,7 @@ export function AdminLayout() {
           beyond the clip, so there's nothing to paginate). Zero effect
           on-screen, since the override only applies inside @media print. */}
       {/* ── Fixed Header ─────────────────────────────────────────────────── */}
-      <header className="flex-shrink-0 z-10 border-b border-gray-100 bg-white print:hidden">
+      <header className="flex-shrink-0 z-10 border-b border-neutral-100 bg-white print:hidden">
         <div className="flex items-center justify-between px-5 py-2.5">
 
           {/* Left: Hamburger + Logo */}
@@ -142,7 +142,7 @@ export function AdminLayout() {
             {/* Hamburger menu for mobile */}
             <button
               onClick={() => setIsDrawerOpen(true)}
-              className="lg:hidden p-2 -ml-2 rounded-xl text-gray-500 hover:text-gray-900 hover:bg-gray-100 transition-all cursor-pointer"
+              className="lg:hidden p-2 -ml-2 rounded-xl text-neutral-500 hover:text-neutral-900 hover:bg-neutral-100 transition-all cursor-pointer"
               aria-label="Open Menu"
             >
               <Menu size={20} />
@@ -151,10 +151,10 @@ export function AdminLayout() {
             <div className="flex items-center gap-2.5">
               <BrandMark size={32} />
               <div className="flex flex-col">
-                <span className="font-black text-[14px] leading-none text-gray-900 tracking-tight">
+                <span className="font-black text-[14px] leading-none text-neutral-900 tracking-tight">
                   <Wordmark />
                 </span>
-                <span className="text-[9px] font-black text-gray-400 uppercase tracking-widest leading-none mt-1">
+                <span className="text-[9px] font-black text-neutral-400 uppercase tracking-widest leading-none mt-1">
                   Admin Portal
                 </span>
               </div>
@@ -185,7 +185,7 @@ export function AdminLayout() {
             {/* Logout (Desktop Only) */}
             <button
               onClick={handleLogout}
-              className="hidden lg:flex items-center gap-1.5 text-[11px] font-bold text-gray-400 hover:text-brand-500 px-2.5 py-1.5 rounded-lg hover:bg-gray-100 transition-all cursor-pointer"
+              className="hidden lg:flex items-center gap-1.5 text-[11px] font-bold text-neutral-400 hover:text-brand-500 px-2.5 py-1.5 rounded-lg hover:bg-neutral-100 transition-all cursor-pointer"
               aria-label="Logout"
             >
               <LogOut size={13} />
@@ -220,11 +220,11 @@ export function AdminLayout() {
         }`}
       >
         {/* Drawer Header */}
-        <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100/50 bg-white/50">
+        <div className="flex items-center justify-between px-5 py-4 border-b border-neutral-100/50 bg-white/50">
           <div className="flex items-center gap-2.5">
             <BrandMark size={28} />
             <div className="flex flex-col">
-              <span className="font-black text-[13px] text-gray-900 tracking-tight leading-none">
+              <span className="font-black text-[13px] text-neutral-900 tracking-tight leading-none">
                 <Wordmark accentClassName="text-brand-500 font-black" />
               </span>
               {currentSite && (
@@ -236,7 +236,7 @@ export function AdminLayout() {
           </div>
           <button
             onClick={() => setIsDrawerOpen(false)}
-            className="p-1.5 rounded-xl text-gray-400 hover:text-gray-800 hover:bg-gray-100 transition-all cursor-pointer"
+            className="p-1.5 rounded-xl text-neutral-400 hover:text-neutral-800 hover:bg-neutral-100 transition-all cursor-pointer"
           >
             <X size={16} />
           </button>
@@ -254,8 +254,8 @@ export function AdminLayout() {
                 [
                   "relative flex items-center gap-3 px-4 py-3 rounded-xl text-[12px] font-black transition-all select-none border border-transparent",
                   isActive
-                    ? "bg-white/60 border-white/40 text-gray-900 shadow-sm backdrop-blur-md"
-                    : "text-gray-400 hover:text-gray-700 hover:bg-white/35",
+                    ? "bg-white/60 border-white/40 text-neutral-900 shadow-sm backdrop-blur-md"
+                    : "text-neutral-400 hover:text-neutral-700 hover:bg-white/35",
                 ].join(" ")
               }
             >
@@ -275,14 +275,14 @@ export function AdminLayout() {
         </nav>
 
         {/* Drawer Footer with Logout */}
-        <div className="p-4 border-t border-gray-100/50 bg-white/50 mt-auto">
+        <div className="p-4 border-t border-neutral-100/50 bg-white/50 mt-auto">
           <div className="flex items-center gap-2.5 mb-4 px-1.5">
             <div className="w-8 h-8 rounded-xl flex items-center justify-center text-white text-[11px] font-black flex-shrink-0 bg-brand-500">
               {initials}
             </div>
             <div className="min-w-0">
-              <p className="text-[10px] font-black text-gray-400 uppercase tracking-wider leading-none">Session Operator</p>
-              <p className="font-bold text-xs text-gray-800 truncate mt-1 leading-none">{name}</p>
+              <p className="text-[10px] font-black text-neutral-400 uppercase tracking-wider leading-none">Session Operator</p>
+              <p className="font-bold text-xs text-neutral-800 truncate mt-1 leading-none">{name}</p>
             </div>
           </div>
 
@@ -302,7 +302,7 @@ export function AdminLayout() {
           element's own overflow-y-auto would still clip on its own if left
           unset. print:p-0 avoids doubling up padding on top of whatever the
           printed page itself already applies. */}
-      <main className="flex-1 overflow-y-auto print:overflow-visible bg-gray-50/30 p-6 md:p-8 print:p-0">
+      <main className="flex-1 overflow-y-auto print:overflow-visible bg-neutral-50/30 p-6 md:p-8 print:p-0">
         <Outlet />
       </main>
     </div>

@@ -31,10 +31,10 @@ export function TechLayout() {
 
   if (isLoading) {
     return (
-      <div className="h-screen w-full flex items-center justify-center bg-gray-50">
+      <div className="h-screen w-full flex items-center justify-center bg-neutral-50">
         <div className="flex flex-col items-center gap-3">
           <div className="w-8 h-8 rounded-full border-2 border-brand-500 border-t-transparent animate-spin" />
-          <span className="text-xs font-bold text-gray-400 uppercase tracking-widest">Loading Field Session...</span>
+          <span className="text-xs font-bold text-neutral-400 uppercase tracking-widest">Loading Field Session...</span>
         </div>
       </div>
     );
@@ -53,16 +53,16 @@ export function TechLayout() {
   };
 
   return (
-    <div className="h-screen w-full flex flex-col bg-gray-50 overflow-hidden relative print:h-auto print:overflow-visible print:bg-white print:static">
+    <div className="h-screen w-full flex flex-col bg-neutral-50 overflow-hidden relative print:h-auto print:overflow-visible print:bg-white print:static">
       {/* Top Header */}
-      <header className="h-14 bg-white border-b border-gray-100 px-4 flex items-center justify-between shrink-0 z-10 print:hidden">
+      <header className="h-14 bg-white border-b border-neutral-100 px-4 flex items-center justify-between shrink-0 z-10 print:hidden">
         <div className="flex items-center gap-2.5">
           <BrandMark size={28} />
           <div className="flex flex-col">
-            <span className="text-[13px] font-black tracking-tight text-gray-900 leading-none">
+            <span className="text-[13px] font-black tracking-tight text-neutral-900 leading-none">
               <Wordmark />
             </span>
-            <span className="text-[9px] font-black text-gray-400 uppercase tracking-widest leading-none mt-1">
+            <span className="text-[9px] font-black text-neutral-400 uppercase tracking-widest leading-none mt-1">
               Field Portal
             </span>
           </div>
@@ -77,7 +77,7 @@ export function TechLayout() {
           {/* Logout Button */}
           <button 
             onClick={handleLogout}
-            className="p-2 text-gray-400 hover:text-brand-500 transition-colors cursor-pointer"
+            className="p-2 text-neutral-400 hover:text-brand-500 transition-colors cursor-pointer"
             title="Logout"
           >
             <LogOut size={18} />
@@ -98,13 +98,13 @@ export function TechLayout() {
       </main>
 
       {/* Fixed Bottom Navigation Bar */}
-      <nav className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 h-16 flex items-center justify-around px-2 z-[var(--z-appnav)] print:hidden">
+      <nav className="fixed bottom-0 left-0 right-0 bg-white border-t border-neutral-200 h-16 flex items-center justify-around px-2 z-[var(--z-appnav)] print:hidden">
         <NavLink
           to="/tech"
           end
           className={({ isActive }) =>
             `flex flex-col items-center justify-center flex-1 py-2 text-center transition-all ${
-              isActive ? "text-brand-500 font-bold scale-105" : "text-gray-400 hover:text-gray-600"
+              isActive ? "text-brand-500 font-bold scale-105" : "text-neutral-400 hover:text-neutral-600"
             }`
           }
         >
@@ -116,7 +116,7 @@ export function TechLayout() {
           to="/tech/readings"
           className={({ isActive }) =>
             `flex flex-col items-center justify-center flex-1 py-2 text-center transition-all ${
-              isActive ? "text-brand-500 font-bold scale-105" : "text-gray-400 hover:text-gray-600"
+              isActive ? "text-brand-500 font-bold scale-105" : "text-neutral-400 hover:text-neutral-600"
             }`
           }
         >
@@ -128,7 +128,7 @@ export function TechLayout() {
           to="/tech/jobs"
           className={({ isActive }) =>
             `flex flex-col items-center justify-center flex-1 py-2 text-center transition-all relative ${
-              isActive ? "text-brand-500 font-bold scale-105" : "text-gray-400 hover:text-gray-600"
+              isActive ? "text-brand-500 font-bold scale-105" : "text-neutral-400 hover:text-neutral-600"
             }`
           }
         >
@@ -140,7 +140,7 @@ export function TechLayout() {
           to="/tech/log"
           className={({ isActive }) =>
             `flex flex-col items-center justify-center flex-1 py-2 text-center transition-all ${
-              isActive ? "text-brand-500 font-bold scale-105" : "text-gray-400 hover:text-gray-600"
+              isActive ? "text-brand-500 font-bold scale-105" : "text-neutral-400 hover:text-neutral-600"
             }`
           }
         >
@@ -152,7 +152,7 @@ export function TechLayout() {
           to="/tech/incident"
           className={({ isActive }) =>
             `flex flex-col items-center justify-center flex-1 py-2 text-center transition-all ${
-              isActive ? "text-danger-500 font-bold scale-105" : "text-gray-400 hover:text-gray-600"
+              isActive ? "text-danger-500 font-bold scale-105" : "text-neutral-400 hover:text-neutral-600"
             }`
           }
         >
@@ -164,7 +164,7 @@ export function TechLayout() {
           to="/tech/handover"
           className={({ isActive }) =>
             `flex flex-col items-center justify-center flex-1 py-2 text-center transition-all ${
-              isActive ? "text-brand-500 font-bold scale-105" : "text-gray-400 hover:text-gray-600"
+              isActive ? "text-brand-500 font-bold scale-105" : "text-neutral-400 hover:text-neutral-600"
             }`
           }
         >

@@ -47,7 +47,7 @@ function Slot({ slot, placeholder }: { slot: SignatureSlot; placeholder: string 
     <div className="flex min-w-0 flex-1 flex-col">
       <div
         className={`flex h-20 items-end justify-center rounded-t-xl border border-b-0 px-3 pb-1 ${
-          slot.image ? "border-gray-200 bg-white" : "border-dashed border-gray-200 bg-gray-50/60"
+          slot.image ? "border-neutral-200 bg-white" : "border-dashed border-neutral-200 bg-neutral-50/60"
         }`}
       >
         {slot.image ? (
@@ -57,15 +57,15 @@ function Slot({ slot, placeholder }: { slot: SignatureSlot; placeholder: string 
             className="max-h-16 w-auto max-w-full object-contain"
           />
         ) : (
-          <span className="mb-4 text-[10px] font-bold uppercase tracking-wider text-gray-300">
+          <span className="mb-4 text-[10px] font-bold uppercase tracking-wider text-neutral-300">
             {placeholder}
           </span>
         )}
       </div>
-      <div className="rounded-b-xl border border-t-2 border-gray-200 border-t-gray-300 bg-white px-3 py-2">
-        <p className="font-mono text-[9px] uppercase tracking-widest text-gray-400">{slot.role}</p>
-        <p className="truncate text-[11px] font-black text-gray-800">{slot.name ?? "—"}</p>
-        <p className="font-mono text-[9px] text-gray-400">
+      <div className="rounded-b-xl border border-t-2 border-neutral-200 border-t-neutral-300 bg-white px-3 py-2">
+        <p className="font-mono text-[9px] uppercase tracking-widest text-neutral-400">{slot.role}</p>
+        <p className="truncate text-[11px] font-black text-neutral-800">{slot.name ?? "—"}</p>
+        <p className="font-mono text-[9px] text-neutral-400">
           {slot.signedAt
             ? new Date(slot.signedAt).toLocaleString(undefined, {
                 year: "numeric", month: "short", day: "numeric",
@@ -89,7 +89,7 @@ export function DocumentSignatures({
 
   return (
     <div className={className}>
-      <p className="mb-2 text-[10px] font-black uppercase tracking-widest text-gray-400">
+      <p className="mb-2 text-[10px] font-black uppercase tracking-widest text-neutral-400">
         Signatures
       </p>
 
@@ -103,7 +103,7 @@ export function DocumentSignatures({
           type="button"
           onClick={() => setPadOpen(true)}
           disabled={busy}
-          className="mt-3 flex w-full items-center justify-center gap-2 rounded-xl bg-gray-900 px-5 py-3 text-[11px] font-black uppercase tracking-wider text-white transition-colors hover:bg-gray-700 disabled:bg-gray-200 disabled:text-gray-400"
+          className="mt-3 flex w-full items-center justify-center gap-2 rounded-xl bg-neutral-900 px-5 py-3 text-[11px] font-black uppercase tracking-wider text-white transition-colors hover:bg-neutral-700 disabled:bg-neutral-200 disabled:text-neutral-400"
         >
           <PenLine size={14} /> {busy ? "Saving..." : "Countersign this document"}
         </button>

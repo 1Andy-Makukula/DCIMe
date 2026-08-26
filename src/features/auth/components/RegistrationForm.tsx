@@ -95,7 +95,7 @@ export function RegistrationForm({ onClose, onSaveSuccess }: RegistrationFormPro
       <div className="flex items-center justify-center p-12 min-h-[300px]">
         <div className="flex flex-col items-center gap-3">
           <div className="w-8 h-8 rounded-full border-2 border-brand-500 border-t-transparent animate-spin" />
-          <span className="text-xs font-bold text-gray-400 uppercase tracking-widest">Verifying IAM Clearance...</span>
+          <span className="text-xs font-bold text-neutral-400 uppercase tracking-widest">Verifying IAM Clearance...</span>
         </div>
       </div>
     );
@@ -109,12 +109,12 @@ export function RegistrationForm({ onClose, onSaveSuccess }: RegistrationFormPro
           <ShieldAlert size={32} />
         </div>
         <div className="space-y-1">
-          <h2 className="text-lg font-black text-gray-900 uppercase tracking-tight">Clearance Rejected</h2>
-          <p className="text-xs font-semibold text-gray-400">
+          <h2 className="text-lg font-black text-neutral-900 uppercase tracking-tight">Clearance Rejected</h2>
+          <p className="text-xs font-semibold text-neutral-400">
             This module requires Layer 5 (NOC Administrator) authorization.
           </p>
         </div>
-        <div className="p-4 bg-gray-50 border border-gray-100 rounded-2xl text-xs font-semibold text-gray-600 leading-relaxed">
+        <div className="p-4 bg-neutral-50 border border-neutral-100 rounded-2xl text-xs font-semibold text-neutral-600 leading-relaxed">
           Your current session is associated with a restricted technician role. If this is an error, please contact the lead security officer.
         </div>
       </div>
@@ -195,15 +195,15 @@ export function RegistrationForm({ onClose, onSaveSuccess }: RegistrationFormPro
   };
 
   return (
-    <div className="max-w-xl mx-auto bg-white border border-gray-100 shadow-sm rounded-3xl overflow-hidden">
+    <div className="max-w-xl mx-auto bg-white border border-neutral-100 shadow-sm rounded-3xl overflow-hidden">
       
       {/* Header */}
-      <div className="px-6 py-5 border-b border-gray-100 bg-gray-50/50 flex items-center justify-between">
+      <div className="px-6 py-5 border-b border-neutral-100 bg-neutral-50/50 flex items-center justify-between">
         <div>
-          <div className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-0.5">
+          <div className="text-[10px] font-black text-neutral-400 uppercase tracking-widest mb-0.5">
             IAM · Identity Access Provisioning
           </div>
-          <h2 className="text-[16px] font-black text-gray-900 leading-none">
+          <h2 className="text-[16px] font-black text-neutral-900 leading-none">
             Register New Employee
           </h2>
 
@@ -212,7 +212,7 @@ export function RegistrationForm({ onClose, onSaveSuccess }: RegistrationFormPro
           <button
             type="button"
             onClick={onClose}
-            className="p-2 rounded-xl text-gray-400 hover:text-gray-700 hover:bg-gray-100 transition-all cursor-pointer"
+            className="p-2 rounded-xl text-neutral-400 hover:text-neutral-700 hover:bg-neutral-100 transition-all cursor-pointer"
           >
             <X size={16} />
           </button>
@@ -225,35 +225,35 @@ export function RegistrationForm({ onClose, onSaveSuccess }: RegistrationFormPro
         {/* Name & Badge ID */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
-            <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5">
+            <label className="block text-[10px] font-black text-neutral-400 uppercase tracking-widest mb-1.5">
               Full Name
             </label>
             <div className="relative">
-              <User size={13} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400" />
+              <User size={13} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-neutral-400" />
               <input
                 type="text"
                 required
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 placeholder="e.g. Ndabane Anderson M."
-                className="w-full pl-9 pr-4 py-3 rounded-xl bg-gray-50 border border-gray-200 text-[12px] font-semibold text-gray-900 placeholder-gray-400 focus:outline-none focus:border-gray-400 transition-all"
+                className="w-full pl-9 pr-4 py-3 rounded-xl bg-neutral-50 border border-neutral-200 text-[12px] font-semibold text-neutral-900 placeholder-neutral-400 focus:outline-none focus:border-neutral-400 transition-all"
               />
             </div>
           </div>
 
           <div>
-            <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5">
+            <label className="block text-[10px] font-black text-neutral-400 uppercase tracking-widest mb-1.5">
               Employee / Badge ID
             </label>
             <div className="relative">
-              <Key size={13} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400" />
+              <Key size={13} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-neutral-400" />
               <input
                 type="text"
                 required
                 value={badgeId}
                 onChange={(e) => setBadgeId(e.target.value)}
                 placeholder="e.g. ZM-4891"
-                className="w-full pl-9 pr-4 py-3 rounded-xl bg-gray-50 border border-gray-200 text-[12px] font-semibold text-gray-900 placeholder-gray-400 focus:outline-none focus:border-gray-400 transition-all"
+                className="w-full pl-9 pr-4 py-3 rounded-xl bg-neutral-50 border border-neutral-200 text-[12px] font-semibold text-neutral-900 placeholder-neutral-400 focus:outline-none focus:border-neutral-400 transition-all"
               />
             </div>
           </div>
@@ -262,40 +262,40 @@ export function RegistrationForm({ onClose, onSaveSuccess }: RegistrationFormPro
         {/* Email & Password */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
-            <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5">
+            <label className="block text-[10px] font-black text-neutral-400 uppercase tracking-widest mb-1.5">
               Email Address
             </label>
             <div className="relative">
-              <Mail size={13} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400" />
+              <Mail size={13} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-neutral-400" />
               <input
                 type="email"
                 required
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder={`e.g. anderson.m@${BRAND_EMAIL_DOMAIN}`}
-                className="w-full pl-9 pr-4 py-3 rounded-xl bg-gray-50 border border-gray-200 text-[12px] font-semibold text-gray-900 placeholder-gray-400 focus:outline-none focus:border-gray-400 transition-all"
+                className="w-full pl-9 pr-4 py-3 rounded-xl bg-neutral-50 border border-neutral-200 text-[12px] font-semibold text-neutral-900 placeholder-neutral-400 focus:outline-none focus:border-neutral-400 transition-all"
               />
             </div>
           </div>
 
           <div>
-            <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5">
+            <label className="block text-[10px] font-black text-neutral-400 uppercase tracking-widest mb-1.5">
               Secure Password
             </label>
             <div className="relative">
-              <Lock size={13} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400" />
+              <Lock size={13} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-neutral-400" />
               <input
                 type={showPw ? "text" : "password"}
                 required
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="••••••••"
-                className="w-full pl-9 pr-11 py-3 rounded-xl bg-gray-50 border border-gray-200 text-[12px] font-semibold text-gray-900 placeholder-gray-400 focus:outline-none focus:border-gray-400 transition-all"
+                className="w-full pl-9 pr-11 py-3 rounded-xl bg-neutral-50 border border-neutral-200 text-[12px] font-semibold text-neutral-900 placeholder-neutral-400 focus:outline-none focus:border-neutral-400 transition-all"
               />
               <button
                 type="button"
                 onClick={() => setShowPw(!showPw)}
-                className="absolute right-3.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-700 transition-colors"
+                className="absolute right-3.5 top-1/2 -translate-y-1/2 text-neutral-400 hover:text-neutral-700 transition-colors"
               >
                 {showPw ? <EyeOff size={14} /> : <Eye size={14} />}
               </button>
@@ -306,28 +306,28 @@ export function RegistrationForm({ onClose, onSaveSuccess }: RegistrationFormPro
         {/* Phone & Site */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
-            <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5">
+            <label className="block text-[10px] font-black text-neutral-400 uppercase tracking-widest mb-1.5">
               Phone Number
             </label>
             <div className="relative">
-              <Phone size={13} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400" />
+              <Phone size={13} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-neutral-400" />
               <input
                 type="text"
                 required
                 value={phone}
                 onChange={(e) => setPhone(e.target.value)}
                 placeholder="e.g. +260 97 123 4567"
-                className="w-full pl-9 pr-4 py-3 rounded-xl bg-gray-50 border border-gray-200 text-[12px] font-semibold text-gray-900 placeholder-gray-400 focus:outline-none focus:border-gray-400 transition-all"
+                className="w-full pl-9 pr-4 py-3 rounded-xl bg-neutral-50 border border-neutral-200 text-[12px] font-semibold text-neutral-900 placeholder-neutral-400 focus:outline-none focus:border-neutral-400 transition-all"
               />
             </div>
           </div>
 
           <div>
-            <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5">
+            <label className="block text-[10px] font-black text-neutral-400 uppercase tracking-widest mb-1.5">
               Primary Site Location
             </label>
             <div className="relative">
-              <MapPin size={13} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400 z-10" />
+              <MapPin size={13} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-neutral-400 z-10" />
               <Select 
                 value={selectedSiteUuid} 
                 onValueChange={(uuid) => {
@@ -338,15 +338,15 @@ export function RegistrationForm({ onClose, onSaveSuccess }: RegistrationFormPro
                   }
                 }}
               >
-                <SelectTrigger className="w-full h-[46px] pl-9 bg-gray-50 border border-gray-200 rounded-xl text-[12px] font-semibold text-gray-900 focus:ring-1 focus:ring-gray-450 focus:border-gray-450">
+                <SelectTrigger className="w-full h-[46px] pl-9 bg-neutral-50 border border-neutral-200 rounded-xl text-[12px] font-semibold text-neutral-900 focus:ring-1 focus:ring-neutral-450 focus:border-neutral-450">
                   <SelectValue />
                 </SelectTrigger>
-                <SelectContent className="bg-white border border-gray-100 rounded-xl shadow-lg z-[var(--z-menu)]">
+                <SelectContent className="bg-white border border-neutral-100 rounded-xl shadow-lg z-[var(--z-menu)]">
                   {sites.map((s) => (
                     <SelectItem 
                       key={s.id} 
                       value={s.id} 
-                      className="text-[12px] font-semibold text-gray-900 cursor-pointer"
+                      className="text-[12px] font-semibold text-neutral-900 cursor-pointer"
                     >
                       {siteLabel(s.site_name ?? s.site_code)}
                     </SelectItem>
@@ -359,7 +359,7 @@ export function RegistrationForm({ onClose, onSaveSuccess }: RegistrationFormPro
 
         {/* Role Select */}
         <div>
-          <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5">
+          <label className="block text-[10px] font-black text-neutral-400 uppercase tracking-widest mb-1.5">
             System Authorization Role
           </label>
           <div className="grid grid-cols-2 gap-4">
@@ -369,7 +369,7 @@ export function RegistrationForm({ onClose, onSaveSuccess }: RegistrationFormPro
               className={`py-3 rounded-xl text-center text-xs font-black uppercase tracking-wider transition-all border cursor-pointer ${
                 role === "FIELD_TECH"
                   ? "bg-brand-50 border-brand-500 text-brand-700"
-                  : "bg-gray-50 border-gray-200 text-gray-500 hover:bg-gray-100"
+                  : "bg-neutral-50 border-neutral-200 text-neutral-500 hover:bg-neutral-100"
               }`}
             >
               Field Tech
@@ -379,8 +379,8 @@ export function RegistrationForm({ onClose, onSaveSuccess }: RegistrationFormPro
               onClick={() => setRole("ADMIN")}
               className={`py-3 rounded-xl text-center text-xs font-black uppercase tracking-wider transition-all border cursor-pointer ${
                 role === "ADMIN"
-                  ? "bg-purple-50 border-purple-500 text-purple-700"
-                  : "bg-gray-50 border-gray-200 text-gray-500 hover:bg-gray-100"
+                  ? "bg-series-5/10 border-series-5 text-series-5"
+                  : "bg-neutral-50 border-neutral-200 text-neutral-500 hover:bg-neutral-100"
               }`}
             >
               NOC Admin (L5)
@@ -404,12 +404,12 @@ export function RegistrationForm({ onClose, onSaveSuccess }: RegistrationFormPro
         )}
 
         {/* Submit */}
-        <div className="flex items-center justify-end gap-2 pt-2 border-t border-gray-100">
+        <div className="flex items-center justify-end gap-2 pt-2 border-t border-neutral-100">
           {onClose && (
             <button
               type="button"
               onClick={onClose}
-              className="px-5 py-3 rounded-xl text-[11px] font-black text-gray-500 hover:bg-gray-100 transition-all uppercase tracking-wider cursor-pointer"
+              className="px-5 py-3 rounded-xl text-[11px] font-black text-neutral-500 hover:bg-neutral-100 transition-all uppercase tracking-wider cursor-pointer"
             >
               Cancel
             </button>
@@ -417,7 +417,7 @@ export function RegistrationForm({ onClose, onSaveSuccess }: RegistrationFormPro
           <button
             type="submit"
             disabled={isRegistering || !selectedSiteUuid}
-            className="flex items-center gap-2 px-6 py-3 rounded-xl bg-gray-900 text-white text-[12px] font-black uppercase tracking-wider hover:bg-gray-700 active:scale-[0.98] transition-all disabled:opacity-50 cursor-pointer shadow-lg shadow-gray-900/10"
+            className="flex items-center gap-2 px-6 py-3 rounded-xl bg-neutral-900 text-white text-[12px] font-black uppercase tracking-wider hover:bg-neutral-700 active:scale-[0.98] transition-all disabled:opacity-50 cursor-pointer shadow-lg shadow-neutral-900/10"
           >
             <UserPlus size={14} />
             {isRegistering ? "Provisioning..." : "Provision Account"}

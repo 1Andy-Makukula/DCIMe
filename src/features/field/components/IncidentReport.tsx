@@ -482,7 +482,7 @@ export function IncidentReport() {
     const hasRemarks = remarks.length > 0;
 
     if (!hasVisits && !hasRemarks) {
-      return <p className="text-[10px] text-gray-400 italic pl-1">No comments or visit logs recorded yet.</p>;
+      return <p className="text-[10px] text-neutral-400 italic pl-1">No comments or visit logs recorded yet.</p>;
     }
 
     return (
@@ -501,9 +501,9 @@ export function IncidentReport() {
                     <span className="uppercase tracking-wider">Site Visit</span>
                     <span className="font-mono">{formatDate(cmt.timestamp)}</span>
                   </div>
-                  <p className="text-xs text-slate-700 font-semibold leading-relaxed">{cmt.comment_text}</p>
+                  <p className="text-xs text-neutral-700 font-semibold leading-relaxed">{cmt.comment_text}</p>
                   {cmt.photo_url && (
-                    <div className="mt-1.5 max-w-[140px] rounded-xl overflow-hidden border border-slate-200 shadow-sm">
+                    <div className="mt-1.5 max-w-[140px] rounded-xl overflow-hidden border border-neutral-200 shadow-sm">
                       <img src={cmt.photo_url} alt="Visit Evidence" className="w-full h-auto object-cover" />
                     </div>
                   )}
@@ -516,13 +516,13 @@ export function IncidentReport() {
         {/* Technician Remarks & Resolution Details */}
         {hasRemarks && (
           <div className="space-y-2">
-            <h4 className="text-[9px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-1.5 bg-slate-50 w-fit px-2 py-0.5 rounded-md border border-slate-200">
+            <h4 className="text-[9px] font-black text-neutral-400 uppercase tracking-widest flex items-center gap-1.5 bg-neutral-50 w-fit px-2 py-0.5 rounded-md border border-neutral-200">
               <span>📝 Shift Remarks & Fixes ({remarks.length})</span>
             </h4>
-            <div className="relative pl-3.5 border-l border-slate-200/60 space-y-3.5 ml-1.5">
+            <div className="relative pl-3.5 border-l border-neutral-200/60 space-y-3.5 ml-1.5">
               {remarks.map((cmt: any, idx: number) => (
                 <div key={idx} className="relative space-y-1">
-                  <div className="absolute -left-[22px] top-1.5 w-2.5 h-2.5 rounded-full bg-slate-350 border-2 border-white" />
+                  <div className="absolute -left-[22px] top-1.5 w-2.5 h-2.5 rounded-full bg-neutral-350 border-2 border-white" />
                   <div className="flex items-center justify-between gap-2">
                     <span className={`text-[8px] font-black uppercase tracking-wider px-1.5 py-0.2 rounded ${cmt.type === "correction"
                         ? "bg-danger-50 text-danger-600 border border-danger-100"
@@ -532,11 +532,11 @@ export function IncidentReport() {
                       }`}>
                       {cmt.type.replace(/_/g, " ")}
                     </span>
-                    <span className="text-[8px] font-mono text-gray-400">{formatDate(cmt.timestamp)}</span>
+                    <span className="text-[8px] font-mono text-neutral-400">{formatDate(cmt.timestamp)}</span>
                   </div>
-                  <p className="text-xs text-slate-700 font-semibold leading-relaxed">{cmt.comment_text}</p>
+                  <p className="text-xs text-neutral-700 font-semibold leading-relaxed">{cmt.comment_text}</p>
                   {cmt.photo_url && (
-                    <div className="mt-1.5 max-w-[140px] rounded-xl overflow-hidden border border-slate-200 shadow-sm">
+                    <div className="mt-1.5 max-w-[140px] rounded-xl overflow-hidden border border-neutral-200 shadow-sm">
                       <img src={cmt.photo_url} alt="Resolution Evidence" className="w-full h-auto object-cover" />
                     </div>
                   )}
@@ -567,30 +567,30 @@ export function IncidentReport() {
 
   if (isSuccess) {
     return (
-      <div className="max-w-md mx-auto bg-white rounded-3xl border border-gray-100 shadow-sm p-6 text-center space-y-6 animate-fade-in">
+      <div className="max-w-md mx-auto bg-white rounded-3xl border border-neutral-100 shadow-sm p-6 text-center space-y-6 animate-fade-in">
         <div className="w-20 h-20 bg-ok-50 rounded-full flex items-center justify-center mx-auto text-ok-500 border border-ok-100">
           <CheckCircle2 size={40} className="animate-bounce" />
         </div>
 
         <div className="space-y-2">
-          <h1 className="text-xl font-black text-gray-900">Incident Dispatched</h1>
-          <p className="text-sm text-gray-500 px-4">
+          <h1 className="text-xl font-black text-neutral-900">Incident Dispatched</h1>
+          <p className="text-sm text-neutral-500 px-4">
             The NOC has been alerted. Ticket #{ticketNumber} has been created and logged in the tracking system.
           </p>
         </div>
 
-        <div className="bg-gray-50 rounded-2xl p-4 text-left border border-gray-100 font-mono text-xs space-y-2">
+        <div className="bg-neutral-50 rounded-2xl p-4 text-left border border-neutral-100 font-mono text-xs space-y-2">
           <div className="flex justify-between">
-            <span className="text-gray-400">Asset:</span>
-            <span className="font-bold text-gray-800">{asset}</span>
+            <span className="text-neutral-400">Asset:</span>
+            <span className="font-bold text-neutral-800">{asset}</span>
           </div>
           <div className="flex justify-between">
-            <span className="text-gray-400">Severity:</span>
+            <span className="text-neutral-400">Severity:</span>
             <span className="font-bold text-danger-600 capitalize">{severity}</span>
           </div>
           {photo && (
             <div className="flex justify-between">
-              <span className="text-gray-400">Evidence:</span>
+              <span className="text-neutral-400">Evidence:</span>
               <span className="text-ok-600 font-bold">Attached</span>
             </div>
           )}
@@ -603,7 +603,7 @@ export function IncidentReport() {
             setPhoto(null);
             setActiveTab("history");
           }}
-          className="w-full py-4 bg-gray-900 text-white font-bold rounded-2xl text-sm uppercase tracking-wide active:scale-[0.98] transition-all"
+          className="w-full py-4 bg-neutral-900 text-white font-bold rounded-2xl text-sm uppercase tracking-wide active:scale-[0.98] transition-all"
         >
           View in My History
         </button>
@@ -618,7 +618,7 @@ export function IncidentReport() {
         <button
           type="button"
           onClick={() => navigate("/tech")}
-          className="inline-flex items-center gap-2 py-3 px-4 rounded-xl bg-gray-50 border border-gray-200 text-xs font-bold text-gray-600 hover:text-brand-600 active:scale-[0.98] transition-all cursor-pointer"
+          className="inline-flex items-center gap-2 py-3 px-4 rounded-xl bg-neutral-50 border border-neutral-200 text-xs font-bold text-neutral-600 hover:text-brand-600 active:scale-[0.98] transition-all cursor-pointer"
         >
           <ArrowLeft size={14} />
           <span>← Back</span>
@@ -626,12 +626,12 @@ export function IncidentReport() {
       </div>
 
       {/* Segmented Tab Controls */}
-      <div className="bg-white border border-gray-100 rounded-2xl p-1.5 flex shadow-sm gap-1">
+      <div className="bg-white border border-neutral-100 rounded-2xl p-1.5 flex shadow-sm gap-1">
         <button
           onClick={() => { setActiveTab("report"); setSelectedIncidentId(null); setActiveAction(null); }}
           className={`flex-1 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all flex items-center justify-center gap-1.5 ${activeTab === "report"
               ? "bg-danger-500 text-white shadow-sm shadow-danger-500/10"
-              : "text-gray-400 hover:text-gray-600"
+              : "text-neutral-400 hover:text-neutral-600"
             }`}
         >
           <PlusCircle size={12} />
@@ -641,7 +641,7 @@ export function IncidentReport() {
           onClick={() => { setActiveTab("contractor"); setSelectedIncidentId(null); setActiveAction(null); }}
           className={`flex-1 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all flex items-center justify-center gap-1.5 ${activeTab === "contractor"
               ? "bg-danger-500 text-white shadow-sm shadow-danger-500/10"
-              : "text-gray-400 hover:text-gray-600"
+              : "text-neutral-400 hover:text-neutral-600"
             }`}
         >
           <FileText size={12} />
@@ -651,7 +651,7 @@ export function IncidentReport() {
           onClick={() => { setActiveTab("history"); setSelectedIncidentId(null); setActiveAction(null); }}
           className={`flex-1 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all flex items-center justify-center gap-1.5 ${activeTab === "history"
               ? "bg-danger-500 text-white shadow-sm shadow-danger-500/10"
-              : "text-gray-400 hover:text-gray-600"
+              : "text-neutral-400 hover:text-neutral-600"
             }`}
         >
           <History size={12} />
@@ -663,11 +663,11 @@ export function IncidentReport() {
       {activeTab === "report" && (
         <>
           <div className="px-1">
-            <h1 className="text-xl font-black text-gray-900 tracking-tight">Report Incident</h1>
-            <p className="text-xs text-gray-500 mt-0.5">Instantly notify the NOC of a hardware fault.</p>
+            <h1 className="text-xl font-black text-neutral-900 tracking-tight">Report Incident</h1>
+            <p className="text-xs text-neutral-500 mt-0.5">Instantly notify the NOC of a hardware fault.</p>
           </div>
 
-          <form onSubmit={handleSubmit} className="bg-white rounded-3xl border border-gray-100 shadow-sm p-5 flex flex-col gap-6">
+          <form onSubmit={handleSubmit} className="bg-white rounded-3xl border border-neutral-100 shadow-sm p-5 flex flex-col gap-6">
             {/* Hidden Input for Camera Capture */}
             <input
               type="file"
@@ -680,25 +680,25 @@ export function IncidentReport() {
 
             {/* Field 1: Asset Selector */}
             <div className="space-y-2">
-              <label className="text-xs font-black text-gray-400 uppercase tracking-widest block">
+              <label className="text-xs font-black text-neutral-400 uppercase tracking-widest block">
                 Affected Asset
               </label>
               <Select value={asset} onValueChange={setAsset}>
-                <SelectTrigger className="w-full h-12 bg-gray-50 border border-gray-200 rounded-2xl text-sm font-semibold text-gray-800 focus:ring-1 focus:ring-brand-500/20 focus:border-brand-500">
+                <SelectTrigger className="w-full h-12 bg-neutral-50 border border-neutral-200 rounded-2xl text-sm font-semibold text-neutral-800 focus:ring-1 focus:ring-brand-500/20 focus:border-brand-500">
                   <SelectValue />
                 </SelectTrigger>
-                <SelectContent className="bg-white border border-gray-100 rounded-2xl shadow-lg z-[var(--z-menu)]">
+                <SelectContent className="bg-white border border-neutral-100 rounded-2xl shadow-lg z-[var(--z-menu)]">
                   {isLoadingEquip ? (
-                    <SelectItem value="loading" disabled className="text-xs font-semibold text-gray-400">
+                    <SelectItem value="loading" disabled className="text-xs font-semibold text-neutral-400">
                       Loading equipment...
                     </SelectItem>
                   ) : equipmentList.length === 0 ? (
-                    <SelectItem value="empty" disabled className="text-xs font-semibold text-gray-400">
+                    <SelectItem value="empty" disabled className="text-xs font-semibold text-neutral-400">
                       No active equipment found
                     </SelectItem>
                   ) : (
                     equipmentList.map((a) => (
-                      <SelectItem key={a.value} value={a.value} className="text-xs font-semibold text-gray-800 cursor-pointer">
+                      <SelectItem key={a.value} value={a.value} className="text-xs font-semibold text-neutral-800 cursor-pointer">
                         {a.label}
                       </SelectItem>
                     ))
@@ -709,7 +709,7 @@ export function IncidentReport() {
 
             {/* Field 2: Severity Toggle */}
             <div className="space-y-2">
-              <label className="text-xs font-black text-gray-400 uppercase tracking-widest block">
+              <label className="text-xs font-black text-neutral-400 uppercase tracking-widest block">
                 Incident Severity
               </label>
               <div className="grid grid-cols-3 gap-2.5">
@@ -724,7 +724,7 @@ export function IncidentReport() {
                           : sev === "medium"
                             ? "bg-warn-50 border-warn-200 text-warn-700 font-bold shadow-sm"
                             : "bg-info-50 border-info-200 text-info-700 font-bold shadow-sm"
-                        : "bg-white border-gray-200 text-gray-400 font-semibold"
+                        : "bg-white border-neutral-200 text-neutral-400 font-semibold"
                       }`}
                   >
                     <span className="text-xs uppercase tracking-wider">{sev}</span>
@@ -735,26 +735,26 @@ export function IncidentReport() {
 
             {/* Field 2.5: Occurrence Datetime */}
             <div className="space-y-2">
-              <label className="text-xs font-black text-gray-400 uppercase tracking-widest block">
+              <label className="text-xs font-black text-neutral-400 uppercase tracking-widest block">
                 Date & Time of Occurrence
               </label>
               <input
                 type="datetime-local"
                 value={occurredAt}
                 onChange={(e) => setOccurredAt(e.target.value)}
-                className="w-full p-4 rounded-2xl bg-gray-50 border border-gray-200 text-sm font-semibold text-gray-900 focus:outline-none focus:border-danger-500 transition-colors"
+                className="w-full p-4 rounded-2xl bg-neutral-50 border border-neutral-200 text-sm font-semibold text-neutral-900 focus:outline-none focus:border-danger-500 transition-colors"
                 required
               />
             </div>
 
             {/* Field 3: Photo Evidence */}
             <div className="space-y-2">
-              <label className="text-xs font-black text-gray-400 uppercase tracking-widest block">
+              <label className="text-xs font-black text-neutral-400 uppercase tracking-widest block">
                 Photo Evidence
               </label>
               <div
                 onClick={handlePhotoUpload}
-                className={`h-32 bg-gray-50 border-2 border-dashed rounded-2xl flex flex-col items-center justify-center text-gray-500 cursor-pointer active:bg-gray-100 transition-colors p-0 relative overflow-hidden ${photo ? "border-ok-400" : "border-gray-200"
+                className={`h-32 bg-neutral-50 border-2 border-dashed rounded-2xl flex flex-col items-center justify-center text-neutral-500 cursor-pointer active:bg-neutral-100 transition-colors p-0 relative overflow-hidden ${photo ? "border-ok-400" : "border-neutral-200"
                   }`}
               >
                 {photo ? (
@@ -778,10 +778,10 @@ export function IncidentReport() {
                   </div>
                 ) : (
                   <div className="flex flex-col items-center justify-center space-y-1.5 text-center px-4">
-                    <Camera size={24} className="text-gray-400" />
+                    <Camera size={24} className="text-neutral-400" />
                     <div>
-                      <span className="text-xs font-bold text-gray-700 block">Tap to take photo</span>
-                      <span className="text-[10px] text-gray-400">or upload from device</span>
+                      <span className="text-xs font-bold text-neutral-700 block">Tap to take photo</span>
+                      <span className="text-[10px] text-neutral-400">or upload from device</span>
                     </div>
                   </div>
                 )}
@@ -790,7 +790,7 @@ export function IncidentReport() {
 
             {/* Field 4: Incident Notes */}
             <div className="space-y-2">
-              <label className="text-xs font-black text-gray-400 uppercase tracking-widest block">
+              <label className="text-xs font-black text-neutral-400 uppercase tracking-widest block">
                 Incident Notes
               </label>
               <textarea
@@ -798,17 +798,17 @@ export function IncidentReport() {
                 value={notes}
                 onChange={(e) => setNotes(e.target.value)}
                 placeholder="Type observations (e.g. leaking coolant, strange hum, indicator red, etc.)"
-                className="w-full p-4 rounded-2xl bg-gray-50 border border-gray-200 text-sm font-semibold text-gray-800 placeholder-gray-400 focus:outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500 resize-none transition-colors"
+                className="w-full p-4 rounded-2xl bg-neutral-50 border border-neutral-200 text-sm font-semibold text-neutral-800 placeholder-neutral-400 focus:outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500 resize-none transition-colors"
               />
             </div>
 
             {/* Sticky/Fixed Bottom Action Container */}
-            <div className="fixed bottom-16 left-0 right-0 p-4 bg-white/85 backdrop-blur-lg border-t border-gray-100 z-40 max-w-md mx-auto flex justify-center shadow-lg rounded-t-3xl">
+            <div className="fixed bottom-16 left-0 right-0 p-4 bg-white/85 backdrop-blur-lg border-t border-neutral-100 z-40 max-w-md mx-auto flex justify-center shadow-lg rounded-t-3xl">
               <button
                 type="submit"
                 disabled={isSubmitting}
                 className={`w-full py-4 rounded-2xl text-white font-black text-sm tracking-widest uppercase transition-all shadow-lg flex items-center justify-center gap-2 ${isSubmitting
-                    ? "bg-gray-400 shadow-none cursor-not-allowed"
+                    ? "bg-neutral-400 shadow-none cursor-not-allowed"
                     : severity === "critical"
                       ? "bg-danger-600 hover:bg-danger-700 shadow-danger-600/10 active:scale-[0.98]"
                       : severity === "medium"
@@ -834,19 +834,19 @@ export function IncidentReport() {
       {activeTab === "contractor" && (
         <div className="space-y-6">
           <div className="px-1">
-            <h1 className="text-xl font-black text-gray-900 tracking-tight">Contractor Visits</h1>
-            <p className="text-xs text-gray-500 mt-0.5">Log an inspection, or formally close a fault after a repair.</p>
+            <h1 className="text-xl font-black text-neutral-900 tracking-tight">Contractor Visits</h1>
+            <p className="text-xs text-neutral-500 mt-0.5">Log an inspection, or formally close a fault after a repair.</p>
           </div>
 
           {/* Workflow selector — inspections and repairs are separate actions.
               Logging that a contractor was on site must never imply a fix. */}
-          <div className="grid grid-cols-2 gap-2 bg-gray-100 p-1 rounded-2xl border border-gray-200/70">
+          <div className="grid grid-cols-2 gap-2 bg-neutral-100 p-1 rounded-2xl border border-neutral-200/70">
             <button
               type="button"
               onClick={() => setContractorMode("inspection")}
               className={`py-3 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all cursor-pointer flex flex-col items-center gap-1 ${contractorMode === "inspection"
-                  ? "bg-white text-slate-900 shadow-sm"
-                  : "text-gray-500 hover:text-gray-700"
+                  ? "bg-white text-neutral-900 shadow-sm"
+                  : "text-neutral-500 hover:text-neutral-700"
                 }`}
             >
               <Search size={14} />
@@ -857,7 +857,7 @@ export function IncidentReport() {
               onClick={() => setContractorMode("resolve")}
               className={`py-3 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all cursor-pointer flex flex-col items-center gap-1 ${contractorMode === "resolve"
                   ? "bg-white text-ok-700 shadow-sm"
-                  : "text-gray-500 hover:text-gray-700"
+                  : "text-neutral-500 hover:text-neutral-700"
                 }`}
             >
               <Wrench size={14} />
@@ -868,11 +868,11 @@ export function IncidentReport() {
           {contractorMode === "inspection" && (
           <form
             onSubmit={handleLogInspection}
-            className="bg-white rounded-3xl border border-gray-100 shadow-sm p-5 flex flex-col gap-6 animate-fade-in"
+            className="bg-white rounded-3xl border border-neutral-100 shadow-sm p-5 flex flex-col gap-6 animate-fade-in"
           >
-            <div className="flex items-center gap-2 border-b border-gray-50 pb-3">
-              <span className="w-1.5 h-6 bg-slate-900 rounded-full" />
-              <span className="text-xs font-black text-slate-800 uppercase tracking-wider">Log Contractor Inspection</span>
+            <div className="flex items-center gap-2 border-b border-neutral-50 pb-3">
+              <span className="w-1.5 h-6 bg-neutral-900 rounded-full" />
+              <span className="text-xs font-black text-neutral-800 uppercase tracking-wider">Log Contractor Inspection</span>
             </div>
 
             <div className="bg-info-50/70 border border-info-100 rounded-2xl px-3.5 py-2.5 text-[10px] font-semibold text-info-900 leading-relaxed">
@@ -883,7 +883,7 @@ export function IncidentReport() {
                 of work, so this is a text field with optional shortcuts rather
                 than a closed list that would force visits into wrong buckets. */}
             <div className="space-y-2">
-              <label className="text-xs font-black text-gray-400 uppercase tracking-widest block">
+              <label className="text-xs font-black text-neutral-400 uppercase tracking-widest block">
                 Purpose of Visit / Description of Work
               </label>
               <input
@@ -891,7 +891,7 @@ export function IncidentReport() {
                 value={visitPurpose}
                 onChange={(e) => setVisitPurpose(e.target.value)}
                 placeholder="e.g. Replaced DG-2 fuel filter and bled the line"
-                className="w-full px-4 h-12 bg-gray-50 border border-gray-200 rounded-2xl text-sm font-semibold text-gray-800 focus:outline-none focus:border-slate-800 focus:ring-1 focus:ring-slate-800/10 transition-colors"
+                className="w-full px-4 h-12 bg-neutral-50 border border-neutral-200 rounded-2xl text-sm font-semibold text-neutral-800 focus:outline-none focus:border-neutral-800 focus:ring-1 focus:ring-neutral-800/10 transition-colors"
                 required
               />
               <div className="flex flex-wrap gap-1.5 pt-0.5">
@@ -900,23 +900,23 @@ export function IncidentReport() {
                     key={s}
                     type="button"
                     onClick={() => setVisitPurpose(s)}
-                    className="px-2.5 py-1 rounded-lg bg-gray-50 border border-gray-200 text-[9px] font-bold text-gray-500 hover:bg-gray-100 hover:text-gray-700 transition-colors cursor-pointer"
+                    className="px-2.5 py-1 rounded-lg bg-neutral-50 border border-neutral-200 text-[9px] font-bold text-neutral-500 hover:bg-neutral-100 hover:text-neutral-700 transition-colors cursor-pointer"
                   >
                     {s}
                   </button>
                 ))}
               </div>
-              <p className="text-[9px] font-semibold text-gray-400">
+              <p className="text-[9px] font-semibold text-neutral-400">
                 Shortcuts are suggestions — type anything that describes the visit.
               </p>
             </div>
 
             {/* What the visit was aimed at */}
             <div className="space-y-2">
-              <label className="text-xs font-black text-gray-400 uppercase tracking-widest block">
+              <label className="text-xs font-black text-neutral-400 uppercase tracking-widest block">
                 What Was Inspected
               </label>
-              <div className="grid grid-cols-3 gap-2 bg-gray-50 p-1 rounded-2xl border border-gray-100">
+              <div className="grid grid-cols-3 gap-2 bg-neutral-50 p-1 rounded-2xl border border-neutral-100">
                 {([
                   { value: "SITE"   as VisitTargetType, icon: <Building2 size={13} />, label: "Whole Site" },
                   { value: "ASSET"  as VisitTargetType, icon: <Boxes size={13} />,     label: "Equipment" },
@@ -931,8 +931,8 @@ export function IncidentReport() {
                       setVisitTargetAsset("");
                     }}
                     className={`py-2.5 rounded-xl text-[9px] font-black uppercase tracking-wider transition-all cursor-pointer flex flex-col items-center gap-1 ${visitTargetType === t.value
-                        ? "bg-white text-gray-900 shadow-sm"
-                        : "text-gray-400 hover:text-gray-600"
+                        ? "bg-white text-neutral-900 shadow-sm"
+                        : "text-neutral-400 hover:text-neutral-600"
                       }`}
                   >
                     {t.icon}
@@ -944,7 +944,7 @@ export function IncidentReport() {
 
             {/* Contractor Name */}
             <div className="space-y-2">
-              <label className="text-xs font-black text-gray-400 uppercase tracking-widest block">
+              <label className="text-xs font-black text-neutral-400 uppercase tracking-widest block">
                 Contractor Company/Name
               </label>
               <input
@@ -952,7 +952,7 @@ export function IncidentReport() {
                 value={contractorName}
                 onChange={(e) => setContractorName(e.target.value)}
                 placeholder="e.g. Cummins Services, Vertiv Team"
-                className="w-full px-4 h-12 bg-gray-50 border border-gray-200 rounded-2xl text-sm font-semibold text-gray-800 focus:outline-none focus:border-slate-800 focus:ring-1 focus:ring-slate-800/10 transition-colors"
+                className="w-full px-4 h-12 bg-neutral-50 border border-neutral-200 rounded-2xl text-sm font-semibold text-neutral-800 focus:outline-none focus:border-neutral-800 focus:ring-1 focus:ring-neutral-800/10 transition-colors"
                 required
               />
             </div>
@@ -963,9 +963,9 @@ export function IncidentReport() {
                 acknowledgement of what they did, which is the record that
                 matters when a finding or an invoice is disputed. */}
             <div className="space-y-2">
-              <label className="text-xs font-black text-gray-400 uppercase tracking-widest block">
+              <label className="text-xs font-black text-neutral-400 uppercase tracking-widest block">
                 Contractor Signature
-                <span className="ml-1 font-bold normal-case tracking-normal text-gray-300">
+                <span className="ml-1 font-bold normal-case tracking-normal text-neutral-300">
                   optional
                 </span>
               </label>
@@ -975,7 +975,7 @@ export function IncidentReport() {
                 onClick={() => setSigPadOpen(true)}
                 label={contractorName.trim() || "Contractor"}
               />
-              <p className="text-[10px] font-semibold text-gray-400">
+              <p className="text-[10px] font-semibold text-neutral-400">
                 Hand the device to the contractor. Witnessed by you as the
                 technician on site.
               </p>
@@ -984,21 +984,21 @@ export function IncidentReport() {
             {/* Target: specific asset */}
             {visitTargetType === "ASSET" && (
               <div className="space-y-2 animate-fade-in">
-                <label className="text-xs font-black text-gray-400 uppercase tracking-widest block">
+                <label className="text-xs font-black text-neutral-400 uppercase tracking-widest block">
                   Select Equipment
                 </label>
                 <Select value={visitTargetAsset} onValueChange={setVisitTargetAsset}>
-                  <SelectTrigger className="w-full h-12 bg-gray-50 border border-gray-200 rounded-2xl text-sm font-semibold text-gray-800 focus:ring-1 focus:ring-slate-800/10 focus:border-slate-800">
+                  <SelectTrigger className="w-full h-12 bg-neutral-50 border border-neutral-200 rounded-2xl text-sm font-semibold text-neutral-800 focus:ring-1 focus:ring-neutral-800/10 focus:border-neutral-800">
                     <SelectValue placeholder={isLoadingEquip ? "Loading equipment…" : "-- Choose equipment --"} />
                   </SelectTrigger>
-                  <SelectContent className="bg-white border border-gray-100 rounded-2xl shadow-lg z-[var(--z-menu)]">
+                  <SelectContent className="bg-white border border-neutral-100 rounded-2xl shadow-lg z-[var(--z-menu)]">
                     {equipmentList.length === 0 ? (
-                      <SelectItem value="empty" disabled className="text-xs font-semibold text-gray-400">
+                      <SelectItem value="empty" disabled className="text-xs font-semibold text-neutral-400">
                         No active equipment registered
                       </SelectItem>
                     ) : (
                       equipmentList.map((eq) => (
-                        <SelectItem key={eq.value} value={eq.value} className="text-xs font-semibold text-gray-800 cursor-pointer">
+                        <SelectItem key={eq.value} value={eq.value} className="text-xs font-semibold text-neutral-800 cursor-pointer">
                           {eq.label}
                         </SelectItem>
                       ))
@@ -1011,16 +1011,16 @@ export function IncidentReport() {
             {/* Target: existing fault ticket (inspected, not resolved) */}
             {visitTargetType === "TICKET" && (
               <div className="space-y-2 animate-fade-in">
-                <label className="text-xs font-black text-gray-400 uppercase tracking-widest block">
+                <label className="text-xs font-black text-neutral-400 uppercase tracking-widest block">
                   Select Fault Ticket
                 </label>
                 <Select value={selectedFaultId} onValueChange={setSelectedFaultId}>
-                  <SelectTrigger className="w-full h-12 bg-gray-50 border border-gray-200 rounded-2xl text-sm font-semibold text-gray-800 focus:ring-1 focus:ring-slate-800/10 focus:border-slate-800">
+                  <SelectTrigger className="w-full h-12 bg-neutral-50 border border-neutral-200 rounded-2xl text-sm font-semibold text-neutral-800 focus:ring-1 focus:ring-neutral-800/10 focus:border-neutral-800">
                     <SelectValue placeholder="-- Choose an open fault ticket --" />
                   </SelectTrigger>
-                  <SelectContent className="bg-white border border-gray-100 rounded-2xl shadow-lg z-[var(--z-menu)]">
+                  <SelectContent className="bg-white border border-neutral-100 rounded-2xl shadow-lg z-[var(--z-menu)]">
                     {incidents.filter((i) => i.status === "OPEN").length === 0 ? (
-                      <SelectItem value="empty" disabled className="text-xs font-semibold text-gray-400">
+                      <SelectItem value="empty" disabled className="text-xs font-semibold text-neutral-400">
                         No open fault tickets available
                       </SelectItem>
                     ) : (
@@ -1030,7 +1030,7 @@ export function IncidentReport() {
                           <SelectItem
                             key={inc.id}
                             value={inc.id}
-                            className="text-xs font-semibold text-gray-800 cursor-pointer"
+                            className="text-xs font-semibold text-neutral-800 cursor-pointer"
                           >
                             {inc.ticket_number} - {inc.asset_id.toUpperCase().replace(/_/g, " ")}
                           </SelectItem>
@@ -1046,7 +1046,7 @@ export function IncidentReport() {
 
             {/* Tasks / Work details */}
             <div className="space-y-2">
-              <label className="text-xs font-black text-gray-400 uppercase tracking-widest block">
+              <label className="text-xs font-black text-neutral-400 uppercase tracking-widest block">
                 Findings / Work Carried Out
               </label>
               <textarea
@@ -1058,25 +1058,25 @@ export function IncidentReport() {
                     ? "What did the contractor observe about this fault?"
                     : "Detail what was inspected, serviced, refuelled or checked…"
                 }
-                className="w-full p-4 rounded-2xl bg-gray-50 border border-gray-200 text-sm font-semibold text-gray-800 placeholder-gray-400 focus:outline-none focus:border-slate-800 focus:ring-1 focus:ring-slate-800/10 resize-none transition-colors"
+                className="w-full p-4 rounded-2xl bg-neutral-50 border border-neutral-200 text-sm font-semibold text-neutral-800 placeholder-neutral-400 focus:outline-none focus:border-neutral-800 focus:ring-1 focus:ring-neutral-800/10 resize-none transition-colors"
                 required
               />
             </div>
 
             {/* Trackable defects, separate from the narrative above. The notes
                 box describes the visit; these become jobs somebody owns. */}
-            <div className="rounded-2xl border border-gray-200 bg-gray-50/60 p-4">
+            <div className="rounded-2xl border border-neutral-200 bg-neutral-50/60 p-4">
               <ContractorFindingsEditor findings={findings} onChange={setFindings} />
             </div>
 
             {/* Photo upload */}
             <div className="space-y-2">
-              <label className="text-xs font-black text-gray-400 uppercase tracking-widest block">
+              <label className="text-xs font-black text-neutral-400 uppercase tracking-widest block">
                 Visit Photo / Evidence
               </label>
               <div
                 onClick={handleActionPhotoUpload}
-                className={`h-32 bg-gray-50 border-2 border-dashed rounded-2xl flex flex-col items-center justify-center text-gray-500 cursor-pointer active:bg-gray-100 transition-colors p-0 relative overflow-hidden ${actionPhoto ? "border-ok-400" : "border-gray-200"
+                className={`h-32 bg-neutral-50 border-2 border-dashed rounded-2xl flex flex-col items-center justify-center text-neutral-500 cursor-pointer active:bg-neutral-100 transition-colors p-0 relative overflow-hidden ${actionPhoto ? "border-ok-400" : "border-neutral-200"
                   }`}
               >
                 {actionPhoto ? (
@@ -1100,10 +1100,10 @@ export function IncidentReport() {
                   </div>
                 ) : (
                   <div className="flex flex-col items-center justify-center space-y-1.5 text-center px-4">
-                    <Camera size={24} className="text-gray-400" />
+                    <Camera size={24} className="text-neutral-400" />
                     <div>
-                      <span className="text-xs font-bold text-gray-700 block">Tap to take photo</span>
-                      <span className="text-[10px] text-gray-400">capture visit proof</span>
+                      <span className="text-xs font-bold text-neutral-700 block">Tap to take photo</span>
+                      <span className="text-[10px] text-neutral-400">capture visit proof</span>
                     </div>
                   </div>
                 )}
@@ -1123,7 +1123,7 @@ export function IncidentReport() {
             <button
               type="submit"
               disabled={isSubmittingAction}
-              className="w-full py-4 bg-slate-900 hover:bg-slate-950 text-white font-black text-sm tracking-widest uppercase rounded-2xl transition-all shadow-md flex items-center justify-center gap-2 active:scale-[0.98] cursor-pointer"
+              className="w-full py-4 bg-neutral-900 hover:bg-neutral-950 text-white font-black text-sm tracking-widest uppercase rounded-2xl transition-all shadow-md flex items-center justify-center gap-2 active:scale-[0.98] cursor-pointer"
             >
               {isSubmittingAction ? (
                 <span>Logging Inspection...</span>
@@ -1142,18 +1142,18 @@ export function IncidentReport() {
             <div className="space-y-3 pt-2">
               <div className="px-1 flex items-center justify-between">
                 <div>
-                  <h2 className="text-sm font-black text-gray-900 uppercase tracking-wider">Recent Inspections</h2>
-                  <p className="text-[11px] text-gray-400 font-semibold">Contractor attendance logbook.</p>
+                  <h2 className="text-sm font-black text-neutral-900 uppercase tracking-wider">Recent Inspections</h2>
+                  <p className="text-[11px] text-neutral-400 font-semibold">Contractor attendance logbook.</p>
                 </div>
-                <span className="bg-slate-100 text-slate-600 font-extrabold text-[10px] px-2.5 py-1 rounded-full border border-slate-200">
+                <span className="bg-neutral-100 text-neutral-600 font-extrabold text-[10px] px-2.5 py-1 rounded-full border border-neutral-200">
                   {visits.length} Logged
                 </span>
               </div>
 
               {visits.length === 0 ? (
-                <div className="bg-white border border-gray-100 rounded-3xl p-6 text-center shadow-sm">
-                  <p className="text-xs font-bold text-slate-800">No inspections logged yet</p>
-                  <p className="text-[10px] text-slate-400 mt-0.5">Contractor site checks will appear here.</p>
+                <div className="bg-white border border-neutral-100 rounded-3xl p-6 text-center shadow-sm">
+                  <p className="text-xs font-bold text-neutral-800">No inspections logged yet</p>
+                  <p className="text-[10px] text-neutral-400 mt-0.5">Contractor site checks will appear here.</p>
                 </div>
               ) : (
                 <div className="space-y-2.5">
@@ -1162,20 +1162,20 @@ export function IncidentReport() {
                       ? incidents.find((i) => i.id === v.target_ref)
                       : null;
                     return (
-                      <div key={v.id} className="bg-white border border-gray-100 rounded-2xl p-4 shadow-sm space-y-2">
+                      <div key={v.id} className="bg-white border border-neutral-100 rounded-2xl p-4 shadow-sm space-y-2">
                         <div className="flex items-center justify-between">
-                          <span className="text-[10px] font-mono font-black text-gray-400 tracking-wider">
+                          <span className="text-[10px] font-mono font-black text-neutral-400 tracking-wider">
                             {v.visit_number}
                           </span>
-                          <span className="text-[9px] font-bold text-gray-400 font-mono">
+                          <span className="text-[9px] font-bold text-neutral-400 font-mono">
                             {formatDate(v.occurred_at)}
                           </span>
                         </div>
                         <div className="flex items-start gap-2">
                           <span className="text-base leading-none">📋</span>
                           <div className="min-w-0">
-                            <p className="text-xs font-black text-gray-900 leading-tight">{v.purpose}</p>
-                            <p className="text-[10px] font-bold text-slate-500 mt-0.5">
+                            <p className="text-xs font-black text-neutral-900 leading-tight">{v.purpose}</p>
+                            <p className="text-[10px] font-bold text-neutral-500 mt-0.5">
                               {v.target_type === "SITE" && "Whole site"}
                               {v.target_type === "ASSET" && (v.target_ref || "").toUpperCase().replace(/_/g, " ")}
                               {v.target_type === "TICKET" && (linkedTicket
@@ -1184,8 +1184,8 @@ export function IncidentReport() {
                             </p>
                           </div>
                         </div>
-                        <p className="text-[11px] text-gray-600 font-medium leading-relaxed border-t border-gray-50 pt-2">
-                          <span className="font-black text-slate-700">{v.contractor}</span> — {v.notes}
+                        <p className="text-[11px] text-neutral-600 font-medium leading-relaxed border-t border-neutral-50 pt-2">
+                          <span className="font-black text-neutral-700">{v.contractor}</span> — {v.notes}
                         </p>
                       </div>
                     );
@@ -1200,8 +1200,8 @@ export function IncidentReport() {
           <div className="space-y-4 pt-4">
             <div className="px-1 flex items-center justify-between">
               <div>
-                <h2 className="text-sm font-black text-gray-900 uppercase tracking-wider">Active Fault Tickets</h2>
-                <p className="text-[11px] text-gray-400 font-semibold">Selecting one closes it and issues a clearance receipt.</p>
+                <h2 className="text-sm font-black text-neutral-900 uppercase tracking-wider">Active Fault Tickets</h2>
+                <p className="text-[11px] text-neutral-400 font-semibold">Selecting one closes it and issues a clearance receipt.</p>
               </div>
               <span className="bg-danger-50 text-danger-600 font-extrabold text-[10px] px-2.5 py-1 rounded-full border border-danger-100">
                 {incidents.filter((i) => i.status === "OPEN").length} Open
@@ -1209,10 +1209,10 @@ export function IncidentReport() {
             </div>
 
             {incidents.filter((i) => i.status === "OPEN").length === 0 ? (
-              <div className="bg-white border border-gray-100 rounded-3xl p-6 text-center shadow-sm">
+              <div className="bg-white border border-neutral-100 rounded-3xl p-6 text-center shadow-sm">
                 <CheckCircle2 size={24} className="text-ok-500 mx-auto mb-2" />
-                <p className="text-xs font-bold text-slate-800">All Systems Nominal</p>
-                <p className="text-[10px] text-slate-400 mt-0.5">There are no open faults to resolve.</p>
+                <p className="text-xs font-bold text-neutral-800">All Systems Nominal</p>
+                <p className="text-[10px] text-neutral-400 mt-0.5">There are no open faults to resolve.</p>
               </div>
             ) : (
               <div className="space-y-4">
@@ -1224,13 +1224,13 @@ export function IncidentReport() {
                     return (
                       <div
                         key={incident.id}
-                        className="bg-white border border-gray-100 rounded-3xl p-5 shadow-sm space-y-4 relative overflow-hidden"
+                        className="bg-white border border-neutral-100 rounded-3xl p-5 shadow-sm space-y-4 relative overflow-hidden"
                       >
                         {/* Left border indicator */}
                         <div className="absolute left-0 top-0 bottom-0 w-1.5 bg-danger-500" />
 
                         <div className="flex items-center justify-between pl-1">
-                          <span className="text-[10px] font-mono font-black text-gray-400 tracking-wider">
+                          <span className="text-[10px] font-mono font-black text-neutral-400 tracking-wider">
                             {incident.ticket_number}
                           </span>
                           <span className="bg-danger-50 border border-danger-100 text-[8px] font-black uppercase tracking-wider px-2 py-0.5 rounded text-danger-600">
@@ -1239,30 +1239,30 @@ export function IncidentReport() {
                         </div>
 
                         <div className="pl-1">
-                          <h3 className="font-black text-gray-900 text-sm tracking-tight">
+                          <h3 className="font-black text-neutral-900 text-sm tracking-tight">
                             {incident.asset_id.toUpperCase().replace(/_/g, " ")}
                           </h3>
-                          <p className="text-xs text-gray-500 mt-1 font-medium leading-relaxed">
-                            <span className="font-bold text-gray-400 block text-[9px] uppercase tracking-wider mb-0.5">Fault Details</span>
+                          <p className="text-xs text-neutral-500 mt-1 font-medium leading-relaxed">
+                            <span className="font-bold text-neutral-400 block text-[9px] uppercase tracking-wider mb-0.5">Fault Details</span>
                             {incident.notes}
                           </p>
 
                           {incident.contractor_engaged && (
-                            <div className="mt-2.5 inline-flex items-center gap-1.5 bg-slate-50 border border-slate-200/60 rounded-lg px-2 py-1 text-[10px] font-bold text-slate-600">
+                            <div className="mt-2.5 inline-flex items-center gap-1.5 bg-neutral-50 border border-neutral-200/60 rounded-lg px-2 py-1 text-[10px] font-bold text-neutral-600">
                               <span>Assigned Contractor:</span>
-                              <span className="text-slate-800 font-extrabold">{incident.contractor_engaged}</span>
+                              <span className="text-neutral-800 font-extrabold">{incident.contractor_engaged}</span>
                             </div>
                           )}
                         </div>
 
                         {/* Display comments/visits log timeline */}
-                        <div className="border-t border-gray-50 pt-3.5">
+                        <div className="border-t border-neutral-50 pt-3.5">
                           {renderIncidentTimeline(incident)}
                         </div>
 
                         {/* Resolution Button/Form */}
                         {!isResolving ? (
-                          <div className="pl-1 pt-3 border-t border-gray-50 flex justify-end">
+                          <div className="pl-1 pt-3 border-t border-neutral-50 flex justify-end">
                             <button
                               onClick={() => {
                                 setActiveAction({ incidentId: incident.id, type: "resolve" });
@@ -1282,16 +1282,16 @@ export function IncidentReport() {
                               e.preventDefault();
                               handleSubmitResolution(incident.id);
                             }}
-                            className="space-y-4 bg-gray-50/60 p-4 border border-gray-200/50 rounded-2xl animate-fade-in pl-1"
+                            className="space-y-4 bg-neutral-50/60 p-4 border border-neutral-200/50 rounded-2xl animate-fade-in pl-1"
                           >
                             <div className="flex items-center justify-between">
-                              <span className="text-[10px] font-black text-slate-800 uppercase tracking-wider">
+                              <span className="text-[10px] font-black text-neutral-800 uppercase tracking-wider">
                                 Resolve Fault Ticket
                               </span>
                               <button
                                 type="button"
                                 onClick={() => setActiveAction(null)}
-                                className="text-gray-400 hover:text-gray-600"
+                                className="text-neutral-400 hover:text-neutral-600"
                               >
                                 <X size={14} />
                               </button>
@@ -1299,16 +1299,16 @@ export function IncidentReport() {
 
                             {/* Who actually fixed it */}
                             <div className="space-y-1.5">
-                              <label className="text-[9px] font-black text-gray-400 uppercase tracking-widest block">
+                              <label className="text-[9px] font-black text-neutral-400 uppercase tracking-widest block">
                                 Resolved By
                               </label>
-                              <div className="grid grid-cols-2 gap-2 bg-white p-1 rounded-xl border border-gray-200">
+                              <div className="grid grid-cols-2 gap-2 bg-white p-1 rounded-xl border border-neutral-200">
                                 <button
                                   type="button"
                                   onClick={() => setResolverType("INTERNAL_TECH")}
                                   className={`py-2 rounded-lg text-[9px] font-black uppercase tracking-wider transition-all cursor-pointer flex flex-col items-center gap-1 ${resolverType === "INTERNAL_TECH"
-                                      ? "bg-slate-900 text-white shadow-sm"
-                                      : "text-gray-400 hover:text-gray-600"
+                                      ? "bg-neutral-900 text-white shadow-sm"
+                                      : "text-neutral-400 hover:text-neutral-600"
                                     }`}
                                 >
                                   <HardHat size={13} />
@@ -1318,8 +1318,8 @@ export function IncidentReport() {
                                   type="button"
                                   onClick={() => setResolverType("EXTERNAL_CONTRACTOR")}
                                   className={`py-2 rounded-lg text-[9px] font-black uppercase tracking-wider transition-all cursor-pointer flex flex-col items-center gap-1 ${resolverType === "EXTERNAL_CONTRACTOR"
-                                      ? "bg-slate-900 text-white shadow-sm"
-                                      : "text-gray-400 hover:text-gray-600"
+                                      ? "bg-neutral-900 text-white shadow-sm"
+                                      : "text-neutral-400 hover:text-neutral-600"
                                     }`}
                                 >
                                   <Wrench size={13} />
@@ -1329,12 +1329,12 @@ export function IncidentReport() {
                             </div>
 
                             {resolverType === "INTERNAL_TECH" ? (
-                              <div className="bg-slate-50 border border-slate-200/70 rounded-xl px-3 py-2 text-[10px] font-bold text-slate-600">
-                                Recorded against you — <span className="font-black text-slate-800">{user?.name || "Field Tech"}</span>. No contractor will be attached to this ticket.
+                              <div className="bg-neutral-50 border border-neutral-200/70 rounded-xl px-3 py-2 text-[10px] font-bold text-neutral-600">
+                                Recorded against you — <span className="font-black text-neutral-800">{user?.name || "Field Tech"}</span>. No contractor will be attached to this ticket.
                               </div>
                             ) : (
                               <div className="space-y-1.5 animate-fade-in">
-                                <label className="text-[9px] font-black text-gray-400 uppercase tracking-widest block">
+                                <label className="text-[9px] font-black text-neutral-400 uppercase tracking-widest block">
                                   Contractor Name/Company
                                 </label>
                                 <input
@@ -1342,7 +1342,7 @@ export function IncidentReport() {
                                   value={contractorName}
                                   onChange={(e) => setContractorName(e.target.value)}
                                   placeholder="e.g. Vertiv Services"
-                                  className="w-full px-3 py-2 bg-white border border-gray-200 rounded-xl text-xs font-semibold text-gray-800 focus:outline-none focus:border-danger-500"
+                                  className="w-full px-3 py-2 bg-white border border-neutral-200 rounded-xl text-xs font-semibold text-neutral-800 focus:outline-none focus:border-danger-500"
                                   required
                                 />
                               </div>
@@ -1350,7 +1350,7 @@ export function IncidentReport() {
 
                             {/* Resolution Details */}
                             <div className="space-y-1.5">
-                              <label className="text-[9px] font-black text-gray-400 uppercase tracking-widest block">
+                              <label className="text-[9px] font-black text-neutral-400 uppercase tracking-widest block">
                                 Resolution / Solution Provided
                               </label>
                               <textarea
@@ -1358,19 +1358,19 @@ export function IncidentReport() {
                                 value={actionNotes}
                                 onChange={(e) => setActionNotes(e.target.value)}
                                 placeholder="Explain how the fault was resolved..."
-                                className="w-full p-3 bg-white border border-gray-250 rounded-xl text-xs font-semibold text-gray-800 focus:outline-none focus:border-danger-500 resize-none"
+                                className="w-full p-3 bg-white border border-neutral-250 rounded-xl text-xs font-semibold text-neutral-800 focus:outline-none focus:border-danger-500 resize-none"
                                 required
                               />
                             </div>
 
                             {/* Capture/Upload resolution photo */}
                             <div className="space-y-1.5">
-                              <label className="text-[9px] font-black text-gray-400 uppercase tracking-widest block">
+                              <label className="text-[9px] font-black text-neutral-400 uppercase tracking-widest block">
                                 Resolution Photo (Optional)
                               </label>
                               <div
                                 onClick={handleActionPhotoUpload}
-                                className={`h-24 bg-white border-2 border-dashed rounded-xl flex flex-col items-center justify-center text-gray-500 cursor-pointer active:bg-gray-50 transition-colors relative overflow-hidden p-0 ${actionPhoto ? "border-ok-400" : "border-gray-200"
+                                className={`h-24 bg-white border-2 border-dashed rounded-xl flex flex-col items-center justify-center text-neutral-500 cursor-pointer active:bg-neutral-50 transition-colors relative overflow-hidden p-0 ${actionPhoto ? "border-ok-400" : "border-neutral-200"
                                   }`}
                               >
                                 {actionPhoto ? (
@@ -1386,8 +1386,8 @@ export function IncidentReport() {
                                   </div>
                                 ) : (
                                   <div className="flex flex-col items-center justify-center space-y-1 text-center">
-                                    <Camera size={18} className="text-gray-400" />
-                                    <span className="text-[10px] font-bold text-gray-700">Upload Resolution Photo</span>
+                                    <Camera size={18} className="text-neutral-400" />
+                                    <span className="text-[10px] font-bold text-neutral-700">Upload Resolution Photo</span>
                                   </div>
                                 )}
                               </div>
@@ -1398,7 +1398,7 @@ export function IncidentReport() {
                               <button
                                 type="button"
                                 onClick={() => setActiveAction(null)}
-                                className="py-2 px-3.5 border border-gray-200 text-gray-600 font-bold rounded-xl text-[10px] uppercase tracking-wider active:scale-[0.98] transition-all cursor-pointer bg-white"
+                                className="py-2 px-3.5 border border-neutral-200 text-neutral-600 font-bold rounded-xl text-[10px] uppercase tracking-wider active:scale-[0.98] transition-all cursor-pointer bg-white"
                               >
                                 Cancel
                               </button>
@@ -1433,18 +1433,18 @@ export function IncidentReport() {
       {activeTab === "history" && (
         <div className="space-y-4">
           <div className="px-1">
-            <h1 className="text-xl font-black text-gray-900 tracking-tight">My Reported Alerts</h1>
-            <p className="text-xs text-gray-500 mt-0.5">Attach corrections or add logs to your reports.</p>
+            <h1 className="text-xl font-black text-neutral-900 tracking-tight">My Reported Alerts</h1>
+            <p className="text-xs text-neutral-500 mt-0.5">Attach corrections or add logs to your reports.</p>
           </div>
 
           {myIncidents.length === 0 ? (
-            <div className="bg-white border border-gray-100 rounded-3xl p-8 text-center space-y-4 shadow-sm">
-              <div className="w-16 h-16 bg-gray-50 rounded-full flex items-center justify-center mx-auto text-gray-400 border border-gray-100">
+            <div className="bg-white border border-neutral-100 rounded-3xl p-8 text-center space-y-4 shadow-sm">
+              <div className="w-16 h-16 bg-neutral-50 rounded-full flex items-center justify-center mx-auto text-neutral-400 border border-neutral-100">
                 <FileText size={30} />
               </div>
               <div className="space-y-1">
-                <h3 className="font-black text-gray-950 text-sm">No Incidents Reported</h3>
-                <p className="text-xs text-gray-400 max-w-[240px] mx-auto">
+                <h3 className="font-black text-neutral-950 text-sm">No Incidents Reported</h3>
+                <p className="text-xs text-neutral-400 max-w-[240px] mx-auto">
                   You haven't reported any hardware incidents on this shift.
                 </p>
               </div>
@@ -1457,12 +1457,12 @@ export function IncidentReport() {
 
                 return (
                   <React.Fragment key={incident.id}>
-                    <div className="bg-white border border-gray-100 rounded-3xl p-5 shadow-sm space-y-4 relative overflow-hidden">
+                    <div className="bg-white border border-neutral-100 rounded-3xl p-5 shadow-sm space-y-4 relative overflow-hidden">
                       {/* Left border indicator */}
                       <div className={`absolute left-0 top-0 bottom-0 w-1.5 ${isOpen ? "bg-danger-500" : "bg-ok-500"}`} />
 
                       <div className="flex items-center justify-between">
-                        <span className="text-[10px] font-mono font-black text-gray-400 tracking-wider">
+                        <span className="text-[10px] font-mono font-black text-neutral-400 tracking-wider">
                           {incident.ticket_number}
                         </span>
                         <span className={`text-[9px] font-black uppercase tracking-wider px-2.5 py-0.5 rounded-md border ${isOpen
@@ -1474,34 +1474,34 @@ export function IncidentReport() {
                       </div>
 
                       <div>
-                        <h3 className="font-black text-gray-900 text-sm tracking-tight">
+                        <h3 className="font-black text-neutral-900 text-sm tracking-tight">
                           {incident.asset_id.toUpperCase().replace(/_/g, " ")} Alert
                         </h3>
-                        <p className="text-xs text-gray-500 mt-1 font-medium leading-relaxed">
-                          <span className="font-bold text-gray-400 block text-[9px] uppercase tracking-wider mb-0.5">Original Report Notes</span>
+                        <p className="text-xs text-neutral-500 mt-1 font-medium leading-relaxed">
+                          <span className="font-bold text-neutral-400 block text-[9px] uppercase tracking-wider mb-0.5">Original Report Notes</span>
                           {incident.notes}
                         </p>
                       </div>
 
                       {/* Display Main Incident Photo if uploaded */}
                       {incident.photo_url && (
-                        <div className="max-w-[200px] rounded-2xl overflow-hidden border border-gray-100">
+                        <div className="max-w-[200px] rounded-2xl overflow-hidden border border-neutral-100">
                           <img src={incident.photo_url} alt="Incident Evidence" className="w-full h-auto object-cover" />
                         </div>
                       )}
 
                       {/* Appended comments timeline */}
-                      <div className="border-t border-gray-50 pt-3.5">
+                      <div className="border-t border-neutral-50 pt-3.5">
                         {renderIncidentTimeline(incident)}
                       </div>
 
                       {/* Interactive Form Trigger (Only for open incidents) */}
                       {isOpen && (
-                        <div className="border-t border-gray-50 pt-3.5">
+                        <div className="border-t border-neutral-50 pt-3.5">
                           {!isSelected ? (
                             <button
                               onClick={() => setSelectedIncidentId(incident.id)}
-                              className="w-full py-2.5 border border-gray-200 hover:border-gray-300 hover:text-danger-600 text-gray-600 font-bold rounded-2xl text-xs uppercase tracking-wider active:scale-98 transition-all flex items-center justify-center gap-1.5 cursor-pointer"
+                              className="w-full py-2.5 border border-neutral-200 hover:border-neutral-300 hover:text-danger-600 text-neutral-600 font-bold rounded-2xl text-xs uppercase tracking-wider active:scale-98 transition-all flex items-center justify-center gap-1.5 cursor-pointer"
                             >
                               <MessageSquare size={13} />
                               <span>Append Correction or Add Log</span>
@@ -1509,14 +1509,14 @@ export function IncidentReport() {
                           ) : (
                             <form
                               onSubmit={(e) => handleAddComment(e, incident.id)}
-                              className="space-y-3 bg-gray-50/70 p-4 border border-gray-200/50 rounded-2xl animate-fade-in"
+                              className="space-y-3 bg-neutral-50/70 p-4 border border-neutral-200/50 rounded-2xl animate-fade-in"
                             >
                               <div className="flex items-center justify-between">
-                                <span className="text-[10px] font-black text-gray-800">New Log Entry</span>
+                                <span className="text-[10px] font-black text-neutral-800">New Log Entry</span>
                                 <button
                                   type="button"
                                   onClick={() => setSelectedIncidentId(null)}
-                                  className="text-gray-400 hover:text-gray-700"
+                                  className="text-neutral-400 hover:text-neutral-700"
                                 >
                                   <X size={14} />
                                 </button>
@@ -1529,7 +1529,7 @@ export function IncidentReport() {
                                   onClick={() => setCommentType("addition")}
                                   className={`py-2 text-[10px] rounded-xl border font-bold transition-all text-center ${commentType === "addition"
                                       ? "bg-info-50 border-info-200 text-info-700"
-                                      : "bg-white border-gray-200 text-gray-400"
+                                      : "bg-white border-neutral-200 text-neutral-400"
                                     }`}
                                 >
                                   Additional Details
@@ -1539,7 +1539,7 @@ export function IncidentReport() {
                                   onClick={() => setCommentType("correction")}
                                   className={`py-2 text-[10px] rounded-xl border font-bold transition-all text-center ${commentType === "correction"
                                       ? "bg-danger-50 border-danger-200 text-danger-700"
-                                      : "bg-white border-gray-200 text-gray-400"
+                                      : "bg-white border-neutral-200 text-neutral-400"
                                     }`}
                                 >
                                   Correction Log
@@ -1552,7 +1552,7 @@ export function IncidentReport() {
                                 value={commentText}
                                 onChange={(e) => setCommentText(e.target.value)}
                                 placeholder="Detail the addition or correction here..."
-                                className="w-full p-3 rounded-xl bg-white border border-gray-200 text-xs font-semibold text-gray-800 placeholder-gray-400 focus:outline-none focus:border-danger-500 resize-none"
+                                className="w-full p-3 rounded-xl bg-white border border-neutral-200 text-xs font-semibold text-neutral-800 placeholder-neutral-400 focus:outline-none focus:border-danger-500 resize-none"
                                 required
                               />
 
@@ -1561,14 +1561,14 @@ export function IncidentReport() {
                                 <button
                                   type="button"
                                   onClick={() => setSelectedIncidentId(null)}
-                                  className="py-2 px-4 border border-gray-200 text-gray-600 font-bold rounded-xl text-[10px] uppercase tracking-wider active:scale-98 transition-all cursor-pointer"
+                                  className="py-2 px-4 border border-neutral-200 text-neutral-600 font-bold rounded-xl text-[10px] uppercase tracking-wider active:scale-98 transition-all cursor-pointer"
                                 >
                                   Cancel
                                 </button>
                                 <button
                                   type="submit"
                                   disabled={isSubmittingComment}
-                                  className="py-2 px-4 bg-gray-900 hover:bg-gray-800 text-white font-black rounded-xl text-[10px] uppercase tracking-wider active:scale-98 transition-all flex items-center justify-center gap-1 cursor-pointer"
+                                  className="py-2 px-4 bg-neutral-900 hover:bg-neutral-800 text-white font-black rounded-xl text-[10px] uppercase tracking-wider active:scale-98 transition-all flex items-center justify-center gap-1 cursor-pointer"
                                 >
                                   {isSubmittingComment ? "Saving..." : "Save Log"}
                                 </button>
@@ -1579,7 +1579,7 @@ export function IncidentReport() {
                       )}
                     </div>
                     {idx < myIncidents.length - 1 && (
-                      <div className="border-b border-slate-200/80 my-6 mx-2" />
+                      <div className="border-b border-neutral-200/80 my-6 mx-2" />
                     )}
                   </React.Fragment>
                 );

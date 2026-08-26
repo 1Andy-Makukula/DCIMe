@@ -88,3 +88,15 @@ export function siteLabel(
 export function siteFileLabel(value?: string | null): string {
   return siteLabel(value).replace(/\s+/g, "_");
 }
+
+/**
+ * The two workbook templates the export writes into. Both live in public/ and
+ * are never mutated — each export loads a fresh copy into memory.
+ *
+ * These were read from the site blueprint, which is the last thing that file
+ * was doing for the exporter. They are the same two paths for every site.
+ */
+export const EXCEL_TEMPLATES = {
+  daily_canvas:       "/template_daily_canvas.xlsx",
+  commercial_logbook: "/template_commercial_logbook.xlsx"
+} as const;

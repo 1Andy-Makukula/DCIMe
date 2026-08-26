@@ -23,7 +23,7 @@ const VERDICT_META: Record<Verdict, { label: string; cls: string; Icon: typeof S
   HEALTHY:  { label: "Healthy",  cls: "text-ok-700 bg-ok-50 border-ok-100", Icon: ShieldCheck },
   WATCH:    { label: "Watch",    cls: "text-warn-700 bg-warn-50 border-warn-100",       Icon: AlertTriangle },
   CRITICAL: { label: "Critical", cls: "text-danger-700 bg-danger-50 border-danger-100",             Icon: AlertOctagon },
-  NO_DATA:  { label: "No Data",  cls: "text-gray-400 bg-gray-50 border-gray-200",           Icon: HelpCircle },
+  NO_DATA:  { label: "No Data",  cls: "text-neutral-400 bg-neutral-50 border-neutral-200",           Icon: HelpCircle },
 };
 
 const PERIOD_ORDER: PeriodKey[] = ["today", "yesterday", "week", "month"];
@@ -41,14 +41,14 @@ function SectorCard({
   const VerdictIcon = meta.Icon;
 
   return (
-    <Card className="bg-white border-gray-100 rounded-3xl shadow-sm break-inside-avoid">
+    <Card className="bg-white border-neutral-100 rounded-3xl shadow-sm break-inside-avoid">
       <CardContent className="p-5 space-y-3">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-xl bg-gray-50 border border-gray-100 flex items-center justify-center">
-              <Icon size={15} className="text-gray-500" />
+            <div className="w-8 h-8 rounded-xl bg-neutral-50 border border-neutral-100 flex items-center justify-center">
+              <Icon size={15} className="text-neutral-500" />
             </div>
-            <span className="text-[11px] font-black uppercase tracking-widest text-gray-500">{title}</span>
+            <span className="text-[11px] font-black uppercase tracking-widest text-neutral-500">{title}</span>
           </div>
           <span className={`flex items-center gap-1 text-[9px] font-black uppercase tracking-wider px-2 py-1 rounded-full border ${meta.cls}`}>
             <VerdictIcon size={10} />
@@ -56,8 +56,8 @@ function SectorCard({
           </span>
         </div>
         <div>
-          <p className="text-sm font-black text-gray-900 leading-tight">{summary.headline}</p>
-          <p className="text-[11px] text-gray-500 font-semibold mt-1 leading-relaxed">{summary.detail}</p>
+          <p className="text-sm font-black text-neutral-900 leading-tight">{summary.headline}</p>
+          <p className="text-[11px] text-neutral-500 font-semibold mt-1 leading-relaxed">{summary.detail}</p>
         </div>
       </CardContent>
     </Card>
@@ -79,12 +79,12 @@ function ComparisonRow({
   decimals?: number;
 }) {
   return (
-    <tr className="border-b border-gray-50 last:border-0">
-      <td className="py-2.5 pr-4 text-[11px] font-bold text-gray-600 whitespace-nowrap">{label}</td>
+    <tr className="border-b border-neutral-50 last:border-0">
+      <td className="py-2.5 pr-4 text-[11px] font-bold text-neutral-600 whitespace-nowrap">{label}</td>
       {PERIOD_ORDER.map((key) => {
         const val = pick(periods[key]);
         return (
-          <td key={key} className="py-2.5 px-2 text-center text-[12px] font-black text-gray-900 font-mono">
+          <td key={key} className="py-2.5 px-2 text-center text-[12px] font-black text-neutral-900 font-mono">
             {val !== null ? `${val.toFixed(decimals)}${unit}` : "—"}
           </td>
         );
@@ -101,10 +101,10 @@ export function ExecutiveSummary() {
 
   if (isLoading) {
     return (
-      <div className="p-6 space-y-6 bg-slate-50/50 min-h-screen">
-        <Skeleton className="h-16 w-full bg-slate-200 rounded-3xl" />
+      <div className="p-6 space-y-6 bg-neutral-50/50 min-h-screen">
+        <Skeleton className="h-16 w-full bg-neutral-200 rounded-3xl" />
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-          {[1, 2, 3, 4, 5].map((i) => <Skeleton key={i} className="h-32 w-full bg-slate-100 rounded-3xl" />)}
+          {[1, 2, 3, 4, 5].map((i) => <Skeleton key={i} className="h-32 w-full bg-neutral-100 rounded-3xl" />)}
         </div>
       </div>
     );
@@ -112,7 +112,7 @@ export function ExecutiveSummary() {
 
   if (error || !sectors || !periods) {
     return (
-      <div className="p-6 bg-slate-50/50 min-h-screen">
+      <div className="p-6 bg-neutral-50/50 min-h-screen">
         <div className="bg-danger-50 border border-danger-100 text-danger-700 p-4 rounded-3xl text-xs font-semibold">
           {error || "No site selected — unable to build the executive summary."}
         </div>
@@ -123,7 +123,7 @@ export function ExecutiveSummary() {
   const today = periods.today;
 
   return (
-    <div className="p-6 space-y-6 bg-slate-50/50 min-h-screen text-slate-800" id="exec-summary-print-area">
+    <div className="p-6 space-y-6 bg-neutral-50/50 min-h-screen text-neutral-800" id="exec-summary-print-area">
       <style dangerouslySetInnerHTML={{
         __html: `
         @media print {
@@ -139,27 +139,27 @@ export function ExecutiveSummary() {
       `}} />
 
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white border border-gray-100 rounded-3xl p-5 shadow-sm">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white border border-neutral-100 rounded-3xl p-5 shadow-sm">
         <div>
-          <span className="text-[10px] font-black uppercase tracking-widest text-gray-400">Daily Site Brief</span>
-          <h2 className="text-lg font-black text-gray-900 uppercase tracking-tight mt-0.5">
+          <span className="text-[10px] font-black uppercase tracking-widest text-neutral-400">Daily Site Brief</span>
+          <h2 className="text-lg font-black text-neutral-900 uppercase tracking-tight mt-0.5">
             {currentSite?.site_name || "Site"} — {todayLabel}
           </h2>
-          <p className="text-[11px] text-gray-400 font-semibold mt-0.5">
+          <p className="text-[11px] text-neutral-400 font-semibold mt-0.5">
             A one-page status check, not a data dump — drill into the tabs above for full detail on any sector.
           </p>
         </div>
         <div className="print:hidden flex items-center gap-2 shrink-0">
           <Link
             to="/admin/analytics/summary/full"
-            className="flex items-center gap-1.5 h-9 px-4 rounded-xl border border-gray-200 bg-white text-[11px] font-black uppercase tracking-wider text-gray-700 hover:border-gray-300 hover:bg-gray-50 active:scale-[0.98] transition-all"
+            className="flex items-center gap-1.5 h-9 px-4 rounded-xl border border-neutral-200 bg-white text-[11px] font-black uppercase tracking-wider text-neutral-700 hover:border-neutral-300 hover:bg-neutral-50 active:scale-[0.98] transition-all"
           >
             <FileStack size={13} />
             More Details — Full Report
           </Link>
           <button
             onClick={() => window.print()}
-            className="flex items-center gap-1.5 h-9 px-4 rounded-xl bg-slate-900 text-white text-[11px] font-black uppercase tracking-wider hover:bg-slate-800 active:scale-[0.98] transition-all cursor-pointer"
+            className="flex items-center gap-1.5 h-9 px-4 rounded-xl bg-neutral-900 text-white text-[11px] font-black uppercase tracking-wider hover:bg-neutral-800 active:scale-[0.98] transition-all cursor-pointer"
           >
             <Printer size={13} />
             Print Short Version
@@ -168,17 +168,17 @@ export function ExecutiveSummary() {
       </div>
 
       {/* PUE — approximate, explicitly labelled as such */}
-      <Card className="bg-white border-gray-100 rounded-3xl shadow-sm">
+      <Card className="bg-white border-neutral-100 rounded-3xl shadow-sm">
         <CardContent className="p-5">
           <div className="flex items-start justify-between gap-4 flex-wrap">
             <div>
-              <span className="text-[10px] font-black uppercase tracking-widest text-gray-400">Power Usage Effectiveness (Approx.)</span>
+              <span className="text-[10px] font-black uppercase tracking-widest text-neutral-400">Power Usage Effectiveness (Approx.)</span>
               <div className="flex items-baseline gap-2 mt-1">
-                <span className="text-3xl font-black text-slate-900 font-mono">
+                <span className="text-3xl font-black text-neutral-900 font-mono">
                   {today.puEstimate !== null ? today.puEstimate.toFixed(2) : "—"}
                 </span>
                 {periods.yesterday.puEstimate !== null && (
-                  <span className="text-[10px] font-bold text-gray-400">
+                  <span className="text-[10px] font-bold text-neutral-400">
                     yesterday {periods.yesterday.puEstimate.toFixed(2)}
                   </span>
                 )}
@@ -205,18 +205,18 @@ export function ExecutiveSummary() {
       </div>
 
       {/* Full comparison table — Today / Yesterday / Last 7 Days / This Month */}
-      <Card className="bg-white border-gray-100 rounded-3xl shadow-sm break-inside-avoid">
+      <Card className="bg-white border-neutral-100 rounded-3xl shadow-sm break-inside-avoid">
         <CardContent className="p-5">
-          <span className="text-[10px] font-black uppercase tracking-widest text-gray-400 block mb-3">
+          <span className="text-[10px] font-black uppercase tracking-widest text-neutral-400 block mb-3">
             Period Comparison
           </span>
           <div className="overflow-x-auto">
             <table className="w-full">
               <thead>
-                <tr className="border-b border-gray-100">
-                  <th className="text-left text-[9px] font-black uppercase tracking-widest text-gray-400 pb-2">Metric</th>
+                <tr className="border-b border-neutral-100">
+                  <th className="text-left text-[9px] font-black uppercase tracking-widest text-neutral-400 pb-2">Metric</th>
                   {PERIOD_ORDER.map((key) => (
-                    <th key={key} className="text-center text-[9px] font-black uppercase tracking-widest text-gray-400 pb-2 px-2">
+                    <th key={key} className="text-center text-[9px] font-black uppercase tracking-widest text-neutral-400 pb-2 px-2">
                       {periods[key].label}
                     </th>
                   ))}
@@ -243,7 +243,7 @@ export function ExecutiveSummary() {
       {/* Technical -> Admin: the work queue expressed as management numbers.
           Same table the technician reads, so the floor and the boardroom
           cannot disagree. */}
-      <Card className="bg-white border-gray-100 rounded-3xl shadow-sm">
+      <Card className="bg-white border-neutral-100 rounded-3xl shadow-sm">
         <CardContent className="p-5">
           <SlaPanel />
         </CardContent>

@@ -108,27 +108,27 @@ function ReportModal({
         onClick={(e) => e.stopPropagation()}
       >
         {/* Modal header */}
-        <div className="flex items-center justify-between px-6 py-5 border-b border-gray-100 bg-gray-50/60">
+        <div className="flex items-center justify-between px-6 py-5 border-b border-neutral-100 bg-neutral-50/60">
           <div>
             <div className="flex items-center gap-2 mb-1">
-              <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">
+              <span className="text-[10px] font-black text-neutral-400 uppercase tracking-widest">
                 Shift Report
               </span>
-              <span className="text-[10px] font-mono font-black text-gray-500 bg-gray-100 px-2 py-0.5 rounded-lg">
+              <span className="text-[10px] font-mono font-black text-neutral-500 bg-neutral-100 px-2 py-0.5 rounded-lg">
                 {log.logNumber}
               </span>
               <VerificationBadge status={log.verificationStatus} />
             </div>
-            <h2 className="text-[16px] font-black text-gray-900 leading-none">
+            <h2 className="text-[16px] font-black text-neutral-900 leading-none">
               {log.author}
             </h2>
-            <p className="text-[11px] font-semibold text-gray-400 mt-0.5">
+            <p className="text-[11px] font-semibold text-neutral-400 mt-0.5">
               {log.shiftLabel} · {log.date} · {log.time}
             </p>
           </div>
           <button
             onClick={onClose}
-            className="p-2 rounded-xl text-gray-400 hover:text-gray-700 hover:bg-gray-100 transition-all"
+            className="p-2 rounded-xl text-neutral-400 hover:text-neutral-700 hover:bg-neutral-100 transition-all"
           >
             <X size={16} />
           </button>
@@ -146,28 +146,28 @@ function ReportModal({
               { label: "Shift", value: log.shiftLabel, icon: Clock },
               { label: "Alerts Acked", value: `${log.alertsAcked} alert${log.alertsAcked !== 1 ? "s" : ""}`, icon: AlertTriangle },
             ].map(({ label, value, icon: Icon }) => (
-              <div key={label} className="bg-gray-50 border border-gray-100 rounded-xl px-3 py-2.5">
+              <div key={label} className="bg-neutral-50 border border-neutral-100 rounded-xl px-3 py-2.5">
                 <div className="flex items-center gap-1.5 mb-1">
-                  <Icon size={10} className="text-gray-400" />
-                  <span className="text-[9px] font-black text-gray-400 uppercase tracking-widest">
+                  <Icon size={10} className="text-neutral-400" />
+                  <span className="text-[9px] font-black text-neutral-400 uppercase tracking-widest">
                     {label}
                   </span>
                 </div>
-                <div className="text-[11px] font-bold text-gray-700">{value}</div>
+                <div className="text-[11px] font-bold text-neutral-700">{value}</div>
               </div>
             ))}
           </div>
 
           {/* Telemetry */}
           <div>
-            <div className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">
+            <div className="text-[10px] font-black text-neutral-400 uppercase tracking-widest mb-2">
               Telemetry Snapshot
             </div>
-            <div className="bg-gray-900 rounded-xl px-4 py-3 grid grid-cols-2 gap-x-6 gap-y-2">
+            <div className="bg-neutral-900 rounded-xl px-4 py-3 grid grid-cols-2 gap-x-6 gap-y-2">
               {log.telemetry.map((t, i) => (
                 <div key={i} className="flex items-center justify-between gap-2">
-                  <div className="flex items-center gap-1.5 text-gray-500 text-[10px] font-semibold">
-                    <span className={t.flag ? "text-danger-400" : "text-gray-500"}>
+                  <div className="flex items-center gap-1.5 text-neutral-500 text-[10px] font-semibold">
+                    <span className={t.flag ? "text-danger-400" : "text-neutral-500"}>
                       {t.icon}
                     </span>
                     {t.label}
@@ -182,11 +182,11 @@ function ReportModal({
 
           {/* Notes */}
           <div>
-            <div className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">
+            <div className="text-[10px] font-black text-neutral-400 uppercase tracking-widest mb-2">
               Technician Notes
             </div>
-            <div className="border-l-4 border-gray-200 pl-4 py-1">
-              <p className="text-[12px] font-semibold text-gray-600 leading-relaxed italic">
+            <div className="border-l-4 border-neutral-200 pl-4 py-1">
+              <p className="text-[12px] font-semibold text-neutral-600 leading-relaxed italic">
                 {log.notes}
               </p>
             </div>
@@ -207,7 +207,7 @@ function ReportModal({
                   ? "Log verified against SCADA telemetry. No discrepancies detected."
                   : "One or more field readings deviate from SCADA telemetry. Review flagged entries."}
               </div>
-              <div className="text-[9px] font-semibold text-gray-400 mt-0.5">
+              <div className="text-[9px] font-semibold text-neutral-400 mt-0.5">
                 Immutable record · {log.id} · {DEFAULT_SITE_LABEL} Audit System
               </div>
             </div>
@@ -248,7 +248,7 @@ function ShiftCard({
   const isDiscrepancy = log.verificationStatus === "discrepancy";
 
   return (
-    <div className="bg-white border border-gray-100 rounded-2xl shadow-sm overflow-hidden flex flex-col hover:shadow-md transition-shadow duration-200">
+    <div className="bg-white border border-neutral-100 rounded-2xl shadow-sm overflow-hidden flex flex-col hover:shadow-md transition-shadow duration-200">
       {/* ── Card header ─────────────────────────────────────────────────── */}
       <div className="px-5 pt-5 pb-4">
         {/* Top row: Avatar + timestamp */}
@@ -260,11 +260,11 @@ function ShiftCard({
 
           {/* Timestamp */}
           <div className="text-right flex-shrink-0">
-            <div className="flex items-center gap-1 justify-end text-[10px] font-bold text-gray-400">
+            <div className="flex items-center gap-1 justify-end text-[10px] font-bold text-neutral-400">
               <Clock size={10} />
               {log.time}
             </div>
-            <div className="text-[9px] font-semibold text-gray-300 mt-0.5 font-mono">
+            <div className="text-[9px] font-semibold text-neutral-300 mt-0.5 font-mono">
               {log.date}
             </div>
           </div>
@@ -273,16 +273,16 @@ function ShiftCard({
         {/* Author + zone */}
         <div className="mb-2">
           <div className="flex items-center gap-2 flex-wrap">
-            <span className="text-[14px] font-black text-gray-900 leading-tight">
+            <span className="text-[14px] font-black text-neutral-900 leading-tight">
               {log.author}
             </span>
-            <span className="text-[9px] font-mono font-black text-gray-400 bg-gray-100 px-1.5 py-0.5 rounded-md">
+            <span className="text-[9px] font-mono font-black text-neutral-400 bg-neutral-100 px-1.5 py-0.5 rounded-md">
               {log.logNumber}
             </span>
           </div>
           <div className="flex items-center gap-1 mt-0.5">
-            <MapPin size={10} className="text-gray-400 flex-shrink-0" />
-            <span className="text-[11px] font-semibold text-gray-400">
+            <MapPin size={10} className="text-neutral-400 flex-shrink-0" />
+            <span className="text-[11px] font-semibold text-neutral-400">
               {log.zone} · {log.shiftLabel}
             </span>
           </div>
@@ -293,20 +293,20 @@ function ShiftCard({
       </div>
 
       {/* ── Subtle divider ───────────────────────────────────────────────── */}
-      <div className="mx-5 border-t border-gray-100" />
+      <div className="mx-5 border-t border-neutral-100" />
 
       {/* ── Telemetry grid ───────────────────────────────────────────────── */}
       <div className="px-5 py-4 grid grid-cols-2 gap-x-4 gap-y-2.5 flex-1">
         {log.telemetry.map((t, i) => (
           <div key={i} className="flex items-center justify-between min-w-0">
-            <div className="flex items-center gap-1 text-[10px] font-semibold text-gray-400 min-w-0">
-              <span className={`flex-shrink-0 ${t.flag ? "text-danger-400" : "text-gray-400"}`}>
+            <div className="flex items-center gap-1 text-[10px] font-semibold text-neutral-400 min-w-0">
+              <span className={`flex-shrink-0 ${t.flag ? "text-danger-400" : "text-neutral-400"}`}>
                 {t.icon}
               </span>
               <span className="truncate">{t.label}</span>
             </div>
             <span
-              className={`text-[11px] font-black ml-1 flex-shrink-0 ${t.flag ? "text-danger-500" : "text-gray-800"
+              className={`text-[11px] font-black ml-1 flex-shrink-0 ${t.flag ? "text-danger-500" : "text-neutral-800"
                 }`}
             >
               {t.value}
@@ -317,8 +317,8 @@ function ShiftCard({
 
       {/* ── Notes section ────────────────────────────────────────────────── */}
       <div className="px-5 pb-4">
-        <div className="border-l-[3px] border-gray-200 pl-3">
-          <p className="text-[11px] font-semibold text-gray-500 italic leading-relaxed line-clamp-3">
+        <div className="border-l-[3px] border-neutral-200 pl-3">
+          <p className="text-[11px] font-semibold text-neutral-500 italic leading-relaxed line-clamp-3">
             {log.notes}
           </p>
         </div>
@@ -337,12 +337,12 @@ function ShiftCard({
       )}
 
       {/* ── Footer CTA ───────────────────────────────────────────────────── */}
-      <div className="mt-auto border-t border-gray-100">
+      <div className="mt-auto border-t border-neutral-100">
         <button
           onClick={() => onViewReport(log)}
           className={`w-full px-5 py-3.5 flex items-center justify-between text-[11px] font-black uppercase tracking-wider transition-colors ${isDiscrepancy
               ? "bg-danger-50/60 hover:bg-danger-50 text-danger-600"
-              : "bg-gray-50 hover:bg-gray-100 text-gray-600"
+              : "bg-neutral-50 hover:bg-neutral-100 text-neutral-600"
             }`}
         >
           <span className="flex items-center gap-1.5">
@@ -399,7 +399,7 @@ export function ShiftReports() {
             ? report.technician_name.split(" ").map((n: string) => n[0]).join("").toUpperCase()
             : "AM";
           
-          const colors = ["bg-brand-500", "bg-info-500", "bg-ok-500", "bg-purple-500", "bg-warn-500"];
+          const colors = ["bg-brand-500", "bg-info-500", "bg-ok-500", "bg-series-5", "bg-warn-500"];
           const colorIdx = initials.charCodeAt(0) % colors.length;
           
           return {
@@ -490,7 +490,7 @@ export function ShiftReports() {
         ...(row.metrics as Record<string, any> || {}),
       }));
 
-      await generateLegacyMonthlyReport(monthName, yearStr, flatData, siteCode);
+      await generateLegacyMonthlyReport(monthName, yearStr, flatData, siteCode, currentSite?.id ?? null);
     } catch (err) {
       console.error("Error generating legacy monthly report:", err);
     } finally {
@@ -583,15 +583,15 @@ export function ShiftReports() {
       <div className="min-h-full flex flex-col gap-6">
 
         {/* ── Page header ──────────────────────────────────────────────────── */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-gray-100 pb-4 print:hidden">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-neutral-100 pb-4 print:hidden">
           <div>
-            <div className="text-[10px] font-black text-gray-400 uppercase tracking-[0.14em] mb-0.5">
+            <div className="text-[10px] font-black text-neutral-400 uppercase tracking-[0.14em] mb-0.5">
               Audit System
             </div>
-            <h1 className="text-[20px] font-black text-gray-900 tracking-tight leading-none">
+            <h1 className="text-[20px] font-black text-neutral-900 tracking-tight leading-none">
               {activeTab === "shifts" ? "Shift Logs & Audit Trail" : "Daily Checklists & Audit"}
             </h1>
-            <p className="text-[12px] font-semibold text-gray-400 mt-1">
+            <p className="text-[12px] font-semibold text-neutral-400 mt-1">
               {activeTab === "shifts"
                 ? `Immutable field technician reports · ${currentSite?.site_name || "—"}`
                 : "Browse and print official daily checklists submitted by technicians."}
@@ -600,13 +600,13 @@ export function ShiftReports() {
           </div>
 
           {/* Segmented Tab Controls for Admin Reports */}
-          <div className="bg-slate-100 border border-slate-200 rounded-2xl p-1 flex shadow-sm shrink-0">
+          <div className="bg-neutral-100 border border-neutral-200 rounded-2xl p-1 flex shadow-sm shrink-0">
             <button
               onClick={() => setActiveTab("shifts")}
               className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
                 activeTab === "shifts"
                   ? "bg-brand-500 text-white shadow-sm shadow-brand-500/10"
-                  : "text-gray-400 hover:text-gray-600"
+                  : "text-neutral-400 hover:text-neutral-600"
               }`}
             >
               <Clock size={12} />
@@ -618,7 +618,7 @@ export function ShiftReports() {
               className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
                 activeTab === "checklists"
                   ? "bg-brand-500 text-white shadow-sm shadow-brand-500/10"
-                  : "text-gray-400 hover:text-gray-600"
+                  : "text-neutral-400 hover:text-neutral-600"
               }`}
             >
               <FileText size={12} />
@@ -674,14 +674,14 @@ export function ShiftReports() {
                 </button>
                 <button
                   onClick={() => handleAuditExport("csv")}
-                  className="flex items-center gap-1.5 h-9 px-3.5 rounded-xl bg-gray-900 text-white text-[11px] font-black uppercase tracking-wider hover:bg-gray-700 active:scale-[0.98] transition-all cursor-pointer"
+                  className="flex items-center gap-1.5 h-9 px-3.5 rounded-xl bg-neutral-900 text-white text-[11px] font-black uppercase tracking-wider hover:bg-neutral-700 active:scale-[0.98] transition-all cursor-pointer"
                 >
                   <Download size={13} />
                   Export CSV
                 </button>
                 <button
                   onClick={() => window.print()}
-                  className="flex items-center gap-1.5 h-9 px-3.5 rounded-xl border border-gray-200 bg-white text-[11px] font-black text-gray-700 uppercase tracking-wider hover:border-gray-300 hover:bg-gray-50 active:scale-[0.98] transition-all cursor-pointer"
+                  className="flex items-center gap-1.5 h-9 px-3.5 rounded-xl border border-neutral-200 bg-white text-[11px] font-black text-neutral-700 uppercase tracking-wider hover:border-neutral-300 hover:bg-neutral-50 active:scale-[0.98] transition-all cursor-pointer"
                 >
                   <FileText size={13} />
                   Print / PDF
@@ -691,23 +691,23 @@ export function ShiftReports() {
             </div>
 
             {/* ── Summary bar ──────────────────────────────────────────────────── */}
-            <div className="bg-white border border-gray-100 rounded-2xl shadow-sm px-5 py-4 flex flex-wrap items-center gap-6 print:hidden">
+            <div className="bg-white border border-neutral-100 rounded-2xl shadow-sm px-5 py-4 flex flex-wrap items-center gap-6 print:hidden">
               {/* Log count */}
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-gray-100 flex items-center justify-center flex-shrink-0">
-                  <FileText size={18} className="text-gray-500" />
+                <div className="w-10 h-10 rounded-xl bg-neutral-100 flex items-center justify-center flex-shrink-0">
+                  <FileText size={18} className="text-neutral-500" />
                 </div>
                 <div>
-                  <div className="text-[22px] font-black text-gray-900 leading-none">
+                  <div className="text-[22px] font-black text-neutral-900 leading-none">
                     {allShiftLogs.length}
                   </div>
-                  <div className="text-[9px] font-black text-gray-400 uppercase tracking-widest mt-0.5">
+                  <div className="text-[9px] font-black text-neutral-400 uppercase tracking-widest mt-0.5">
                     Total Reports
                   </div>
                 </div>
               </div>
 
-              <div className="w-px h-10 bg-gray-100 hidden sm:block" />
+              <div className="w-px h-10 bg-neutral-100 hidden sm:block" />
 
               {/* Verified */}
               <div className="flex items-center gap-3">
@@ -718,13 +718,13 @@ export function ShiftReports() {
                   <div className="text-[22px] font-black text-ok-600 leading-none">
                     {verifiedCount}
                   </div>
-                  <div className="text-[9px] font-black text-gray-400 uppercase tracking-widest mt-0.5">
+                  <div className="text-[9px] font-black text-neutral-400 uppercase tracking-widest mt-0.5">
                     Verified
                   </div>
                 </div>
               </div>
 
-              <div className="w-px h-10 bg-gray-100 hidden sm:block" />
+              <div className="w-px h-10 bg-neutral-100 hidden sm:block" />
 
               {/* Discrepancies */}
               <div className="flex items-center gap-3">
@@ -735,13 +735,13 @@ export function ShiftReports() {
                   <div className="text-[22px] font-black text-danger-600 leading-none">
                     {discrepancyCount}
                   </div>
-                  <div className="text-[9px] font-black text-gray-400 uppercase tracking-widest mt-0.5">
+                  <div className="text-[9px] font-black text-neutral-400 uppercase tracking-widest mt-0.5">
                     Discrepancies
                   </div>
                 </div>
               </div>
 
-              <div className="w-px h-10 bg-gray-100 hidden sm:block" />
+              <div className="w-px h-10 bg-neutral-100 hidden sm:block" />
 
               {/* Alerts acked */}
               <div className="flex items-center gap-3">
@@ -752,14 +752,14 @@ export function ShiftReports() {
                   <div className="text-[22px] font-black text-warn-600 leading-none">
                     {totalAlertsAcked}
                   </div>
-                  <div className="text-[9px] font-black text-gray-400 uppercase tracking-widest mt-0.5">
+                  <div className="text-[9px] font-black text-neutral-400 uppercase tracking-widest mt-0.5">
                     Alerts Acked
                   </div>
                 </div>
               </div>
 
               {/* Right: range label */}
-              <div className="ml-auto hidden lg:flex items-center gap-1.5 text-[10px] font-black text-gray-400 uppercase tracking-widest">
+              <div className="ml-auto hidden lg:flex items-center gap-1.5 text-[10px] font-black text-neutral-400 uppercase tracking-widest">
                 <Calendar size={11} />
                 {range.label}
               </div>
@@ -777,9 +777,9 @@ export function ShiftReports() {
             </div>
 
             {/* ── Immutability footer ───────────────────────────────────────────── */}
-            <div className="flex items-center justify-between text-[10px] font-semibold text-gray-400 pt-1 print:hidden">
+            <div className="flex items-center justify-between text-[10px] font-semibold text-neutral-400 pt-1 print:hidden">
               <div className="flex items-center gap-1.5">
-                <Shield size={11} className="text-gray-300" />
+                <Shield size={11} className="text-neutral-300" />
                 <span>
                   All logs are immutable cryptographic records · {currentSite?.site_name || "—"} Audit System
                 </span>

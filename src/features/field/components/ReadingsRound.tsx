@@ -73,17 +73,17 @@ export function ReadingsRound() {
           The consequence — an out-of-range value raising a job by itself — is
           the part that makes people bother, so it is stated up front. */}
       <div>
-        <h1 className="text-[17px] font-black leading-none tracking-tight text-gray-900">
+        <h1 className="text-[17px] font-black leading-none tracking-tight text-neutral-900">
           Readings Round
         </h1>
-        <p className="mt-1.5 text-[12px] font-medium leading-relaxed text-gray-500">
+        <p className="mt-1.5 text-[12px] font-medium leading-relaxed text-neutral-500">
           Walk the site and record each meter at its scheduled interval. Anything
           outside its safe range raises a job automatically and shows on the
           admin dashboard straight away — so a rising temperature becomes work
           before it becomes an outage.
         </p>
         <div className="mt-2 flex flex-wrap items-center gap-1.5">
-          <span className="flex items-center gap-1 rounded-lg bg-gray-100 px-2 py-1 text-[10px] font-bold text-gray-500">
+          <span className="flex items-center gap-1 rounded-lg bg-neutral-100 px-2 py-1 text-[10px] font-bold text-neutral-500">
             <ClipboardList size={11} /> Values come from the equipment registry
           </span>
           <span className="flex items-center gap-1 rounded-lg bg-warn-50 px-2 py-1 text-[10px] font-bold text-warn-700">
@@ -93,11 +93,11 @@ export function ReadingsRound() {
       </div>
 
       <div>
-        <p className="mb-1.5 text-[10px] font-black uppercase tracking-widest text-gray-400">
+        <p className="mb-1.5 text-[10px] font-black uppercase tracking-widest text-neutral-400">
           Which round are you walking?
         </p>
         <div className="flex items-center gap-2 overflow-x-auto">
-          <Clock size={14} className="shrink-0 text-gray-400" />
+          <Clock size={14} className="shrink-0 text-neutral-400" />
         {ROUNDS.map(r => (
           <button
             key={r.value}
@@ -106,8 +106,8 @@ export function ReadingsRound() {
             className={[
               "shrink-0 rounded-lg border px-3 py-1.5 text-[11px] font-bold uppercase tracking-wider transition-colors",
               frequency === r.value
-                ? "border-gray-900 bg-gray-900 text-white"
-                : "border-gray-300 text-gray-600 hover:bg-gray-50"
+                ? "border-neutral-900 bg-neutral-900 text-white"
+                : "border-neutral-300 text-neutral-600 hover:bg-neutral-50"
             ].join(" ")}
           >
             {r.label}

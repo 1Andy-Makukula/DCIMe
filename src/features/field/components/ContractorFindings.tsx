@@ -29,7 +29,7 @@ const SEVERITY_META: Record<Severity, { label: string; cls: string }> = {
   P1: { label: "Critical", cls: "bg-danger-50 text-danger-700 border-danger-200" },
   P2: { label: "High",     cls: "bg-warn-50 text-warn-700 border-warn-200" },
   P3: { label: "Medium",   cls: "bg-warn-50 text-warn-700 border-warn-200" },
-  P4: { label: "Low",      cls: "bg-slate-50 text-slate-600 border-slate-200" }
+  P4: { label: "Low",      cls: "bg-neutral-50 text-neutral-600 border-neutral-200" }
 };
 
 export const emptyFinding = (): DraftFinding => ({
@@ -52,12 +52,12 @@ export function ContractorFindingsEditor({
   return (
     <div className="flex flex-col gap-3">
       <div className="flex items-start gap-2">
-        <ClipboardCheck size={15} className="mt-0.5 shrink-0 text-gray-400" />
+        <ClipboardCheck size={15} className="mt-0.5 shrink-0 text-neutral-400" />
         <div>
-          <p className="text-[12px] font-black uppercase tracking-wider text-gray-700">
+          <p className="text-[12px] font-black uppercase tracking-wider text-neutral-700">
             Findings
           </p>
-          <p className="mt-0.5 text-[11px] leading-snug text-gray-500">
+          <p className="mt-0.5 text-[11px] leading-snug text-neutral-500">
             Record each defect separately so it can be tracked and closed out.
             Anything left here as a note disappears into the visit history.
           </p>
@@ -65,18 +65,18 @@ export function ContractorFindingsEditor({
       </div>
 
       {findings.map((f, i) => (
-        <div key={i} className="flex flex-col gap-2 rounded-2xl border border-gray-200 bg-white p-3">
+        <div key={i} className="flex flex-col gap-2 rounded-2xl border border-neutral-200 bg-white p-3">
           <div className="flex items-start gap-2">
             <input
               value={f.summary}
               onChange={e => update(i, { summary: e.target.value })}
               placeholder="What was found, e.g. Coolant hose perished on DG-2"
-              className="min-w-0 flex-1 rounded-xl border border-gray-200 bg-gray-50 px-3 py-2 text-[12px] placeholder-gray-400 focus:border-gray-400 focus:outline-none"
+              className="min-w-0 flex-1 rounded-xl border border-neutral-200 bg-neutral-50 px-3 py-2 text-[12px] placeholder-neutral-400 focus:border-neutral-400 focus:outline-none"
             />
             <button
               onClick={() => onChange(findings.filter((_, ix) => ix !== i))}
               aria-label="Remove finding"
-              className="shrink-0 rounded-lg p-2 text-gray-300 hover:bg-danger-50 hover:text-danger-600"
+              className="shrink-0 rounded-lg p-2 text-neutral-300 hover:bg-danger-50 hover:text-danger-600"
             >
               <Trash2 size={14} />
             </button>
@@ -87,7 +87,7 @@ export function ContractorFindingsEditor({
             onChange={e => update(i, { detail: e.target.value })}
             placeholder="Any detail worth passing on (optional)"
             rows={2}
-            className="rounded-xl border border-gray-200 bg-gray-50 px-3 py-2 text-[12px] placeholder-gray-400 focus:border-gray-400 focus:outline-none"
+            className="rounded-xl border border-neutral-200 bg-neutral-50 px-3 py-2 text-[12px] placeholder-neutral-400 focus:border-neutral-400 focus:outline-none"
           />
 
           <div className="flex flex-wrap items-center gap-1.5">
@@ -96,7 +96,7 @@ export function ContractorFindingsEditor({
                 key={s}
                 onClick={() => update(i, { severity: s })}
                 className={`rounded-lg border px-2.5 py-1.5 text-[10px] font-black uppercase tracking-wider transition-colors ${
-                  f.severity === s ? SEVERITY_META[s].cls : "border-gray-200 bg-white text-gray-400"
+                  f.severity === s ? SEVERITY_META[s].cls : "border-neutral-200 bg-white text-neutral-400"
                 }`}
               >
                 {s} · {SEVERITY_META[s].label}
@@ -111,13 +111,13 @@ export function ContractorFindingsEditor({
               type="checkbox"
               checked={f.raiseWork}
               onChange={e => update(i, { raiseWork: e.target.checked })}
-              className="h-4 w-4 rounded border-gray-300 accent-gray-900"
+              className="h-4 w-4 rounded border-neutral-300 accent-neutral-900"
             />
-            <span className="text-[11px] font-semibold text-gray-600">
+            <span className="text-[11px] font-semibold text-neutral-600">
               Raise a job for this
             </span>
             {!f.raiseWork && (
-              <span className="text-[10px] text-gray-400">— recorded as an observation only</span>
+              <span className="text-[10px] text-neutral-400">— recorded as an observation only</span>
             )}
           </label>
         </div>
@@ -125,7 +125,7 @@ export function ContractorFindingsEditor({
 
       <button
         onClick={() => onChange([...findings, emptyFinding()])}
-        className="flex items-center justify-center gap-2 rounded-xl border border-dashed border-gray-300 py-2.5 text-[12px] font-bold text-gray-600 transition-colors hover:bg-gray-50"
+        className="flex items-center justify-center gap-2 rounded-xl border border-dashed border-neutral-300 py-2.5 text-[12px] font-bold text-neutral-600 transition-colors hover:bg-neutral-50"
       >
         <Plus size={14} /> Add a finding
       </button>

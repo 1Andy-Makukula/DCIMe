@@ -1,21 +1,37 @@
 // src/shared/utils/excelExportEngine.ts
 import ExcelJS from "exceljs";
 import { saveAs } from "file-saver";
-import { EXCEL_MAPPINGS } from "../../config/mappings/excelMappings";
-import { SITE_BLUEPRINTS, DEFAULT_SITE_CODE } from "../../config/sites";
-import { getExcelColumn, getPacEquipmentIndex, getEqptStatusRow, getFssRoomOffset } from "./excelMappingHelpers";
-import { BRAND_NAME, DAILY_CHECKLIST_ASSET_ID, siteFileLabel } from "./branding";
+import { fetchExcelPlan, type ExcelPlan } from "@/shared/api/excelPlan";
+import { DEFAULT_SITE_CODE } from "../../config/sites";
+import { getExcelColumn, getEqptStatusRow, getFssRoomOffset } from "./excelMappingHelpers";
 
-// Helper to get fallback/constant value based on user spec
-const getFallbackValue = (metricId: string, lastValue: any): any => {
+// PAC sheet geometry, read from the template: data starts at row 6, each
+// two-hourly block lists 23 units, and there are 12 blocks in a day.
+const PAC_FIRST_ROW = 6;
+const PAC_UNITS_PER_BLOCK = 23;
+const PAC_BLOCKS_PER_DAY = 12;
+
+// DG Check lists nine engine checks per day.
+const DG_CHECK_ITEMS_PER_DAY = 9;
+import { BRAND_NAME, DAILY_CHECKLIST_ASSET_ID, siteFileLabel, EXCEL_TEMPLATES } from "./branding";
+
+// What to print when no reading arrived.
+//
+// The registry answers this first: a NOT_APPLICABLE or CONSTANT parameter
+// carries its own constant_value, so the workbook column is answered rather
+// than blank, and turning one into a real reading later needs no code change.
+//
+// The rules below are what remains of the hardcoded heuristics — defaults for
+// parameters that ARE captured but were skipped on a round. They belong in the
+// registry's default_value too; moving them is Stage 4 work, once the
+// conformance test can prove the exported cells are unchanged.
+const getFallbackValue = (metricId: string, lastValue: any, plan: ExcelPlan): any => {
   if (lastValue !== undefined && lastValue !== null && lastValue !== "") {
     return lastValue;
   }
 
-  // If a PAC voltage/current field is not entered, fall back to "NA"
-  if (metricId.includes("_voltage_") || metricId.includes("_current_")) {
-    return "NA";
-  }
+  const registered = plan.uncaptured[metricId];
+  if (registered !== undefined) return registered;
 
   // Status check variables can have standard safe constants if they represent status checks,
   // but for measurements (like volts, temps, capacity, run hours, etc.), return null.
@@ -45,11 +61,23 @@ export const generateMonthlyReport = async (
   month: string,
   year: string,
   logs: any[],
-  siteCode: string = DEFAULT_SITE_CODE
+  siteCode: string = DEFAULT_SITE_CODE,
+  /**
+   * The site whose Excel destinations to use. Without it there is nothing to
+   * write against, so the export refuses rather than producing empty workbooks
+   * that look like a month with no readings.
+   */
+  siteUuid: string | null = null
 ): Promise<void> => {
-  const blueprint = SITE_BLUEPRINTS[siteCode] || SITE_BLUEPRINTS[DEFAULT_SITE_CODE];
-  const dailyTemplatePath = blueprint.templates?.daily_canvas || "/template_daily_canvas.xlsx";
-  const commercialTemplatePath = blueprint.templates?.commercial_logbook || "/template_commercial_logbook.xlsx";
+  const plan = await fetchExcelPlan(siteUuid);
+  if (Object.keys(plan.targets).length === 0) {
+    throw new Error(
+      "No Excel destinations are configured for this site. Apply 20260837_registry_seed.sql, " +
+      "or check that the site has equipment loaded in the registry."
+    );
+  }
+  const dailyTemplatePath = EXCEL_TEMPLATES.daily_canvas;
+  const commercialTemplatePath = EXCEL_TEMPLATES.commercial_logbook;
 
   // Fetch Templates concurrently (M-7: report explicit HTTP status or path on failure)
   const [dailyRes, commRes] = await Promise.all([
@@ -108,7 +136,7 @@ export const generateMonthlyReport = async (
   const lastEnteredValues: Record<string, any> = {};
   let lastTechName = "Field Tech";
 
-  const siteMappings = EXCEL_MAPPINGS[siteCode] || EXCEL_MAPPINGS[DEFAULT_SITE_CODE];
+  const siteMappings = plan.targets;
 
   // Loop over every day and hour chronologically
   for (let day = 1; day <= numDays; day++) {
@@ -133,19 +161,11 @@ export const generateMonthlyReport = async (
 
       // Loop over all metric mappings defined in the site mappings broker
       Object.keys(siteMappings).forEach((metricId) => {
-        // Intercept asset status to check if it's offline
-        let assetId = "";
-        if (metricId.startsWith("pac_")) {
-          const parts = metricId.split("_");
-          if (parts.length >= 3) {
-            assetId = parts.slice(0, 3).join("_");
-          }
-        } else if (metricId.startsWith("ups_") || metricId.startsWith("rectifier_") || metricId.startsWith("dg_") || metricId.startsWith("fss_")) {
-          const parts = metricId.split("_");
-          if (parts.length >= 2) {
-            assetId = parts.slice(0, 2).join("_");
-          }
-        }
+        // Which asset this reading belongs to, from the registry rather than by
+        // splitting the key on underscores and hoping the segment count is
+        // right. That guesswork is what let a Data Room sensor answer to
+        // media_ambient_temp for a year without anyone noticing.
+        const assetId = plan.owner[metricId] ?? "";
 
         const isAssetOffline = assetId && log?.metrics && log.metrics[`status_${assetId}`] === "OFFLINE";
 
@@ -171,7 +191,7 @@ export const generateMonthlyReport = async (
             finalValue = lastEnteredValues[cumKey] !== undefined ? lastEnteredValues[cumKey] : null;
           }
 
-          cellValue = getFallbackValue(metricId, finalValue);
+          cellValue = getFallbackValue(metricId, finalValue, plan);
 
           // Intercept grid status for planned tests to prevent false offline reporting
           if (metricId === 'grid_status' && (cellValue === 'OFF' || cellValue === 'OFFLINE') && log?.metrics?.outage_type === 'planned_test') {
@@ -219,15 +239,28 @@ export const generateMonthlyReport = async (
             if (sheetName === "Commercial Power Log" || sheetName === "Temp Record") {
               targetRow = 7 + ((day - 1) * 6) + Math.floor(hour / 4);
             } else if (sheetName.startsWith("DG-")) {
-              targetRow = 2 + day;
+              // Header occupies rows 2-3; day 1 is row 4. This was 2 + day,
+              // which wrote day 1 into the sub-header and shifted the whole
+              // month up by one. The neighbouring Fuel Record was already
+              // correct, which is how the two disagreed unnoticed.
+              targetRow = 3 + day;
             } else if (sheetName === "Fuel Record") {
               targetRow = 5 + day;
             } else if (sheetName === "DG Check") {
-              targetRow = 5 + (day - 1) * 6; // Set targetRow to the first row of the day
+              // Nine checklist items per day, not six. Date rows in the
+              // template fall at 5, 14, 23, 32 — a stride of 9.
+              targetRow = 5 + (day - 1) * DG_CHECK_ITEMS_PER_DAY;
             } else if (sheetName === "PAC") {
-              const equipIdx = getPacEquipmentIndex(assetId || metricId);
-              if (equipIdx !== -1) {
-                targetRow = 5 + (Math.floor(hour / 2) * 24) + equipIdx;
+              const equipIdx = plan.rowIndex[assetId];
+              // Undefined means the asset has no row on this sheet — the Dragor
+              // and the three HQ aircons, which the 23-row block does not cover.
+              if (equipIdx !== undefined) {
+                // Every fault this line used to have: no day term at all, so all
+                // 31 days overwrote one block; a stride of 24 against a block of
+                // 23, drifting a row every two hours; and a base of 5 where the
+                // data starts at row 6.
+                const block = (day - 1) * PAC_BLOCKS_PER_DAY + Math.floor(hour / 2);
+                targetRow = PAC_FIRST_ROW + block * PAC_UNITS_PER_BLOCK + equipIdx;
               }
             } else if (sheetName === "Eqpt status") {
               targetRow = getEqptStatusRow(assetId || metricId);
@@ -278,7 +311,8 @@ export const generateMonthlyReport = async (
         const cpRow = 7 + ((day - 1) * 6) + Math.floor(hour / 4);
         const logDateStr = new Date(parseInt(year, 10), numericMonth - 1, day).toLocaleDateString("en-US");
         cpSheet.getCell("A" + cpRow).value = logDateStr;
-        cpSheet.getCell("R" + cpRow).value = lastTechName;
+        // Q is Technician; R is Remarks. The name was landing in Remarks.
+        cpSheet.getCell("Q" + cpRow).value = lastTechName;
       }
 
       const trSheet = getWorksheetCaseInsensitive(commWb, "Temp Record");
@@ -286,7 +320,9 @@ export const generateMonthlyReport = async (
         const trRow = 7 + ((day - 1) * 6) + Math.floor(hour / 4);
         const logDateStr = new Date(parseInt(year, 10), numericMonth - 1, day).toLocaleDateString("en-US");
         trSheet.getCell("A" + trRow).value = logDateStr;
-        trSheet.getCell("V" + trRow).value = lastTechName;
+        // R is "Remarks & Sign". V is past the end of a 19-column sheet, so
+        // the technician's name was being written outside the table.
+        trSheet.getCell("R" + trRow).value = lastTechName;
       }
 
       const dgNames = ["DG-1", "DG-2", "DG-3", "DG-4", "DG-HQ"];
@@ -294,8 +330,11 @@ export const generateMonthlyReport = async (
         const sheet = getWorksheetCaseInsensitive(commWb, name);
         if (sheet) {
           const logDateStr = new Date(parseInt(year, 10), numericMonth - 1, day).toLocaleDateString("en-US");
-          sheet.getCell("A" + (2 + day)).value = logDateStr;
-          sheet.getCell("T" + (2 + day)).value = lastTechName;
+          // Day 1 is row 4; header occupies 2-3. Same off-by-one the reading
+          // destinations had, in the metadata that labels them.
+          const dgRow = 3 + day;
+          sheet.getCell("A" + dgRow).value = logDateStr;
+          sheet.getCell("T" + dgRow).value = lastTechName;
         }
       });
 
@@ -304,8 +343,12 @@ export const generateMonthlyReport = async (
         const fuelRow = 5 + day;
         const logDateStr = new Date(parseInt(year, 10), numericMonth - 1, day).toLocaleDateString("en-US");
         fuelSheet.getCell("A" + fuelRow).value = logDateStr;
-        fuelSheet.getCell("M" + fuelRow).value = "OK";
-        fuelSheet.getCell("N" + fuelRow).value = lastTechName;
+        // The sheet's labelled columns end at L (fuel spillage), so there is no
+        // technician column here. The hardcoded "OK" that used to go in M is
+        // dropped — it asserted a status nobody had checked. The name stays, in
+        // the first free column, because attribution is worth more than
+        // tidiness; it wants a proper column in the client's template.
+        fuelSheet.getCell("M" + fuelRow).value = lastTechName;
       }
 
       const pacSheet = getWorksheetCaseInsensitive(commWb, "PAC");
@@ -359,6 +402,55 @@ export const generateMonthlyReport = async (
     }
   }
 
+  // ── Date the workbooks ───────────────────────────────────────────────────
+  // Both templates ship hardcoded to June 2026. Every sheet that carries a date
+  // column carried June's, whatever month was actually exported — so a
+  // September report was dated June, and the person reading it had to know to
+  // ignore that.
+  //
+  // Every address below was read out of the template rather than assumed. The
+  // derived sheets (Room Temp, Summary, PUE Trend, Power Plant) are formula
+  // views over the day sheets; their date columns are literal and need stamping
+  // even though their data does not.
+  const dayOf = (d: number) => new Date(parseInt(year, 10), numericMonth - 1, d);
+
+  for (let d = 1; d <= numDays; d++) {
+    const date = dayOf(d);
+
+    // Day sheet — the header date, top right of each of the 31 sheets.
+    const daySheet = getWorksheetCaseInsensitive(dailyWb, d.toString().padStart(2, "0"))
+                  ?? getWorksheetCaseInsensitive(dailyWb, d.toString());
+    if (daySheet) daySheet.getCell("BV1").value = date;
+
+    const stamp = (wb: ExcelJS.Workbook, sheetName: string, col: string, firstRow: number) => {
+      const sheet = getWorksheetCaseInsensitive(wb, sheetName);
+      if (sheet) sheet.getCell(col + (firstRow + d - 1)).value = date;
+    };
+
+    stamp(dailyWb, "Room Temp - Auto Update", "A", 6);
+    stamp(dailyWb, "Summary - Temp & Hum ",   "A", 4);
+    stamp(dailyWb, "PUE Trend",               "A", 4);
+
+    // Eqpt status runs ACROSS: one four-column block per day, starting at G3.
+    const eqpt = getWorksheetCaseInsensitive(commWb, "Eqpt status");
+    if (eqpt) eqpt.getCell(getExcelColumn(6 + (d - 1) * 4) + "3").value = date;
+
+    // Power Plant check sheets: four rows per day (00/06/12/18), date on the first.
+    for (const name of ["Power Plant - UPS 1", "Power Plant - UPS 2",
+                        "Power Plant - RECTIFIER 1", "Power Plant - RECTIFIER 2"]) {
+      const sheet = getWorksheetCaseInsensitive(dailyWb, name);
+      if (sheet) sheet.getCell("B" + (4 + (d - 1) * 4)).value = date;
+    }
+  }
+
+  // Half of each workbook is formulas reading the day sheets — Room Temp,
+  // Summary, PUE Trend and the four Power Plant check sheets. ExcelJS writes
+  // values without recomputing them, so without this the file ships carrying
+  // the TEMPLATE's cached results and whether the recipient sees real numbers
+  // depends on their Excel's recalculation settings.
+  dailyWb.calcProperties.fullCalcOnLoad = true;
+  commWb.calcProperties.fullCalcOnLoad = true;
+
   // Trigger Download
   const dailyBuffer = await dailyWb.xlsx.writeBuffer();
   saveAs(new Blob([dailyBuffer]), `${BRAND_NAME}_${siteFileLabel(siteCode)}_Daily_Canvas_${month}_${year}.xlsx`);
@@ -371,7 +463,8 @@ export const generateLegacyMonthlyReport = async (
   month: string,
   year: string,
   flatData: any[],
-  siteCode: string = DEFAULT_SITE_CODE
+  siteCode: string = DEFAULT_SITE_CODE,
+  siteUuid: string | null = null
 ): Promise<void> => {
   const mappedLogs = flatData.map((row) => {
     const metrics: Record<string, any> = {};
@@ -394,5 +487,5 @@ export const generateLegacyMonthlyReport = async (
       metrics,
     };
   });
-  return generateMonthlyReport(month, year, mappedLogs, siteCode);
+  return generateMonthlyReport(month, year, mappedLogs, siteCode, siteUuid);
 };

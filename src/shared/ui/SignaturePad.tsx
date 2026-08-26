@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { Check, Eraser, PenLine, Undo2, X } from "lucide-react";
+import { hex } from "@/shared/theme/palette";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Handwritten signature capture.
@@ -58,7 +59,10 @@ export interface SignaturePadProps {
 
 type Point = { x: number; y: number };
 
-const INK = "#0f172a";
+// Canvas takes a resolved colour, not a var() — palette.hex() reads the live
+// computed value so the ink still tracks brand.css. The literal is the
+// fallback for a canvas mounted before styles resolve.
+const INK = hex("--color-neutral-900", "#0f172a");
 
 export function SignaturePad({
   open, onClose, onConfirm, signerName, context, confirmLabel = "Submit signature"
@@ -252,7 +256,7 @@ export function SignaturePad({
 
   return createPortal(
     <div
-      className="fixed inset-0 z-[var(--z-modal)] flex flex-col bg-slate-900/70 backdrop-blur-sm"
+      className="fixed inset-0 z-[var(--z-modal)] flex flex-col bg-neutral-900/70 backdrop-blur-sm"
       role="dialog"
       aria-modal="true"
       aria-label="Sign"
@@ -284,12 +288,12 @@ export function SignaturePad({
       <div className="flex min-h-0 flex-1 items-center justify-center px-4 pb-4">
         <div className="relative h-full max-h-[26rem] w-full max-w-3xl overflow-hidden rounded-3xl bg-white shadow-2xl">
           {/* The signing line, drawn under the ink so it reads as paper. */}
-          <div className="pointer-events-none absolute inset-x-8 bottom-12 border-b-2 border-dashed border-slate-200" />
-          <span className="pointer-events-none absolute bottom-5 left-8 font-mono text-[10px] uppercase tracking-widest text-slate-300">
+          <div className="pointer-events-none absolute inset-x-8 bottom-12 border-b-2 border-dashed border-neutral-200" />
+          <span className="pointer-events-none absolute bottom-5 left-8 font-mono text-[10px] uppercase tracking-widest text-neutral-300">
             Sign above the line
           </span>
           {!hasInk && (
-            <span className="pointer-events-none absolute inset-x-0 top-1/2 flex -translate-y-1/2 items-center justify-center gap-2 text-[12px] font-bold text-slate-300">
+            <span className="pointer-events-none absolute inset-x-0 top-1/2 flex -translate-y-1/2 items-center justify-center gap-2 text-[12px] font-bold text-neutral-300">
               <PenLine size={15} /> Draw your signature here
             </span>
           )}
@@ -312,7 +316,7 @@ export function SignaturePad({
           disabled, which on a dark backdrop made them invisible — so opening
           the pad looked like it had no Clear and no Submit at all. Disabled now
           means visibly present and obviously inactive, never absent. */}
-      <div className="flex shrink-0 flex-wrap items-center justify-between gap-2 border-t border-white/20 bg-slate-950/80 p-4">
+      <div className="flex shrink-0 flex-wrap items-center justify-between gap-2 border-t border-white/20 bg-neutral-950/80 p-4">
         <div className="flex gap-2">
           <button
             onClick={undo}
@@ -368,7 +372,7 @@ export function SignatureField({
       className={`group relative flex w-full flex-col justify-end rounded-2xl border-2 border-dashed px-3 pb-2 pt-2 transition-colors ${
         value
           ? "border-ok-300 bg-ok-50/40 hover:border-ok-400"
-          : "border-gray-200 hover:border-brand-300 hover:bg-brand-50/40"
+          : "border-neutral-200 hover:border-brand-300 hover:bg-brand-50/40"
       } ${className}`}
       style={{ minHeight: "5rem" }}
     >
@@ -379,17 +383,17 @@ export function SignatureField({
           className="mx-auto max-h-14 w-auto max-w-full object-contain"
         />
       ) : (
-        <span className="flex flex-1 items-center justify-center gap-1.5 text-[11px] font-bold text-gray-400 group-hover:text-brand-500">
+        <span className="flex flex-1 items-center justify-center gap-1.5 text-[11px] font-bold text-neutral-400 group-hover:text-brand-500">
           <PenLine size={13} /> Tap to sign
         </span>
       )}
 
-      <span className="mt-1.5 flex w-full items-center justify-between gap-2 border-t border-gray-300 pt-1.5">
-        <span className="font-mono text-[9px] uppercase tracking-widest text-gray-400">
+      <span className="mt-1.5 flex w-full items-center justify-between gap-2 border-t border-neutral-300 pt-1.5">
+        <span className="font-mono text-[9px] uppercase tracking-widest text-neutral-400">
           {label}
         </span>
         {value && signedAt && (
-          <span className="font-mono text-[9px] text-gray-400">
+          <span className="font-mono text-[9px] text-neutral-400">
             {new Date(signedAt).toLocaleString(undefined, {
               month: "short", day: "numeric", hour: "2-digit", minute: "2-digit", hour12: false
             })}
