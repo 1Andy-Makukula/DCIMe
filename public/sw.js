@@ -13,7 +13,7 @@
 // deletes every cache whose name doesn't match, so affected devices self-heal
 // as soon as this worker activates. Bump it any time you need to force one.
 
-const CACHE_VERSION = 'v3';
+const CACHE_VERSION = 'v4';
 const CACHE_NAME = `dcime-app-shell-${CACHE_VERSION}`;
 
 // Only genuinely static, unhashed files belong here. Hashed build output is
@@ -71,6 +71,20 @@ function contentTypeMatchesRequest(request, response) {
   }
 }
 
+/**
+ * Whether this is a local development server rather than the deployed site.
+ *
+ * Matched on the host rather than on a build flag, because sw.js is served
+ * verbatim from public/ and never goes through the bundler — there is no
+ * import.meta.env here to read.
+ */
+function isDevelopmentHost(url) {
+  return url.hostname === 'localhost'
+    || url.hostname === '127.0.0.1'
+    || url.hostname === '[::1]'
+    || url.hostname.endsWith('.local');
+}
+
 /** Our own equipment models, which are immutable once published. */
 function isModelRequest(request) {
   const url = new URL(request.url);
@@ -94,6 +108,20 @@ self.addEventListener('fetch', (event) => {
 
   // Never intercept cross-origin traffic (Supabase REST, realtime, storage).
   if (url.origin !== self.location.origin) return;
+
+  // Never intercept a development server.
+  //
+  // The static-asset strategy below is cache-first, which is correct in
+  // production because every build asset is content-hashed: a given URL can
+  // only ever mean one file. Vite's dev server is the opposite — /src/App.tsx
+  // keeps its URL while its contents change on every edit — so caching it
+  // pins whatever version was seen first and the developer stops seeing their
+  // own changes, with a hard reload doing nothing because the worker answers
+  // before the network is consulted.
+  //
+  // This cost an afternoon of "why can't I see any change". A service worker
+  // has no business in front of a dev server, so it steps aside entirely.
+  if (isDevelopmentHost(url)) return;
 
   // Navigations are network-first: the HTML shell must always reference the
   // current build's hashed assets. Falling back to a stale shell would point
