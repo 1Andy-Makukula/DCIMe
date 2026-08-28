@@ -18,6 +18,7 @@ import {
   HardHat,
   Building2,
   Boxes,
+  ClipboardList,
   Ticket
 } from "lucide-react";
 import { useIncidents, Incident, ResolverType } from "../hooks/useIncidents";
@@ -491,7 +492,8 @@ export function IncidentReport() {
         {hasVisits && (
           <div className="space-y-2">
             <h4 className="text-[9px] font-black text-ok-600 uppercase tracking-widest flex items-center gap-1.5 bg-ok-50/50 w-fit px-2 py-0.5 rounded-md border border-ok-100">
-              <span>👷‍♂️ Contractor Visits ({visits.length})</span>
+              <HardHat size={11} aria-hidden="true" />
+              <span>Contractor Visits ({visits.length})</span>
             </h4>
             <div className="relative pl-3.5 border-l border-ok-200/60 space-y-3.5 ml-1.5">
               {visits.map((cmt: any, idx: number) => (
@@ -517,7 +519,8 @@ export function IncidentReport() {
         {hasRemarks && (
           <div className="space-y-2">
             <h4 className="text-[9px] font-black text-neutral-400 uppercase tracking-widest flex items-center gap-1.5 bg-neutral-50 w-fit px-2 py-0.5 rounded-md border border-neutral-200">
-              <span>📝 Shift Remarks & Fixes ({remarks.length})</span>
+              <MessageSquare size={11} aria-hidden="true" />
+              <span>Shift Remarks &amp; Fixes ({remarks.length})</span>
             </h4>
             <div className="relative pl-3.5 border-l border-neutral-200/60 space-y-3.5 ml-1.5">
               {remarks.map((cmt: any, idx: number) => (
@@ -1172,7 +1175,7 @@ export function IncidentReport() {
                           </span>
                         </div>
                         <div className="flex items-start gap-2">
-                          <span className="text-base leading-none">📋</span>
+                          <ClipboardList size={15} className="shrink-0 text-neutral-400" aria-hidden="true" />
                           <div className="min-w-0">
                             <p className="text-xs font-black text-neutral-900 leading-tight">{v.purpose}</p>
                             <p className="text-[10px] font-bold text-neutral-500 mt-0.5">

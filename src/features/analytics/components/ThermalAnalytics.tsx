@@ -19,7 +19,7 @@ import {
 
 export function ThermalAnalytics() {
   const { range } = useOutletContext<AnalyticsOutletContext>();
-  const { isLoading, isUsingMockData, thermalChartData, zoneData, kpis } = useDashboardData(range);
+  const { isLoading, hasNoData, thermalChartData, zoneData, kpis } = useDashboardData(range);
 
   if (isLoading) {
     return (
@@ -86,10 +86,10 @@ export function ThermalAnalytics() {
         </div>
       </div>
 
-      {isUsingMockData && (
-        <div className="flex items-center gap-3 bg-warn-50 border border-warn-100/60 text-warn-800 p-4 rounded-3xl text-xs font-semibold">
-          <AlertCircle className="w-4.5 h-4.5 text-warn-600 shrink-0" />
-          <span>Operational Notice: Telemetry database table contains no records. Displaying baseline simulated data for dashboard verification.</span>
+      {hasNoData && (
+        <div className="flex items-center gap-3 bg-neutral-50 border border-neutral-200 text-neutral-600 p-4 rounded-3xl text-xs font-semibold">
+          <AlertCircle className="w-4.5 h-4.5 text-neutral-400 shrink-0" />
+          <span>No readings were recorded for this period. Widen the date range, or check that rounds are being logged.</span>
         </div>
       )}
 

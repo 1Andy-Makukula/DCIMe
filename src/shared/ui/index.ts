@@ -12,6 +12,7 @@ export * from "./NavMenu";
 export * from "./SignaturePad";
 export * from "./DocumentSignatures";
 export * from "./StatusPill";
+export * from "./FreshnessPill";
 export * from "./MetricTile";
 export * from "./TrendChart";
 export * from "./StatTable";

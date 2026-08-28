@@ -57,8 +57,26 @@ function contentTypeMatchesRequest(request, response) {
     case 'script': return contentType.includes('javascript');
     case 'image':  return contentType.startsWith('image/');
     case 'font':   return contentType.includes('font');
-    default:       return false;
+    // A GLTFLoader fetch has an EMPTY destination — it is neither an image nor
+    // a script to the browser — so the switch above rejected every equipment
+    // model and they were re-downloaded on each visit. Matched on the path
+    // instead, and deliberately narrowly: only our own /models/assets/*.glb,
+    // and only when the body is actually binary. The v1 incident this function
+    // exists to prevent came from trusting a 200 without checking what was in
+    // it, and a path check alone would repeat that mistake — Vercel's SPA
+    // fallback answers a missing file with index.html at status 200.
+    default:       return isModelRequest(request)
+                     && (contentType.includes('model/gltf-binary')
+                      || contentType.includes('application/octet-stream'));
   }
+}
+
+/** Our own equipment models, which are immutable once published. */
+function isModelRequest(request) {
+  const url = new URL(request.url);
+  return url.origin === self.location.origin
+    && url.pathname.startsWith('/models/assets/')
+    && url.pathname.endsWith('.glb');
 }
 
 function isCacheable(request, response) {
@@ -101,7 +119,12 @@ self.addEventListener('fetch', (event) => {
   event.respondWith(
     caches.match(request).then((cached) => {
       if (cached) {
-        if (contentTypeMatchesRequest(request, cached) || request.destination === '') {
+        // A cached entry with an empty destination is trusted only when it is
+        // one of our models. The blanket `destination === ''` pass previously
+        // served ANY such entry unchecked, which is the hole the v1 poisoning
+        // came through.
+        if (contentTypeMatchesRequest(request, cached)
+            || (request.destination === '' && !isModelRequest(request))) {
           return cached;
         }
         // Poisoned entry: drop it and fall through to the network.

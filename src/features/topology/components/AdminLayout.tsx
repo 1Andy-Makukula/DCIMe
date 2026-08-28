@@ -15,6 +15,7 @@ import {
   Building2,
   Upload,
   Wrench,
+  Activity
 } from "lucide-react";
 import { BrandMark, NavMenu } from "@/shared/ui";
 import { useAuth } from "@/shared/context/AuthContext";
@@ -49,6 +50,8 @@ const NAV_TABS = [
     hint: "Contractors, visits and findings" },
   { to: "/admin/import",     label: "Import",     icon: Upload,        end: false,
     hint: "Commission a site from a spreadsheet" },
+  { to: "/admin/health",     label: "Health",     icon: Activity,      end: false,
+    hint: "Are the scheduled jobs and the topology model themselves in order" },
 ] as const;
 
 // ── AdminLayout ───────────────────────────────────────────────────────────────

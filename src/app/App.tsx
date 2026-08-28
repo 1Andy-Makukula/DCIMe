@@ -29,6 +29,7 @@ import { AlertsLog } from "@/features/topology/components/AlertsLog";
 import { ShiftReports } from "@/features/topology/components/ShiftReports";
 import { PersonnelManagement } from "@/features/topology/components/PersonnelManagement";
 import { VendorRegister } from "@/features/topology/components/VendorRegister";
+import { SystemHealth } from "@/features/topology/components/SystemHealth";
 import { CommissioningImport } from "@/features/topology/components/CommissioningImport";
 
 // Analytics sub-views
@@ -40,6 +41,9 @@ import { UpsAnalytics } from "@/features/analytics/components/UpsAnalytics";
 import { ThermalAnalytics } from "@/features/analytics/components/ThermalAnalytics";
 import { IncidentAnalytics } from "@/features/analytics/components/IncidentAnalytics";
 import { CategoryDetail } from "@/features/analytics/components/CategoryDetail";
+import { FacilityOverview } from "@/features/analytics/components/FacilityOverview";
+import { RoomDetail } from "@/features/analytics/components/RoomDetail";
+import { AssetDetail } from "@/features/analytics/components/AssetDetail";
 import { TechnicianAnalytics } from "@/features/analytics/components/TechnicianAnalytics";
 import { CapacityLedger } from "@/features/analytics/components/CapacityLedger";
 
@@ -102,10 +106,20 @@ export default function App() {
             <Route path="personnel"  element={<PersonnelManagement />} />
             <Route path="vendors"    element={<ErrorBoundary label="Vendors"><VendorRegister /></ErrorBoundary>} />
             <Route path="import"     element={<ErrorBoundary label="Import"><CommissioningImport /></ErrorBoundary>} />
+            <Route path="health"     element={<ErrorBoundary label="System Health"><SystemHealth /></ErrorBoundary>} />
             <Route path="analytics" element={<AnalyticsPage />}>
               <Route index element={<Navigate to="summary" replace />} />
               <Route path="summary" element={<ExecutiveSummary />} />
               <Route path="summary/full" element={<ExecutiveSummaryDetailed />} />
+              {/* The place-major axis: the site, then a room, then a machine.
+                  Every other tab here is measure-major and assumes you already
+                  know what you came to look at. */}
+              <Route path="facility" element={
+                <ErrorBoundary label="Facility"><FacilityOverview /></ErrorBoundary>} />
+              <Route path="facility/room/:roomId" element={
+                <ErrorBoundary label="Room"><RoomDetail /></ErrorBoundary>} />
+              <Route path="facility/asset/:equipmentId" element={
+                <ErrorBoundary label="Machine"><AssetDetail /></ErrorBoundary>} />
               <Route path="grid" element={<GridAnalytics />} />
               <Route path="fuel" element={<FuelAnalytics />} />
               <Route path="ups" element={<UpsAnalytics />} />

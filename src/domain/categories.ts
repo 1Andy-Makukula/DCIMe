@@ -114,15 +114,34 @@ export const categoryById = (id: string): CategoryDef | undefined =>
 // ─────────────────────────────────────────────────────────────────────────────
 // Units
 //
-// Not one of the 151 graphable parameters carries a unit in the registry, so
-// every figure on every screen would read "22.4" with nothing after it. Until
-// units are filled in properly — an Inventory job, since that is now where
-// parameters are edited — they are inferred from the parameter name.
+// 167 of the 172 captured numeric parameters now carry a real unit, keyed into
+// unit_definitions. The registry is the source; everything here is presentation
+// and fallback.
 //
-// This is a stopgap and is written to fail quietly: an unrecognised name gets
-// no unit rather than a guessed one, because a wrong unit on a compliance
-// record is worse than no unit at all.
+// CODES ARE NOT SYMBOLS
+// unit_definitions stores machine-safe codes — degC, %RH, hr, L/hr — because
+// they are a foreign key and travel through URLs, CSV and Excel. A chart axis
+// wants the symbol. Rendering the code verbatim puts "degC" on a temperature
+// axis, which reads as a bug even though the data is right.
+//
+// The pattern list below survives only as a fallback for a parameter that has
+// not been given a unit yet. It fails quietly on purpose: an unrecognised name
+// gets nothing rather than a guess, because a WRONG unit on a compliance record
+// is worse than a missing one.
 // ─────────────────────────────────────────────────────────────────────────────
+
+/** unit_definitions.unit_code → what a reader should see. */
+const UNIT_SYMBOLS: Record<string, string> = {
+  degC: "°C",
+  degF: "°F",
+  "%RH": "% RH",
+  hr: "h",
+  min: "min",
+  "L/hr": "L/h",
+  // Power factor is a bare ratio. The code exists so the dimension is
+  // recorded; showing "pf" after the number would be noise.
+  pf: ""
+};
 
 const UNIT_PATTERNS: [RegExp, string][] = [
   [/temp|temperature/i,               "°C"],
@@ -147,7 +166,15 @@ const UNIT_PATTERNS: [RegExp, string][] = [
  * guess from the name, otherwise nothing.
  */
 export function unitFor(parameterName: string, registryUnit?: string | null): string | null {
-  if (registryUnit && registryUnit.trim()) return registryUnit.trim();
+  const registered = registryUnit?.trim();
+  if (registered) {
+    const symbol = UNIT_SYMBOLS[registered];
+    // An empty string in the map means "deliberately shown without a unit",
+    // which is different from "not in the map" — hence the `in` check rather
+    // than a truthiness test.
+    if (registered in UNIT_SYMBOLS) return symbol || null;
+    return registered;
+  }
   for (const [pattern, unit] of UNIT_PATTERNS) {
     if (pattern.test(parameterName)) return unit || null;
   }

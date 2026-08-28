@@ -113,7 +113,16 @@ $Migrations = @(
     "20260863_synthetic_reports.sql",           # the paperwork those rounds would have produced
     "20260864_zeros_are_not_faults.sql",        # a blank box must not raise a P1 at 3am
     "20260865_entry_discipline.sql",            # was the reading written down when it was taken
-    "20260866_late_entry_detail.sql"            # the register behind the late-entry count
+    "20260866_late_entry_detail.sql",           # the register behind the late-entry count
+    "20260867_system_resolver_type.sql",        # the monitor may say it closed something itself
+    "20260868_vertiv_correction.sql",           # six aircons were recorded as the wrong make
+    "20260869_retire_sandbox.sql",              # a site that could never hold a reading
+    "20260870_weekly_grain.sql",                # the week, asked for in three places
+    "20260871_equipment_condition.sql",         # flag faulty; only admin commissions
+    "20260872_asset_history.sql",               # read the audit trail that was already kept
+    "20260873_parameter_units.sql",             # 167 parameters had no unit at all
+    "20260874_it_rack_parameters.sql",          # what an equipment rack should measure
+    "20260875_asset_freshness.sql"              # how old is this number, and was the round whole
 )
 
 # Seeds populate SITE 1 — not a sandbox. They were retargeted when the sandbox

@@ -41,6 +41,7 @@ const ICONS: Record<string, typeof Zap> = {
 const GRAINS: { value: Grain; label: string }[] = [
   { value: "hour",  label: "Hourly" },
   { value: "day",   label: "Daily" },
+  { value: "week",  label: "Weekly" },
   { value: "month", label: "Monthly" },
   { value: "year",  label: "Yearly" }
 ];
@@ -93,6 +94,9 @@ function formatBucket(iso: string, grain: Grain): string {
   switch (grain) {
     case "hour":  return d.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" });
     case "day":   return d.toLocaleDateString(undefined, { day: "numeric", month: "short" });
+    // Labelled by the Monday it starts on. date_trunc('week') is ISO-8601, so
+    // "w/c 4 Aug" is literally the bucket's own date rather than a rounding of it.
+    case "week":  return "w/c " + d.toLocaleDateString(undefined, { day: "numeric", month: "short" });
     case "month": return d.toLocaleDateString(undefined, { month: "short", year: "numeric" });
     case "year":  return String(d.getFullYear());
   }

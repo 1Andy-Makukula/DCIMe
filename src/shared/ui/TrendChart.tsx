@@ -54,6 +54,23 @@ export interface TrendChartProps {
   minPointWidth?: number;
   /** Shown in place of the chart when there is nothing to draw. */
   emptyMessage?: string;
+  /**
+   * Draw one series at full strength and fade the rest.
+   *
+   * Twenty-seven air conditioners on one axis is a plaid: the shape of any
+   * single unit is unreadable, and the one that is drifting is exactly the one
+   * a reader is trying to find. Emphasis keeps the others on screen — the point
+   * is comparison, so removing them would answer a different question — while
+   * making one of them followable.
+   */
+  emphasis?: string | null;
+  /**
+   * Suppress the built-in legend.
+   *
+   * A caller listing more series than the chart draws needs its own legend, and
+   * two legends disagreeing about what is on screen is worse than none.
+   */
+  legend?: boolean;
 }
 
 const AXIS = "var(--color-neutral-400)";
@@ -61,7 +78,8 @@ const GRID = "var(--color-neutral-100)";
 
 export function TrendChart({
   data, xKey, series, band, unit, height = 320, minPointWidth = 26,
-  emptyMessage = "No readings in this period."
+  emptyMessage = "No readings in this period.",
+  emphasis = null, legend = true
 }: TrendChartProps) {
   const hasPoints = data.some((row) =>
     series.some((s) => row[s.key] !== null && row[s.key] !== undefined));
@@ -137,25 +155,33 @@ export function TrendChart({
           formatter={(v: unknown) =>
             [typeof v === "number" ? `${v}${unit ? ` ${unit}` : ""}` : "—"]}
         />
-        {series.length > 1 && (
+        {legend && series.length > 1 && (
           <Legend wrapperStyle={{ fontSize: 11, fontWeight: 700 }} iconType="plainline" />
         )}
 
-        {series.map((s, i) => (
-          <Line
-            key={s.key}
-            type="monotone"
-            dataKey={s.key}
-            name={s.name}
-            stroke={s.color ?? SERIES[i % SERIES.length]}
-            strokeWidth={2}
-            // A gap is a round nobody logged. Joining across it would draw a
-            // straight line through hours that were never read.
-            connectNulls={false}
-            dot={data.length <= 48 ? { r: 2.5 } : false}
-            activeDot={{ r: 4 }}
-          />
-        ))}
+        {series.map((s, i) => {
+          const faded = emphasis !== null && s.key !== emphasis;
+          return (
+            <Line
+              key={s.key}
+              type="monotone"
+              dataKey={s.key}
+              name={s.name}
+              stroke={s.color ?? SERIES[i % SERIES.length]}
+              strokeWidth={faded ? 1 : emphasis === s.key ? 2.75 : 2}
+              strokeOpacity={faded ? 0.22 : 1}
+              // A gap is a round nobody logged. Joining across it would draw a
+              // straight line through hours that were never read.
+              connectNulls={false}
+              // Dots on a faded line are still fully opaque and read as the
+              // emphasised series' points, which defeats the emphasis.
+              dot={!faded && data.length <= 48 ? { r: 2.5 } : false}
+              activeDot={faded ? false : { r: 4 }}
+              // The emphasised line is drawn last so it sits above the rest.
+              style={{ zIndex: faded ? 0 : 1 }}
+            />
+          );
+        })}
       </LineChart>
     </ResponsiveContainer>
   );

@@ -1,9 +1,10 @@
 import { useState } from 'react';
+import { useCurrentSite } from "@/shared/context/SiteContext";
+import { useEquipmentCondition, CONDITION_TONE } from "@/shared/api/equipmentCondition";
 import { useOutletContext } from 'react-router';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/app/components/ui/card";
 import { Badge } from "@/app/components/ui/badge";
 import { Skeleton } from "@/app/components/ui/skeleton";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/app/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/app/components/ui/table";
 import { Fuel, Clock, Activity, ShieldAlert, AlertCircle } from 'lucide-react';
 import { useDashboardData } from '../hooks/useDashboardData';
@@ -25,9 +26,14 @@ import {
 } from 'recharts';
 
 export function FuelAnalytics() {
-  const [selectedGenerator, setSelectedGenerator] = useState("DG-1");
+  const [selectedGenerator, setSelectedGenerator] = useState<string | null>(null);
+  const { currentSite } = useCurrentSite();
+  // From the registry, not a literal list. A sixth generator registered in
+  // Inventory used to be invisible here because the options were typed by hand.
+  const { items: generators } = useEquipmentCondition(currentSite?.id ?? null, ["GENERATOR"]);
+  const activeGenerator = selectedGenerator ?? generators[0]?.equipment_id ?? null;
   const { range } = useOutletContext<AnalyticsOutletContext>();
-  const { isLoading, isUsingMockData, fuelChartData, engineHealthData, kpis } = useDashboardData(range);
+  const { isLoading, hasNoData, fuelChartData, engineHealthData, kpis } = useDashboardData(range);
 
   if (isLoading) {
     return (
@@ -68,7 +74,10 @@ export function FuelAnalytics() {
     );
   }
 
-  const chartPrefix = selectedGenerator.toLowerCase().replace('-', '');
+  // Registry ids are dg_1 / dg_hq; the chart's series keys are dg1_ / dghq_.
+  // Stripping underscores bridges the two without a lookup table that would
+  // need editing every time a generator is added.
+  const chartPrefix = (activeGenerator ?? "").replace(/_/g, "");
 
   return (
     <div className="p-6 space-y-6 bg-neutral-50/50 min-h-screen text-neutral-800">
@@ -79,26 +88,52 @@ export function FuelAnalytics() {
           <h2 className="text-lg font-black text-neutral-900 uppercase tracking-tight mt-0.5">Generators & Fuel Logistics</h2>
         </div>
         <div className="flex items-center gap-2">
-          <Select value={selectedGenerator} onValueChange={setSelectedGenerator}>
-            <SelectTrigger className="w-[140px] bg-neutral-50 border-neutral-200 text-xs font-black uppercase tracking-wider h-10 rounded-xl text-neutral-900">
-              <SelectValue placeholder="Generator" />
-            </SelectTrigger>
-            <SelectContent className="bg-white border-neutral-100 rounded-xl">
-              <SelectItem value="DG-1" className="text-xs font-bold uppercase tracking-wider text-neutral-900">DG-1</SelectItem>
-              <SelectItem value="DG-2" className="text-xs font-bold uppercase tracking-wider text-neutral-900">DG-2</SelectItem>
-              <SelectItem value="DG-3" className="text-xs font-bold uppercase tracking-wider text-neutral-900">DG-3</SelectItem>
-              <SelectItem value="DG-4" className="text-xs font-bold uppercase tracking-wider text-neutral-900">DG-4</SelectItem>
-              <SelectItem value="DG-HQ" className="text-xs font-bold uppercase tracking-wider text-neutral-900">DG-HQ</SelectItem>
-            </SelectContent>
-          </Select>
+          {/* Chips rather than a dropdown: five generators fit on one line,
+              and each carries its own condition — which is the thing somebody
+              opening a fuel screen actually wants to know before reading a
+              burn figure off a machine that is not running. */}
+          <div className="flex flex-wrap items-center gap-1.5">
+            {generators.length === 0 && (
+              <span className="text-xs font-bold uppercase tracking-wider text-neutral-400">
+                No generators registered
+              </span>
+            )}
+            {generators.map((g) => {
+              const t = CONDITION_TONE[g.condition] ?? CONDITION_TONE.ONLINE;
+              const on = g.equipment_id === activeGenerator;
+              return (
+                <button
+                  key={g.equipment_id}
+                  type="button"
+                  onClick={() => setSelectedGenerator(g.equipment_id)}
+                  title={g.last_comment ?? t.label}
+                  className={`flex items-center gap-1.5 rounded-xl border px-3 h-10 text-xs font-black uppercase tracking-wider transition-colors ${
+                    on
+                      ? "border-neutral-900 bg-neutral-900 text-white"
+                      : "border-neutral-200 bg-neutral-50 text-neutral-600 hover:bg-white"
+                  }`}
+                >
+                  <span
+                    className={`h-1.5 w-1.5 rounded-full ${
+                      t.tone === "ok" ? "bg-ok-500"
+                      : t.tone === "warn" ? "bg-warn-500"
+                      : t.tone === "danger" ? "bg-danger-500"
+                      : "bg-neutral-400"
+                    }`}
+                  />
+                  {g.name}
+                </button>
+              );
+            })}
+          </div>
           <DetailLink categoryId="generator" />
         </div>
       </div>
 
-      {isUsingMockData && (
-        <div className="flex items-center gap-3 bg-warn-50 border border-warn-100/60 text-warn-800 p-4 rounded-3xl text-xs font-semibold">
-          <AlertCircle className="w-4.5 h-4.5 text-warn-600 shrink-0" />
-          <span>Operational Notice: Telemetry database table contains no records. Displaying baseline simulated data for dashboard verification.</span>
+      {hasNoData && (
+        <div className="flex items-center gap-3 bg-neutral-50 border border-neutral-200 text-neutral-600 p-4 rounded-3xl text-xs font-semibold">
+          <AlertCircle className="w-4.5 h-4.5 text-neutral-400 shrink-0" />
+          <span>No readings were recorded for this period. Widen the date range, or check that rounds are being logged.</span>
         </div>
       )}
 

@@ -9,6 +9,7 @@ import {
   AlertOctagon,
   Loader2,
   FileText,
+  Network,
   User
 } from "lucide-react";
 import { ShiftTimeline } from "./ShiftTimeline";
@@ -228,7 +229,8 @@ export function TechDashboard() {
           onClick={() => window.open("/topology_engine/renderer/index.html?role=FIELD_TECH", "_blank")}
           className="w-full bg-white border border-neutral-200 hover:border-brand-200 rounded-3xl py-3.5 text-[10px] font-black uppercase tracking-wider text-neutral-700 hover:text-brand-500 hover:bg-brand-50/10 active:scale-[0.98] transition-all shadow-sm flex items-center justify-center gap-2 cursor-pointer"
         >
-          📊 View Visual Topology Map
+          <Network size={14} aria-hidden="true" />
+          View Visual Topology Map
         </button>
       </div>
 

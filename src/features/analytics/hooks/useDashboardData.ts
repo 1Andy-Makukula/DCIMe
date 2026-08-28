@@ -1,7 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { numOrNull } from "@/domain/metrics";
 import { useRealtimeTable } from "@/shared/api/realtime";
-import { UTILITY_GRID_LABEL } from "@/shared/utils/branding";
 import { supabase } from '@/shared/api/supabaseClient';
 import { useCurrentSite } from '@/shared/context/SiteContext';
 import { DateRangeValue, useDateRange } from '@/shared/utils/useDateRange';
@@ -162,107 +161,38 @@ export interface DashboardKPIs {
   };
 }
 
-// Default baseline mock data
-const defaultGridTimeData: GridDataPoint[] = [
-  { time: "08:00", grid_voltage_r: 231.2, grid_voltage_y: 229.5, grid_voltage_b: 230.1, grid_total_site_load: 85.4, grid_status: "ONLINE" },
-  { time: "09:00", grid_voltage_r: 230.5, grid_voltage_y: 228.8, grid_voltage_b: 229.4, grid_total_site_load: 92.1, grid_status: "ONLINE" },
-  { time: "10:00", grid_voltage_r: 229.8, grid_voltage_y: 228.1, grid_voltage_b: 228.9, grid_total_site_load: 95.8, grid_status: "ONLINE" },
-  { time: "11:00", grid_voltage_r: 0, grid_voltage_y: 0, grid_voltage_b: 0, grid_total_site_load: 12.0, grid_status: "OFFLINE" },
-  { time: "12:00", grid_voltage_r: 0, grid_voltage_y: 0, grid_voltage_b: 0, grid_total_site_load: 10.5, grid_status: "OFFLINE" },
-  { time: "13:00", grid_voltage_r: 232.1, grid_voltage_y: 230.4, grid_voltage_b: 231.0, grid_total_site_load: 88.0, grid_status: "ONLINE" },
-  { time: "14:00", grid_voltage_r: 231.7, grid_voltage_y: 229.9, grid_voltage_b: 230.5, grid_total_site_load: 87.2, grid_status: "ONLINE" },
-  { time: "15:00", grid_voltage_r: 230.9, grid_voltage_y: 229.1, grid_voltage_b: 229.8, grid_total_site_load: 90.5, grid_status: "ONLINE" },
-  { time: "16:00", grid_voltage_r: 231.0, grid_voltage_y: 229.3, grid_voltage_b: 230.0, grid_total_site_load: 94.0, grid_status: "ONLINE" }
-];
+// ─────────────────────────────────────────────────────────────────────────────
+// Empty, deliberately.
+//
+// These held invented baselines — grid uptime 77.8%, a 24,350 L fuel balance,
+// a 22.4 °C peak, fourteen incidents — and the hook served them until a fetch
+// came back with rows. There was an amber banner, but the figures rendered
+// exactly like real ones and a screenshot of them was indistinguishable from a
+// real report.
+//
+// A screen with nothing on it and a line saying so is honest. A screen full of
+// plausible numbers with a caveat above them is a trap, because the caveat does
+// not travel with the screenshot.
+// ─────────────────────────────────────────────────────────────────────────────
+const defaultGridTimeData: GridDataPoint[] = [];
 
-const defaultHeatmapData: HeatmapPoint[] = Array.from({ length: 30 }, (_, idx) => {
-  const day = idx + 1;
-  let status: 'clear' | 'minor' | 'critical' = 'clear';
-  let hours = 0;
-  if (day === 4 || day === 18 || day === 28) {
-    status = 'minor';
-    hours = day === 4 ? 0.5 : day === 18 ? 0.8 : 0.4;
-  } else if (day === 11 || day === 25) {
-    status = 'critical';
-    hours = day === 11 ? 2.4 : 3.1;
-  }
-  return { day, status, hours };
-});
+const defaultHeatmapData: HeatmapPoint[] = [];
 
-const defaultFuelData: FuelDataPoint[] = [
-  { date: "Jul 01", run_hrs: 4.2, fuel_consumed: 630, dg1_run_hrs: 4.2, dg1_fuel_consumed: 630, dg2_run_hrs: 2.5, dg2_fuel_consumed: 375, dg3_run_hrs: 3.1, dg3_fuel_consumed: 465, dg4_run_hrs: 1.8, dg4_fuel_consumed: 270, dghq_run_hrs: 0.8, dghq_fuel_consumed: 120 },
-  { date: "Jul 02", run_hrs: 2.8, fuel_consumed: 420, dg1_run_hrs: 2.8, dg1_fuel_consumed: 420, dg2_run_hrs: 1.4, dg2_fuel_consumed: 210, dg3_run_hrs: 2.0, dg3_fuel_consumed: 300, dg4_run_hrs: 1.2, dg4_fuel_consumed: 180, dghq_run_hrs: 0.0, dghq_fuel_consumed: 0 },
-  { date: "Jul 03", run_hrs: 5.5, fuel_consumed: 825, dg1_run_hrs: 5.5, dg1_fuel_consumed: 825, dg2_run_hrs: 3.2, dg2_fuel_consumed: 480, dg3_run_hrs: 4.0, dg3_fuel_consumed: 600, dg4_run_hrs: 2.5, dg4_fuel_consumed: 375, dghq_run_hrs: 1.2, dghq_fuel_consumed: 180 },
-  { date: "Jul 04", run_hrs: 1.0, fuel_consumed: 150, dg1_run_hrs: 1.0, dg1_fuel_consumed: 150, dg2_run_hrs: 0.5, dg2_fuel_consumed: 75, dg3_run_hrs: 0.8, dg3_fuel_consumed: 120, dg4_run_hrs: 0.0, dg4_fuel_consumed: 0, dghq_run_hrs: 0.0, dghq_fuel_consumed: 0 },
-  { date: "Jul 05", run_hrs: 0.0, fuel_consumed: 0, dg1_run_hrs: 0.0, dg1_fuel_consumed: 0, dg2_run_hrs: 0.0, dg2_fuel_consumed: 0, dg3_run_hrs: 0.0, dg3_fuel_consumed: 0, dg4_run_hrs: 0.0, dg4_fuel_consumed: 0, dghq_run_hrs: 0.0, dghq_fuel_consumed: 0 },
-  { date: "Jul 06", run_hrs: 3.6, fuel_consumed: 540, dg1_run_hrs: 3.6, dg1_fuel_consumed: 540, dg2_run_hrs: 1.8, dg2_fuel_consumed: 270, dg3_run_hrs: 2.4, dg3_fuel_consumed: 360, dg4_run_hrs: 1.5, dg4_fuel_consumed: 225, dghq_run_hrs: 0.5, dghq_fuel_consumed: 75 },
-  { date: "Jul 07", run_hrs: 6.8, fuel_consumed: 1020, dg1_run_hrs: 6.8, dg1_fuel_consumed: 1020, dg2_run_hrs: 4.1, dg2_fuel_consumed: 615, dg3_run_hrs: 5.0, dg3_fuel_consumed: 750, dg4_run_hrs: 3.2, dg4_fuel_consumed: 480, dghq_run_hrs: 2.0, dghq_fuel_consumed: 300 },
-  { date: "Jul 08", run_hrs: 4.0, fuel_consumed: 600, dg1_run_hrs: 4.0, dg1_fuel_consumed: 600, dg2_run_hrs: 2.2, dg2_fuel_consumed: 330, dg3_run_hrs: 3.0, dg3_fuel_consumed: 450, dg4_run_hrs: 1.9, dg4_fuel_consumed: 285, dghq_run_hrs: 1.0, dghq_fuel_consumed: 150 },
-  { date: "Jul 09", run_hrs: 2.5, fuel_consumed: 375, dg1_run_hrs: 2.5, dg1_fuel_consumed: 375, dg2_run_hrs: 1.2, dg2_fuel_consumed: 180, dg3_run_hrs: 2.0, dg3_fuel_consumed: 300, dg4_run_hrs: 1.0, dg4_fuel_consumed: 150, dghq_run_hrs: 0.5, dghq_fuel_consumed: 75 }
-];
+const defaultFuelData: FuelDataPoint[] = [];
 
-const defaultEngineHealth: EngineHealthPoint[] = [
-  { name: "DG-1", oil_pressure: 4.8, water_temp: 82, batt_voltage: 27.2, status: "OK" },
-  { name: "DG-2", oil_pressure: 4.5, water_temp: 84, batt_voltage: 26.8, status: "OK" },
-  { name: "DG-3", oil_pressure: 4.9, water_temp: 81, batt_voltage: 27.0, status: "OK" },
-  { name: "DG-4", oil_pressure: 4.6, water_temp: 83, batt_voltage: 27.1, status: "OK" },
-  { name: "DG-HQ", oil_pressure: 4.7, water_temp: 85, batt_voltage: 26.9, status: "OK" },
-  { name: "DG-2 Warning", oil_pressure: 3.2, water_temp: 96, batt_voltage: 24.5, status: "WARNING" },
-  { name: "DG-4 Critical", oil_pressure: 1.8, water_temp: 104, batt_voltage: 23.2, status: "CRITICAL" }
-];
+const defaultEngineHealth: EngineHealthPoint[] = [];
 
-const defaultUpsTimeData: UpsDataPoint[] = [
-  { time: "08:00", ups1_load: 34.2, ups2_load: 38.5 },
-  { time: "09:00", ups1_load: 36.1, ups2_load: 40.2 },
-  { time: "10:00", ups1_load: 38.5, ups2_load: 42.1 },
-  { time: "11:00", ups1_load: 37.8, ups2_load: 41.5 },
-  { time: "12:00", ups1_load: 35.0, ups2_load: 39.8 },
-  { time: "13:00", ups1_load: 39.2, ups2_load: 43.0 },
-  { time: "14:00", ups1_load: 40.5, ups2_load: 44.2 },
-  { time: "15:00", ups1_load: 38.9, ups2_load: 42.8 }
-];
+const defaultUpsTimeData: UpsDataPoint[] = [];
 
-const defaultPhaseDistribution: PhaseDistributionPoint[] = [
-  { name: "UPS 1", Phase_A: 152, Phase_B: 148, Phase_C: 150 },
-  { name: "UPS 2", Phase_A: 168, Phase_B: 162, Phase_C: 165 }
-];
+const defaultPhaseDistribution: PhaseDistributionPoint[] = [];
 
-const defaultThermalTimeData: ThermalDataPoint[] = [
-  { time: "08:00", server_ambient_temp: 21.2, return_temp_actual: 22.5, supply_temp_set: 19.0 },
-  { time: "09:00", server_ambient_temp: 21.5, return_temp_actual: 22.8, supply_temp_set: 19.0 },
-  { time: "10:00", server_ambient_temp: 22.1, return_temp_actual: 23.2, supply_temp_set: 19.0 },
-  { time: "11:00", server_ambient_temp: 22.4, return_temp_actual: 23.5, supply_temp_set: 19.0 },
-  { time: "12:00", server_ambient_temp: 21.9, return_temp_actual: 23.0, supply_temp_set: 19.0 },
-  { time: "13:00", server_ambient_temp: 21.5, return_temp_actual: 22.7, supply_temp_set: 19.0 },
-  { time: "14:00", server_ambient_temp: 21.1, return_temp_actual: 22.4, supply_temp_set: 19.0 },
-  { time: "15:00", server_ambient_temp: 20.8, return_temp_actual: 22.0, supply_temp_set: 19.0 }
-];
+const defaultThermalTimeData: ThermalDataPoint[] = [];
 
-const defaultZoneData: ZoneDataPoint[] = [
-  { name: "Server Room", temp: 21.2, humidity: 48, status: "Optimal" },
-  { name: "IT Room 1", temp: 22.5, humidity: 52, status: "Optimal" },
-  { name: "IT Room 2", temp: 23.1, humidity: 50, status: "Optimal" },
-  { name: "Power Room 1", temp: 24.8, humidity: 42, status: "Moderate" },
-  { name: "Power Room 2", temp: 24.2, humidity: 44, status: "Moderate" },
-  { name: "HQ Power Room", temp: 25.1, humidity: 41, status: "Warm" }
-];
+const defaultZoneData: ZoneDataPoint[] = [];
 
-const defaultIncidentBubbles: IncidentBubblePoint[] = [
-  { dayIndex: 1, yValue: 2, severity: 200, name: `${UTILITY_GRID_LABEL} Failure`, status: "Resolved", date: "Jul 01" },
-  { dayIndex: 2, yValue: 3, severity: 50, name: "PAC-3 High Temp", status: "Resolved", date: "Jul 02" },
-  { dayIndex: 4, yValue: 1, severity: 100, name: "UPS-2 Fault Alarm", status: "Resolved", date: "Jul 04" },
-  { dayIndex: 6, yValue: 4, severity: 500, name: "Gen 3 Day Tank Leak", status: "Resolved", date: "Jul 06" },
-  { dayIndex: 7, yValue: 2, severity: 80, name: "PAC-1 Squealing Belt", status: "Open", date: "Jul 07" },
-  { dayIndex: 8, yValue: 5, severity: 150, name: "Rectifier 1 Fan Failure", status: "Open", date: "Jul 08" },
-  { dayIndex: 9, yValue: 3, severity: 100, name: "Server Temp High", status: "Resolved", date: "Jul 09" }
-];
+const defaultIncidentBubbles: IncidentBubblePoint[] = [];
 
-const defaultTickets: TicketPoint[] = [
-  { id: "TKT-1024", name: "Gen 3 Day Tank Leak", tech: "Erick", severity: "Critical", status: "Resolved", date: "Jul 06", desc: "Day tank fuel return hose clamp was loose, causing minor leakage into the containment basin. Clamp tightened.", resolution: "Hose clamp tightened, containment basin drained." },
-  { id: "TKT-1025", name: "Rectifier 1 Fan Failure", tech: "David", severity: "Medium", status: "Open", date: "Jul 08", desc: "Fan unit 2 on Rectifier cabinet 1 has seized.", resolution: "Replacement fan ordered from stock, pending arrival." },
-  { id: "TKT-1026", name: "PAC-1 Squealing Belt", tech: "Emma", severity: "Low", status: "Open", date: "Jul 07", desc: "Technician noted squealing from PAC unit 1 belt during walk-around.", resolution: "Belt adjusted. Added to next maintenance cycle." },
-  { id: "TKT-1023", name: `${UTILITY_GRID_LABEL} Failure`, tech: "Emma", severity: "High", status: "Resolved", date: "Jul 01", desc: "Commercial utility feed lost. Generator 1 and 2 auto-started and assumed load.", resolution: "Auto-failover successful. No load lost." }
-];
+const defaultTickets: TicketPoint[] = [];
 
 export function useDashboardData(range?: DateRangeValue) {
   const { currentSite } = useCurrentSite();
@@ -272,7 +202,7 @@ export function useDashboardData(range?: DateRangeValue) {
   const activeRange = range ?? internalRange;
 
   const [isLoading, setIsLoading] = useState<boolean>(true);
-  const [isUsingMockData, setIsUsingMockData] = useState<boolean>(true);
+  const [hasNoData, setHasNoData] = useState<boolean>(true);
   const [latestGridStatus, setLatestGridStatus] = useState<string>('ONLINE');
   
   // Data States
@@ -289,11 +219,11 @@ export function useDashboardData(range?: DateRangeValue) {
   
   // KPI State
   const [kpis, setKpis] = useState<DashboardKPIs>({
-    grid: { uptimePercentage: "77.8", totalBlackoutDuration: "2.0", peakSiteLoad: "95.8" },
-    fuel: { totalRunHours: 30.4, totalFuelConsumed: 4560, avgBurnRate: 150, currentFuelBalance: 24350 },
-    ups: { maxCapacityPct: 74.5, avgBatteryCharge: 100, rectifierVoltage: 54.2 },
-    thermal: { peakTemp: "22.4", avgHumidity: 48.2, abnormalitiesCount: 0 },
-    incidents: { totalIncidents: 14, openTickets: 2, mttr: "2.4" }
+    grid: { uptimePercentage: "0", totalBlackoutDuration: "0", peakSiteLoad: "0" },
+    fuel: { totalRunHours: 0, totalFuelConsumed: 0, avgBurnRate: 0, currentFuelBalance: 0 },
+    ups: { maxCapacityPct: 0, avgBatteryCharge: 0, rectifierVoltage: 0 },
+    thermal: { peakTemp: "0", avgHumidity: 0, abnormalitiesCount: 0 },
+    incidents: { totalIncidents: 0, openTickets: 0, mttr: "0" }
   });
 
   const fetchCountRef = useRef(0);
@@ -342,7 +272,7 @@ export function useDashboardData(range?: DateRangeValue) {
 
         // Process Telemetry Logs if present
         if (telLogs && telLogs.length > 0) {
-          setIsUsingMockData(false);
+          setHasNoData(false);
 
           // Chronologically ascending for charts
           const sortedLogs = [...telLogs].reverse();
@@ -666,7 +596,7 @@ export function useDashboardData(range?: DateRangeValue) {
 
   return {
     isLoading,
-    isUsingMockData,
+    hasNoData,
     latestGridStatus,
     gridChartData,
     heatmapData,

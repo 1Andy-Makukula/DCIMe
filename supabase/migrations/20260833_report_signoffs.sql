@@ -100,3 +100,5 @@ CREATE POLICY report_signoffs_write ON public.report_signoffs
            WITH CHECK (site_uuid = public.get_my_site_uuid());
 
 COMMIT;
+
+--DROP POLICY IF EXISTS signiture_as_comments ON private networks

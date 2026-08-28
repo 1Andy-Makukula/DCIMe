@@ -229,7 +229,10 @@ function previousWindow(from: Date, to: Date): { from: Date; to: Date } {
 export function defaultGrain(from: Date, to: Date): Grain {
   const days = (to.getTime() - from.getTime()) / 86_400_000;
   if (days <= 3)   return "hour";
-  if (days <= 120) return "day";
+  if (days <= 60)  return "day";
+  // Between two months and a year, weeks beat both neighbours: days give 300+
+  // unreadable buckets, months give four. A quarter is thirteen points.
+  if (days <= 400) return "week";
   if (days <= 800) return "month";
   return "year";
 }

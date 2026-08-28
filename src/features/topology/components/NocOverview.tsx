@@ -24,6 +24,11 @@ import {
   User,
   Search,
   RefreshCw,
+  Network,
+  HardHat,
+  Siren,
+  Camera,
+  MessageSquare,
 } from "lucide-react";
 import { GlowDot } from "@/shared/ui";
 import { useNocTelemetry } from "../hooks/useNocTelemetry";
@@ -320,7 +325,7 @@ export function NocOverview() {
             }}
             className="bg-white border border-neutral-250 rounded-xl px-3 py-2 text-[10px] font-black uppercase tracking-wider text-neutral-700 hover:text-brand-500 hover:border-brand-100 hover:bg-brand-50/20 active:scale-95 transition-all shadow-sm flex items-center gap-2 cursor-pointer"
           >
-            📊 View Visual Topology
+            <Network size={14} aria-hidden="true" /> View Visual Topology
           </button>
 
           {/* Live status badge — reacts to the actual open-alarm count */}
@@ -854,11 +859,11 @@ export function NocOverview() {
                       {/* Type badge */}
                       {incident.ticket_number?.startsWith("VISIT-") ? (
                         <span className="inline-flex items-center gap-1 bg-ok-50 text-ok-700 border border-ok-100 text-[8px] font-black uppercase tracking-wider px-1.5 py-0.5 rounded">
-                          👷‍♂️ Visit Log
+                          <HardHat size={12} aria-hidden="true" /> Visit Log
                         </span>
                       ) : (
                         <span className="inline-flex items-center gap-1 bg-danger-50 text-danger-700 border border-danger-100 text-[8px] font-black uppercase tracking-wider px-1.5 py-0.5 rounded">
-                          🚨 Fault Alert
+                          <Siren size={12} aria-hidden="true" /> Fault Alert
                         </span>
                       )}
 
@@ -948,7 +953,7 @@ export function NocOverview() {
                           <div className="flex items-start gap-3">
                             {incident.photo_url && (
                               <div>
-                                <div className="text-[8px] font-black text-danger-400 uppercase tracking-wider mb-1">📷 Fault Photo</div>
+                                <div className="text-[8px] font-black text-danger-400 uppercase tracking-wider mb-1 flex items-center gap-1"><Camera size={10} aria-hidden="true" /> Fault Photo</div>
                                 <button
                                   onClick={() => setActivePhotoUrl(incident.photo_url)}
                                   className="block rounded-lg overflow-hidden border-2 border-danger-100 hover:border-danger-300 transition-all shadow-sm active:scale-95"
@@ -960,7 +965,7 @@ export function NocOverview() {
                             )}
                             {resCmt?.photo_url && (
                               <div>
-                                <div className="text-[8px] font-black text-ok-500 uppercase tracking-wider mb-1">📷 Resolution Photo</div>
+                                <div className="text-[8px] font-black text-ok-500 uppercase tracking-wider mb-1 flex items-center gap-1"><Camera size={10} aria-hidden="true" /> Resolution Photo</div>
                                 <button
                                   onClick={() => setActivePhotoUrl(resCmt.photo_url || null)}
                                   className="block rounded-lg overflow-hidden border-2 border-ok-100 hover:border-ok-300 transition-all shadow-sm active:scale-95"
@@ -977,7 +982,7 @@ export function NocOverview() {
                         {visits.length > 0 && (
                           <div className="space-y-1.5 pl-3 border-l-2 border-ok-300">
                             <div className="text-[8px] font-black text-ok-600 uppercase tracking-widest">
-                              👷‍♂️ Contractor Visits ({visits.length})
+                              <HardHat size={12} aria-hidden="true" /> Contractor Visits ({visits.length})
                             </div>
                             {visits.map((cmt, idx) => (
                               <div key={idx} className="text-[10px] text-neutral-700 leading-normal bg-ok-50/40 p-2 rounded border border-ok-100/40">
@@ -1000,7 +1005,7 @@ export function NocOverview() {
                         {remarks.length > 0 && (
                           <div className="space-y-1 pl-3 border-l-2 border-neutral-300">
                             <div className="text-[8px] font-black text-neutral-500 uppercase tracking-widest">
-                              📝 Technician Updates ({remarks.length})
+                              <MessageSquare size={12} aria-hidden="true" /> Technician Updates ({remarks.length})
                             </div>
                             {remarks.map((cmt, idx) => (
                               <div key={idx} className="text-[10px] text-neutral-600 leading-normal">
@@ -1075,7 +1080,7 @@ export function NocOverview() {
                         ) : incident.contractor_engaged ? (
                           <div className="bg-info-50/50 border border-info-100 rounded-xl p-4 space-y-2 h-full">
                             <div className="text-[9px] font-black text-info-600 uppercase tracking-wider flex items-center gap-1.5">
-                              👷‍♂️ Contractor Engaged
+                              <HardHat size={12} aria-hidden="true" /> Contractor Engaged
                             </div>
                             <div className="text-sm font-black text-info-900">
                               {incident.contractor_engaged}
@@ -1138,7 +1143,7 @@ export function NocOverview() {
                 return (
                   <div key={visit.id} className="flex items-start gap-3 bg-neutral-50/60 border border-neutral-100 rounded-xl p-3">
                     <div className="w-8 h-8 rounded-lg bg-info-50 border border-info-100 flex items-center justify-center shrink-0 text-sm">
-                      👷‍♂️
+                      <HardHat size={14} aria-hidden="true" />
                     </div>
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center justify-between gap-2">

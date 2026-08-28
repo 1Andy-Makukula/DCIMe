@@ -2,6 +2,7 @@ import React, { useState, useMemo, useEffect } from "react";
 import { ParameterLimits } from "./ParameterLimits";
 import { CreateRoomModal, CreateEquipmentModal, AddParameterForm } from "./InventoryCreate";
 import { EquipmentSchedules } from "./EquipmentSchedules";
+import { AssetHistory } from "./AssetHistory";
 import { supabase } from "@/shared/api/supabaseClient";
 import { useCurrentSite } from "@/shared/context/SiteContext";
 import { toast } from "sonner";
@@ -248,7 +249,7 @@ function ManageParametersModal({ isOpen, onClose, equipmentId, templateId }: Man
   const [isLoading, setIsLoading] = useState(true);
   // Parameters and schedules are two views of the same machine, so they belong
   // behind one click rather than on separate screens someone has to find.
-  const [tab, setTab] = useState<"parameters" | "schedules">("parameters");
+  const [tab, setTab] = useState<"parameters" | "schedules" | "history">("parameters");
 
   const fetchParameters = async () => {
     setIsLoading(true);
@@ -327,7 +328,8 @@ function ManageParametersModal({ isOpen, onClose, equipmentId, templateId }: Man
 
         {/* Tabs */}
         <div className="flex gap-1 border-b border-neutral-100 px-6 pt-1 flex-shrink-0">
-          {([["parameters", "Parameters"], ["schedules", "Maintenance"]] as const).map(([k, label]) => (
+          {([["parameters", "Parameters"], ["schedules", "Maintenance"],
+             ["history", "History"]] as const).map(([k, label]) => (
             <button
               key={k}
               onClick={() => setTab(k)}
@@ -347,6 +349,12 @@ function ManageParametersModal({ isOpen, onClose, equipmentId, templateId }: Man
           {tab === "schedules" ? (
             <div className="p-6">
               <EquipmentSchedules equipmentId={equipmentId} templateId={templateId} />
+            </div>
+          ) : tab === "history" ? (
+            /* The audit trail, beside the controls that write it — so somebody
+               about to move a limit can see who last moved it. */
+            <div className="p-6">
+              <AssetHistory equipmentId={equipmentId} />
             </div>
           ) : (
           <>

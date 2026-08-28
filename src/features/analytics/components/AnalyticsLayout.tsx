@@ -1,5 +1,5 @@
 import { NavLink, Outlet, useLocation } from "react-router";
-import { FileText, Zap, Fuel, Battery, ThermometerSnowflake, Activity, Gauge, Users } from "lucide-react";
+import { FileText, Zap, Fuel, Battery, ThermometerSnowflake, Activity, Gauge, Users, Boxes } from "lucide-react";
 import { DateRangePicker } from "@/shared/ui";
 import { useDateRange } from "@/shared/utils/useDateRange";
 
@@ -9,6 +9,9 @@ export interface AnalyticsOutletContext {
 
 const SUB_TABS = [
   { to: "/admin/analytics/summary", label: "Executive Summary", icon: FileText },
+  // Second deliberately: the tab somebody reaches for when they do not yet know
+  // which of the subject tabs would explain what they are seeing.
+  { to: "/admin/analytics/facility", label: "Facility", icon: Boxes },
   { to: "/admin/analytics/grid", label: "Grid & Power", icon: Zap },
   { to: "/admin/analytics/fuel", label: "Generators & Fuel", icon: Fuel },
   { to: "/admin/analytics/ups", label: "UPS & DC Rectifiers", icon: Battery },

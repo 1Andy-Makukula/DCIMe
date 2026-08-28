@@ -15,7 +15,7 @@ import { supabase } from "@/shared/api/supabaseClient";
 // ─────────────────────────────────────────────────────────────────────────────
 
 /** Which rollup answers the question. 'hour' reads the readings themselves. */
-export type Grain = "hour" | "day" | "month" | "year";
+export type Grain = "hour" | "day" | "week" | "month" | "year";
 
 /**
  * What each returned row represents.
