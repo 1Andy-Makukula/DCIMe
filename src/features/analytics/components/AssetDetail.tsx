@@ -8,6 +8,7 @@ import { AssetModelView } from "@/shared/ui/model";
 import { SERIES } from "@/shared/theme/palette";
 import { humanise } from "@/domain/categories";
 import { modelFor } from "@/domain/assetModels";
+import { toneOfCategory } from "@/domain/wayfinding";
 import { readingStatus, worstStatus, type ReadingStatus } from "@/domain/readingStatus";
 import { CONDITION_TONE } from "@/shared/api/equipmentCondition";
 import { AssetHistory } from "@/features/topology/components/AssetHistory";
@@ -95,6 +96,7 @@ export function AssetDetail() {
     [identity, asset]
   );
 
+  const domainTone = toneOfCategory(identity?.category ?? asset?.category ?? null);
   const unit = selected?.unit ?? null;
 
   const chartData = useMemo(
@@ -206,7 +208,7 @@ export function AssetDetail() {
             status={overall}
             height={260}
             fallback={
-              <span className="flex flex-col items-center gap-2 text-neutral-300">
+              <span className={`flex flex-col items-center gap-2 ${domainTone.icon}`}>
                 <Boxes size={32} />
                 <span className="text-[10px] font-black uppercase tracking-widest">
                   No model for this kind
@@ -223,15 +225,18 @@ export function AssetDetail() {
 
         <div className="grid grid-cols-2 gap-4 lg:grid-cols-3">
           <MetricTile
+            rail={domainTone.rail}
             label="Readings" value={selectedSummary?.readings ?? 0} decimals={0}
             footnote={selected?.label ?? "This period"}
           />
           <MetricTile
+            rail={domainTone.rail}
             label="Average" value={selectedSummary?.avg ?? null} unit={unit}
             status={selectedSummary ? verdictOf(selectedSummary) : null}
             footnote="Across the period"
           />
           <MetricTile
+            rail={domainTone.rail}
             label="Latest" value={selectedSummary?.latest ?? null} unit={unit}
             footnote={asset?.lastReading
               ? `Taken ${asset.lastReading.toLocaleString(undefined, {
@@ -239,10 +244,13 @@ export function AssetDetail() {
               : "Never read"}
           />
           <MetricTile
+            rail={domainTone.rail}
             label="Minimum" value={selectedSummary?.min ?? null} unit={unit} />
           <MetricTile
+            rail={domainTone.rail}
             label="Maximum" value={selectedSummary?.max ?? null} unit={unit} />
           <MetricTile
+            rail={domainTone.rail}
             label="Round coverage"
             value={asset?.coveredLastRound ?? null} decimals={0}
             status={asset?.isPartial ? "warn" : null}

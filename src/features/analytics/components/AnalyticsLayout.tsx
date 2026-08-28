@@ -1,24 +1,39 @@
 import { NavLink, Outlet, useLocation } from "react-router";
 import { FileText, Zap, Fuel, Battery, ThermometerSnowflake, Activity, Gauge, Users, Boxes } from "lucide-react";
 import { DateRangePicker } from "@/shared/ui";
+import { toneOfDomain } from "@/domain/wayfinding";
 import { useDateRange } from "@/shared/utils/useDateRange";
 
 export interface AnalyticsOutletContext {
   range: ReturnType<typeof useDateRange>["range"];
 }
 
+// Each tab carries its subject's wayfinding colour, active or not. That is the
+// whole point: the colour is a map a reader learns, so it has to be visible
+// before they have chosen anything. The active state is carried by the white
+// pill and the weight, not by turning the icon a different colour — recolouring
+// on selection would break the association the map depends on.
 const SUB_TABS = [
-  { to: "/admin/analytics/summary", label: "Executive Summary", icon: FileText },
+  { to: "/admin/analytics/summary", label: "Executive Summary", icon: FileText,
+    domain: null },
   // Second deliberately: the tab somebody reaches for when they do not yet know
   // which of the subject tabs would explain what they are seeing.
-  { to: "/admin/analytics/facility", label: "Facility", icon: Boxes },
-  { to: "/admin/analytics/grid", label: "Grid & Power", icon: Zap },
-  { to: "/admin/analytics/fuel", label: "Generators & Fuel", icon: Fuel },
-  { to: "/admin/analytics/ups", label: "UPS & DC Rectifiers", icon: Battery },
-  { to: "/admin/analytics/thermal", label: "Thermal & HVAC", icon: ThermometerSnowflake },
-  { to: "/admin/analytics/capacity", label: "Capacity & N+1", icon: Gauge },
-  { to: "/admin/analytics/incidents", label: "Incident Lifecycle", icon: Activity },
-  { to: "/admin/analytics/technicians", label: "Technicians", icon: Users },
+  { to: "/admin/analytics/facility", label: "Facility", icon: Boxes,
+    domain: null },
+  { to: "/admin/analytics/grid", label: "Grid & Power", icon: Zap,
+    domain: "utility" },
+  { to: "/admin/analytics/fuel", label: "Generators & Fuel", icon: Fuel,
+    domain: "generator" },
+  { to: "/admin/analytics/ups", label: "UPS & DC Rectifiers", icon: Battery,
+    domain: "ups" },
+  { to: "/admin/analytics/thermal", label: "Thermal & HVAC", icon: ThermometerSnowflake,
+    domain: "thermal" },
+  { to: "/admin/analytics/capacity", label: "Capacity & N+1", icon: Gauge,
+    domain: "load" },
+  { to: "/admin/analytics/incidents", label: "Incident Lifecycle", icon: Activity,
+    domain: "safety" },
+  { to: "/admin/analytics/technicians", label: "Technicians", icon: Users,
+    domain: "people" },
 ] as const;
 
 export function AnalyticsLayout() {
@@ -45,7 +60,7 @@ export function AnalyticsLayout() {
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <nav className="flex flex-wrap gap-1 bg-neutral-100 rounded-xl p-1 w-fit">
-            {SUB_TABS.map(({ to, label, icon: Icon }) => (
+            {SUB_TABS.map(({ to, label, icon: Icon, domain }) => (
               <NavLink
                 key={to}
                 to={to}
@@ -62,7 +77,11 @@ export function AnalyticsLayout() {
                   <>
                     <Icon
                       size={14}
-                      className={isActive ? "text-brand-500" : ""}
+                      className={
+                        domain
+                          ? toneOfDomain(domain).icon
+                          : isActive ? "text-brand-500" : "text-neutral-400"
+                      }
                     />
                     <span className="uppercase tracking-wide">
                       {label}

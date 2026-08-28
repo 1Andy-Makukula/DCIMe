@@ -23,6 +23,8 @@
      info-*     neutral annotation — notes, metadata, non-urgent status
      neutral-*  everything with no meaning at all: body text, rules, borders,
                 surfaces, chart axes and grid lines
+     domain-*   WAYFINDING. Which subject you are looking at — thermal, the
+                generators, the UPS. Identity, never severity.
 
    Brand and danger MUST stay visually distinct. If the brand ever moves to a
    red hue, shift danger toward crimson rather than letting them converge.
@@ -124,6 +126,51 @@
   --color-neutral-800: oklch(27.8% 0.033 256.848);
   --color-neutral-900: oklch(21%   0.034 264.665);
   --color-neutral-950: oklch(13%   0.028 261.692);
+
+  /* ── DOMAIN — THE WAYFINDING CHANNEL ──────────────────────────────────────
+     One signature colour per subject, so a reader learns the platform's map
+     and can find things without reading every label. Cyan is always the air
+     conditioning; violet is always the UPS.
+
+     WHY THIS IS A SEPARATE CHANNEL FROM STATUS
+     Colour only carries information while it is scarce. The screens were grey
+     because status had claimed the entire budget: red, amber and green were
+     the only colours on the platform, so nothing else could be coloured
+     without reading as an alarm. This role fixes that by answering a
+     different question — status says IS IT WELL, domain says WHAT IS IT —
+     and the two never encode each other.
+
+     THE TWO RULES THAT KEEP THEM APART
+     1. Hue. Every domain below sits outside the status bands: nothing in
+        red (~25), amber (~45) or spring green (~160). Generator is olive
+        rather than the obvious fuel-amber for exactly this reason, and
+        safety is a dark cranberry well away from danger's brighter red.
+     2. Treatment. Domain colour is only ever an ICON or a thin RAIL —
+        identity at the edge of a component. Status owns the filled chip and
+        the figure itself. A coloured rail can therefore never be mistaken
+        for a verdict, whatever the hue.
+
+     Colour is also never the only signal: every domain carries its name and
+     its own icon, so the palette is an accelerator for people who can use it
+     and costs nothing to people who cannot.
+
+     Each domain has a base (icon, rail) and a soft tint (icon backing).    */
+  --color-domain-thermal:        #0891B2;  /* cyan     — cooling            */
+  --color-domain-thermal-soft:   #ECFEFF;
+  --color-domain-load:           #2563EB;  /* blue     — IT load, the racks */
+  --color-domain-load-soft:      #EFF6FF;
+  --color-domain-utility:        #4F46E5;  /* indigo   — incoming mains     */
+  --color-domain-utility-soft:   #EEF2FF;
+  --color-domain-ups:            #7C3AED;  /* violet   — stored energy      */
+  --color-domain-ups-soft:       #F5F3FF;
+  --color-domain-rectifier:      #A21CAF;  /* fuchsia  — DC plant           */
+  --color-domain-rectifier-soft: #FDF4FF;
+  --color-domain-safety:         #BE123C;  /* cranberry — suppression       */
+  --color-domain-safety-soft:    #FFF1F2;
+  --color-domain-generator:      #4D7C0F;  /* olive    — standby generation */
+  --color-domain-generator-soft: #F7FEE7;
+  --color-domain-people:         #0F766E;  /* teal     — technicians        */
+  --color-domain-people-soft:    #F0FDFA;
 
   --color-series-1: var(--color-brand-500);
   --color-series-2: #3B82F6;

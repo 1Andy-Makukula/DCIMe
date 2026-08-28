@@ -7,6 +7,7 @@ import {
 import { AssetModelThumb } from "@/shared/ui/model";
 import { SERIES } from "@/shared/theme/palette";
 import { humanise } from "@/domain/categories";
+import { toneOfCategory, dominantDomain, toneOfDomain, DOMAIN_NEUTRAL } from "@/domain/wayfinding";
 import { readingStatus, type ReadingStatus } from "@/domain/readingStatus";
 import { defaultGrain } from "../hooks/useCategoryDetail";
 import type { SeriesPoint, Grain } from "@/domain/series";
@@ -99,6 +100,14 @@ export function RoomDetail() {
     for (const a of room?.assets ?? []) map.set(a.equipmentId, a.name);
     return (id: string) => map.get(id) ?? humanise(id);
   }, [room]);
+
+  // The room's own signature, where it has one. Mixed rooms stay neutral
+  // rather than borrowing the colour of whichever machine is most numerous.
+  const roomDomain = useMemo(
+    () => dominantDomain((room?.assets ?? []).map((a) => a.category)),
+    [room]
+  );
+  const roomTone = roomDomain ? toneOfDomain(roomDomain) : DOMAIN_NEUTRAL;
 
   const unit = selected?.unit ?? null;
   const { rows: chartRows, keys } = useMemo(() => pivot(series), [series]);
@@ -289,7 +298,11 @@ export function RoomDetail() {
                 model={a.model}
                 size={44}
                 fallback={
-                  <span className="grid h-11 w-11 place-items-center rounded-lg bg-neutral-100 text-neutral-400">
+                  // The machine's KIND. The swatch below carries which LINE it
+                  // is on the chart — two different questions, so two channels:
+                  // seven air conditioners in a room are all cyan, and the
+                  // swatch is what tells one curve from another.
+                  <span className={`grid h-11 w-11 place-items-center rounded-lg ${toneOfCategory(a.category).iconBg} ${toneOfCategory(a.category).icon}`}>
                     <Boxes size={16} />
                   </span>
                 }
@@ -326,22 +339,27 @@ export function RoomDetail() {
           />
           <div className="grid grid-cols-2 gap-4 lg:grid-cols-5">
             <MetricTile
+              rail={roomTone.rail}
               label="Room average" value={roomStats.avg} unit={unit} status={overall}
               footnote={`${roomStats.readings.toLocaleString()} readings`}
             />
             <MetricTile
+              rail={roomTone.rail}
               label="Highest average" value={roomStats.highestAvg} unit={unit}
               footnote={roomStats.hottest ? `${roomStats.hottest} runs highest` : "Per machine"}
             />
             <MetricTile
+              rail={roomTone.rail}
               label="Lowest average" value={roomStats.lowestAvg} unit={unit}
               footnote={roomStats.coolest ? `${roomStats.coolest} runs lowest` : "Per machine"}
             />
             <MetricTile
+              rail={roomTone.rail}
               label="Peak reading" value={roomStats.peak} unit={unit}
               footnote="Worst single moment"
             />
             <MetricTile
+              rail={roomTone.rail}
               label="Spread" value={roomStats.spread} unit={unit}
               status={roomStats.spread !== null && roomStats.spread > 3 ? "warn" : null}
               footnote="Between the highest and lowest machine"

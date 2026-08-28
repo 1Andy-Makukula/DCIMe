@@ -7,6 +7,7 @@ import {
 import { MetricTile, StatusPill, TrendChart, StatTable, Num } from "@/shared/ui";
 import { SERIES } from "@/shared/theme/palette";
 import { categoryById, humanise } from "@/domain/categories";
+import { toneOfDomain } from "@/domain/wayfinding";
 import { readingStatus, STATUS_TONE, type ReadingStatus } from "@/domain/readingStatus";
 import type { SeriesPoint, Grain } from "@/domain/series";
 import { useCategoryDetail } from "../hooks/useCategoryDetail";
@@ -246,7 +247,9 @@ function CategoryDetailView({ categoryId }: { categoryId: string | undefined }) 
       <header className="flex flex-col gap-4 rounded-3xl border border-neutral-100 bg-white p-5 shadow-sm print:rounded-none print:border-0 print:shadow-none print:p-0">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div className="flex items-start gap-3">
-            <span className="mt-0.5 grid h-10 w-10 shrink-0 place-items-center rounded-2xl bg-brand-50 text-brand-600 print:hidden">
+            {/* The subject's own colour, not the brand's — this screen is one
+                of seven and the icon is how a reader knows which. */}
+            <span className={`mt-0.5 grid h-10 w-10 shrink-0 place-items-center rounded-2xl print:hidden ${toneOfDomain(category.id).iconBg} ${toneOfDomain(category.id).icon}`}>
               <Icon size={20} />
             </span>
             <div>
@@ -379,14 +382,17 @@ function CategoryDetailView({ categoryId }: { categoryId: string | undefined }) 
             />
             <div className="grid grid-cols-2 gap-4 lg:grid-cols-5">
               <MetricTile
+                rail={toneOfDomain(category.id).rail}
                 label="Average" value={summary.avg} unit={unit} status={overallStatus}
                 footnote={`${summary.readings.toLocaleString()} readings`}
               />
               <MetricTile
+                rail={toneOfDomain(category.id).rail}
                 label="Minimum" value={summary.floor} unit={unit}
                 footnote={`Lowest in ${range.label.toLowerCase()}`}
               />
               <MetricTile
+                rail={toneOfDomain(category.id).rail}
                 label="Maximum" value={summary.peak} unit={unit}
                 footnote={`Highest in ${range.label.toLowerCase()}`}
               />

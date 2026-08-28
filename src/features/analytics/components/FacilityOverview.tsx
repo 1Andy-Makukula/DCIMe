@@ -8,6 +8,7 @@ import type { LucideIcon } from "lucide-react";
 import { FreshnessPill, MetricTile } from "@/shared/ui";
 import { AssetModelThumb, preloadThumbnails } from "@/shared/ui/model";
 import { CATEGORIES, type CategoryDef, type DbCategory } from "@/domain/categories";
+import { toneOfDomain, dominantDomain, DOMAIN_NEUTRAL } from "@/domain/wayfinding";
 import { ago, describeFreshness, worstFreshness } from "@/domain/freshness";
 import { modelsFor, type AssetModel } from "@/domain/assetModels";
 import { useSiteFreshness, type FreshAsset } from "../hooks/useSiteFreshness";
@@ -179,6 +180,7 @@ export function FacilityOverview() {
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
           {categories.map((g) => {
             const Icon = ICONS[g.def.icon] ?? Zap;
+            const tone = toneOfDomain(g.def.id);
             const worst = worstFreshness(g.assets.map((a) => a.freshness));
             const last  = g.assets.reduce<Date | null>(
               (acc, a) => (a.lastReading && (!acc || a.lastReading > acc) ? a.lastReading : acc),
@@ -188,14 +190,16 @@ export function FacilityOverview() {
               <Link
                 key={g.def.id}
                 to={`/admin/analytics/detail/${g.def.id}`}
-                className="group flex items-center gap-3 rounded-2xl border border-neutral-200 bg-white p-3 shadow-sm transition-colors hover:border-neutral-300"
+                className="group relative flex items-center gap-3 overflow-hidden rounded-2xl border border-neutral-200 bg-white p-3 pl-4 shadow-sm transition-colors hover:border-neutral-300"
               >
+                {/* The subject's signature colour, at the edge. */}
+                <span className={`absolute inset-y-0 left-0 w-1 ${tone.rail}`} aria-hidden="true" />
                 <AssetModelThumb
                   model={g.models[0] ?? null}
                   size={64}
                   alt={g.def.label}
                   fallback={
-                    <span className="grid h-16 w-16 place-items-center rounded-xl bg-brand-50 text-brand-600">
+                    <span className={`grid h-16 w-16 place-items-center rounded-xl ${tone.iconBg} ${tone.icon}`}>
                       <Icon size={24} />
                     </span>
                   }
@@ -232,12 +236,20 @@ export function FacilityOverview() {
           }
         />
         <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
-          {rooms.map((room) => (
+          {rooms.map((room) => {
+            // A room of seven air conditioners is a thermal room and is
+            // coloured as one. A room holding a UPS, a rectifier and two air
+            // conditioners has no single subject, and picking whichever is most
+            // numerous would be a confident claim about a mixed room.
+            const roomDomain = dominantDomain(room.assets.map((a) => a.category));
+            const tone = roomDomain ? toneOfDomain(roomDomain) : DOMAIN_NEUTRAL;
+            return (
             <Link
               key={room.id}
               to={`/admin/analytics/facility/room/${room.id}`}
-              className="group flex flex-col gap-3 rounded-2xl border border-neutral-200 bg-white p-4 shadow-sm transition-colors hover:border-neutral-300"
+              className="group relative flex flex-col gap-3 overflow-hidden rounded-2xl border border-neutral-200 bg-white p-4 pl-5 shadow-sm transition-colors hover:border-neutral-300"
             >
+              <span className={`absolute inset-y-0 left-0 w-1 ${tone.rail}`} aria-hidden="true" />
               <div className="flex items-start justify-between gap-2">
                 <div className="min-w-0">
                   <p className="truncate text-[14px] font-black text-neutral-900">{room.name}</p>
@@ -246,7 +258,7 @@ export function FacilityOverview() {
                     {room.partialCount > 0 && ` · ${room.partialCount} partial`}
                   </p>
                 </div>
-                <DoorOpen size={16} className="shrink-0 text-neutral-300" />
+                <DoorOpen size={16} className={`shrink-0 ${tone.icon}`} />
               </div>
 
               {/* The kinds of machine in this room, one picture per kind. */}
@@ -284,7 +296,8 @@ export function FacilityOverview() {
                 />
               </div>
             </Link>
-          ))}
+            );
+          })}
         </div>
 
         {unplaced.length > 0 && (
