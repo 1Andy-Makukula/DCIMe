@@ -72,8 +72,6 @@ export const generateReportTexts = ({
   const powerSourceText = activePowerSource === 'GENERATOR' ? 'GENERATOR' : UTILITY_MAINS_LABEL;
   const isGen = activePowerSource === 'GENERATOR';
 
-  let whatsappPayload = "";
-  let internalPayload = "";
 
   // ── DG test detail (internal history only — never appended to whatsappPayload) ──
   // A No-Load or On-Load test writes per-unit generator data that the internal log
@@ -152,110 +150,123 @@ export const generateReportTexts = ({
 
   const dgTestSection = buildDgTestSection();
 
-  if (siteCode === DEFAULT_SITE_CODE) {
-    const v_r = isGen ? getCleanValue('dg_load_voltage_r') : getCleanValue('grid_voltage_r');
-    const v_y = isGen ? getCleanValue('dg_load_voltage_y') : getCleanValue('grid_voltage_y');
-    const v_b = isGen ? getCleanValue('dg_load_voltage_b') : getCleanValue('grid_voltage_b');
+  // ── Report body ──
+  // Every site renders the same full report. A second, abbreviated layout used
+  // to exist for any site other than the default one, and it dropped rectifier
+  // 2, UPS 2, power room 2, the second enterprise room, the PAC unit readings
+  // and the grid metrics entirely — which is why history for those sites came
+  // back cut short. There is one layout now; a site missing a unit prints NA
+  // for it rather than losing the whole section.
 
-    const v_rn = isGen ? "230" : getCleanValue('grid_phase_voltage_rn');
-    const v_yn = isGen ? "230" : getCleanValue('grid_phase_voltage_yn');
-    const v_bn = isGen ? "230" : getCleanValue('grid_phase_voltage_bn');
+  const v_r = isGen ? getCleanValue('dg_load_voltage_r') : getCleanValue('grid_voltage_r');
+  const v_y = isGen ? getCleanValue('dg_load_voltage_y') : getCleanValue('grid_voltage_y');
+  const v_b = isGen ? getCleanValue('dg_load_voltage_b') : getCleanValue('grid_voltage_b');
 
-    const a_r = isGen ? getCleanValue('dg_load_amps_r') : getCleanValue('grid_amps_r');
-    const a_y = isGen ? getCleanValue('dg_load_amps_y') : getCleanValue('grid_amps_y');
-    const a_b = isGen ? getCleanValue('dg_load_amps_b') : getCleanValue('grid_amps_b');
+  const v_rn = isGen ? "230" : getCleanValue('grid_phase_voltage_rn');
+  const v_yn = isGen ? "230" : getCleanValue('grid_phase_voltage_yn');
+  const v_bn = isGen ? "230" : getCleanValue('grid_phase_voltage_bn');
 
-    const parseAvg = (...vals: string[]): number | null => {
-      const nums = vals
-        .filter(v => v !== undefined && v !== null && String(v).trim() !== "" && String(v).trim() !== "NA")
-        .map(v => parseFloat(v))
-        .filter(n => !isNaN(n));
-      if (nums.length === 0) return null;
-      const rawAvg = nums.reduce((a, b) => a + b, 0) / nums.length;
-      return Math.round(rawAvg / 10) * 10;
-    };
+  const a_r = isGen ? getCleanValue('dg_load_amps_r') : getCleanValue('grid_amps_r');
+  const a_y = isGen ? getCleanValue('dg_load_amps_y') : getCleanValue('grid_amps_y');
+  const a_b = isGen ? getCleanValue('dg_load_amps_b') : getCleanValue('grid_amps_b');
 
-    const avgV_LL_num = parseAvg(v_r, v_y, v_b);
-    const avgV_LL = avgV_LL_num !== null ? avgV_LL_num : (parseFloat(v_r) || 0);
+  const parseAvg = (...vals: string[]): number | null => {
+    const nums = vals
+      .filter(v => v !== undefined && v !== null && String(v).trim() !== "" && String(v).trim() !== "NA")
+      .map(v => parseFloat(v))
+      .filter(n => !isNaN(n));
+    if (nums.length === 0) return null;
+    const rawAvg = nums.reduce((a, b) => a + b, 0) / nums.length;
+    return Math.round(rawAvg / 10) * 10;
+  };
 
-    const avgV_LN_num = parseAvg(v_rn, v_yn, v_bn);
-    const avgV_LN = avgV_LN_num !== null ? avgV_LN_num : 230;
+  const avgV_LL_num = parseAvg(v_r, v_y, v_b);
+  const avgV_LL = avgV_LL_num !== null ? avgV_LL_num : (parseFloat(v_r) || 0);
 
-    const avgAmps_num = parseAvg(a_r, a_y, a_b);
-    const avgAmps = avgAmps_num !== null ? avgAmps_num : (parseFloat(a_r) || 0);
+  const avgV_LN_num = parseAvg(v_rn, v_yn, v_bn);
+  const avgV_LN = avgV_LN_num !== null ? avgV_LN_num : 230;
 
-    const pfVal = isGen ? "0.9" : getCleanValue('grid_power_factor', "0.9");
-    const pfNum = parseFloat(pfVal);
-    const calcKw = (isGen && avgV_LL > 0 && avgAmps > 0)
-      ? Math.round((avgV_LL * avgAmps * 1.732 * pfNum) / 1000)
-      : 0;
+  const avgAmps_num = parseAvg(a_r, a_y, a_b);
+  const avgAmps = avgAmps_num !== null ? avgAmps_num : (parseFloat(a_r) || 0);
 
-    const kwVal = isGen ? calcKw.toString() : getCleanValue('grid_total_site_load');
+  const pfVal = isGen ? "0.9" : getCleanValue('grid_power_factor', "0.9");
+  const pfNum = parseFloat(pfVal);
+  const calcKw = (isGen && avgV_LL > 0 && avgAmps > 0)
+    ? Math.round((avgV_LL * avgAmps * 1.732 * pfNum) / 1000)
+    : 0;
 
-    const sw1_val = getCleanValue('grid_energy_meter_1');
-    const sw2_val = getCleanValue('grid_energy_meter_2');
-    const swSection = (isFourHour && (sw1_val !== "NA" || sw2_val !== "NA"))
-      ? `\n*SWITCH METERS (4-HR)*\nSW 1: ${sw1_val} kWh | SW 2: ${sw2_val} kWh\n`
-      : "";
+  const kwVal = isGen ? calcKw.toString() : getCleanValue('grid_total_site_load');
 
-    const tempHq = getCleanValue('hq_ambient_temp');
-    const humHq = getCleanValue('hq_ambient_humidity');
-    const hqSection = (isFourHour && (tempHq !== "NA" || humHq !== "NA"))
-      ? `*HQ POWER ROOM (4-HR)*\nTemp: ${tempHq}°C | Humidity: ${humHq}%\n`
-      : "";
+  const sw1_val = getCleanValue('grid_energy_meter_1');
+  const sw2_val = getCleanValue('grid_energy_meter_2');
+  const swSection = (isFourHour && (sw1_val !== "NA" || sw2_val !== "NA"))
+    ? `\n*SWITCH METERS (4-HR)*\nSW 1: ${sw1_val} kWh | SW 2: ${sw2_val} kWh\n`
+    : "";
 
-    const r1_v = getCleanValue('rectifier_1_dc_voltage');
-    const r1_a = getCleanValue('rectifier_1_amps');
-    const r1_cap = getCleanValue('rectifier_1_used_percentage');
+  const tempHq = getCleanValue('hq_ambient_temp');
+  const humHq = getCleanValue('hq_ambient_humidity');
+  const hqSection = (isFourHour && (tempHq !== "NA" || humHq !== "NA"))
+    ? `*HQ POWER ROOM (4-HR)*\nTemp: ${tempHq}°C | Humidity: ${humHq}%\n`
+    : "";
 
-    const r2_v = getCleanValue('rectifier_2_dc_voltage');
-    const r2_a = getCleanValue('rectifier_2_amps');
-    const r2_cap = getCleanValue('rectifier_2_used_percentage');
+  const r1_v = getCleanValue('rectifier_1_dc_voltage');
+  const r1_a = getCleanValue('rectifier_1_amps');
+  const r1_cap = getCleanValue('rectifier_1_used_percentage');
 
-    const ups1_l1 = getCleanValue('ups_1_output_voltage_a');
-    const ups1_l2 = getCleanValue('ups_1_output_voltage_b');
-    const ups1_l3 = getCleanValue('ups_1_output_voltage_c');
-    const ups1_a1 = getCleanValue('ups_1_load_amps_a');
-    const ups1_a2 = getCleanValue('ups_1_load_amps_b');
-    const ups1_a3 = getCleanValue('ups_1_load_amps_c');
-    const ups1_p1 = getCleanValue('ups_1_load_phase_percent_a');
-    const ups1_p2 = getCleanValue('ups_1_load_phase_percent_b');
-    const ups1_p3 = getCleanValue('ups_1_load_phase_percent_c');
-    const ups1_batt = getCleanValue('ups_1_battery_voltage');
-    const ups1_charge = getCleanValue('ups_1_battery_charge_percent');
-    const ups1_used = getCleanValue('ups_1_used_capacity');
-    const ups1_load = getCleanValue('ups_1_output_load_kw');
+  const r2_v = getCleanValue('rectifier_2_dc_voltage');
+  const r2_a = getCleanValue('rectifier_2_amps');
+  const r2_cap = getCleanValue('rectifier_2_used_percentage');
 
-    const ups2_l1 = getCleanValue('ups_2_output_voltage_a');
-    const ups2_l2 = getCleanValue('ups_2_output_voltage_b');
-    const ups2_l3 = getCleanValue('ups_2_output_voltage_c');
-    const ups2_a1 = getCleanValue('ups_2_load_amps_a');
-    const ups2_a2 = getCleanValue('ups_2_load_amps_b');
-    const ups2_a3 = getCleanValue('ups_2_load_amps_c');
-    const ups2_p1 = getCleanValue('ups_2_load_phase_percent_a');
-    const ups2_p2 = getCleanValue('ups_2_load_phase_percent_b');
-    const ups2_p3 = getCleanValue('ups_2_load_phase_percent_c');
-    const ups2_batt = getCleanValue('ups_2_battery_voltage');
-    const ups2_charge = getCleanValue('ups_2_battery_charge_percent');
-    const ups2_used = getCleanValue('ups_2_used_capacity');
-    const ups2_load = getCleanValue('ups_2_output_load_kw');
+  const ups1_l1 = getCleanValue('ups_1_output_voltage_a');
+  const ups1_l2 = getCleanValue('ups_1_output_voltage_b');
+  const ups1_l3 = getCleanValue('ups_1_output_voltage_c');
+  const ups1_a1 = getCleanValue('ups_1_load_amps_a');
+  const ups1_a2 = getCleanValue('ups_1_load_amps_b');
+  const ups1_a3 = getCleanValue('ups_1_load_amps_c');
+  const ups1_p1 = getCleanValue('ups_1_load_phase_percent_a');
+  const ups1_p2 = getCleanValue('ups_1_load_phase_percent_b');
+  const ups1_p3 = getCleanValue('ups_1_load_phase_percent_c');
+  const ups1_batt = getCleanValue('ups_1_battery_voltage');
+  const ups1_charge = getCleanValue('ups_1_battery_charge_percent');
+  const ups1_used = getCleanValue('ups_1_used_capacity');
+  const ups1_load = getCleanValue('ups_1_output_load_kw');
 
-    const tempMain = getCleanValue('server_ambient_temp');
-    const tempPr1 = getCleanValue('pr1_ambient_temp');
-    const tempPr2 = getCleanValue('pr2_ambient_temp');
-    const tempIt1 = getCleanValue('it1_ambient_temp');
-    const tempIt2 = getCleanValue('it2_ambient_temp');
-    const humidityMain = getCleanValue('server_ambient_humidity');
+  const ups2_l1 = getCleanValue('ups_2_output_voltage_a');
+  const ups2_l2 = getCleanValue('ups_2_output_voltage_b');
+  const ups2_l3 = getCleanValue('ups_2_output_voltage_c');
+  const ups2_a1 = getCleanValue('ups_2_load_amps_a');
+  const ups2_a2 = getCleanValue('ups_2_load_amps_b');
+  const ups2_a3 = getCleanValue('ups_2_load_amps_c');
+  const ups2_p1 = getCleanValue('ups_2_load_phase_percent_a');
+  const ups2_p2 = getCleanValue('ups_2_load_phase_percent_b');
+  const ups2_p3 = getCleanValue('ups_2_load_phase_percent_c');
+  const ups2_batt = getCleanValue('ups_2_battery_voltage');
+  const ups2_charge = getCleanValue('ups_2_battery_charge_percent');
+  const ups2_used = getCleanValue('ups_2_used_capacity');
+  const ups2_load = getCleanValue('ups_2_output_load_kw');
 
-    const prefixWA = `*${siteLabel(siteCode)}*
+  const tempMain = getCleanValue('server_ambient_temp');
+  const tempPr1 = getCleanValue('pr1_ambient_temp');
+  const tempPr2 = getCleanValue('pr2_ambient_temp');
+  const tempIt1 = getCleanValue('it1_ambient_temp');
+  const tempIt2 = getCleanValue('it2_ambient_temp');
+  const humidityMain = getCleanValue('server_ambient_humidity');
+
+  // The default site is identified by its code; every other site carries its
+  // own stored name, which siteLabel passes through unchanged.
+  const headerLabel = siteCode === DEFAULT_SITE_CODE
+    ? siteLabel(siteCode)
+    : siteLabel(currentSiteName || siteCode);
+
+  const prefixWA = `*${headerLabel}*
 *${firstName.toUpperCase()} ON DUTY*
 *TIME: ${waShareTime}hrs*`;
 
-    const prefixDB = `*${siteLabel(siteCode)}*
+  const prefixDB = `*${headerLabel}*
 *${firstName.toUpperCase()} ON DUTY*
 *TIME: ${dbHourTime}hrs*`;
 
-    const commonBody = `
+  const commonBody = `
 *LOAD ON:* ${powerSourceText}
 *Load voltage:* ${avgV_LL}V
 *Load in Amps:* ${avgAmps}A
@@ -300,51 +311,51 @@ ENTERPRISE  ROOM 1_${tempIt1}°C
 ENTERPRISE ROOM 2_${tempIt2}°C
 Humidity: ${humidityMain}%`;
 
-    whatsappPayload = `${prefixWA}${commonBody}`;
-    const internalBase = `${prefixDB}${commonBody}`;
+  const whatsappPayload = `${prefixWA}${commonBody}`;
+  const internalBase = `${prefixDB}${commonBody}`;
 
-    const em1_temp = getCleanValue('pac_server_em1_return_temp_actual');
-    const em1_hum = getCleanValue('pac_server_em1_humidity_actual');
-    const em2_temp = getCleanValue('pac_server_em2_return_temp_actual');
-    const em2_hum = getCleanValue('pac_server_em2_humidity_actual');
-    const em3_temp = getCleanValue('pac_server_em3_return_temp_actual');
-    const em3_hum = getCleanValue('pac_server_em3_humidity_actual');
-    const em4_temp = getCleanValue('pac_server_em4_return_temp_actual');
-    const em4_hum = getCleanValue('pac_server_em4_humidity_actual');
-    const em5_temp = getCleanValue('pac_server_em5_return_temp_actual');
-    const em5_hum = getCleanValue('pac_server_em5_humidity_actual');
-    const em6_temp = getCleanValue('pac_server_em6_return_temp_actual');
-    const em6_hum = getCleanValue('pac_server_em6_humidity_actual');
-    const em7_temp = getCleanValue('pac_server_em7_return_temp_actual');
-    const em7_hum = getCleanValue('pac_server_em7_humidity_actual');
+  const em1_temp = getCleanValue('pac_server_em1_return_temp_actual');
+  const em1_hum = getCleanValue('pac_server_em1_humidity_actual');
+  const em2_temp = getCleanValue('pac_server_em2_return_temp_actual');
+  const em2_hum = getCleanValue('pac_server_em2_humidity_actual');
+  const em3_temp = getCleanValue('pac_server_em3_return_temp_actual');
+  const em3_hum = getCleanValue('pac_server_em3_humidity_actual');
+  const em4_temp = getCleanValue('pac_server_em4_return_temp_actual');
+  const em4_hum = getCleanValue('pac_server_em4_humidity_actual');
+  const em5_temp = getCleanValue('pac_server_em5_return_temp_actual');
+  const em5_hum = getCleanValue('pac_server_em5_humidity_actual');
+  const em6_temp = getCleanValue('pac_server_em6_return_temp_actual');
+  const em6_hum = getCleanValue('pac_server_em6_humidity_actual');
+  const em7_temp = getCleanValue('pac_server_em7_return_temp_actual');
+  const em7_hum = getCleanValue('pac_server_em7_humidity_actual');
 
-    const vt1_temp = getCleanValue('pac_server_vt1_return_temp_actual');
-    const vt1_hum = getCleanValue('pac_server_vt1_humidity_actual');
-    const vt2_temp = getCleanValue('pac_server_vt2_return_temp_actual');
-    const vt2_hum = getCleanValue('pac_server_vt2_humidity_actual');
-    const vt3_temp = getCleanValue('pac_server_vt3_return_temp_actual');
-    const vt3_hum = getCleanValue('pac_server_vt3_humidity_actual');
-    const vt4_temp = getCleanValue('pac_server_vt4_return_temp_actual');
-    const vt4_hum = getCleanValue('pac_server_vt4_humidity_actual');
-    const vt5_temp = getCleanValue('pac_server_vt5_return_temp_actual');
-    const vt5_hum = getCleanValue('pac_server_vt5_humidity_actual');
-    const vt6_temp = getCleanValue('pac_data_vt6_return_temp_actual');
-    const vt6_hum = getCleanValue('pac_data_vt6_humidity_actual');
+  const vt1_temp = getCleanValue('pac_server_vt1_return_temp_actual');
+  const vt1_hum = getCleanValue('pac_server_vt1_humidity_actual');
+  const vt2_temp = getCleanValue('pac_server_vt2_return_temp_actual');
+  const vt2_hum = getCleanValue('pac_server_vt2_humidity_actual');
+  const vt3_temp = getCleanValue('pac_server_vt3_return_temp_actual');
+  const vt3_hum = getCleanValue('pac_server_vt3_humidity_actual');
+  const vt4_temp = getCleanValue('pac_server_vt4_return_temp_actual');
+  const vt4_hum = getCleanValue('pac_server_vt4_humidity_actual');
+  const vt5_temp = getCleanValue('pac_server_vt5_return_temp_actual');
+  const vt5_hum = getCleanValue('pac_server_vt5_humidity_actual');
+  const vt6_temp = getCleanValue('pac_data_vt6_return_temp_actual');
+  const vt6_hum = getCleanValue('pac_data_vt6_humidity_actual');
 
-    const gridFreq = isGen
-      ? getCleanValue('dg_1_frequency', getCleanValue('dg_frequency'))
-      : getCleanValue('grid_frequency');
+  const gridFreq = isGen
+    ? getCleanValue('dg_1_frequency', getCleanValue('dg_frequency'))
+    : getCleanValue('grid_frequency');
 
-    let finalInternalPayload = internalBase;
-    if (swSection) finalInternalPayload += swSection;
-    if (hqSection) {
-      if (!swSection) {
-        finalInternalPayload += "\n\n";
-      }
-      finalInternalPayload += hqSection;
+  let finalInternalPayload = internalBase;
+  if (swSection) finalInternalPayload += swSection;
+  if (hqSection) {
+    if (!swSection) {
+      finalInternalPayload += "\n\n";
     }
+    finalInternalPayload += hqSection;
+  }
 
-    internalPayload = `${finalInternalPayload}
+  const internalPayload = `${finalInternalPayload}
 
 *UNIT TEMPERATURES & HUMIDITY*
 Emerson 1 : ${em1_temp}°C | ${em1_hum}%
@@ -367,128 +378,6 @@ FREQUENCY   : ${gridFreq} Hz
 VOLTAGE L-L : R:${v_r}V | Y:${v_y}V | B:${v_b}V (AVG: ${avgV_LL}V)
 VOLTAGE L-N : RN:${v_rn}V | YN:${v_yn}V | BN:${v_bn}V (AVG: ${avgV_LN}V)
 CURRENT     : R:${a_r}A | Y:${a_y}A | B:${a_b}A (AVG: ${avgAmps}A)${dgTestSection}`;
-  } else {
-    const v_r = isGen ? getCleanValue('dg_load_voltage_r') : getCleanValue('grid_voltage_r');
-    const v_y = isGen ? getCleanValue('dg_load_voltage_y') : getCleanValue('grid_voltage_y');
-    const v_b = isGen ? getCleanValue('dg_load_voltage_b') : getCleanValue('grid_voltage_b');
 
-    const v_rn = isGen ? "230" : getCleanValue('grid_phase_voltage_rn');
-    const v_yn = isGen ? "230" : getCleanValue('grid_phase_voltage_yn');
-    const v_bn = isGen ? "230" : getCleanValue('grid_phase_voltage_bn');
-
-    const a_r = isGen ? getCleanValue('dg_load_amps_r') : getCleanValue('grid_amps_r');
-    const a_y = isGen ? getCleanValue('dg_load_amps_y') : getCleanValue('grid_amps_y');
-    const a_b = isGen ? getCleanValue('dg_load_amps_b') : getCleanValue('grid_amps_b');
-
-    const parseAvg = (...vals: string[]): number | null => {
-      const nums = vals
-        .filter(v => v !== undefined && v !== null && String(v).trim() !== "" && String(v).trim() !== "NA")
-        .map(v => parseFloat(v))
-        .filter(n => !isNaN(n));
-      if (nums.length === 0) return null;
-      const rawAvg = nums.reduce((a, b) => a + b, 0) / nums.length;
-      return Math.round(rawAvg / 10) * 10;
-    };
-
-    const avgV_LL_num = parseAvg(v_r, v_y, v_b);
-    const avgV_LL = avgV_LL_num !== null ? avgV_LL_num : (parseFloat(v_r) || 0);
-
-    const avgV_LN_num = parseAvg(v_rn, v_yn, v_bn);
-    const avgV_LN = avgV_LN_num !== null ? avgV_LN_num : 230;
-
-    const avgAmps_num = parseAvg(a_r, a_y, a_b);
-    const avgAmps = avgAmps_num !== null ? avgAmps_num : (parseFloat(a_r) || 0);
-
-    const pfVal = isGen ? "0.9" : getCleanValue('grid_power_factor', "0.9");
-    const pfNum = parseFloat(pfVal);
-    const calcKw = (isGen && avgV_LL > 0 && avgAmps > 0)
-      ? Math.round((avgV_LL * avgAmps * 1.732 * pfNum) / 1000)
-      : 0;
-    const kwVal = isGen ? calcKw.toString() : getCleanValue('grid_total_site_load');
-
-    const sw1_val = getCleanValue('grid_energy_meter_1');
-    const sw2_val = getCleanValue('grid_energy_meter_2');
-    const swSection = (isFourHour && (sw1_val !== "NA" || sw2_val !== "NA"))
-      ? `\n*SWITCH METERS (4-HR)*\nSW 1: ${sw1_val} kWh | SW 2: ${sw2_val} kWh\n`
-      : "";
-
-    const tempHq = getCleanValue('hq_ambient_temp');
-    const humHq = getCleanValue('hq_ambient_humidity');
-    const hqSection = (isFourHour && (tempHq !== "NA" || humHq !== "NA"))
-      ? `*HQ POWER ROOM (4-HR)*\nTemp: ${tempHq}°C | Humidity: ${humHq}%\n`
-      : "";
-
-    const r1_v = getCleanValue('rectifier_1_dc_voltage');
-    const r1_a = getCleanValue('rectifier_1_amps');
-    const r1_cap = getCleanValue('rectifier_1_used_percentage');
-
-    const ups1_l1 = getCleanValue('ups_1_output_voltage_a');
-    const ups1_a1 = getCleanValue('ups_1_load_amps_a');
-    const ups1_batt = getCleanValue('ups_1_battery_voltage');
-    const ups1_charge = getCleanValue('ups_1_battery_charge_percent');
-    const ups1_used = getCleanValue('ups_1_used_capacity');
-    const ups1_load = getCleanValue('ups_1_output_load_kw');
-
-    const tempMain = getCleanValue('server_ambient_temp');
-    const tempPr1 = getCleanValue('pr1_ambient_temp');
-    const tempIt1 = getCleanValue('it1_ambient_temp');
-
-    const em1_temp = getCleanValue('pac_server_em1_return_temp_actual');
-    const em1_hum = getCleanValue('pac_server_em1_humidity_actual');
-    const em2_temp = getCleanValue('pac_server_em2_return_temp_actual');
-    const em2_hum = getCleanValue('pac_server_em2_humidity_actual');
-    const em1_it_temp = getCleanValue('pac_it1_em1_return_temp_actual');
-
-    const prefixWA = `*${siteLabel(currentSiteName || siteCode)}*
-*${firstName.toUpperCase()} ON DUTY*
-*TIME: ${waShareTime}hrs*`;
-
-    const prefixDB = `*${siteLabel(currentSiteName || siteCode)}*
-*${firstName.toUpperCase()} ON DUTY*
-*TIME: ${dbHourTime}hrs*`;
-
-    const commonBody = `
-*LOAD ON ${powerSourceText}*
-Load voltage *${avgV_LL}*V
-Load in Amps *${avgAmps}*A
-*KW:${kwVal}*KW
-Power factor *${pfVal}*
-*RECTIFIER 1:* ${r1_v}V / ${r1_a}A / ${r1_cap}%
-*UPS 1:* L1:${ups1_l1}V / ${ups1_a1}A | Batt:${ups1_batt}V (${ups1_charge}%) | Capacity:${ups1_used}% | Load:${ups1_load}KW
-
-*TEMPERATURE*
-Main Room *${tempMain}*°C
-Power Room1_*${tempPr1}*°C
-Enterprise Room 1 *${tempIt1}*°C`;
-
-    whatsappPayload = `${prefixWA}${commonBody}`;
-    const internalBase = `${prefixDB}${commonBody}`;
-
-    const gridFreq = isGen
-      ? getCleanValue('dg_1_frequency', getCleanValue('dg_frequency'))
-      : getCleanValue('grid_frequency');
-
-    let finalInternalPayload = internalBase;
-    if (swSection) finalInternalPayload += swSection;
-    if (hqSection) {
-      if (!swSection) {
-        finalInternalPayload += "\n\n";
-      }
-      finalInternalPayload += hqSection;
-    }
-
-    internalPayload = `${finalInternalPayload}
-
-*GRID/POWER METRICS*
-FREQUENCY   : ${gridFreq} Hz
-VOLTAGE L-L : R:${v_r}V | Y:${v_y}V | B:${v_b}V (AVG: ${avgV_LL}V)
-VOLTAGE L-N : RN:${v_rn}V | YN:${v_yn}V | BN:${v_bn}V (AVG: ${avgV_LN}V)
-CURRENT     : R:${a_r}A | Y:${a_y}A | B:${a_b}A (AVG: ${avgAmps}A)
-
-*UNIT TEMPERATURES & HUMIDITY*
-Emerson 1 : ${em1_temp}°C | ${em1_hum}%
-Emerson 2 : ${em2_temp}°C | ${em2_hum}%
-IT Room 1 AC 1 : ${em1_it_temp}°C${dgTestSection}`;
-  }
   return { whatsappPayload, internalPayload };
 };

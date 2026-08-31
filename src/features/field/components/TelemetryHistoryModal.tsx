@@ -3,6 +3,7 @@ import { useState, useMemo, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { Copy, Share2, Trash2, X, ChevronLeft, ChevronRight, Calendar, Clock } from 'lucide-react';
 import { HistoryRecord } from '../utils/whatsappReportFormatter';
+import { shareToWhatsApp } from '../utils/whatsappShare';
 import { toast } from 'sonner';
 
 interface TelemetryHistoryModalProps {
@@ -117,8 +118,7 @@ export const TelemetryHistoryModal = ({
                   title="Send this hour to WhatsApp"
                   onClick={() => {
                     if (currentRecord?.text) {
-                      const waUrl = `https://api.whatsapp.com/send?text=${encodeURIComponent(currentRecord.text)}`;
-                      window.open(waUrl, '_blank');
+                      shareToWhatsApp(currentRecord.text);
                     }
                   }}
                 >

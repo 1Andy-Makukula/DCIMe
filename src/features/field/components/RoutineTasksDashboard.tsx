@@ -14,6 +14,7 @@ import { toast } from 'sonner';
 import { PathRenderer } from './PathRenderer';
 import { TelemetryHistoryModal } from './TelemetryHistoryModal';
 import { HistoryRecord, sortHistoryAscending, generateReportTexts } from '../utils/whatsappReportFormatter';
+import { shareToWhatsApp } from '../utils/whatsappShare';
 import { toLocalDateKey, slotISO, parseHour } from '../utils/dateKeys';
 import '../styles/telemetryHistory.css';
 
@@ -551,18 +552,9 @@ export const RoutineTasksDashboard = ({
       toast.warning("Network warning: Log saved to local history only.");
     }
 
-    // wa.me is WhatsApp's documented universal link and resolves more reliably
-    // on iOS than api.whatsapp.com, which round-trips through a web page first.
-    const waUrl = `https://wa.me/?text=${encodeURIComponent(whatsappPayload)}`;
-
-    if (shareWindow && !shareWindow.closed) {
-      shareWindow.location.href = waUrl;
-    } else {
-      // Popup blocked outright — happens when the app is running as an
-      // installed PWA in iOS standalone mode. Navigating the current tab is
-      // never popup-blocked, and the back gesture returns to the app.
-      window.location.href = waUrl;
-    }
+    // On a phone this goes to the installed app via the whatsapp:// scheme; on
+    // desktop it falls back to the web link. See utils/whatsappShare.ts.
+    shareToWhatsApp(whatsappPayload, shareWindow);
   };
 
   // Helper to fetch last stop values of a specific generator.
