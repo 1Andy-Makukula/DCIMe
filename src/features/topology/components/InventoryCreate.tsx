@@ -391,12 +391,15 @@ export function AddParameterForm({ equipmentId, onAdded }: {
   };
 
   if (!open) {
+    // Dashed grey-on-grey read as a disabled placeholder rather than the
+    // primary action on this panel — it was easy to miss entirely. This is the
+    // first thing a newly created asset needs, so it is drawn as a real button.
     return (
       <button
         onClick={() => setOpen(true)}
-        className="flex w-full items-center justify-center gap-1.5 rounded-xl border border-dashed border-neutral-300 py-2.5 text-[11px] font-black uppercase tracking-wider text-neutral-400 transition-colors hover:border-neutral-400 hover:text-neutral-700"
+        className="flex w-full items-center justify-center gap-2 rounded-xl border border-brand-200 bg-brand-50 py-3 text-[11px] font-black uppercase tracking-wider text-brand-700 shadow-sm transition-colors hover:border-brand-300 hover:bg-brand-100"
       >
-        <Plus size={12} /> Add a reading
+        <Plus size={14} strokeWidth={3} /> Add equipment parameter
       </button>
     );
   }

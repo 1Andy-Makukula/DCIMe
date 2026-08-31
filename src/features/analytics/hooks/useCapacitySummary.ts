@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/shared/api/supabaseClient";
 import { useCurrentSite } from "@/shared/context/SiteContext";
-import { useReadingsRevision } from "./useReadingsRevision";
+import { useReadingsRevision } from "@/shared/api/readingsRevision";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Capacity, as governed by redundancy rather than by utilisation.

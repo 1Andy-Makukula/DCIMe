@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/shared/api/supabaseClient";
-import { useReadingsRevision } from "./useReadingsRevision";
+import { useReadingsRevision } from "@/shared/api/readingsRevision";
 import {
   fetchSeries, fetchRawReadings,
   type SeriesPoint, type RawReading, type Grain

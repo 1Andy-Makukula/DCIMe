@@ -178,11 +178,17 @@ function ChartPanel({ equipmentId }: { equipmentId: string }) {
 
   return (
     <div className="border-b border-neutral-100 flex-shrink-0">
-      {/* Collapsible header */}
+      {/* Collapsible header.
+          A bare 12px chevron in neutral-400 was the only thing saying this
+          section opens, and it read as decoration — people did not know there
+          was anything to click. The control now says what it does in words,
+          sits in a bordered pill that looks pressable, and the whole header
+          highlights on hover. */}
       <button
         type="button"
         onClick={() => setIsOpen((v) => !v)}
-        className="w-full flex items-center justify-between px-6 py-3.5 hover:bg-neutral-50/60 transition-colors"
+        aria-expanded={isOpen}
+        className="group w-full flex items-center justify-between px-6 py-3.5 hover:bg-brand-50/40 transition-colors"
       >
         <div className="flex items-center gap-2">
           <div className="w-6 h-6 rounded-lg bg-brand-50 border border-brand-100 flex items-center justify-center">
@@ -194,13 +200,17 @@ function ChartPanel({ equipmentId }: { equipmentId: string }) {
             Telemetry History (24 h)
           </span>
         </div>
-        <svg
-          width="12" height="12" viewBox="0 0 24 24" fill="none"
-          stroke="var(--color-neutral-400)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"
-          className={`transition-transform duration-200 ${isOpen ? "rotate-180" : ""}`}
-        >
-          <polyline points="6 9 12 15 18 9"/>
-        </svg>
+        <span className="flex items-center gap-1.5 rounded-full border border-neutral-200 bg-white px-2.5 py-1 text-[9px] font-black uppercase tracking-widest text-neutral-500 transition-colors group-hover:border-brand-300 group-hover:bg-brand-50 group-hover:text-brand-700">
+          {isOpen ? "Hide chart" : "Show chart"}
+          <svg
+            width="12" height="12" viewBox="0 0 24 24" fill="none"
+            stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"
+            className={`transition-transform duration-200 ${isOpen ? "rotate-180" : ""}`}
+            aria-hidden="true"
+          >
+            <polyline points="6 9 12 15 18 9"/>
+          </svg>
+        </span>
       </button>
 
       {isOpen && (

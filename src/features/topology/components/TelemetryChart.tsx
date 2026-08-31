@@ -11,15 +11,25 @@ import {
   Legend,
 } from "recharts";
 import { supabase } from "@/shared/api/supabaseClient";
+import { useCurrentSite } from "@/shared/context/SiteContext";
+import { useReadingsRevision } from "@/shared/api/readingsRevision";
+import { humanise } from "@/domain/categories";
 import { Loader2, TrendingUp, AlertCircle } from "lucide-react";
+
+// database.types.ts predates the `readings` table, so the query below goes
+// through an untyped binding — the same escape hatch the analytics hooks use.
+type UntypedFrom = (table: string) => any;
+const from = supabase.from.bind(supabase) as unknown as UntypedFrom;
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
 interface GraphableParam {
   id: string;          // equipment_parameters.id (UUID)
   parameter_name: string;
+  /** What a person calls it — display_label, or the name made readable. */
+  label: string;
   unit: string | null;
-  /** The key used inside the metrics JSONB — `param_<uuid>` */
+  /** The series key on the chart. The parameter name IS the key. */
   metricKey: string;
 }
 
@@ -71,7 +81,7 @@ function CustomTooltip({
       {payload.map((entry: any) => {
         const meta = paramMeta.find((p) => p.metricKey === entry.dataKey);
         const unit = meta?.unit ?? "";
-        const name = meta?.parameter_name ?? entry.dataKey;
+        const name = meta?.label ?? entry.dataKey;
         return (
           <div key={entry.dataKey} className="flex items-center gap-2 mb-1 last:mb-0">
             <span
@@ -96,13 +106,19 @@ function CustomTooltip({
 // ── Main Component ────────────────────────────────────────────────────────────
 
 export function TelemetryChart({ equipmentId }: TelemetryChartProps) {
+  const { currentSite } = useCurrentSite();
+  const siteUuid = currentSite?.id ?? null;
   const [graphableParams, setGraphableParams] = useState<GraphableParam[]>([]);
   const [chartData, setChartData] = useState<ChartDataPoint[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  // fan_out_readings() runs in the same transaction as the technician's write,
+  // so a telemetry_logs event means this asset's readings are already in.
+  const revision = useReadingsRevision(siteUuid);
+
   const fetchData = useCallback(async () => {
-    if (!equipmentId) return;
+    if (!equipmentId || !siteUuid) return;
     setIsLoading(true);
     setError(null);
 
@@ -110,7 +126,7 @@ export function TelemetryChart({ equipmentId }: TelemetryChartProps) {
       // ── Step 1: Fetch graphable parameters for this equipment ─────────────
       const { data: paramRows, error: paramError } = await supabase
         .from("equipment_parameters")
-        .select("id, parameter_name, unit")
+        .select("id, parameter_name, display_label, unit")
         .eq("equipment_id", equipmentId)
         .eq("is_graphable", true);
 
@@ -119,8 +135,16 @@ export function TelemetryChart({ equipmentId }: TelemetryChartProps) {
       const params: GraphableParam[] = (paramRows || []).map((p: any) => ({
         id: p.id,
         parameter_name: p.parameter_name,
+        label: p.display_label || humanise(p.parameter_name),
         unit: p.unit,
-        metricKey: `param_${p.id}`,
+        // THE BUG THIS REPLACES
+        // This used to look for `param_<uuid>` inside telemetry_logs.metrics.
+        // Nothing has ever written a key of that shape — the technician's
+        // payload is keyed by parameter_name, which is what fan_out_readings()
+        // matches on too. So every point resolved to null and the panel drew
+        // an empty grid on a machine that had a full day of readings behind
+        // it. The parameter name is the key.
+        metricKey: p.parameter_name
       }));
 
       setGraphableParams(params);
@@ -130,55 +154,56 @@ export function TelemetryChart({ equipmentId }: TelemetryChartProps) {
         return;
       }
 
-      // ── Step 2: Fetch telemetry logs for last 24 hours ────────────────────
+      // ── Step 2: Fetch this asset's readings for the last 24 hours ─────────
+      // Read from `readings` rather than re-deriving from the telemetry_logs
+      // JSON: it is already one numeric row per asset, parameter and hour, and
+      // it is scoped to the asset, so a facility with 46 machines no longer
+      // pulls the whole site's payload down to plot one of them.
       const since = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
 
-      const { data: logRows, error: logError } = await supabase
-        .from("telemetry_logs")
-        .select("target_hour, metrics")
-        .eq("asset_id", "facility_wide")   // hourly logs are stored under "facility_wide"
+      const { data: readingRows, error: readingError } = await from("readings")
+        .select("target_hour, parameter_name, value_num")
+        .eq("site_uuid", siteUuid)
+        .eq("equipment_id", equipmentId)
+        .in("parameter_name", params.map((p) => p.parameter_name))
         .gte("target_hour", since)
         .order("target_hour", { ascending: true });
 
-      if (logError) throw logError;
+      if (readingError) throw readingError;
 
-      // ── Step 3: Parse + filter metrics payload ────────────────────────────
-      const points: ChartDataPoint[] = (logRows || []).map((row: any) => {
-        const metrics = (row.metrics as Record<string, any>) || {};
-        const point: ChartDataPoint = {
-          hour: toHourLabel(row.target_hour),
-          ts: row.target_hour,
-        };
+      // ── Step 3: Pivot to one point per hour ───────────────────────────────
+      const byHour = new Map<string, ChartDataPoint>();
 
-        params.forEach((p) => {
-          const raw = metrics[p.metricKey];
-          const num = parseFloat(raw);
-          point[p.metricKey] = isNaN(num) ? null : num;
-        });
-
-        return point;
+      (readingRows || []).forEach((row: any) => {
+        const ts = row.target_hour as string;
+        let point = byHour.get(ts);
+        if (!point) {
+          point = { hour: toHourLabel(ts), ts };
+          // A parameter with no reading this hour stays null, so the line
+          // gaps there instead of joining across an hour nobody logged.
+          params.forEach((p) => { point![p.metricKey] = null; });
+          byHour.set(ts, point);
+        }
+        point[row.parameter_name] =
+          row.value_num === null || row.value_num === undefined
+            ? null
+            : Number(row.value_num);
       });
 
-      // De-duplicate by hour label (keep latest for that hour)
-      const deduped = Object.values(
-        points.reduce((acc: Record<string, ChartDataPoint>, pt) => {
-          acc[pt.hour] = pt;
-          return acc;
-        }, {})
-      ).sort((a, b) => a.ts.localeCompare(b.ts));
+      const points = [...byHour.values()].sort((a, b) => a.ts.localeCompare(b.ts));
 
-      setChartData(deduped);
+      setChartData(points);
     } catch (err: any) {
       console.error("[TelemetryChart] fetch error:", err);
       setError(err.message || "Failed to load telemetry history.");
     } finally {
       setIsLoading(false);
     }
-  }, [equipmentId]);
+  }, [equipmentId, siteUuid]);
 
   useEffect(() => {
     fetchData();
-  }, [fetchData]);
+  }, [fetchData, revision]);
 
   // ── Render states ─────────────────────────────────────────────────────────
 
@@ -243,7 +268,7 @@ export function TelemetryChart({ equipmentId }: TelemetryChartProps) {
               className="inline-block w-2 h-2 rounded-full"
               style={{ backgroundColor: LINE_COLORS[i % LINE_COLORS.length] }}
             />
-            {p.parameter_name}
+            {p.label}
             {p.unit && (
               <span className="text-neutral-400 font-bold normal-case">({p.unit})</span>
             )}
@@ -289,7 +314,7 @@ export function TelemetryChart({ equipmentId }: TelemetryChartProps) {
                 key={p.id}
                 type="monotone"
                 dataKey={p.metricKey}
-                name={p.parameter_name}
+                name={p.label}
                 stroke={LINE_COLORS[i % LINE_COLORS.length]}
                 strokeWidth={2}
                 dot={false}

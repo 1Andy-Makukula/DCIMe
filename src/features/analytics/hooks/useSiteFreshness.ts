@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { supabase } from "@/shared/api/supabaseClient";
 import { useCurrentSite } from "@/shared/context/SiteContext";
-import { useReadingsRevision } from "./useReadingsRevision";
+import { useReadingsRevision } from "@/shared/api/readingsRevision";
 import { modelFor, type AssetModel } from "@/domain/assetModels";
 import {
   freshness, worstFreshness, latestOf,

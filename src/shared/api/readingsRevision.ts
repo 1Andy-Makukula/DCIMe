@@ -1,6 +1,6 @@
-// src/features/analytics/hooks/useReadingsRevision.ts
+// src/shared/api/readingsRevision.ts
 import { useState } from "react";
-import { useRealtimeTable } from "@/shared/api/realtime";
+import { useRealtimeTable } from "./realtime";
 
 /**
  * A counter that advances whenever this site's readings change.
