@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/shared/api/supabaseClient";
+import { useReadingsRevision } from "./useReadingsRevision";
 import {
   fetchSeries, fetchRawReadings,
   type SeriesPoint, type RawReading, type Grain
@@ -163,6 +164,7 @@ export function useRoomDetail(args: RoomDetailArgs): RoomDetailResult {
 
   const fromMs = rFrom.getTime();
   const toMs   = rTo.getTime();
+  const revision = useReadingsRevision(siteUuid);
 
   useEffect(() => {
     let cancelled = false;
@@ -226,7 +228,7 @@ export function useRoomDetail(args: RoomDetailArgs): RoomDetailResult {
       });
 
     return () => { cancelled = true; };
-  }, [siteUuid, roomId, selected?.measure, namesKey, fromMs, toMs, grain]);
+  }, [siteUuid, roomId, selected?.measure, namesKey, fromMs, toMs, grain, revision]);
 
   return { measures, selected, series, raw, isLoading, error };
 }

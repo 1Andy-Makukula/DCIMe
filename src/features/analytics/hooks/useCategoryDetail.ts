@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/shared/api/supabaseClient";
+import { useReadingsRevision } from "./useReadingsRevision";
 import {
   fetchSeries, fetchRawReadings,
   type SeriesPoint, type RawReading, type Grain
@@ -281,6 +282,7 @@ export function useCategoryDetail(args: CategoryDetailArgs): CategoryDetailResul
   const toMs   = rTo.getTime();
   const grain  = grainOverride ?? defaultGrain(rFrom, rTo);
   const dbCats = category?.dbCategories.join(",") ?? "";
+  const revision = useReadingsRevision(siteUuid);
 
   // ── The registry half: what can be looked at here ─────────────────────────
   useEffect(() => {
@@ -311,7 +313,7 @@ export function useCategoryDetail(args: CategoryDetailArgs): CategoryDetailResul
       });
 
     return () => { cancelled = true; };
-  }, [siteUuid, dbCats, fromMs, toMs]);
+  }, [siteUuid, dbCats, fromMs, toMs, revision]);
 
   const choices = useMemo(
     () => collapseToChoices(parameters, volumes), [parameters, volumes]);
@@ -386,7 +388,7 @@ export function useCategoryDetail(args: CategoryDetailArgs): CategoryDetailResul
       });
 
     return () => { cancelled = true; };
-  }, [siteUuid, selected?.measure, namesKey, fromMs, toMs, grain, groupBy, roomId]);
+  }, [siteUuid, selected?.measure, namesKey, fromMs, toMs, grain, groupBy, roomId, revision]);
 
   const narrative = useMemo(() => {
     if (!selected) return [];

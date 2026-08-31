@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/shared/api/supabaseClient";
+import { useReadingsRevision } from "./useReadingsRevision";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // What each technician recorded, and how consistently.
@@ -70,6 +71,7 @@ export function useTechnicianActivity(
 
   const fromMs = from.getTime();
   const toMs   = to.getTime();
+  const revision = useReadingsRevision(siteUuid);
 
   useEffect(() => {
     let cancelled = false;
@@ -98,7 +100,7 @@ export function useTechnicianActivity(
 
     return () => { cancelled = true; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [siteUuid, fromMs, toMs]);
+  }, [siteUuid, fromMs, toMs, revision]);
 
   const rows = useMemo<TechnicianRow[]>(() =>
     raw

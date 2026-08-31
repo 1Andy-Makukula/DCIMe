@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { supabase } from "@/shared/api/supabaseClient";
 import { useCurrentSite } from "@/shared/context/SiteContext";
+import { useReadingsRevision } from "./useReadingsRevision";
 import { modelFor, type AssetModel } from "@/domain/assetModels";
 import {
   freshness, worstFreshness, latestOf,
@@ -128,6 +129,7 @@ export function useSiteFreshness(
   const [nonce, setNonce]   = useState(0);
 
   const targetSite = siteUuid ?? currentSite?.id ?? null;
+  const revision = useReadingsRevision(targetSite);
 
   useEffect(() => {
     let cancelled = false;
@@ -153,7 +155,7 @@ export function useSiteFreshness(
       });
 
     return () => { cancelled = true; };
-  }, [targetSite, nonce]);
+  }, [targetSite, nonce, revision]);
 
   // Freshness is time-dependent, so it is derived on render rather than stored.
   // A tab left open overnight would otherwise keep claiming the data is live.

@@ -152,8 +152,15 @@ export function TrendChart({
             fontSize: 11, fontWeight: 600
           }}
           labelStyle={{ fontWeight: 800, color: "var(--color-neutral-900)" }}
-          formatter={(v: unknown) =>
-            [typeof v === "number" ? `${v}${unit ? ` ${unit}` : ""}` : "—"]}
+          // Recharts reads [value, name] off this. Returning a one-element
+          // array left the name undefined, so a room with fourteen air
+          // conditioners on one axis produced a column of bare temperatures
+          // with no way to tell which machine each belonged to. The series
+          // name comes back through so every row reads "Vertiv 3  16.3 °C".
+          formatter={(v: unknown, name: unknown) => [
+            typeof v === "number" ? `${v}${unit ? ` ${unit}` : ""}` : "—",
+            name as string
+          ]}
         />
         {legend && series.length > 1 && (
           <Legend wrapperStyle={{ fontSize: 11, fontWeight: 700 }} iconType="plainline" />

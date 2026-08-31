@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/shared/api/supabaseClient";
 import { useCurrentSite } from "@/shared/context/SiteContext";
+import { useReadingsRevision } from "./useReadingsRevision";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Capacity, as governed by redundancy rather than by utilisation.
@@ -90,6 +91,7 @@ export function useCapacitySummary(siteUuid?: string): UseCapacitySummaryResult 
   const [nonce, setNonce]     = useState(0);
 
   const targetSite = siteUuid ?? currentSite?.id ?? null;
+  const revision = useReadingsRevision(targetSite);
 
   useEffect(() => {
     let cancelled = false;
@@ -116,7 +118,7 @@ export function useCapacitySummary(siteUuid?: string): UseCapacitySummaryResult 
     })();
 
     return () => { cancelled = true; };
-  }, [targetSite, nonce]);
+  }, [targetSite, nonce, revision]);
 
   return {
     summary,

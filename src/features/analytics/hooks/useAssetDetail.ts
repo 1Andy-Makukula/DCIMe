@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/shared/api/supabaseClient";
+import { useReadingsRevision } from "./useReadingsRevision";
 import {
   fetchSeries, fetchRawReadings,
   type SeriesPoint, type RawReading, type Grain
@@ -145,6 +146,7 @@ export function useAssetDetail(args: AssetDetailArgs): AssetDetailResult {
 
   const fromMs = rFrom.getTime();
   const toMs   = rTo.getTime();
+  const revision = useReadingsRevision(siteUuid);
 
   useEffect(() => {
     let cancelled = false;
@@ -184,7 +186,7 @@ export function useAssetDetail(args: AssetDetailArgs): AssetDetailResult {
       });
 
     return () => { cancelled = true; };
-  }, [siteUuid, equipmentId, fromMs, toMs]);
+  }, [siteUuid, equipmentId, fromMs, toMs, revision]);
 
   const summaries = useMemo<MeasureSummary[]>(() => {
     const byParam = new Map<string, SeriesPoint[]>();
@@ -258,7 +260,7 @@ export function useAssetDetail(args: AssetDetailArgs): AssetDetailResult {
       });
 
     return () => { cancelled = true; };
-  }, [siteUuid, equipmentId, selected?.parameterName, fromMs, toMs, grain]);
+  }, [siteUuid, equipmentId, selected?.parameterName, fromMs, toMs, grain, revision]);
 
   return { identity, parameters, summaries, selected, series, raw, isLoading, error };
 }
