@@ -127,11 +127,7 @@ export function useShiftReports() {
         timestamp: new Date().toISOString()
       };
 
-      // database.types.ts predates signature_image/signed_at, so the typed
-      // client rejects the row by shape. Same narrow escape hatch used
-      // elsewhere; delete it once types are regenerated against
-      // 20260827_signatures.sql.
-      const { data, error: insertError } = await (supabase.from as any)("shift_reports")
+      const { data, error: insertError } = await supabase.from("shift_reports")
         .insert([newReport])
         .select()
         .single();

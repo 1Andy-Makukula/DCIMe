@@ -12,89 +12,8 @@ export type Database = {
   __InternalSupabase: {
     PostgrestVersion: "14.5"
   }
-  graphql_public: {
-    Tables: {
-      [_ in never]: never
-    }
-    Views: {
-      [_ in never]: never
-    }
-    Functions: {
-      graphql: {
-        Args: {
-          extensions?: Json
-          operationName?: string
-          query?: string
-          variables?: Json
-        }
-        Returns: Json
-      }
-    }
-    Enums: {
-      [_ in never]: never
-    }
-    CompositeTypes: {
-      [_ in never]: never
-    }
-  }
   public: {
     Tables: {
-      compliance_reports: {
-        Row: {
-          created_at: string | null
-          form_data: Json
-          form_type: string
-          id: string
-          site_uuid: string | null
-          technician_id: string | null
-        }
-        Insert: {
-          created_at?: string | null
-          form_data: Json
-          form_type: string
-          id?: string
-          site_uuid?: string | null
-          technician_id?: string | null
-        }
-        Update: {
-          created_at?: string | null
-          form_data?: Json
-          form_type?: string
-          id?: string
-          site_uuid?: string | null
-          technician_id?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "fk_compliance_employee"
-            columns: ["technician_id"]
-            isOneToOne: false
-            referencedRelation: "employee_directory"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "fk_compliance_employee"
-            columns: ["technician_id"]
-            isOneToOne: false
-            referencedRelation: "employees"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "fk_compliance_site"
-            columns: ["site_uuid"]
-            isOneToOne: false
-            referencedRelation: "site_ingestion_health"
-            referencedColumns: ["site_uuid"]
-          },
-          {
-            foreignKeyName: "fk_compliance_site"
-            columns: ["site_uuid"]
-            isOneToOne: false
-            referencedRelation: "sites"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       contractor_findings: {
         Row: {
           created_at: string
@@ -133,6 +52,13 @@ export type Database = {
           work_item_id?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "contractor_findings_equipment_id_fkey"
+            columns: ["equipment_id"]
+            isOneToOne: false
+            referencedRelation: "equipment_condition"
+            referencedColumns: ["equipment_id"]
+          },
           {
             foreignKeyName: "contractor_findings_equipment_id_fkey"
             columns: ["equipment_id"]
@@ -201,6 +127,9 @@ export type Database = {
       contractor_visits: {
         Row: {
           contractor: string
+          contractor_signature: string | null
+          contractor_signed_at: string | null
+          contractor_signed_name: string | null
           created_at: string
           id: string
           logged_by_id: string
@@ -217,6 +146,9 @@ export type Database = {
         }
         Insert: {
           contractor: string
+          contractor_signature?: string | null
+          contractor_signed_at?: string | null
+          contractor_signed_name?: string | null
           created_at?: string
           id?: string
           logged_by_id?: string
@@ -233,6 +165,9 @@ export type Database = {
         }
         Update: {
           contractor?: string
+          contractor_signature?: string | null
+          contractor_signed_at?: string | null
+          contractor_signed_name?: string | null
           created_at?: string
           id?: string
           logged_by_id?: string
@@ -389,6 +324,13 @@ export type Database = {
             foreignKeyName: "fk_source_equipment"
             columns: ["source_equipment_id"]
             isOneToOne: false
+            referencedRelation: "equipment_condition"
+            referencedColumns: ["equipment_id"]
+          },
+          {
+            foreignKeyName: "fk_source_equipment"
+            columns: ["source_equipment_id"]
+            isOneToOne: false
             referencedRelation: "equipment_registry"
             referencedColumns: ["equipment_id"]
           },
@@ -404,6 +346,13 @@ export type Database = {
             columns: ["source_equipment_id"]
             isOneToOne: false
             referencedRelation: "topology_layout_issues"
+            referencedColumns: ["equipment_id"]
+          },
+          {
+            foreignKeyName: "fk_target_equipment"
+            columns: ["target_equipment_id"]
+            isOneToOne: false
+            referencedRelation: "equipment_condition"
             referencedColumns: ["equipment_id"]
           },
           {
@@ -431,6 +380,7 @@ export type Database = {
       }
       equipment_parameters: {
         Row: {
+          capture_mode: string
           carry_forward: boolean
           constant_value: string | null
           created_at: string | null
@@ -444,20 +394,27 @@ export type Database = {
           excel_workbook: string | null
           frequency: string | null
           help_text: string | null
+          hidden_in_modes: string[] | null
           id: string
           input_type: string
           is_active: boolean
           is_constant: boolean | null
           is_graphable: boolean | null
           is_required: boolean
+          legacy_name: string | null
           max_value: number | null
+          measure: string
           min_value: number | null
           options: Json | null
           parameter_name: string
+          semantic_role: string | null
           template_id: string | null
           unit: string | null
+          warn_max: number | null
+          warn_min: number | null
         }
         Insert: {
+          capture_mode?: string
           carry_forward?: boolean
           constant_value?: string | null
           created_at?: string | null
@@ -471,20 +428,27 @@ export type Database = {
           excel_workbook?: string | null
           frequency?: string | null
           help_text?: string | null
+          hidden_in_modes?: string[] | null
           id?: string
           input_type?: string
           is_active?: boolean
           is_constant?: boolean | null
           is_graphable?: boolean | null
           is_required?: boolean
+          legacy_name?: string | null
           max_value?: number | null
+          measure: string
           min_value?: number | null
           options?: Json | null
           parameter_name: string
+          semantic_role?: string | null
           template_id?: string | null
           unit?: string | null
+          warn_max?: number | null
+          warn_min?: number | null
         }
         Update: {
+          capture_mode?: string
           carry_forward?: boolean
           constant_value?: string | null
           created_at?: string | null
@@ -498,18 +462,24 @@ export type Database = {
           excel_workbook?: string | null
           frequency?: string | null
           help_text?: string | null
+          hidden_in_modes?: string[] | null
           id?: string
           input_type?: string
           is_active?: boolean
           is_constant?: boolean | null
           is_graphable?: boolean | null
           is_required?: boolean
+          legacy_name?: string | null
           max_value?: number | null
+          measure?: string
           min_value?: number | null
           options?: Json | null
           parameter_name?: string
+          semantic_role?: string | null
           template_id?: string | null
           unit?: string | null
+          warn_max?: number | null
+          warn_min?: number | null
         }
         Relationships: [
           {
@@ -525,6 +495,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "unit_definitions"
             referencedColumns: ["unit_code"]
+          },
+          {
+            foreignKeyName: "fk_ep_equipment"
+            columns: ["equipment_id"]
+            isOneToOne: false
+            referencedRelation: "equipment_condition"
+            referencedColumns: ["equipment_id"]
           },
           {
             foreignKeyName: "fk_ep_equipment"
@@ -555,6 +532,7 @@ export type Database = {
           dynamic_parameters: Json
           engine_type: string | null
           equipment_id: string
+          excel_row_index: number | null
           firmware_version: string | null
           input_policy: string
           ip_address: string | null
@@ -575,12 +553,15 @@ export type Database = {
           sort_order: number | null
           template_id: string | null
           template_version: number | null
+          visible_in_modes: string[] | null
+          visit_frequency: string | null
         }
         Insert: {
           category: string
           dynamic_parameters?: Json
           engine_type?: string | null
           equipment_id: string
+          excel_row_index?: number | null
           firmware_version?: string | null
           input_policy?: string
           ip_address?: string | null
@@ -601,12 +582,15 @@ export type Database = {
           sort_order?: number | null
           template_id?: string | null
           template_version?: number | null
+          visible_in_modes?: string[] | null
+          visit_frequency?: string | null
         }
         Update: {
           category?: string
           dynamic_parameters?: Json
           engine_type?: string | null
           equipment_id?: string
+          excel_row_index?: number | null
           firmware_version?: string | null
           input_policy?: string
           ip_address?: string | null
@@ -627,6 +611,8 @@ export type Database = {
           sort_order?: number | null
           template_id?: string | null
           template_version?: number | null
+          visible_in_modes?: string[] | null
+          visit_frequency?: string | null
         }
         Relationships: [
           {
@@ -689,6 +675,13 @@ export type Database = {
             foreignKeyName: "equipment_status_logs_equipment_id_fkey"
             columns: ["equipment_id"]
             isOneToOne: false
+            referencedRelation: "equipment_condition"
+            referencedColumns: ["equipment_id"]
+          },
+          {
+            foreignKeyName: "equipment_status_logs_equipment_id_fkey"
+            columns: ["equipment_id"]
+            isOneToOne: false
             referencedRelation: "equipment_registry"
             referencedColumns: ["equipment_id"]
           },
@@ -710,6 +703,7 @@ export type Database = {
       }
       equipment_templates: {
         Row: {
+          capture_parameters: Json | null
           category: string
           created_at: string
           default_parameters: Json
@@ -722,6 +716,7 @@ export type Database = {
           version: number
         }
         Insert: {
+          capture_parameters?: Json | null
           category: string
           created_at?: string
           default_parameters?: Json
@@ -734,6 +729,7 @@ export type Database = {
           version?: number
         }
         Update: {
+          capture_parameters?: Json | null
           category?: string
           created_at?: string
           default_parameters?: Json
@@ -900,10 +896,14 @@ export type Database = {
           notes: string | null
           occurred_at: string
           photo_url: string | null
+          provenance: string
           raised_by_id: string
           raised_by_name: string
           receipt_number: string | null
           resolution_details: string | null
+          resolution_signature: string | null
+          resolution_signed_at: string | null
+          resolution_signed_name: string | null
           resolved_at: string | null
           resolved_by_id: string | null
           resolved_by_name: string | null
@@ -925,10 +925,14 @@ export type Database = {
           notes?: string | null
           occurred_at?: string
           photo_url?: string | null
+          provenance?: string
           raised_by_id?: string
           raised_by_name?: string
           receipt_number?: string | null
           resolution_details?: string | null
+          resolution_signature?: string | null
+          resolution_signed_at?: string | null
+          resolution_signed_name?: string | null
           resolved_at?: string | null
           resolved_by_id?: string | null
           resolved_by_name?: string | null
@@ -938,7 +942,7 @@ export type Database = {
           site_name?: string
           site_uuid?: string | null
           status?: string
-          ticket_number: string
+          ticket_number?: string
         }
         Update: {
           asset_id?: string
@@ -950,10 +954,14 @@ export type Database = {
           notes?: string | null
           occurred_at?: string
           photo_url?: string | null
+          provenance?: string
           raised_by_id?: string
           raised_by_name?: string
           receipt_number?: string | null
           resolution_details?: string | null
+          resolution_signature?: string | null
+          resolution_signed_at?: string | null
+          resolution_signed_name?: string | null
           resolved_at?: string | null
           resolved_by_id?: string | null
           resolved_by_name?: string | null
@@ -1049,6 +1057,13 @@ export type Database = {
             foreignKeyName: "maintenance_schedules_equipment_id_fkey"
             columns: ["equipment_id"]
             isOneToOne: false
+            referencedRelation: "equipment_condition"
+            referencedColumns: ["equipment_id"]
+          },
+          {
+            foreignKeyName: "maintenance_schedules_equipment_id_fkey"
+            columns: ["equipment_id"]
+            isOneToOne: false
             referencedRelation: "equipment_registry"
             referencedColumns: ["equipment_id"]
           },
@@ -1093,6 +1108,295 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "equipment_templates"
             referencedColumns: ["template_id"]
+          },
+        ]
+      }
+      parameter_excel_targets: {
+        Row: {
+          column_index: number
+          parameter_name: string
+          row_rule: string
+          sheet_name: string
+          site_uuid: string
+          workbook: string
+        }
+        Insert: {
+          column_index: number
+          parameter_name: string
+          row_rule: string
+          sheet_name: string
+          site_uuid: string
+          workbook: string
+        }
+        Update: {
+          column_index?: number
+          parameter_name?: string
+          row_rule?: string
+          sheet_name?: string
+          site_uuid?: string
+          workbook?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "parameter_excel_targets_site_uuid_fkey"
+            columns: ["site_uuid"]
+            isOneToOne: false
+            referencedRelation: "site_ingestion_health"
+            referencedColumns: ["site_uuid"]
+          },
+          {
+            foreignKeyName: "parameter_excel_targets_site_uuid_fkey"
+            columns: ["site_uuid"]
+            isOneToOne: false
+            referencedRelation: "sites"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      readings: {
+        Row: {
+          equipment_id: string
+          parameter_name: string
+          provenance: string
+          recorded_at: string | null
+          room_id: string | null
+          shift_session_id: string | null
+          site_uuid: string
+          target_hour: string
+          technician_id: string | null
+          technician_name: string | null
+          value_num: number | null
+          value_text: string | null
+        }
+        Insert: {
+          equipment_id: string
+          parameter_name: string
+          provenance?: string
+          recorded_at?: string | null
+          room_id?: string | null
+          shift_session_id?: string | null
+          site_uuid: string
+          target_hour: string
+          technician_id?: string | null
+          technician_name?: string | null
+          value_num?: number | null
+          value_text?: string | null
+        }
+        Update: {
+          equipment_id?: string
+          parameter_name?: string
+          provenance?: string
+          recorded_at?: string | null
+          room_id?: string | null
+          shift_session_id?: string | null
+          site_uuid?: string
+          target_hour?: string
+          technician_id?: string | null
+          technician_name?: string | null
+          value_num?: number | null
+          value_text?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "readings_equipment_id_fkey"
+            columns: ["equipment_id"]
+            isOneToOne: false
+            referencedRelation: "equipment_condition"
+            referencedColumns: ["equipment_id"]
+          },
+          {
+            foreignKeyName: "readings_equipment_id_fkey"
+            columns: ["equipment_id"]
+            isOneToOne: false
+            referencedRelation: "equipment_registry"
+            referencedColumns: ["equipment_id"]
+          },
+          {
+            foreignKeyName: "readings_equipment_id_fkey"
+            columns: ["equipment_id"]
+            isOneToOne: false
+            referencedRelation: "equipment_roles"
+            referencedColumns: ["equipment_id"]
+          },
+          {
+            foreignKeyName: "readings_equipment_id_fkey"
+            columns: ["equipment_id"]
+            isOneToOne: false
+            referencedRelation: "topology_layout_issues"
+            referencedColumns: ["equipment_id"]
+          },
+          {
+            foreignKeyName: "readings_room_id_fkey"
+            columns: ["room_id"]
+            isOneToOne: false
+            referencedRelation: "rooms"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "readings_shift_session_id_fkey"
+            columns: ["shift_session_id"]
+            isOneToOne: false
+            referencedRelation: "shift_sessions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "readings_site_uuid_fkey"
+            columns: ["site_uuid"]
+            isOneToOne: false
+            referencedRelation: "site_ingestion_health"
+            referencedColumns: ["site_uuid"]
+          },
+          {
+            foreignKeyName: "readings_site_uuid_fkey"
+            columns: ["site_uuid"]
+            isOneToOne: false
+            referencedRelation: "sites"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "readings_technician_id_fkey"
+            columns: ["technician_id"]
+            isOneToOne: false
+            referencedRelation: "employee_directory"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "readings_technician_id_fkey"
+            columns: ["technician_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      registry_audit: {
+        Row: {
+          changed_at: string
+          changed_by: string | null
+          changed_by_name: string | null
+          field: string
+          id: number
+          new_value: string | null
+          old_value: string | null
+          record_key: string
+          site_uuid: string | null
+          table_name: string
+        }
+        Insert: {
+          changed_at?: string
+          changed_by?: string | null
+          changed_by_name?: string | null
+          field: string
+          id?: number
+          new_value?: string | null
+          old_value?: string | null
+          record_key: string
+          site_uuid?: string | null
+          table_name: string
+        }
+        Update: {
+          changed_at?: string
+          changed_by?: string | null
+          changed_by_name?: string | null
+          field?: string
+          id?: number
+          new_value?: string | null
+          old_value?: string | null
+          record_key?: string
+          site_uuid?: string | null
+          table_name?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "registry_audit_changed_by_fkey"
+            columns: ["changed_by"]
+            isOneToOne: false
+            referencedRelation: "employee_directory"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "registry_audit_changed_by_fkey"
+            columns: ["changed_by"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "registry_audit_site_uuid_fkey"
+            columns: ["site_uuid"]
+            isOneToOne: false
+            referencedRelation: "site_ingestion_health"
+            referencedColumns: ["site_uuid"]
+          },
+          {
+            foreignKeyName: "registry_audit_site_uuid_fkey"
+            columns: ["site_uuid"]
+            isOneToOne: false
+            referencedRelation: "sites"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      report_signoffs: {
+        Row: {
+          created_at: string
+          id: string
+          period_key: string
+          prepared_at: string | null
+          prepared_name: string | null
+          prepared_signature: string | null
+          provenance: string
+          report_kind: string
+          reviewed_at: string | null
+          reviewed_name: string | null
+          reviewed_signature: string | null
+          site_uuid: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          period_key: string
+          prepared_at?: string | null
+          prepared_name?: string | null
+          prepared_signature?: string | null
+          provenance?: string
+          report_kind: string
+          reviewed_at?: string | null
+          reviewed_name?: string | null
+          reviewed_signature?: string | null
+          site_uuid: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          period_key?: string
+          prepared_at?: string | null
+          prepared_name?: string | null
+          prepared_signature?: string | null
+          provenance?: string
+          report_kind?: string
+          reviewed_at?: string | null
+          reviewed_name?: string | null
+          reviewed_signature?: string | null
+          site_uuid?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "report_signoffs_site_uuid_fkey"
+            columns: ["site_uuid"]
+            isOneToOne: false
+            referencedRelation: "site_ingestion_health"
+            referencedColumns: ["site_uuid"]
+          },
+          {
+            foreignKeyName: "report_signoffs_site_uuid_fkey"
+            columns: ["site_uuid"]
+            isOneToOne: false
+            referencedRelation: "sites"
+            referencedColumns: ["id"]
           },
         ]
       }
@@ -1166,14 +1470,21 @@ export type Database = {
         Row: {
           active_power_source: string | null
           certified: boolean | null
+          countersign_image: string | null
+          countersigned_at: string | null
+          countersigned_by: string | null
+          countersigned_name: string | null
           incidents_filed: number | null
           log_id: string
           logged_by: string | null
           notes: string | null
+          provenance: string
           routine_logs_completed: number | null
           shift_duration: string | null
           shift_session_id: string | null
           signature_id: string | null
+          signature_image: string | null
+          signed_at: string | null
           site_id: string | null
           site_uuid: string | null
           technician_id: string | null
@@ -1183,14 +1494,21 @@ export type Database = {
         Insert: {
           active_power_source?: string | null
           certified?: boolean | null
+          countersign_image?: string | null
+          countersigned_at?: string | null
+          countersigned_by?: string | null
+          countersigned_name?: string | null
           incidents_filed?: number | null
           log_id?: string
           logged_by?: string | null
           notes?: string | null
+          provenance?: string
           routine_logs_completed?: number | null
           shift_duration?: string | null
           shift_session_id?: string | null
           signature_id?: string | null
+          signature_image?: string | null
+          signed_at?: string | null
           site_id?: string | null
           site_uuid?: string | null
           technician_id?: string | null
@@ -1200,14 +1518,21 @@ export type Database = {
         Update: {
           active_power_source?: string | null
           certified?: boolean | null
+          countersign_image?: string | null
+          countersigned_at?: string | null
+          countersigned_by?: string | null
+          countersigned_name?: string | null
           incidents_filed?: number | null
           log_id?: string
           logged_by?: string | null
           notes?: string | null
+          provenance?: string
           routine_logs_completed?: number | null
           shift_duration?: string | null
           shift_session_id?: string | null
           signature_id?: string | null
+          signature_image?: string | null
+          signed_at?: string | null
           site_id?: string | null
           site_uuid?: string | null
           technician_id?: string | null
@@ -1215,6 +1540,20 @@ export type Database = {
           timestamp?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "shift_reports_countersigned_by_fkey"
+            columns: ["countersigned_by"]
+            isOneToOne: false
+            referencedRelation: "employee_directory"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "shift_reports_countersigned_by_fkey"
+            columns: ["countersigned_by"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "shift_reports_logged_by_fkey"
             columns: ["logged_by"]
@@ -1259,6 +1598,7 @@ export type Database = {
           created_at: string
           employee_id: string
           id: string
+          provenance: string
           shift_type: string
           site_uuid: string
           status: string
@@ -1269,6 +1609,7 @@ export type Database = {
           created_at?: string
           employee_id: string
           id?: string
+          provenance?: string
           shift_type: string
           site_uuid: string
           status?: string
@@ -1279,6 +1620,7 @@ export type Database = {
           created_at?: string
           employee_id?: string
           id?: string
+          provenance?: string
           shift_type?: string
           site_uuid?: string
           status?: string
@@ -1427,7 +1769,10 @@ export type Database = {
           is_edited: boolean | null
           last_edited_at: string | null
           metrics: Json
+          provenance: string
           shift_session_id: string | null
+          signature_image: string | null
+          signed_at: string | null
           site_uuid: string
           submitted_at: string | null
           target_hour: string
@@ -1441,7 +1786,10 @@ export type Database = {
           is_edited?: boolean | null
           last_edited_at?: string | null
           metrics: Json
+          provenance?: string
           shift_session_id?: string | null
+          signature_image?: string | null
+          signed_at?: string | null
           site_uuid: string
           submitted_at?: string | null
           target_hour: string
@@ -1455,7 +1803,10 @@ export type Database = {
           is_edited?: boolean | null
           last_edited_at?: string | null
           metrics?: Json
+          provenance?: string
           shift_session_id?: string | null
+          signature_image?: string | null
+          signed_at?: string | null
           site_uuid?: string
           submitted_at?: string | null
           target_hour?: string
@@ -1536,6 +1887,8 @@ export type Database = {
           contact_name: string | null
           contact_phone: string | null
           created_at: string
+          flagged_at: string | null
+          flagged_reason: string | null
           id: string
           is_active: boolean
           name: string
@@ -1548,6 +1901,8 @@ export type Database = {
           contact_name?: string | null
           contact_phone?: string | null
           created_at?: string
+          flagged_at?: string | null
+          flagged_reason?: string | null
           id?: string
           is_active?: boolean
           name: string
@@ -1560,6 +1915,8 @@ export type Database = {
           contact_name?: string | null
           contact_phone?: string | null
           created_at?: string
+          flagged_at?: string | null
+          flagged_reason?: string | null
           id?: string
           is_active?: boolean
           name?: string
@@ -1569,11 +1926,112 @@ export type Database = {
         }
         Relationships: []
       }
+      walking_path: {
+        Row: {
+          always_visible: boolean
+          equipment_ids: string[]
+          name: string
+          room_id: string | null
+          site_uuid: string
+          step_number: number
+        }
+        Insert: {
+          always_visible?: boolean
+          equipment_ids?: string[]
+          name: string
+          room_id?: string | null
+          site_uuid: string
+          step_number: number
+        }
+        Update: {
+          always_visible?: boolean
+          equipment_ids?: string[]
+          name?: string
+          room_id?: string | null
+          site_uuid?: string
+          step_number?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "walking_path_room_id_fkey"
+            columns: ["room_id"]
+            isOneToOne: false
+            referencedRelation: "rooms"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "walking_path_site_uuid_fkey"
+            columns: ["site_uuid"]
+            isOneToOne: false
+            referencedRelation: "site_ingestion_health"
+            referencedColumns: ["site_uuid"]
+          },
+          {
+            foreignKeyName: "walking_path_site_uuid_fkey"
+            columns: ["site_uuid"]
+            isOneToOne: false
+            referencedRelation: "sites"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      work_item_acks: {
+        Row: {
+          acknowledged_at: string
+          employee_id: string
+          work_item_id: string
+        }
+        Insert: {
+          acknowledged_at?: string
+          employee_id: string
+          work_item_id: string
+        }
+        Update: {
+          acknowledged_at?: string
+          employee_id?: string
+          work_item_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "work_item_acks_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employee_directory"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "work_item_acks_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "work_item_acks_work_item_id_fkey"
+            columns: ["work_item_id"]
+            isOneToOne: false
+            referencedRelation: "work_items"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "work_item_acks_work_item_id_fkey"
+            columns: ["work_item_id"]
+            isOneToOne: false
+            referencedRelation: "work_queue"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       work_items: {
         Row: {
           acknowledged_at: string | null
           acknowledged_by: string | null
+          assigned_scope: string | null
+          assigned_to: string[] | null
           assignee_id: string | null
+          breach_max: number | null
+          breach_min: number | null
+          breach_value: number | null
           created_at: string
           created_by: string | null
           detail: string | null
@@ -1581,12 +2039,16 @@ export type Database = {
           id: string
           kind: string
           origin: string
+          provenance: string
           resolution_note: string | null
           resolve_by: string | null
           resolved_at: string | null
           resolved_by: string | null
           respond_by: string | null
           severity: string
+          signature_image: string | null
+          signed_at: string | null
+          signed_name: string | null
           site_uuid: string
           source_kind: string | null
           source_ref: string | null
@@ -1597,7 +2059,12 @@ export type Database = {
         Insert: {
           acknowledged_at?: string | null
           acknowledged_by?: string | null
+          assigned_scope?: string | null
+          assigned_to?: string[] | null
           assignee_id?: string | null
+          breach_max?: number | null
+          breach_min?: number | null
+          breach_value?: number | null
           created_at?: string
           created_by?: string | null
           detail?: string | null
@@ -1605,12 +2072,16 @@ export type Database = {
           id?: string
           kind: string
           origin?: string
+          provenance?: string
           resolution_note?: string | null
           resolve_by?: string | null
           resolved_at?: string | null
           resolved_by?: string | null
           respond_by?: string | null
           severity: string
+          signature_image?: string | null
+          signed_at?: string | null
+          signed_name?: string | null
           site_uuid: string
           source_kind?: string | null
           source_ref?: string | null
@@ -1621,7 +2092,12 @@ export type Database = {
         Update: {
           acknowledged_at?: string | null
           acknowledged_by?: string | null
+          assigned_scope?: string | null
+          assigned_to?: string[] | null
           assignee_id?: string | null
+          breach_max?: number | null
+          breach_min?: number | null
+          breach_value?: number | null
           created_at?: string
           created_by?: string | null
           detail?: string | null
@@ -1629,12 +2105,16 @@ export type Database = {
           id?: string
           kind?: string
           origin?: string
+          provenance?: string
           resolution_note?: string | null
           resolve_by?: string | null
           resolved_at?: string | null
           resolved_by?: string | null
           respond_by?: string | null
           severity?: string
+          signature_image?: string | null
+          signed_at?: string | null
+          signed_name?: string | null
           site_uuid?: string
           source_kind?: string | null
           source_ref?: string | null
@@ -1749,6 +2229,44 @@ export type Database = {
           },
         ]
       }
+      equipment_condition: {
+        Row: {
+          category: string | null
+          condition: string | null
+          equipment_id: string | null
+          is_active: boolean | null
+          last_comment: string | null
+          last_flagged_at: string | null
+          last_flagged_by: string | null
+          last_flagged_state: string | null
+          name: string | null
+          room_id: string | null
+          site_uuid: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "equipment_room_id_fkey"
+            columns: ["room_id"]
+            isOneToOne: false
+            referencedRelation: "rooms"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "equipment_site_uuid_fkey"
+            columns: ["site_uuid"]
+            isOneToOne: false
+            referencedRelation: "site_ingestion_health"
+            referencedColumns: ["site_uuid"]
+          },
+          {
+            foreignKeyName: "equipment_site_uuid_fkey"
+            columns: ["site_uuid"]
+            isOneToOne: false
+            referencedRelation: "sites"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       equipment_roles: {
         Row: {
           category: string | null
@@ -1824,6 +2342,225 @@ export type Database = {
         }
         Relationships: []
       }
+      parameter_observed_range: {
+        Row: {
+          answered_na: number | null
+          category: string | null
+          display_label: string | null
+          equipment_id: string | null
+          equipment_name: string | null
+          first_seen: string | null
+          last_seen: string | null
+          max_value: number | null
+          min_value: number | null
+          numeric_readings: number | null
+          observed_avg: number | null
+          observed_max: number | null
+          observed_min: number | null
+          p05: number | null
+          p95: number | null
+          parameter_name: string | null
+          readings: number | null
+          room_name: string | null
+          site_uuid: string | null
+          unit: string | null
+          warn_max: number | null
+          warn_min: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "equipment_parameters_unit_fk"
+            columns: ["unit"]
+            isOneToOne: false
+            referencedRelation: "unit_definitions"
+            referencedColumns: ["unit_code"]
+          },
+          {
+            foreignKeyName: "readings_equipment_id_fkey"
+            columns: ["equipment_id"]
+            isOneToOne: false
+            referencedRelation: "equipment_condition"
+            referencedColumns: ["equipment_id"]
+          },
+          {
+            foreignKeyName: "readings_equipment_id_fkey"
+            columns: ["equipment_id"]
+            isOneToOne: false
+            referencedRelation: "equipment_registry"
+            referencedColumns: ["equipment_id"]
+          },
+          {
+            foreignKeyName: "readings_equipment_id_fkey"
+            columns: ["equipment_id"]
+            isOneToOne: false
+            referencedRelation: "equipment_roles"
+            referencedColumns: ["equipment_id"]
+          },
+          {
+            foreignKeyName: "readings_equipment_id_fkey"
+            columns: ["equipment_id"]
+            isOneToOne: false
+            referencedRelation: "topology_layout_issues"
+            referencedColumns: ["equipment_id"]
+          },
+          {
+            foreignKeyName: "readings_site_uuid_fkey"
+            columns: ["site_uuid"]
+            isOneToOne: false
+            referencedRelation: "site_ingestion_health"
+            referencedColumns: ["site_uuid"]
+          },
+          {
+            foreignKeyName: "readings_site_uuid_fkey"
+            columns: ["site_uuid"]
+            isOneToOne: false
+            referencedRelation: "sites"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      readings_daily: {
+        Row: {
+          bucket: string | null
+          equipment_id: string | null
+          max_num: number | null
+          measure: string | null
+          min_num: number | null
+          n: number | null
+          n_breach: number | null
+          n_na: number | null
+          n_numeric: number | null
+          n_technicians: number | null
+          n_warn: number | null
+          n_zero: number | null
+          parameter_name: string | null
+          room_id: string | null
+          site_uuid: string | null
+          sum_num: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "readings_equipment_id_fkey"
+            columns: ["equipment_id"]
+            isOneToOne: false
+            referencedRelation: "equipment_condition"
+            referencedColumns: ["equipment_id"]
+          },
+          {
+            foreignKeyName: "readings_equipment_id_fkey"
+            columns: ["equipment_id"]
+            isOneToOne: false
+            referencedRelation: "equipment_registry"
+            referencedColumns: ["equipment_id"]
+          },
+          {
+            foreignKeyName: "readings_equipment_id_fkey"
+            columns: ["equipment_id"]
+            isOneToOne: false
+            referencedRelation: "equipment_roles"
+            referencedColumns: ["equipment_id"]
+          },
+          {
+            foreignKeyName: "readings_equipment_id_fkey"
+            columns: ["equipment_id"]
+            isOneToOne: false
+            referencedRelation: "topology_layout_issues"
+            referencedColumns: ["equipment_id"]
+          },
+          {
+            foreignKeyName: "readings_room_id_fkey"
+            columns: ["room_id"]
+            isOneToOne: false
+            referencedRelation: "rooms"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "readings_site_uuid_fkey"
+            columns: ["site_uuid"]
+            isOneToOne: false
+            referencedRelation: "site_ingestion_health"
+            referencedColumns: ["site_uuid"]
+          },
+          {
+            foreignKeyName: "readings_site_uuid_fkey"
+            columns: ["site_uuid"]
+            isOneToOne: false
+            referencedRelation: "sites"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      readings_monthly: {
+        Row: {
+          bucket: string | null
+          equipment_id: string | null
+          max_num: number | null
+          measure: string | null
+          min_num: number | null
+          n: number | null
+          n_breach: number | null
+          n_na: number | null
+          n_numeric: number | null
+          n_technicians: number | null
+          n_warn: number | null
+          n_zero: number | null
+          parameter_name: string | null
+          room_id: string | null
+          site_uuid: string | null
+          sum_num: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "readings_equipment_id_fkey"
+            columns: ["equipment_id"]
+            isOneToOne: false
+            referencedRelation: "equipment_condition"
+            referencedColumns: ["equipment_id"]
+          },
+          {
+            foreignKeyName: "readings_equipment_id_fkey"
+            columns: ["equipment_id"]
+            isOneToOne: false
+            referencedRelation: "equipment_registry"
+            referencedColumns: ["equipment_id"]
+          },
+          {
+            foreignKeyName: "readings_equipment_id_fkey"
+            columns: ["equipment_id"]
+            isOneToOne: false
+            referencedRelation: "equipment_roles"
+            referencedColumns: ["equipment_id"]
+          },
+          {
+            foreignKeyName: "readings_equipment_id_fkey"
+            columns: ["equipment_id"]
+            isOneToOne: false
+            referencedRelation: "topology_layout_issues"
+            referencedColumns: ["equipment_id"]
+          },
+          {
+            foreignKeyName: "readings_room_id_fkey"
+            columns: ["room_id"]
+            isOneToOne: false
+            referencedRelation: "rooms"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "readings_site_uuid_fkey"
+            columns: ["site_uuid"]
+            isOneToOne: false
+            referencedRelation: "site_ingestion_health"
+            referencedColumns: ["site_uuid"]
+          },
+          {
+            foreignKeyName: "readings_site_uuid_fkey"
+            columns: ["site_uuid"]
+            isOneToOne: false
+            referencedRelation: "sites"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       scheduled_job_status: {
         Row: {
           active: boolean | null
@@ -1837,16 +2574,23 @@ export type Database = {
       }
       site_ingestion_health: {
         Row: {
+          avg_lag_minutes: number | null
+          entries_7d: number | null
+          entry_status: string | null
           expected_interval_minutes: number | null
           ingestion_grace_minutes: number | null
+          last_late_at: string | null
+          last_late_technician: string | null
           last_reading_at: string | null
           last_technician: string | null
+          late_entries_7d: number | null
           minutes_since_reading: number | null
           monitoring_enabled: boolean | null
           site_code: string | null
           site_name: string | null
           site_uuid: string | null
           status: string | null
+          worst_lag_minutes: number | null
         }
         Relationships: []
       }
@@ -1886,6 +2630,9 @@ export type Database = {
       vendor_activity: {
         Row: {
           findings: number | null
+          flagged_at: string | null
+          flagged_reason: string | null
+          is_active: boolean | null
           last_visit: string | null
           open_work: number | null
           serious_findings: number | null
@@ -1899,12 +2646,17 @@ export type Database = {
       }
       work_queue: {
         Row: {
+          ack_count: number | null
           acknowledged_at: string | null
+          assigned_count: number | null
+          assigned_scope: string | null
+          assigned_to: string[] | null
           assignee_id: string | null
           assignee_name: string | null
           created_at: string | null
           detail: string | null
           due_at: string | null
+          i_acknowledged: boolean | null
           id: string | null
           is_breached: boolean | null
           kind: string | null
@@ -1962,6 +2714,7 @@ export type Database = {
       }
     }
     Functions: {
+      acknowledge_work_item: { Args: { p_id: string }; Returns: undefined }
       admin_create_employee: {
         Args: {
           p_auth_id: string
@@ -2005,10 +2758,14 @@ export type Database = {
           notes: string | null
           occurred_at: string
           photo_url: string | null
+          provenance: string
           raised_by_id: string
           raised_by_name: string
           receipt_number: string | null
           resolution_details: string | null
+          resolution_signature: string | null
+          resolution_signed_at: string | null
+          resolution_signed_name: string | null
           resolved_at: string | null
           resolved_by_id: string | null
           resolved_by_name: string | null
@@ -2027,6 +2784,14 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      apply_template_parameters: {
+        Args: {
+          p_equipment_id: string
+          p_frequency?: string
+          p_template_id?: string
+        }
+        Returns: number
+      }
       check_ingestion_health: {
         Args: never
         Returns: {
@@ -2034,6 +2799,10 @@ export type Database = {
           out_site_code: string
           out_status: string
         }[]
+      }
+      derive_measure: {
+        Args: { p_equipment_id: string; p_parameter_name: string }
+        Returns: string
       }
       evaluate_thresholds: {
         Args: { p_site_uuid?: string }
@@ -2046,7 +2815,85 @@ export type Database = {
           out_value: number
         }[]
       }
+      fan_out_readings: { Args: { p_log_id: string }; Returns: number }
+      generate_synthetic_readings: {
+        Args: {
+          p_from: string
+          p_rounds_per_day?: number
+          p_site_uuid: string
+          p_to: string
+        }
+        Returns: string
+      }
+      generate_synthetic_reports: {
+        Args: { p_from: string; p_site_uuid: string; p_to: string }
+        Returns: string
+      }
+      generate_ticket_number: { Args: never; Returns: string }
+      get_asset_freshness: {
+        Args: { p_site_uuid?: string }
+        Returns: {
+          asset_condition: string
+          category: string
+          covered_last_round: number
+          equipment_id: string
+          last_reading: string
+          last_technician: string
+          name: string
+          readings_24h: number
+          room_id: string
+          room_name: string
+          typical_round: number
+        }[]
+      }
+      get_asset_history: {
+        Args: { p_equipment_id: string; p_limit?: number }
+        Returns: {
+          changed_at: string
+          changed_by_name: string
+          field: string
+          new_value: string
+          old_value: string
+          scope: string
+          target: string
+        }[]
+      }
       get_capacity_summary: { Args: { p_site_uuid?: string }; Returns: Json }
+      get_late_entries: {
+        Args: {
+          p_from: string
+          p_late_only?: boolean
+          p_site_uuid: string
+          p_to: string
+        }
+        Returns: {
+          frequency: string
+          is_late: boolean
+          lag_minutes: number
+          log_id: string
+          n_readings: number
+          provenance: string
+          shift_session_id: string
+          submitted_at: string
+          target_hour: string
+          technician_id: string
+          technician_name: string
+          tolerance_minutes: number
+        }[]
+      }
+      get_late_entry_by_technician: {
+        Args: { p_from: string; p_site_uuid: string; p_to: string }
+        Returns: {
+          avg_lag_minutes: number
+          last_late_at: string
+          late_share: number
+          n_entries: number
+          n_late: number
+          technician_id: string
+          technician_name: string
+          worst_lag_minutes: number
+        }[]
+      }
       get_load_accumulation: {
         Args: { p_site_uuid?: string }
         Returns: {
@@ -2059,6 +2906,23 @@ export type Database = {
           load_pct: number
           name: string
           own_load_kw: number
+        }[]
+      }
+      get_measure_volumes: {
+        Args: {
+          p_categories?: string[]
+          p_from: string
+          p_site_uuid: string
+          p_to: string
+        }
+        Returns: {
+          assets: number
+          last_seen: string
+          measure: string
+          n: number
+          n_numeric: number
+          n_zero: number
+          rooms: number
         }[]
       }
       get_my_employee_id: { Args: never; Returns: string }
@@ -2079,8 +2943,41 @@ export type Database = {
           total_load_kw: number
         }[]
       }
+      get_series: {
+        Args: {
+          p_equipment_id?: string
+          p_from: string
+          p_grain?: string
+          p_group_by?: string
+          p_measure?: string
+          p_parameter_name?: string
+          p_room_id?: string
+          p_site_uuid: string
+          p_to: string
+        }
+        Returns: {
+          avg_num: number
+          bucket: string
+          equipment_id: string
+          max_num: number
+          min_num: number
+          n: number
+          n_breach: number
+          n_na: number
+          n_numeric: number
+          n_warn: number
+          n_zero: number
+          parameter_name: string
+          room_id: string
+          room_name: string
+        }[]
+      }
       get_site_form_definition: {
-        Args: { p_frequency?: string; p_site_uuid?: string }
+        Args: {
+          p_frequency?: string
+          p_fsm_mode?: string
+          p_site_uuid?: string
+        }
         Returns: Json
       }
       get_sla_breaches: {
@@ -2100,9 +2997,71 @@ export type Database = {
         Args: { p_since?: string; p_site_uuid?: string }
         Returns: Json
       }
+      get_technician_activity: {
+        Args: { p_from: string; p_site_uuid: string; p_to: string }
+        Returns: {
+          first_seen: string
+          last_seen: string
+          n_assets: number
+          n_breach: number
+          n_days: number
+          n_na: number
+          n_numeric: number
+          n_readings: number
+          n_rooms: number
+          n_shifts: number
+          n_zero: number
+          technician_id: string
+          technician_name: string
+        }[]
+      }
       get_topology_graph: { Args: { p_site_uuid?: string }; Returns: Json }
       normalise_vendor: { Args: { p_name: string }; Returns: string }
+      parameter_for_role: {
+        Args: { p_equipment_id: string; p_role: string }
+        Returns: {
+          capture_mode: string
+          carry_forward: boolean
+          constant_value: string | null
+          created_at: string | null
+          data_type: Database["public"]["Enums"]["parameter_data_type"]
+          default_value: string | null
+          display_label: string | null
+          display_order: number | null
+          equipment_id: string | null
+          excel_column_index: number | null
+          excel_sheet_name: string | null
+          excel_workbook: string | null
+          frequency: string | null
+          help_text: string | null
+          hidden_in_modes: string[] | null
+          id: string
+          input_type: string
+          is_active: boolean
+          is_constant: boolean | null
+          is_graphable: boolean | null
+          is_required: boolean
+          legacy_name: string | null
+          max_value: number | null
+          measure: string
+          min_value: number | null
+          options: Json | null
+          parameter_name: string
+          semantic_role: string | null
+          template_id: string | null
+          unit: string | null
+          warn_max: number | null
+          warn_min: number | null
+        }
+        SetofOptions: {
+          from: "*"
+          to: "equipment_parameters"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
       promote_import_batch: { Args: { p_batch_id: string }; Returns: Json }
+      purge_synthetic_data: { Args: { p_site_uuid?: string }; Returns: string }
       raise_due_maintenance: { Args: { p_site_uuid?: string }; Returns: number }
       raise_work_item: {
         Args: {
@@ -2118,6 +3077,17 @@ export type Database = {
         }
         Returns: string
       }
+      rand_normal: { Args: never; Returns: number }
+      reading_status: {
+        Args: {
+          p_max: number
+          p_min: number
+          p_value: number
+          p_warn_max: number
+          p_warn_min: number
+        }
+        Returns: string
+      }
       record_contractor_finding: {
         Args: {
           p_detail?: string
@@ -2129,10 +3099,12 @@ export type Database = {
         }
         Returns: string
       }
+      refresh_reading_rollups: { Args: never; Returns: string }
       resolve_equipment_parameters: {
         Args: { p_equipment_id: string }
         Returns: {
           canonical_unit: string
+          capture_mode: string
           carry_forward: boolean
           constant_value: string
           data_type: Database["public"]["Enums"]["parameter_data_type"]
@@ -2142,6 +3114,7 @@ export type Database = {
           display_order: number
           frequency: string
           help_text: string
+          hidden_in_modes: string[]
           input_type: string
           is_constant: boolean
           is_graphable: boolean
@@ -2158,14 +3131,21 @@ export type Database = {
         Args: { p_site_uuid?: string }
         Returns: number
       }
+      seed_it_rack_parameters: {
+        Args: { p_equipment_id: string }
+        Returns: string
+      }
       severity_from_excursion: {
         Args: { p_max: number; p_min: number; p_value: number }
         Returns: string
       }
+      start_work_item: { Args: { p_id: string }; Returns: undefined }
+      to_base36: { Args: { p_n: number }; Returns: string }
       to_canonical: {
         Args: { p_unit: string; p_value: number }
         Returns: number
       }
+      to_number_or_null: { Args: { p_raw: string }; Returns: number }
       validate_import_batch: {
         Args: { p_batch_id: string }
         Returns: {
@@ -2301,9 +3281,6 @@ export type CompositeTypes<
     : never
 
 export const Constants = {
-  graphql_public: {
-    Enums: {},
-  },
   public: {
     Enums: {
       parameter_data_type: ["number", "string", "boolean"],

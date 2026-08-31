@@ -128,6 +128,12 @@ export function IncidentReport() {
   // Who fixed the fault. Defaults to internal: most faults are handled in-house,
   // and defaulting to "contractor" is what produced the false attribution.
   const [resolverType, setResolverType] = useState<ResolverType>("INTERNAL_TECH");
+  // The closer's mark on the incident. An incident close-out is a formal
+  // document — it is what gets produced when a client asks why a room ran hot
+  // — so, like the checklist and the handover, it cannot be filed unsigned.
+  const [resolutionSig, setResolutionSig] = useState<string | null>(null);
+  const [resolutionSigAt, setResolutionSigAt] = useState<string | null>(null);
+  const [resolutionPadOpen, setResolutionPadOpen] = useState(false);
 
   // Report Form State
   const [asset, setAsset] = useState("");
@@ -426,6 +432,10 @@ export function IncidentReport() {
       alert("Please provide resolution details.");
       return;
     }
+    if (!resolutionSig) {
+      alert("Sign the resolution before closing this incident.");
+      return;
+    }
 
     setIsSubmittingAction(true);
     try {
@@ -448,7 +458,9 @@ export function IncidentReport() {
         resolution_details: actionNotes,
         impact: "NONE",
         resolved_by_name: firstName,
-        resolved_by_id: user?.id || "EMP-UNKNOWN"
+        resolved_by_id: user?.id || "EMP-UNKNOWN",
+        resolution_signature: resolutionSig,
+        resolution_signed_at: resolutionSigAt ?? new Date().toISOString()
       });
 
       // 3. Append final resolution comment
@@ -467,6 +479,8 @@ export function IncidentReport() {
       setContractorName("");
       setActionNotes("");
       setActionPhoto(null);
+      setResolutionSig(null);
+      setResolutionSigAt(null);
     } catch (err: any) {
       console.error("Error resolving incident:", err);
       alert("Failed to resolve incident. Please try again.");
@@ -1396,6 +1410,25 @@ export function IncidentReport() {
                               </div>
                             </div>
 
+                            {/* Signature — required. Everything above is a
+                                claim typed into a form; this is the person
+                                putting their name to it. */}
+                            <div className="space-y-1.5">
+                              <label className="text-[9px] font-black text-neutral-400 uppercase tracking-widest block">
+                                Signature
+                                <span className="ml-1 text-danger-500">required</span>
+                              </label>
+                              <SignatureField
+                                value={resolutionSig}
+                                signedAt={resolutionSigAt}
+                                onClick={() => setResolutionPadOpen(true)}
+                                label={user?.name || "Technician"}
+                              />
+                              <p className="text-[10px] font-semibold text-neutral-400">
+                                You are signing that this fault is resolved as described above.
+                              </p>
+                            </div>
+
                             {/* Action Buttons */}
                             <div className="flex gap-2 justify-end">
                               <button
@@ -1594,6 +1627,19 @@ export function IncidentReport() {
 
       {/* Same pad as the shift handover — one way of signing across the whole
           platform, whether the signer is staff or a visiting contractor. */}
+      <SignaturePad
+        open={resolutionPadOpen}
+        onClose={() => setResolutionPadOpen(false)}
+        signerName={user?.name || undefined}
+        context="Incident resolution"
+        confirmLabel="Sign this resolution"
+        onConfirm={(sig) => {
+          setResolutionSig(sig.dataUrl);
+          setResolutionSigAt(sig.signedAt);
+          setResolutionPadOpen(false);
+        }}
+      />
+
       <SignaturePad
         open={sigPadOpen}
         onClose={() => setSigPadOpen(false)}

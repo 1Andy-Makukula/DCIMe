@@ -38,6 +38,11 @@ export interface Incident {
   resolution_details: string | null;
   /** Null on rows resolved before attribution was tracked. */
   resolved_by_type?: ResolverType | null;
+  /** The closer's mark. Null on incidents resolved before signing existed. */
+  resolution_signature?: string | null;
+  resolution_signed_at?: string | null;
+  /** Stamped by the database from the JWT, not by the browser. */
+  resolution_signed_name?: string | null;
   site_uuid?: string | null;
 }
 
@@ -228,6 +233,16 @@ export function useIncidents() {
       resolution_details: string;
       occurred_at?: string;
       resolved_at?: string;
+      /**
+       * The closer's handwritten mark, as a PNG data URL.
+       *
+       * An incident close-out is a formal document — it is what gets produced
+       * when a client asks why a room ran hot — so it is signed like the
+       * checklist and the handover are. resolution_signed_name is stamped by
+       * the database from the JWT, never sent from here.
+       */
+      resolution_signature: string;
+      resolution_signed_at?: string;
     }
   ) => {
     setError(null);
@@ -249,6 +264,8 @@ export function useIncidents() {
         // and "a contractor was involved" must stay distinguishable.
         contractor_engaged: payload.contractor_engaged || null,
         resolution_details: payload.resolution_details,
+        resolution_signature: payload.resolution_signature,
+        resolution_signed_at: payload.resolution_signed_at || new Date().toISOString(),
         ...(payload.occurred_at ? { occurred_at: payload.occurred_at } : {}),
       };
 

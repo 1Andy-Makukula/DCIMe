@@ -172,6 +172,10 @@ export function NocOverview() {
     impact: string | null;
     contractor_engaged: string | null;
     resolution_details: string | null;
+    /** Null on incidents closed before close-outs were signed. */
+    resolution_signature: string | null;
+    resolution_signed_at: string | null;
+    resolution_signed_name: string | null;
   }
 
   const [incidents, setIncidents] = React.useState<IncidentLog[]>([]);
@@ -1058,6 +1062,29 @@ export function NocOverview() {
                             {incident.resolution_details && (
                               <div className="text-[11px] text-ok-900 leading-relaxed bg-white/60 border border-ok-100 p-2.5 rounded-lg">
                                 {incident.resolution_details}
+                              </div>
+                            )}
+
+                            {/* Who signed the close-out. An admin reviewing a
+                                resolved incident should see the mark, not just
+                                a name someone typed into a form. */}
+                            {incident.resolution_signature && (
+                              <div className="flex items-center gap-2 bg-white/60 border border-ok-100 p-2 rounded-lg">
+                                <img
+                                  src={incident.resolution_signature}
+                                  alt={`Signature of ${incident.resolution_signed_name ?? "the closing technician"}`}
+                                  className="h-9 object-contain shrink-0"
+                                />
+                                <div className="min-w-0">
+                                  <p className="text-[10px] font-black text-ok-800 truncate">
+                                    {incident.resolution_signed_name}
+                                  </p>
+                                  {incident.resolution_signed_at && (
+                                    <p className="text-[9px] font-semibold text-ok-600/80 font-mono">
+                                      {formatDateTime(incident.resolution_signed_at)}
+                                    </p>
+                                  )}
+                                </div>
                               </div>
                             )}
 

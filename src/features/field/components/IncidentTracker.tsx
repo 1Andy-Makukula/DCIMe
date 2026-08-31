@@ -4,6 +4,7 @@ import { useOutletContext } from "react-router";
 import { useIncidents, Incident } from "../hooks/useIncidents";
 import { TechUser } from "./TechLayout";
 import { useCurrentSite } from "@/shared/context/SiteContext";
+import { SignatureField, SignaturePad } from "@/shared/ui";
 import { 
   AlertTriangle,
   CheckCircle2, 
@@ -41,6 +42,12 @@ export function IncidentTracker() {
   const [resDetails, setResDetails] = useState("");
   const [resResolvedAt, setResResolvedAt] = useState("");
   const [isSubmittingResolution, setIsSubmittingResolution] = useState(false);
+  // Closing an incident is filing a formal document, so it carries the
+  // closer's mark. resolution_signed_name is stamped by the database from the
+  // JWT — the browser never gets to say who signed.
+  const [resSig, setResSig] = useState<string | null>(null);
+  const [resSigAt, setResSigAt] = useState<string | null>(null);
+  const [resPadOpen, setResPadOpen] = useState(false);
 
   // Filter incidents
   const activeIncidents = incidents.filter(i => i.status === "OPEN");
@@ -96,6 +103,10 @@ export function IncidentTracker() {
       alert("Please fill in contractor and resolution details.");
       return;
     }
+    if (!resSig) {
+      alert("Sign the resolution before closing this incident.");
+      return;
+    }
     setIsSubmittingResolution(true);
     try {
       const firstName = (user?.name || "Field Tech").trim().split(/\s+/)[0];
@@ -105,12 +116,16 @@ export function IncidentTracker() {
         resolution_details: resDetails,
         resolved_at: new Date(resResolvedAt).toISOString(),
         resolved_by_name: firstName,
-        resolved_by_id: user?.id || "EMP-UNKNOWN"
+        resolved_by_id: user?.id || "EMP-UNKNOWN",
+        resolution_signature: resSig,
+        resolution_signed_at: resSigAt ?? new Date().toISOString()
       });
 
       setShowReceipt(resolved.receipt_number);
       setSelectedIncident(null);
       setIsResolving(false);
+      setResSig(null);
+      setResSigAt(null);
     } catch (err) {
       alert("Failed to resolve incident. Please try again.");
     } finally {
@@ -540,6 +555,30 @@ export function IncidentTracker() {
                           <span className="font-bold text-neutral-500 block text-[9px] uppercase tracking-wider mb-0.5">Contractor Details</span>
                           {selectedIncident.resolution_details}
                         </div>
+
+                        {/* The mark itself, on the closed document. A name in
+                            a field is a claim; this is what was signed. The
+                            name shown is the one the database stamped, not
+                            whatever the closing browser sent. */}
+                        {selectedIncident.resolution_signature && (
+                          <div className="border-t border-ok-100/60 pt-2">
+                            <span className="font-bold text-neutral-500 block text-[9px] uppercase tracking-wider mb-1">Signed Off</span>
+                            <img
+                              src={selectedIncident.resolution_signature}
+                              alt={`Signature of ${selectedIncident.resolution_signed_name ?? "the closing technician"}`}
+                              className="h-12 object-contain"
+                            />
+                            <p className="text-[10px] font-bold text-neutral-500 mt-0.5">
+                              {selectedIncident.resolution_signed_name}
+                              {selectedIncident.resolution_signed_at && (
+                                <span className="font-semibold text-neutral-400">
+                                  {" · "}
+                                  {new Date(selectedIncident.resolution_signed_at).toLocaleString()}
+                                </span>
+                              )}
+                            </p>
+                          </div>
+                        )}
                       </div>
                     </div>
                   )}
@@ -643,6 +682,23 @@ export function IncidentTracker() {
                         required
                       />
                     </div>
+                    {/* Signature — required. Everything above is a claim
+                        typed into a form; this is the person putting their
+                        name to it. */}
+                    <div className="space-y-1">
+                      <label className="text-[9px] font-black text-neutral-400 uppercase tracking-wider block">
+                        Signature <span className="text-danger-500">required</span>
+                      </label>
+                      <SignatureField
+                        value={resSig}
+                        signedAt={resSigAt}
+                        onClick={() => setResPadOpen(true)}
+                        label={user?.name || "Technician"}
+                      />
+                      <p className="text-[10px] font-semibold text-neutral-400">
+                        You are signing that this fault is resolved as described above.
+                      </p>
+                    </div>
                   </div>
 
                   {/* Form Submission Actions */}
@@ -664,6 +720,19 @@ export function IncidentTracker() {
                   </div>
                 </form>
               )}
+
+              <SignaturePad
+                open={resPadOpen}
+                onClose={() => setResPadOpen(false)}
+                signerName={user?.name || undefined}
+                context="Incident resolution"
+                confirmLabel="Sign this resolution"
+                onConfirm={(sig) => {
+                  setResSig(sig.dataUrl);
+                  setResSigAt(sig.signedAt);
+                  setResPadOpen(false);
+                }}
+              />
 
             </div>
           </div>

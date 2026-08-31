@@ -381,6 +381,19 @@ export const PrintableChecklist = forwardRef<HTMLDivElement, any>((props, ref) =
   };
 
   const saveChecklistRecord = async (triggerPrint = false) => {
+    // A checklist is a formal document, so it is not filed unsigned.
+    //
+    // Only the MS partner's mark is required — that is the person filling the
+    // form in, and they are always on site. The client SPOC countersigns when
+    // a representative is present, which is often after the round; requiring
+    // it here would strand a completed checklist nobody could archive.
+    if (!msSignatureImage) {
+      toast.error("Sign the checklist before archiving it.", {
+        description: "Tap the MS Partner signature box to sign."
+      });
+      return;
+    }
+
     setIsSaving(true);
     setSaveSuccess(false);
     try {
@@ -521,7 +534,8 @@ export const PrintableChecklist = forwardRef<HTMLDivElement, any>((props, ref) =
               <>
                 <button
                   onClick={() => saveChecklistRecord(false)}
-                  disabled={isSaving}
+                  disabled={isSaving || !msSignatureImage}
+                  title={!msSignatureImage ? "Sign the checklist first" : undefined}
                   type="button"
                   className="flex items-center justify-center gap-2 px-5 py-3 rounded-2xl bg-brand-600 hover:bg-brand-700 active:bg-brand-800 text-white text-xs font-black uppercase tracking-widest transition-all shadow-md active:scale-[0.98] cursor-pointer disabled:opacity-50"
                 >
