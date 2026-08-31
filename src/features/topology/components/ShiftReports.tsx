@@ -18,6 +18,7 @@ import {
   FileSpreadsheet,
 } from "lucide-react";
 import { generateLegacyMonthlyReport } from "../../../shared/utils/excelExportEngine";
+import { toast } from "sonner";
 import { useCurrentSite } from "@/shared/context/SiteContext";
 import { useAuth } from "@/shared/context/AuthContext";
 import { resolveSignerName, signingBlockedReason } from "@/shared/utils/identity";
@@ -377,7 +378,38 @@ export function ShiftReports() {
   const now = new Date();
   const [exportMonth, setExportMonth] = useState(now.getMonth());
   const [exportYear, setExportYear] = useState(now.getFullYear());
+  // Set once the admin picks a month themselves, so the seeding effect below
+  // never overrides a deliberate choice.
+  const [monthPicked, setMonthPicked] = useState(false);
   const [dbReports, setDbReports] = useState<ShiftLog[]>([]);
+
+  // Default to the month that actually has readings in it.
+  //
+  // The default was `new Date().getMonth()`. Just after midnight on the 1st
+  // that is a month nothing has been logged into yet, so the first export
+  // attempt of every month reported "no telemetry data" for a site that had
+  // been logging all night — the data was there, the selector was pointing at
+  // the wrong month. Seeded from the newest reading instead, which is the
+  // current month for all but those first few hours.
+  useEffect(() => {
+    if (monthPicked || !currentSite?.id) return;
+    let cancelled = false;
+    (async () => {
+      const { data } = await supabase
+        .from("telemetry_logs")
+        .select("target_hour")
+        .eq("site_uuid", currentSite.id)
+        .eq("asset_id", "facility_wide")
+        .order("target_hour", { ascending: false })
+        .limit(1);
+      const latest = data?.[0]?.target_hour;
+      if (cancelled || !latest) return;
+      const d = new Date(latest);
+      setExportMonth(d.getMonth());
+      setExportYear(d.getFullYear());
+    })();
+    return () => { cancelled = true; };
+  }, [currentSite?.id, monthPicked]);
 
   const fetchDbReports = async () => {
     try {
@@ -475,7 +507,29 @@ export function ShiftReports() {
       if (telemetryError) throw telemetryError;
 
       if (!telemetryRows || telemetryRows.length === 0) {
-        alert(`No telemetry data found for ${monthName} ${yearStr}. Logs must be submitted before they can be exported.`);
+        // "Logs must be submitted before they can be exported" blamed the
+        // technicians for what is nearly always the month selector sitting on
+        // a month that has not started yet. Name the month that does hold
+        // readings, so the fix is obvious from the message.
+        let hint: string | undefined;
+        if (currentSite?.id) {
+          const { data: latestRows } = await supabase
+            .from("telemetry_logs")
+            .select("target_hour")
+            .eq("site_uuid", currentSite.id)
+            .eq("asset_id", "facility_wide")
+            .order("target_hour", { ascending: false })
+            .limit(1);
+          const latest = latestRows?.[0]?.target_hour;
+          if (latest) {
+            const label = new Date(latest).toLocaleString("en-US", {
+              month: "long", year: "numeric"
+            });
+            hint = `The most recent readings for this site are from ${label}. Change the month selector to export those.`;
+          }
+        }
+        toast.error(`No readings logged for ${monthName} ${yearStr}.`,
+                    hint ? { description: hint } : undefined);
         setIsExporting(false);
         return;
       }
@@ -491,8 +545,16 @@ export function ShiftReports() {
       }));
 
       await generateLegacyMonthlyReport(monthName, yearStr, flatData, siteCode, currentSite?.id ?? null);
-    } catch (err) {
+      toast.success(`${monthName} ${yearStr} workbooks generated.`);
+    } catch (err: any) {
+      // The engine throws for real, nameable reasons — no Excel destinations
+      // for the site, a template that failed to download. All of them used to
+      // land in the console only, so the button said "Generating…", stopped,
+      // and produced nothing with no explanation anywhere the admin could see.
       console.error("Error generating legacy monthly report:", err);
+      toast.error("Could not generate the workbooks.", {
+        description: err?.message ?? "Unexpected error while writing the templates."
+      });
     } finally {
       setIsExporting(false);
     }
@@ -650,7 +712,7 @@ export function ShiftReports() {
                   ariaLabel="Month to export"
                   className="w-28"
                   value={String(exportMonth)}
-                  onChange={(v) => setExportMonth(Number(v))}
+                  onChange={(v) => { setMonthPicked(true); setExportMonth(Number(v)); }}
                   options={Array.from({ length: 12 }, (_, m) => ({
                     value: String(m),
                     label: new Date(2000, m, 1).toLocaleString("en-US", { month: "short" })
@@ -660,7 +722,7 @@ export function ShiftReports() {
                   ariaLabel="Year to export"
                   className="w-24"
                   value={String(exportYear)}
-                  onChange={(v) => setExportYear(Number(v))}
+                  onChange={(v) => { setMonthPicked(true); setExportYear(Number(v)); }}
                   options={Array.from({ length: 4 }, (_, i) => now.getFullYear() - i)
                     .map((y) => ({ value: String(y), label: String(y) }))}
                 />
