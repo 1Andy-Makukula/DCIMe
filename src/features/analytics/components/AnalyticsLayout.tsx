@@ -1,5 +1,5 @@
 import { NavLink, Outlet, useLocation } from "react-router";
-import { FileText, Zap, Fuel, Battery, ThermometerSnowflake, Activity, Gauge, Users, Boxes } from "lucide-react";
+import { FileText, Zap, Fuel, Battery, ThermometerSnowflake, Activity, Gauge, Users, Boxes, Server, ShieldAlert } from "lucide-react";
 import { DateRangePicker } from "@/shared/ui";
 import { toneOfDomain } from "@/domain/wayfinding";
 import { useDateRange } from "@/shared/utils/useDateRange";
@@ -28,8 +28,15 @@ const SUB_TABS = [
     domain: "ups" },
   { to: "/admin/analytics/thermal", label: "Thermal & HVAC", icon: ThermometerSnowflake,
     domain: "thermal" },
+  // IT Load and Fire & Safety are defined categories with registered assets and
+  // captured readings that had no tab at all — the only two of the seven with
+  // nowhere to be seen.
+  { to: "/admin/analytics/load", label: "IT Load", icon: Server,
+    domain: "load" },
   { to: "/admin/analytics/capacity", label: "Capacity & N+1", icon: Gauge,
     domain: "load" },
+  { to: "/admin/analytics/safety", label: "Fire & Safety", icon: ShieldAlert,
+    domain: "safety" },
   { to: "/admin/analytics/incidents", label: "Incident Lifecycle", icon: Activity,
     domain: "safety" },
   { to: "/admin/analytics/technicians", label: "Technicians", icon: Users,

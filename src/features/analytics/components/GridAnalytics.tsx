@@ -7,6 +7,7 @@ import { Zap, Clock, ShieldCheck, AlertCircle } from 'lucide-react';
 import { useDashboardData } from '../hooks/useDashboardData';
 import { AnalyticsOutletContext } from './AnalyticsLayout';
 import { DetailLink } from './DetailLink';
+import { CategoryFleet } from './CategoryFleet';
 import {
   ComposedChart,
   Line,
@@ -107,6 +108,10 @@ export function GridAnalytics() {
           <span>No readings were recorded for this period. Widen the date range, or check that rounds are being logged.</span>
         </div>
       )}
+
+      {/* The fleet: every machine the registry lists here, not the one or
+          two metric keys the tiles below happen to name. */}
+      <CategoryFleet categoryId="utility" range={range} />
 
       {/* KPI Cards */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">

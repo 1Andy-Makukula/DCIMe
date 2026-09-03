@@ -41,6 +41,7 @@ import { UpsAnalytics } from "@/features/analytics/components/UpsAnalytics";
 import { ThermalAnalytics } from "@/features/analytics/components/ThermalAnalytics";
 import { IncidentAnalytics } from "@/features/analytics/components/IncidentAnalytics";
 import { CategoryDetail } from "@/features/analytics/components/CategoryDetail";
+import { CategoryScreen } from "@/features/analytics/components/CategoryScreen";
 import { FacilityOverview } from "@/features/analytics/components/FacilityOverview";
 import { RoomDetail } from "@/features/analytics/components/RoomDetail";
 import { AssetDetail } from "@/features/analytics/components/AssetDetail";
@@ -124,6 +125,11 @@ export default function App() {
               <Route path="fuel" element={<FuelAnalytics />} />
               <Route path="ups" element={<UpsAnalytics />} />
               <Route path="thermal" element={<ThermalAnalytics />} />
+              {/* The two categories that had registered assets and no screen. */}
+              <Route path="load" element={
+                <ErrorBoundary label="IT Load"><CategoryScreen categoryId="load" /></ErrorBoundary>} />
+              <Route path="safety" element={
+                <ErrorBoundary label="Fire & Safety"><CategoryScreen categoryId="safety" /></ErrorBoundary>} />
               <Route path="capacity" element={<ErrorBoundary label="Capacity"><CapacityLedger /></ErrorBoundary>} />
               <Route path="incidents" element={<IncidentAnalytics />} />
               <Route path="technicians" element={
