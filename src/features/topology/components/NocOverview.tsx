@@ -2,6 +2,7 @@ import React from "react";
 import { useRealtimeTable } from "@/shared/api/realtime";
 import { UTILITY_GRID_LABEL } from "@/shared/utils/branding";
 import { IngestionHealthCard } from "./IngestionHealthCard";
+import { SiteVitals } from "@/features/analytics/components/SiteVitals";
 import { siteLabel } from "@/shared/utils/branding";
 import {
   LineChart,
@@ -364,6 +365,13 @@ export function NocOverview() {
           vertical gap, so an unspaced child sits flush against the grid below. */}
       <div className="mb-5">
         <IngestionHealthCard />
+      </div>
+
+      {/* The site's actual position, which used to live two clicks away on the
+          Facility and SLA sub-pages while this screen showed three inventory
+          counts that do not change from one day to the next. */}
+      <div className="mb-6">
+        <SiteVitals />
       </div>
 
       {/* ── Main 12-column grid ─────────────────────────────────────────────── */}
