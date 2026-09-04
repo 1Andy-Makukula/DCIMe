@@ -3,6 +3,7 @@ import { useRealtimeTable } from "@/shared/api/realtime";
 import { UTILITY_GRID_LABEL } from "@/shared/utils/branding";
 import { IngestionHealthCard } from "./IngestionHealthCard";
 import { SiteVitals } from "@/features/analytics/components/SiteVitals";
+import { SystemSnapshots } from "@/features/analytics/components/SystemSnapshots";
 import { siteLabel } from "@/shared/utils/branding";
 import {
   LineChart,
@@ -768,6 +769,18 @@ export function NocOverview() {
               View full alert log in the Alerts tab
             </div>
           </div>
+        </Card>
+
+        {/* ═══════════════════════════════════════════════════════════════════
+            SECTION 4b: Every other system  (col-span-12)
+
+            The thermal chart above answered one system and left the rest of
+            the plant off the landing screen entirely. These are the same
+            question — what is it doing, and did it stay inside its limits —
+            asked of the UPS, the rectifiers, the generators and the feed.
+        ════════════════════════════════════════════════════════════════════ */}
+        <Card className="lg:col-span-12 p-5">
+          <SystemSnapshots />
         </Card>
 
         {/* ═══════════════════════════════════════════════════════════════════

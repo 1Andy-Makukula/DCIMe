@@ -38,6 +38,18 @@ export interface CategoryDef {
   defaultGroupBy: "room" | "asset";
   /** Icon name in lucide-react, resolved by the screen. */
   icon: string;
+  /**
+   * The one reading that stands for this system at a glance.
+   *
+   * Chosen, not derived. Picking the measure with the most readings would make
+   * the cooling headline `humidity_actual` (330 readings in a day) rather than
+   * `return_temp_actual` (288) — more numerous, and not what anyone means by
+   * "how is the cooling doing". Null where the system captures nothing numeric
+   * yet, which the overview states rather than hides.
+   */
+  headline: string | null;
+  /** Short label for the headline on a crowded card — "Return temp". */
+  headlineLabel: string;
 }
 
 /**
@@ -56,7 +68,9 @@ export const CATEGORIES: CategoryDef[] = [
     blurb: "Room conditions and the air conditioning that holds them.",
     dbCategories: ["ENVIRONMENT", "AIRCON"],
     defaultGroupBy: "room",
-    icon: "ThermometerSnowflake"
+    icon: "ThermometerSnowflake",
+    headline: "return_temp_actual",
+    headlineLabel: "Return temp"
   },
   {
     id: "utility",
@@ -64,7 +78,9 @@ export const CATEGORIES: CategoryDef[] = [
     blurb: "Incoming mains and the switchgear that distributes it.",
     dbCategories: ["MAINS", "SWITCHGEAR"],
     defaultGroupBy: "asset",
-    icon: "Zap"
+    icon: "Zap",
+    headline: "grid_total_site_load",
+    headlineLabel: "Site load"
   },
   {
     id: "generator",
@@ -72,7 +88,9 @@ export const CATEGORIES: CategoryDef[] = [
     blurb: "Standby generation, running hours and fuel on hand.",
     dbCategories: ["GENERATOR", "FUEL_LOGISTICS"],
     defaultGroupBy: "asset",
-    icon: "Fuel"
+    icon: "Fuel",
+    headline: "fuel_balance",
+    headlineLabel: "Fuel on hand"
   },
   {
     id: "ups",
@@ -80,7 +98,9 @@ export const CATEGORIES: CategoryDef[] = [
     blurb: "Uninterruptible supply, battery condition and load.",
     dbCategories: ["UPS"],
     defaultGroupBy: "asset",
-    icon: "Battery"
+    icon: "Battery",
+    headline: "used_capacity",
+    headlineLabel: "Load on UPS"
   },
   {
     id: "rectifier",
@@ -88,7 +108,9 @@ export const CATEGORIES: CategoryDef[] = [
     blurb: "DC plant, float voltage and rectifier output.",
     dbCategories: ["RECTIFIER"],
     defaultGroupBy: "asset",
-    icon: "PlugZap"
+    icon: "PlugZap",
+    headline: "used_percentage",
+    headlineLabel: "Rectifier load"
   },
   {
     id: "load",
@@ -96,7 +118,9 @@ export const CATEGORIES: CategoryDef[] = [
     blurb: "What the equipment in the racks is drawing.",
     dbCategories: ["IT_LOAD"],
     defaultGroupBy: "asset",
-    icon: "Server"
+    icon: "Server",
+    headline: null,
+    headlineLabel: "Rack draw"
   },
   {
     id: "safety",
@@ -104,7 +128,9 @@ export const CATEGORIES: CategoryDef[] = [
     blurb: "Suppression and life-safety systems.",
     dbCategories: ["FIRE_SUPPRESSION", "SAFETY"],
     defaultGroupBy: "asset",
-    icon: "ShieldCheck"
+    icon: "ShieldCheck",
+    headline: null,
+    headlineLabel: "Status"
   }
 ];
 
