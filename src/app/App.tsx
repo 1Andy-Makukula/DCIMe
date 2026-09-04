@@ -43,6 +43,7 @@ import { ThermalAnalytics } from "@/features/analytics/components/ThermalAnalyti
 import { IncidentAnalytics } from "@/features/analytics/components/IncidentAnalytics";
 import { CategoryDetail } from "@/features/analytics/components/CategoryDetail";
 import { CategoryScreen } from "@/features/analytics/components/CategoryScreen";
+import { OperationsReview } from "@/features/analytics/components/OperationsReview";
 import { FacilityOverview } from "@/features/analytics/components/FacilityOverview";
 import { RoomDetail } from "@/features/analytics/components/RoomDetail";
 import { AssetDetail } from "@/features/analytics/components/AssetDetail";
@@ -115,6 +116,9 @@ export default function App() {
               <Route index element={<Navigate to="summary" replace />} />
               <Route path="summary" element={<ExecutiveSummary />} />
               <Route path="summary/full" element={<ExecutiveSummaryDetailed />} />
+              {/* One account of a week or a month, in the same order every time. */}
+              <Route path="review" element={
+                <ErrorBoundary label="Operations Review"><OperationsReview /></ErrorBoundary>} />
               {/* The place-major axis: the site, then a room, then a machine.
                   Every other tab here is measure-major and assumes you already
                   know what you came to look at. */}

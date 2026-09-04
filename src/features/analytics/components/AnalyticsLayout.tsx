@@ -1,5 +1,5 @@
 import { NavLink, Outlet, useLocation } from "react-router";
-import { FileText, Zap, Fuel, Battery, ThermometerSnowflake, Activity, Gauge, Users, Boxes, Server, ShieldAlert } from "lucide-react";
+import { FileText, Zap, Fuel, Battery, ThermometerSnowflake, Activity, Gauge, Users, Boxes, Server, ShieldAlert, CalendarRange } from "lucide-react";
 import { DateRangePicker } from "@/shared/ui";
 import { toneOfDomain } from "@/domain/wayfinding";
 import { useDateRange } from "@/shared/utils/useDateRange";
@@ -18,6 +18,10 @@ const SUB_TABS = [
     domain: null },
   // Second deliberately: the tab somebody reaches for when they do not yet know
   // which of the subject tabs would explain what they are seeing.
+  // The period account, next to the summary it completes: the summary says
+  // where the site is now, this says what the month did.
+  { to: "/admin/analytics/review", label: "Operations Review", icon: CalendarRange,
+    domain: null },
   { to: "/admin/analytics/facility", label: "Facility", icon: Boxes,
     domain: null },
   { to: "/admin/analytics/grid", label: "Grid & Power", icon: Zap,
