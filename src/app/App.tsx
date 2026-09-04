@@ -29,6 +29,7 @@ import { AlertsLog } from "@/features/topology/components/AlertsLog";
 import { ShiftReports } from "@/features/topology/components/ShiftReports";
 import { PersonnelManagement } from "@/features/topology/components/PersonnelManagement";
 import { VendorRegister } from "@/features/topology/components/VendorRegister";
+import { VendorDetail } from "@/features/topology/components/VendorDetail";
 import { SystemHealth } from "@/features/topology/components/SystemHealth";
 import { CommissioningImport } from "@/features/topology/components/CommissioningImport";
 
@@ -106,6 +107,8 @@ export default function App() {
             <Route path="reports"    element={<ShiftReports />} />
             <Route path="personnel"  element={<PersonnelManagement />} />
             <Route path="vendors"    element={<ErrorBoundary label="Vendors"><VendorRegister /></ErrorBoundary>} />
+            <Route path="vendors/:vendorId" element={
+              <ErrorBoundary label="Vendor"><VendorDetail /></ErrorBoundary>} />
             <Route path="import"     element={<ErrorBoundary label="Import"><CommissioningImport /></ErrorBoundary>} />
             <Route path="health"     element={<ErrorBoundary label="System Health"><SystemHealth /></ErrorBoundary>} />
             <Route path="analytics" element={<AnalyticsPage />}>

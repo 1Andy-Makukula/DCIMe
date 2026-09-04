@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { Link } from "react-router";
 import {
   Loader2, AlertTriangle, RefreshCw, Plus, Building2, Check, X, Inbox, Flag, Archive, Trash2, RotateCcw } from "lucide-react";
 import { toast } from "sonner";
@@ -58,7 +59,12 @@ function VendorRow({ v, onSave, onFlag, onSetActive, onDelete }: {
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-1.5">
-            <p className="text-[13px] font-black text-neutral-900">{v.vendor_name}</p>
+            <Link
+              to={`/admin/vendors/${v.vendor_id}`}
+              className="text-[13px] font-black text-neutral-900 hover:text-brand-600 hover:underline"
+            >
+              {v.vendor_name}
+            </Link>
             {!v.is_active && (
               <span className="rounded bg-neutral-100 px-1.5 py-0.5 text-[9px] font-black uppercase tracking-wider text-neutral-500">
                 Retired
