@@ -62,18 +62,36 @@ export function useTelemetryData(
 
   useEffect(() => {
     setFormData((prev) => {
-      if (prev['fsm_mode'] === fsmMode) return prev;
+      const expectedGridStatus =
+        (fsmMode === 'OUTAGE' || fsmMode === 'ON_LOAD_TEST') ? 'OFF' : 'ON';
+      // Keyed on grid_status as well as the mode, because the two can carry
+      // forward disagreeing. The submit payload writes grid_status 'OFF'
+      // whenever activePowerSource is GENERATOR — including under fsm_mode
+      // 'NORMAL' — and the fetch then reads that 'OFF' back as GENERATOR,
+      // which writes 'OFF' again. Testing the mode alone let this effect
+      // early-return on the pair, leaving isGridOff true on mains: the submit
+      // validator below then demanded every generator reading on a NORMAL
+      // round, for fields the dashboard does not draw in NORMAL.
+      if (prev['fsm_mode'] === fsmMode && prev['grid_status'] === expectedGridStatus) {
+        return prev;
+      }
       const updated = {
         ...prev,
         fsm_mode: fsmMode,
-        grid_status: (fsmMode === 'OUTAGE' || fsmMode === 'ON_LOAD_TEST') ? 'OFF' : 'ON'
+        grid_status: expectedGridStatus
       };
       const cacheKey = getCacheKey(targetHour);
       localStorage.setItem(cacheKey, JSON.stringify(updated));
       return updated;
     });
     setActivePowerSource((fsmMode === 'OUTAGE' || fsmMode === 'ON_LOAD_TEST') ? 'GENERATOR' : 'MAINS');
-  }, [fsmMode, targetHour]);
+  // grid_status is a dependency so an ALREADY-STORED contradiction is repaired
+  // too, not just one made on screen. This effect ran on mount, before the
+  // fetch resolved; the fetch then replaced formData wholesale with the stored
+  // row, and with deps of [fsmMode, targetHour] the effect never re-ran to
+  // correct it. The guard above makes the repaired pass return prev unchanged,
+  // so React bails out and this settles rather than looping.
+  }, [fsmMode, targetHour, formData['grid_status']]);
 
   // Purge cached telemetry forms older than 48 hours to prevent localStorage bloat
   useEffect(() => {
@@ -419,7 +437,17 @@ export function useTelemetryData(
   // Exhaustive Ambient Average Math & Submission
   const handleSubmit = async (
     activeGenerators: string[] = [],
-    decommissionedIds: Set<string> = new Set()
+    decommissionedIds: Set<string> = new Set(),
+    // The visibility rule the SCREEN used. There were two of these — this
+    // hook's frequency-only filter gating submission, and the dashboard's
+    // mode-aware one drawing the form — and in NORMAL mode they disagreed:
+    // the dashboard hides every dg_* metric, this hook validated them anyway,
+    // so a round blocked on a generator field the technician was never shown
+    // and could not have edited (cumulative hours renders read-only). Taking
+    // the caller's filter makes the two the same function rather than two
+    // copies that have to be kept in step. Defaulted so the hook still stands
+    // alone, but RoutineTasksDashboard — its only consumer — passes its own.
+    isVisible?: (assetId: string, metrics: any[]) => any[]
   ) => {
     setIsSubmitting(true);
     setSubmitError(null);
@@ -491,7 +519,7 @@ export function useTelemetryData(
       // supplied — never block submission on them.
       if (decommissionedIds.has(equip.id)) continue;
 
-      const visibleMetrics = getVisibleMetrics(equip.id, equip.metrics || []);
+      const visibleMetrics = (isVisible ?? getVisibleMetrics)(equip.id, equip.metrics || []);
       for (const m of visibleMetrics) {
         if (m.type !== 'number' || m.is_constant) continue;
         const raw = formData[m.id];
@@ -506,6 +534,14 @@ export function useTelemetryData(
           }
           continue;
         }
+
+        // 'NA' is a technician saying the reading was not available — the same
+        // sentinel public.to_number_or_null() and @/domain/metrics recognise,
+        // and which thousands of stored readings already carry. It is an
+        // answer, not a typo, so there is no number here to validate. Anything
+        // else non-numeric is still refused: numOrNull would have let a real
+        // mis-key through as silently as it lets 'NA' through.
+        if (typeof raw === 'string' && raw.trim().toUpperCase() === 'NA') continue;
 
         const v = Number(raw);
         if (!Number.isFinite(v)) {

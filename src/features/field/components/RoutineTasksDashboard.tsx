@@ -155,7 +155,10 @@ export const RoutineTasksDashboard = ({
         return;
       }
     }
-    handleSubmit(activeGenerators, decommissionedIds);
+    // The same filter that drew this form, so validation can only ever ask
+    // for readings the technician was actually shown. Defined below this
+    // handler but only ever called from a click, so it is initialised by then.
+    handleSubmit(activeGenerators, decommissionedIds, getVisibleMetrics);
   };
 
   const activeSiteGenerators = allEquipment
