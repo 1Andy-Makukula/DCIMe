@@ -14,6 +14,7 @@ import { useShiftReports } from "../hooks/useShiftReports";
 import { TechUser } from "./TechLayout";
 import { useCurrentSite } from "@/shared/context/SiteContext";
 import { useShiftSession } from "@/shared/context/ShiftContext";
+import { useUnsavedWorkFlag } from "@/shared/context/UnsavedWorkContext";
 
 export function ShiftHandover() {
   const navigate = useNavigate();
@@ -30,6 +31,14 @@ export function ShiftHandover() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
   const [generatedSig, setGeneratedSig] = useState("");
+
+  // A handover is written once at the end of a long shift: the notes are the
+  // only record of what happened, and nothing here is persisted until submit.
+  // Once it IS submitted there is nothing left to lose, so the flag lifts.
+  useUnsavedWorkFlag(
+    "shift-handover",
+    !isSuccess && (notes.trim().length > 0 || signature !== null)
+  );
 
   // Real shift stats — fetched live, never hardcoded
   const [logsCompleted, setLogsCompleted] = useState<number | null>(null);

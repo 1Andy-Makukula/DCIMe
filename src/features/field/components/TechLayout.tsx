@@ -1,6 +1,7 @@
 import { useEffect } from "react";
 import { Wordmark } from "@/shared/ui";
 import { NavLink, Outlet, useNavigate } from "react-router";
+import { useUnsavedWork } from "@/shared/context/UnsavedWorkContext";
 import { Home, Activity, AlertOctagon, UserCheck, LogOut, ClipboardList, Wrench } from "lucide-react";
 import { BrandMark } from "@/shared/ui";
 import { useAuth } from "@/shared/context/AuthContext";
@@ -17,6 +18,7 @@ export function TechLayout() {
   const navigate = useNavigate();
   const { employee, logout, isLoading } = useAuth();
   const { currentSite } = useCurrentSite();
+  const { confirmLeave } = useUnsavedWork();
 
   useEffect(() => {
     if (!isLoading && !employee) {
@@ -25,6 +27,9 @@ export function TechLayout() {
   }, [employee, isLoading, navigate]);
 
   const handleLogout = async () => {
+    // Signing out drops the round as surely as navigating away does, and it
+    // is the one action nobody expects to be recoverable.
+    if (!confirmLeave()) return;
     await logout();
     navigate("/");
   };
@@ -98,7 +103,20 @@ export function TechLayout() {
       </main>
 
       {/* Fixed Bottom Navigation Bar */}
-      <nav className="fixed bottom-0 left-0 right-0 bg-white border-t border-neutral-200 h-16 flex items-center justify-around px-2 z-[var(--z-appnav)] print:hidden">
+      <nav
+        // Capture phase, and one handler for the whole bar rather than six.
+        // Link navigates from its own onClick, so a bubble-phase handler here
+        // would run too late to stop it; stopping the event on the way DOWN
+        // keeps it from reaching the anchor at all. A link added to this bar
+        // later is covered without anyone remembering to wire it up.
+        onClickCapture={(e) => {
+          if (!confirmLeave()) {
+            e.preventDefault();
+            e.stopPropagation();
+          }
+        }}
+        className="fixed bottom-0 left-0 right-0 bg-white border-t border-neutral-200 h-16 flex items-center justify-around px-2 z-[var(--z-appnav)] print:hidden"
+      >
         <NavLink
           to="/tech"
           end

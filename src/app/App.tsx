@@ -1,5 +1,6 @@
 import { useEffect } from "react";
 import { BrowserRouter, Routes, Route, Navigate, useSearchParams } from "react-router";
+import { UnsavedWorkProvider } from "@/shared/context/UnsavedWorkContext";
 import { AuthProvider } from "@/shared/context/AuthContext";
 import { SiteProvider } from "@/shared/context/SiteContext";
 import { ShiftProvider } from "@/shared/context/ShiftContext";
@@ -76,6 +77,10 @@ export default function App() {
         {/* Inside AuthProvider: a shift session belongs to a signed-in
             employee, so it can only resolve once auth has. */}
         <ShiftProvider>
+        {/* Wraps the router rather than sitting inside it: the tab-close
+            guard has to be listening before any screen mounts, and a
+            half-typed round is worth protecting on every route. */}
+        <UnsavedWorkProvider>
         <Toaster />
         <BrowserRouter>
         <Routes>
@@ -149,6 +154,7 @@ export default function App() {
           </Route>
         </Routes>
       </BrowserRouter>
+        </UnsavedWorkProvider>
         </ShiftProvider>
       </AuthProvider>
     </SiteProvider>

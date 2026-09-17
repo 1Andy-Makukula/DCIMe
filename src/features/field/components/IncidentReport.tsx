@@ -28,6 +28,7 @@ import {
   VisitTargetType
 } from "../hooks/useContractorVisits";
 import { TechUser } from "./TechLayout";
+import { useUnsavedWorkFlag } from "@/shared/context/UnsavedWorkContext";
 import { useCurrentSite } from "@/shared/context/SiteContext";
 import { supabase } from "@/shared/api/supabaseClient";
 import {
@@ -201,6 +202,24 @@ export function IncidentReport() {
   const [commentText, setCommentText] = useState("");
   const [commentType, setCommentType] = useState<"addition" | "correction">("addition");
   const [isSubmittingComment, setIsSubmittingComment] = useState(false);
+
+  // Written on the spot, next to the fault, and held only in this component
+  // until it is filed. A photo taken here cannot be taken again once the
+  // panel is closed and the room is locked. `asset` and `severity` are
+  // excluded deliberately: both are prefilled, so neither means anyone typed.
+  useUnsavedWorkFlag(
+    "incident-report",
+    !isSuccess && (
+      notes.trim().length > 0 ||
+      photo !== null ||
+      findings.length > 0 ||
+      contractorName.trim().length > 0 ||
+      contractorSig !== null ||
+      actionNotes.trim().length > 0 ||
+      actionPhoto !== null ||
+      commentText.trim().length > 0
+    )
+  );
 
 
 

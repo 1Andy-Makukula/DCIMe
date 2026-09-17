@@ -11,6 +11,7 @@ import { useTelemetryData } from '../hooks/useTelemetryData';
 import { useSiteEquipment } from '../hooks/useSiteEquipment';
 import { useTelemetryMutation } from '../hooks/useTelemetryMutation';
 import { toast } from 'sonner';
+import { useUnsavedWork, useUnsavedWorkFlag, useBackGuard } from '@/shared/context/UnsavedWorkContext';
 import { PathRenderer } from './PathRenderer';
 import { TelemetryHistoryModal } from './TelemetryHistoryModal';
 import { HistoryRecord, sortHistoryAscending, generateReportTexts } from '../utils/whatsappReportFormatter';
@@ -94,8 +95,15 @@ export const RoutineTasksDashboard = ({
     dailyTestCompletedInfo,
     // Carried-forward tracking
     carriedFields,
-    setCarriedFields
+    setCarriedFields,
+    isDirty
   } = useTelemetryData(targetHour, onComplete, onSubmitSuccess, slotDate);
+
+  const { confirmLeave } = useUnsavedWork();
+
+  // Keyed per slot: moving between hours must not carry one slot's warning
+  // onto another.
+  useUnsavedWorkFlag(`readings-round-${targetHour}`, isDirty);
 
   const { groupedEquipment, isLoading: isEquipmentLoading, error: equipmentError } = useSiteEquipment();
   const { submitTelemetryLog } = useTelemetryMutation();
@@ -268,7 +276,19 @@ export const RoutineTasksDashboard = ({
     });
   };
 
-  const handleBack = onBack || onComplete;
+  const leaveRound = onBack || onComplete;
+
+  // The back gesture. This form is not a route, so without this a swipe from
+  // the screen edge leaves /tech entirely instead of returning to the hour
+  // list — which is how a round got lost one-handed in a plant room. The
+  // guard parks a history entry for the gesture to consume, asks if there is
+  // typing to lose, and otherwise does what Back should have done all along.
+  useBackGuard(Boolean(leaveRound), () => leaveRound?.());
+
+  // The on-screen Back button asks the same question the gesture does.
+  const handleBack = leaveRound
+    ? () => { if (confirmLeave()) leaveRound(); }
+    : undefined;
 
   // Room Pagination / Focus Mode (Wizard)
   const [currentStepIndex, setCurrentStepIndex] = useState(0);

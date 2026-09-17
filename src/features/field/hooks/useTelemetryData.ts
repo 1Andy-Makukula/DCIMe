@@ -54,6 +54,11 @@ export function useTelemetryData(
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [fetchError, setFetchError] = useState<string | null>(null);
 
+  // Whether this round holds typing that has not been submitted. Drives the
+  // "are you sure" prompts; deliberately NOT set by handleToggleChange, which
+  // writes straight to the database and so has nothing pending to lose.
+  const [isDirty, setIsDirty] = useState(false);
+
   // The Grid Override Boolean
   const isGridOff = formData['grid_status'] === 'OFF' || fsmMode === 'OUTAGE' || fsmMode === 'ON_LOAD_TEST';
 
@@ -172,15 +177,25 @@ export function useTelemetryData(
 
     // Immediately reset carried fields on slot/site switch to prevent stale tags
     setCarriedFields(new Set());
+    setIsDirty(false);
 
     // Step A (Instant Load)
     const cacheKey = getCacheKey(targetHour);
     const cached = localStorage.getItem(cacheKey);
     let hasCache = false;
+    // The technician's own half-finished round, held so the two fetches below
+    // can fill in AROUND it instead of over it. Every keystroke writes here,
+    // and the entry is cleared on a successful submit — so a draft that still
+    // exists is by definition work that has not been saved anywhere else, and
+    // it is newer than anything the server can return.
+    let draft: Record<string, any> | null = null;
 
     if (cached) {
       try {
         const parsed = JSON.parse(cached);
+        draft = parsed;
+        // Restored, not yet submitted: still something to lose.
+        setIsDirty(true);
         setFormData(parsed);
         setIsLoading(false);
         hasCache = true;
@@ -255,12 +270,21 @@ export function useTelemetryData(
             });
           });
 
-          setFormData(metrics);
+          // The draft wins key by key. Without this the form showed the
+          // technician's typing for as long as the request took, then
+          // replaced it with the stored row — so coming back to a slot after
+          // an accidental swipe appeared to restore the work and then ate it
+          // a moment later. Anything the draft does not mention (a constant
+          // added since, a field another technician filled) still comes
+          // through from the server.
+          const restored = draft ? { ...metrics, ...draft } : metrics;
+
+          setFormData(restored);
           // Hour already submitted — no fields are "carried", all are confirmed
           setCarriedFields(new Set());
-          localStorage.setItem(cacheKey, JSON.stringify(metrics));
+          localStorage.setItem(cacheKey, JSON.stringify(restored));
           setIsLoading(false);
-          setActivePowerSource(metrics['fsm_mode'] === 'OUTAGE' || metrics['fsm_mode'] === 'ON_LOAD_TEST' || metrics['grid_status'] === 'OFF' ? 'GENERATOR' : 'MAINS');
+          setActivePowerSource(restored['fsm_mode'] === 'OUTAGE' || restored['fsm_mode'] === 'ON_LOAD_TEST' || restored['grid_status'] === 'OFF' ? 'GENERATOR' : 'MAINS');
           return;
         }
 
@@ -337,10 +361,14 @@ export function useTelemetryData(
           }
         });
 
-        setFormData(newFormState);
-        localStorage.setItem(cacheKey, JSON.stringify(newFormState));
+        // Same rule as the edit path: carry-forward seeds the fields the
+        // technician has not reached yet, it does not undo the ones they have.
+        const seeded = draft ? { ...newFormState, ...draft } : newFormState;
+
+        setFormData(seeded);
+        localStorage.setItem(cacheKey, JSON.stringify(seeded));
         setIsLoading(false);
-        setActivePowerSource(newFormState['fsm_mode'] === 'OUTAGE' || newFormState['fsm_mode'] === 'ON_LOAD_TEST' || newFormState['grid_status'] === 'OFF' ? 'GENERATOR' : 'MAINS');
+        setActivePowerSource(seeded['fsm_mode'] === 'OUTAGE' || seeded['fsm_mode'] === 'ON_LOAD_TEST' || seeded['grid_status'] === 'OFF' ? 'GENERATOR' : 'MAINS');
       } catch (err: any) {
         console.error('[DCIMe] Fetch telemetry error:', err);
         if (active) {
@@ -414,6 +442,7 @@ export function useTelemetryData(
 
   // The Input Handler
   const handleInputChange = (id: string, value: any) => {
+    setIsDirty(true);
     setFormData((prev) => {
       const updated = { ...prev, [id]: value };
       const cacheKey = getCacheKey(targetHour);
@@ -800,6 +829,7 @@ export function useTelemetryData(
       localStorage.removeItem(cacheKey);
       
       setCarriedFields(new Set());
+      setIsDirty(false);
       setIsSuccess(true);
       setIsSubmitting(false);
 
@@ -869,5 +899,6 @@ export function useTelemetryData(
     submitError,
     fetchError,
     getVisibleMetrics,
+    isDirty,
   };
 }
