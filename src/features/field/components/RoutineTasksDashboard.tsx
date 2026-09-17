@@ -96,10 +96,11 @@ export const RoutineTasksDashboard = ({
     // Carried-forward tracking
     carriedFields,
     setCarriedFields,
-    isDirty
+    isDirty,
+    markSaved
   } = useTelemetryData(targetHour, onComplete, onSubmitSuccess, slotDate);
 
-  const { confirmLeave } = useUnsavedWork();
+  const { confirmLeave, setDirty, suppressLeaveWarning } = useUnsavedWork();
 
   // Keyed per slot: moving between hours must not carry one slot's warning
   // onto another.
@@ -574,6 +575,27 @@ export const RoutineTasksDashboard = ({
       console.warn("Telemetry DB save warning:", err);
       toast.warning("Network warning: Log saved to local history only.");
     }
+
+    // Sharing IS saving. The readings have just gone to telemetry_logs, the
+    // report is in this device's history, and the draft cache still holds the
+    // form — so there is nothing left to warn about.
+    //
+    // This is not merely tidiness. The warning actively broke the share: the
+    // whatsapp:// navigation below fires beforeunload, the browser puts up its
+    // "Leave site?" dialog, and while that dialog is up the page is still
+    // visible — which is exactly the signal whatsappShare reads as "no app
+    // claimed the scheme". It then fell back to the web link, landing the
+    // technician on WhatsApp Web with the app installed on the same phone.
+    //
+    // Both calls are deliberate. markSaved settles React state for everything
+    // after this tap; setDirty writes the shared ref synchronously, because
+    // the navigation happens in this same tick, long before any re-render
+    // could carry the new state into the guard.
+    markSaved();
+    setDirty(`readings-round-${targetHour}`, false);
+    // And nothing else on screen may warn either. The two lines above settle
+    // this round; this covers the hand-off itself, whatever else is open.
+    suppressLeaveWarning();
 
     // On a phone this goes to the installed app via the whatsapp:// scheme; on
     // desktop it falls back to the web link. See utils/whatsappShare.ts.

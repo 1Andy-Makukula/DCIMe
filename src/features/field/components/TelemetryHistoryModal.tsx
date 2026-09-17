@@ -4,6 +4,7 @@ import { createPortal } from 'react-dom';
 import { Copy, Share2, Trash2, X, ChevronLeft, ChevronRight, Calendar, Clock } from 'lucide-react';
 import { HistoryRecord } from '../utils/whatsappReportFormatter';
 import { shareToWhatsApp } from '../utils/whatsappShare';
+import { useUnsavedWork } from '@/shared/context/UnsavedWorkContext';
 import { toast } from 'sonner';
 
 interface TelemetryHistoryModalProps {
@@ -19,6 +20,8 @@ export const TelemetryHistoryModal = ({
   onClose,
   onUpdateHistory,
 }: TelemetryHistoryModalProps) => {
+  const { suppressLeaveWarning } = useUnsavedWork();
+
   // Group records by Date
   const groupedByDate = useMemo(() => {
     const groups: Record<string, HistoryRecord[]> = {};
@@ -118,6 +121,12 @@ export const TelemetryHistoryModal = ({
                   title="Send this hour to WhatsApp"
                   onClick={() => {
                     if (currentRecord?.text) {
+                      // Re-sending an hour that is already in history saves
+                      // nothing, so the round stays dirty — but the warning
+                      // must still stand down for the hand-off, or the
+                      // browser's dialog holds this page visible and the
+                      // share falls back to WhatsApp Web.
+                      suppressLeaveWarning();
                       shareToWhatsApp(currentRecord.text);
                     }
                   }}

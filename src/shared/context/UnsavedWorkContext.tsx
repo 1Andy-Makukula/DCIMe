@@ -46,6 +46,19 @@ interface UnsavedWorkValue {
    * Returns true when the caller may proceed.
    */
   confirmLeave: (what?: string) => boolean;
+  /**
+   * Stand the warning down briefly, for a deliberate hand-off to another app.
+   *
+   * Sharing a report navigates this document to whatsapp://. That fires
+   * beforeunload, and the browser's own "Leave site?" dialog then keeps the
+   * page visible — which is precisely the signal the share util reads as "no
+   * app claimed the scheme", so it falls back to the web link and strands the
+   * technician on WhatsApp Web with the app installed on the same phone.
+   *
+   * The work is not being abandoned here; it is being sent somewhere. Use this
+   * only for that, and only around the navigation itself.
+   */
+  suppressLeaveWarning: (ms?: number) => void;
 }
 
 /**
@@ -56,7 +69,8 @@ interface UnsavedWorkValue {
 const FALLBACK: UnsavedWorkValue = {
   setDirty: () => {},
   hasUnsavedWork: () => false,
-  confirmLeave: () => true
+  confirmLeave: () => true,
+  suppressLeaveWarning: () => {}
 };
 
 const UnsavedWorkContext = createContext<UnsavedWorkValue>(FALLBACK);
@@ -69,6 +83,13 @@ export function UnsavedWorkProvider({ children }: { children: ReactNode }) {
   // need to ASK, at the moment someone tries to leave.
   const dirtyKeys = useRef<Set<string>>(new Set());
 
+  // A timestamp rather than a boolean, so a hand-off that never completes
+  // cannot leave the round permanently unguarded — the stand-down expires by
+  // itself whether or not anyone remembers to lift it.
+  const suppressedUntil = useRef(0);
+
+  const isSuppressed = () => Date.now() < suppressedUntil.current;
+
   const setDirty = useCallback((key: string, dirty: boolean) => {
     if (dirty) dirtyKeys.current.add(key);
     else dirtyKeys.current.delete(key);
@@ -76,7 +97,15 @@ export function UnsavedWorkProvider({ children }: { children: ReactNode }) {
 
   const hasUnsavedWork = useCallback(() => dirtyKeys.current.size > 0, []);
 
+  // Five seconds: long enough to cover the scheme navigation and the share
+  // util's 1.5s fallback to the web link, short enough that a tap which goes
+  // nowhere leaves the round guarded again almost immediately.
+  const suppressLeaveWarning = useCallback((ms = 5000) => {
+    suppressedUntil.current = Date.now() + ms;
+  }, []);
+
   const confirmLeave = useCallback((what = "the readings you have entered") => {
+    if (isSuppressed()) return true;
     if (dirtyKeys.current.size === 0) return true;
     return window.confirm(
       `You have not saved ${what}.\n\n` +
@@ -91,6 +120,7 @@ export function UnsavedWorkProvider({ children }: { children: ReactNode }) {
   // requires it alongside preventDefault.
   useEffect(() => {
     const onBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (isSuppressed()) return;
       if (dirtyKeys.current.size === 0) return;
       e.preventDefault();
       e.returnValue = "";
@@ -100,7 +130,9 @@ export function UnsavedWorkProvider({ children }: { children: ReactNode }) {
   }, []);
 
   return (
-    <UnsavedWorkContext.Provider value={{ setDirty, hasUnsavedWork, confirmLeave }}>
+    <UnsavedWorkContext.Provider
+      value={{ setDirty, hasUnsavedWork, confirmLeave, suppressLeaveWarning }}
+    >
       {children}
     </UnsavedWorkContext.Provider>
   );

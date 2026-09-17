@@ -900,5 +900,12 @@ export function useTelemetryData(
     fetchError,
     getVisibleMetrics,
     isDirty,
+    /**
+     * The round has been written somewhere durable by a path other than
+     * handleSubmit — today that means Share & Save, which writes the readings
+     * to telemetry_logs and the report to this device's history before handing
+     * off to WhatsApp. Nothing is pending after that, so nothing should warn.
+     */
+    markSaved: () => setIsDirty(false),
   };
 }

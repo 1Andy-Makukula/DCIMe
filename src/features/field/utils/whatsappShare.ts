@@ -62,16 +62,32 @@ export const shareToWhatsApp = (text: string, preOpenedWindow?: Window | null) =
   // page is still visible a moment later — that is the signal to fall back to
   // the web link rather than losing the share entirely. When the app *does*
   // open, the page is backgrounded, so the fallback stands down.
+  //
+  // Three signals rather than one, because the cost of missing the switch is
+  // landing a technician on WhatsApp Web while the app is open on the same
+  // phone. Android fires blur when the app switcher takes over without always
+  // flipping document.hidden first, and pagehide covers the browsers that
+  // freeze the page outright. Within the window below, any of them means the
+  // handoff worked.
   let switchedAway = false;
+  const noteSwitch = () => { switchedAway = true; };
   const onVisibilityChange = () => {
     if (document.hidden) switchedAway = true;
   };
   document.addEventListener('visibilitychange', onVisibilityChange);
+  window.addEventListener('pagehide', noteSwitch);
+  window.addEventListener('blur', noteSwitch);
+
+  const stopListening = () => {
+    document.removeEventListener('visibilitychange', onVisibilityChange);
+    window.removeEventListener('pagehide', noteSwitch);
+    window.removeEventListener('blur', noteSwitch);
+  };
 
   window.location.href = WA_APP(encoded);
 
   window.setTimeout(() => {
-    document.removeEventListener('visibilitychange', onVisibilityChange);
+    stopListening();
     if (!switchedAway && !document.hidden) {
       window.location.href = webUrl;
     }
