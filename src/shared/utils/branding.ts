@@ -84,6 +84,37 @@ export function siteLabel(
   return matched ? matched.label : trimmed;
 }
 
+/**
+ * Site labels as they appear on a report SHARED OUT of the application.
+ *
+ * A shared report is read by people outside the product, who know a site by
+ * the operator designation on the asset, not by the generic label the screens
+ * use. This map is consulted only on that path: every screen, every workbook
+ * export and the stored history record keep SITE_LABELS, so a site is still
+ * "Site 1" everywhere inside the product and in anything the product keeps.
+ *
+ * A site with no entry here shares under its ordinary label.
+ */
+export const SITE_SHARE_LABELS: Record<string, string> = {
+  SITE_01: "NTC ZM0874"
+};
+
+/**
+ * The label to put on a report leaving the application.
+ *
+ * Takes the same inputs siteLabel does — a site_code, a stored site_name or
+ * legacy free text — and resolves through it first, so the override is keyed
+ * on one settled label rather than on every spelling that could produce it.
+ */
+export function siteShareLabel(
+  value?: string | null,
+  fallback: string = DEFAULT_SITE_LABEL
+): string {
+  const generic = siteLabel(value, fallback);
+  const code = Object.keys(SITE_LABELS).find(c => SITE_LABELS[c] === generic);
+  return (code && SITE_SHARE_LABELS[code]) || generic;
+}
+
 /** Filesystem-safe variant for export filenames ("Site 1" -> "Site_1"). */
 export function siteFileLabel(value?: string | null): string {
   return siteLabel(value).replace(/\s+/g, "_");

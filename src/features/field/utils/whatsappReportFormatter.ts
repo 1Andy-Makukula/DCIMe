@@ -1,5 +1,5 @@
 // src/features/field/utils/whatsappReportFormatter.ts
-import { siteLabel } from "@/shared/utils/branding";
+import { siteLabel, siteShareLabel } from "@/shared/utils/branding";
 import { UTILITY_MAINS_LABEL } from "@/shared/utils/branding";
 import { DEFAULT_SITE_CODE } from "@/config/sites";
 
@@ -258,7 +258,14 @@ export const generateReportTexts = ({
     ? siteLabel(siteCode)
     : siteLabel(currentSiteName || siteCode);
 
-  const prefixWA = `*${headerLabel}*
+  // The shared copy carries the operator designation; the internal copy below
+  // keeps the generic label, because it is filed in this device's history
+  // rather than sent to anyone.
+  const shareLabel = siteCode === DEFAULT_SITE_CODE
+    ? siteShareLabel(siteCode)
+    : siteShareLabel(currentSiteName || siteCode);
+
+  const prefixWA = `*${shareLabel}*
 *${firstName.toUpperCase()} ON DUTY*
 *TIME: ${waShareTime}hrs*`;
 
